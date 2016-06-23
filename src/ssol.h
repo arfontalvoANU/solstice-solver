@@ -318,7 +318,7 @@ ssol_object_instance_ref_put
 SSOL_API res_T
 ssol_object_instance_set_transform
   (struct ssol_object_instance* instance,
-   const float transform[]); /* 3x4 column major matrix */
+   const double transform[]); /* 3x4 column major matrix */
 
 /* Rely on the parametrisation of the object instance */
 SSOL_API res_T
