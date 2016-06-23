@@ -57,7 +57,12 @@ struct ssol_sun;
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
-  SSOL_QUADRIC_HYPERBOL
+  SSOL_QUADRIC_PARABOLIC_CYLINDER
+};
+
+enum ssol_carving_type {
+  SSOL_CARVING_CIRCLE,
+  SSOL_CARVING_POLYGON
 };
 
 /* Attribute of a shape */
@@ -84,21 +89,54 @@ struct ssol_vertex_data {
 static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
   SSOL_VERTEX_DATA_NULL__;
 
-struct ssol_quadric_plane {/* TODO */};
-struct ssol_quadric_parabol {/* TODO */};
-struct ssol_quadric_hyperbol {/* TODO */};
+/* the following quadric definitions are in local coordinate system */
+struct ssol_quadric_plane {
+  char unused; /* define z = 0 */
+};
+struct ssol_quadric_parabol {
+  double focal; /* define x² + y² - 4 focal z = 0 */
+};
+
+struct ssol_quadric_parabolic_cylinder {
+  double focal; /* define y² - 4 focal z = 0 */
+};
 
 struct ssol_quadric {
   enum ssol_quadric_type type;
   union {
     struct ssol_quadric_plane plane;
     struct ssol_quadric_parabol parabol;
-    struct ssol_quadric_hyperbol hyperbol;
+    struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
   } data;
 };
 
 /* Material descriptors */
 struct ssol_miror_desc {/* TODO */};
+
+struct ssol_carving_circle circle {
+  double radius;
+};
+
+struct ssol_carving_polygon polygon {
+  double* twoD_vertice;
+  size_t nb_vertice;
+};
+    
+struct ssol_carving {
+  enum ssol_carving_type type;
+  union {
+    struct ssol_carving_circle circle;
+    struct ssol_carving_polygon polygon;
+  } data;
+  double twoD_offset[2];
+  char internal;
+};
+
+struct ssol_punched_surface {
+  struct ssol_quadric quadric;
+  struct ssol_carving* carvings;
+  size_t nb_carvings;
+};
 
 /*
  * All the ssol structures are ref counted. Once created with the appropriated
@@ -179,7 +217,7 @@ ssol_shape_create_mesh
    struct ssol_shape** shape);
 
 SSOL_API res_T
-ssol_shape_create_quadric
+ssol_shape_create_punched_surface
   (struct ssol_device* dev,
    struct ssol_shape** shape);
 
@@ -191,12 +229,11 @@ SSOL_API res_T
 ssol_shape_ref_put
   (struct ssol_shape* shape);
 
-/* Define a shape from a local space quadric z = f(x, y) (i.e. no translation &
- * no orientation) */
+/* Define a punched surface in local space, i.e. no translation & no orientation */
 SSOL_API res_T
-ssol_quadric_setup
+ssol_punched_surface_setup
   (struct ssol_shape* shape,
-   const struct ssol_quadric* quadric);
+   const struct ssol_punched_surface* punched_surface);
 
 /* Define a shape from an indexed triangular mesh */
 SSOL_API res_T
