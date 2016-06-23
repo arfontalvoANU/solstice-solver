@@ -6,6 +6,7 @@ tmp
 [Bb]uild*
 *.sw[po]
 *.[ao]
+*.orig
 *~
 tags
 
