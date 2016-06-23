@@ -36,13 +36,15 @@
   #define SSOL(Func) ssol_ ## Func
 #endif
 
+/* Syntactic sugar used to inform the Solstice Solver library that it can use
+ * as many threads as CPU cores */
 #define SSOL_NTHREADS_DEFAULT (~0u)
 
 /* Forward declaration of external types */
 struct logger;
 struct mem_allocator;
 
-/* Opaque types */
+/* Opaque Solstice solver types */
 struct ssol_device;
 struct ssol_material;
 struct ssol_object;
@@ -58,15 +60,23 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_HYPERBOL
 };
 
+/* Attribute of a shape */
 enum ssol_attrib_usage {
-  SSOL_POSITION,
-  SSOL_NORMAL,
+  SSOL_POSITION, /* Shape space 3D position  */
+  SSOL_NORMAL, /* Shape space 3D vertex normal */
+  SSOL_TEXCOORD, /* 2D texture coordinates */
   SSOL_ATTRIBS_COUNT__
 };
 
+/* Describe a vertex data */
 struct ssol_vertex_data {
-  enum ssol_attrib_usage usage;
-  void (*get)(const unsigned ivert, float value[3], void* ctx);
+  enum ssol_attrib_usage usage; /* Semantic of the data */
+  void (*get) /* Retrieve the client side data for the vertex `ivert' */
+    (const unsigned ivert, /* Index of the vertex */
+     /* Value of the retrieved data. Its dimension must follow the
+      * the dimension of the `usage' argument. */
+     float value[],
+     void* ctx); /* Pointer toward user data */
 };
 
 /* Invalid vertex data */
@@ -87,12 +97,23 @@ struct ssol_quadric {
   } data;
 };
 
+/* Material descriptors */
 struct ssol_miror_desc {/* TODO */};
+
+/*
+ * All the ssol structures are ref counted. Once created with the appropriated
+ * `ssol_<TYPE>_create' function, the caller implicitly owns the created data,
+ * i.e. its reference counter is set to 1. The ssol_<TYPE>_ref_<get|put>
+ * functions get or release a reference on the data, i.e. they increment or
+ * decrement the reference counter, respectively. When this counter reach 0 the
+ * data structure is silently destroyed and cannot be used anymore.
+ */
 
 BEGIN_DECLS
 
 /*******************************************************************************
- * Solstice device API
+ * Device API - Main entry point of the Solstice Solver library. Applications
+ * use the ssol_device to create others Solstice Solver resources.
  ******************************************************************************/
 SSOL_API res_T
 ssol_device_create
@@ -111,115 +132,9 @@ ssol_device_ref_put
   (struct sht_device* dev);
 
 /*******************************************************************************
- * Shape API
- ******************************************************************************/
-SSOL_API res_T
-ssol_shape_create_mesh
-  (struct ssol_device* dev,
-   struct ssol_shape** shape);
-
-SSOL_API res_T
-ssol_shape_create_quadric
-  (struct ssol_device* dev,
-   struct ssol_shape** shape);
-
-SSOL_API res_T
-ssol_shape_ref_get
-  (struct ssol_shape* shape);
-
-SSOL_API res_T
-ssol_shape_ref_put
-  (struct ssol_shape* shape);
-
-/* Define a quadric in local space, i.e. no translation & no orientation.
- * z = f(x, y) */
-SSOL_API res_T
-ssol_quadric_setup
-  (struct ssol_shape* shape,
-   const struct ssol_quadric* quadric);
-
-SSOL_API res_T
-ssol_mesh_setup
-  (struct ssol_shape* shape,
-   const unsigned ntris, /* #triangles */
-   void (*get_indices)(const unsigned itri, unsigned ids[3], void* ctx),
-   const unsigned nverts, /* #vertices */
-   /* List of the shape vertex data. Must have at least an attrib with the
-    * SSOL_POSITION usage. */
-   const struct ssol_vertex_data attribs[],
-   const unsigned nattribs,
-   void* data);
-
-/*******************************************************************************
- * Material API
- ******************************************************************************/
-SSOL_API res_T
-ssol_material_create
-  (struct ssol_device* dev,
-   struct ssol_material* mtl);
-
-SSOL_API res_T
-ssol_material_ref_get
-  (struct ssol_material* mtl);
-
-SSOL_API res_T
-ssol_material_ref_put
-  (struct ssol_material* mtl);
-
-SSOL_API res_T
-ssol_miror_setup
-  (struct ssol_material* mtl,
-   const struct ssol_miror_desc* desc);
-
-/*******************************************************************************
- * Object API
- ******************************************************************************/
-SSOL_API res_T
-ssol_object_create
-  (struct ssol_device* dev,
-   struct ssol_object** obj);
-
-SSOL_API res_T
-ssol_object_ref_get
-  (struct ssol_object* obj);
-
-SSOL_API res_T
-ssol_object_ref_put
-  (struct ssol_object* obj);
-
-SSOL_API res_T
-ssol_object_set_shape
-  (struct ssol_object* obj,
-   struct ssol_shape* shape);
-
-SSOL_API res_T
-ssol_object_set_material
-  (struct ssol_object* obj,
-   struct ssol_material* mtl);
-
-/*******************************************************************************
- * Object Instance API
- ******************************************************************************/
-SSOL_API res_T
-ssol_object_instantiate
-  (struct ssol_object* object,
-   struct ssol_object_instance** instance);
-
-SSOL_API res_T
-ssol_object_instance_ref_get
-  (struct ssol_object_instance* instance);
-
-SSOL_API res_T
-ssol_object_instance_ref_put
-  (struct ssol_object_instance* intance);
-
-SSOL_API res_T
-ssol_object_instance_set_transform
-  (struct ssol_object_instance* instance,
-   const float transform[]); /* 3x4 column major matrix */
-
-/*******************************************************************************
- * Scene API
+ * Scene API - Opaque abstraction of the virtual environment. It contains a
+ * list of instantiated objects, handle a collection of light sources and
+ * describes the environment medium properties.
  ******************************************************************************/
 SSOL_API res_T
 ssol_scene_create
@@ -255,7 +170,127 @@ ssol_scene_detach_sun
    struct ssol_sun* sun);
 
 /*******************************************************************************
- * Spectrum API
+ * Shape API - Define a geometry that can be generated from a quadric equation
+ * or from a triangular mesh.
+ ******************************************************************************/
+SSOL_API res_T
+ssol_shape_create_mesh
+  (struct ssol_device* dev,
+   struct ssol_shape** shape);
+
+SSOL_API res_T
+ssol_shape_create_quadric
+  (struct ssol_device* dev,
+   struct ssol_shape** shape);
+
+SSOL_API res_T
+ssol_shape_ref_get
+  (struct ssol_shape* shape);
+
+SSOL_API res_T
+ssol_shape_ref_put
+  (struct ssol_shape* shape);
+
+/* Define a shape from a local space quadric z = f(x, y) (i.e. no translation &
+ * no orientation) */
+SSOL_API res_T
+ssol_quadric_setup
+  (struct ssol_shape* shape,
+   const struct ssol_quadric* quadric);
+
+/* Define a shape from an indexed triangular mesh */
+SSOL_API res_T
+ssol_mesh_setup
+  (struct ssol_shape* shape,
+   const unsigned ntris, /* #triangles */
+   void (*get_indices)(const unsigned itri, unsigned ids[3], void* ctx),
+   const unsigned nverts, /* #vertices */
+   /* List of the shape vertex data. Must have at least an attrib with the
+    * SSOL_POSITION usage. */
+   const struct ssol_vertex_data attribs[],
+   const unsigned nattribs,
+   void* data);
+
+/*******************************************************************************
+ * Material API - Define the surfacic (e.g.: BRDF) as well as the volumic
+ * (e.g.: refractive index) properties of a geometry.
+ ******************************************************************************/
+SSOL_API res_T
+ssol_material_create
+  (struct ssol_device* dev,
+   struct ssol_material* mtl);
+
+SSOL_API res_T
+ssol_material_ref_get
+  (struct ssol_material* mtl);
+
+SSOL_API res_T
+ssol_material_ref_put
+  (struct ssol_material* mtl);
+
+SSOL_API res_T
+ssol_miror_setup
+  (struct ssol_material* mtl,
+   const struct ssol_miror_desc* desc);
+
+/*******************************************************************************
+ * Object API - Opaque abstraction of a geometry with its associated properties.
+ ******************************************************************************/
+SSOL_API res_T
+ssol_object_create
+  (struct ssol_device* dev,
+   struct ssol_object** obj);
+
+SSOL_API res_T
+ssol_object_ref_get
+  (struct ssol_object* obj);
+
+SSOL_API res_T
+ssol_object_ref_put
+  (struct ssol_object* obj);
+
+SSOL_API res_T /* Geometric shape of the object */
+ssol_object_set_shape
+  (struct ssol_object* obj,
+   struct ssol_shape* shape);
+
+SSOL_API res_T /* Properties of the object */
+ssol_object_set_material
+  (struct ssol_object* obj,
+   struct ssol_material* mtl);
+
+/*******************************************************************************
+ * Object Instance API - Clone of an object with a set of per instance data as
+ * world transformation, material parameters, etc. Note that the object
+ * resources (i.e. the material and the shape) are only stored once even though
+ * they are instantiated several times.
+ ******************************************************************************/
+SSOL_API res_T
+ssol_object_instantiate
+  (struct ssol_object* object,
+   struct ssol_object_instance** instance);
+
+SSOL_API res_T
+ssol_object_instance_ref_get
+  (struct ssol_object_instance* instance);
+
+SSOL_API res_T
+ssol_object_instance_ref_put
+  (struct ssol_object_instance* intance);
+
+SSOL_API res_T
+ssol_object_instance_set_transform
+  (struct ssol_object_instance* instance,
+   const float transform[]); /* 3x4 column major matrix */
+
+/* Rely on the parametrisation of the object instance */
+SSOL_API res_T
+ssol_object_instance_set_receiver_map
+  (struct ssol_object_instance* instance,
+   const size_t width, const size_t height); /* Map definition */
+
+/*******************************************************************************
+ * Spectrum API - Collection of wavelength with its associated data.
  ******************************************************************************/
 SSOL_API res_T
 ssol_spectrum_create
@@ -274,22 +309,27 @@ SSOL_API res_T
 ssol_spectrum_setup
   (struct ssol_spectrum* spectrum,
    const double* wavelenghts,
-   const double* power, /* FIXME rename ? */
+   const double* data, /* Per wavelength data */
    const size_t nwavelength);
 
 /*******************************************************************************
- * Sun API
+ * Sun API - Describe a sun model.
  ******************************************************************************/
+/* The sun disk is infinitesimal small. The sun is thus only represented by its
+ * main direction */
 SSOL_API res_T
 ssol_sun_create_directionnal
   (struct ssol_device* dev,
    struct ssol_sun** sun);
 
+/* The sun disk has a constant intensity */
 SSOL_API res_T
 ssol_sun_create_pillbox
   (struct ssol_device* dev,
    struct ssol_sun** sun);
 
+/* The sun disk intensity is controlled by a circumsolar ratio.
+ * TODO add a reference */
 SSOL_API res_T
 ssol_sun_create_circumsolar_ratio
   (struct ssol_device* dev,
@@ -303,11 +343,13 @@ SSOL_API res_T
 ssol_sun_ref_put
   (struct ssol_sun* sun);
 
+/* Main sun direction, i.e. direction from the sun center toward the scene */
 SSOL_API res_T
 ssol_sun_set_direction
   (struct ssol_sun* sun,
    const double direction[3];
 
+/* List of per wavelength power of the sun */
 SSOL_API res_T
 ssol_sun_set_spectrum
   (struct ssol_sun* sun,
