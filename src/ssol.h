@@ -27,8 +27,8 @@
   #define SSOL_API extern IMPORT_SYM
 #endif
 
-/* Helper macro that asserts if the invocation of the sht function `Func'
- * returns an error. One should use this macro on sht function calls for which
+/* Helper macro that asserts if the invocation of the Solstice function `Func'
+ * returns an error. One should use this macro on Solstice function calls for which
  * no explicit error checking is performed */
 #ifndef NDEBUG
   #define SSOL(Func) ASSERT(ssol_ ## Func == RES_OK)
@@ -111,13 +111,13 @@ struct ssol_quadric {
 };
 
 /* Material descriptors */
-struct ssol_miror_desc {/* TODO */};
+struct ssol_miror_desc { char TODO; };
 
-struct ssol_carving_circle circle {
+struct ssol_carving_circle {
   double radius;
 };
 
-struct ssol_carving_polygon polygon {
+struct ssol_carving_polygon {
   double* twoD_vertice;
   size_t nb_vertice;
 };
@@ -161,13 +161,13 @@ ssol_device_create
    const int verbose, /* Make the library more verbose */
    struct ssol_device** dev);
 
-SHT_API res_T
+SSOL_API res_T
 ssol_device_ref_get
-  (struct sht_device* dev);
+  (struct ssol_device* dev);
 
-SHT_API res_T
+SSOL_API res_T
 ssol_device_ref_put
-  (struct sht_device* dev);
+  (struct ssol_device* dev);
 
 /*******************************************************************************
  * Scene API - Opaque abstraction of the virtual environment. It contains a
@@ -384,7 +384,7 @@ ssol_sun_ref_put
 SSOL_API res_T
 ssol_sun_set_direction
   (struct ssol_sun* sun,
-   const double direction[3];
+   const double direction[3]);
 
 /* List of per wavelength power of the sun */
 SSOL_API res_T
