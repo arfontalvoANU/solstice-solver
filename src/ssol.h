@@ -121,11 +121,11 @@ struct ssol_quadric {
   } data;
 };
 
-struct ssol_carving_circle circle {
+struct ssol_carving_circle {
   double radius;
 };
 
-struct ssol_carving_polygon polygon {
+struct ssol_carving_polygon {
   void (*get) /* Retrieve the 2D coordinates of the vertex `ivert' */
     (const size_t ivert, double position[2], void* ctx);
   size_t nb_vertices; /* #vertices */
@@ -149,7 +149,9 @@ struct ssol_punched_surface {
 };
 
 /* Material descriptors */
-struct ssol_miror_desc {/* TODO */};
+struct ssol_miror_desc {
+  char dummy; /* TODO */
+};
 
 /*
  * All the ssol structures are ref counted. Once created with the appropriated
@@ -187,23 +189,23 @@ ssol_device_ref_put
  ******************************************************************************/
 SSOL_API res_T
 ssol_image_create
-  (struct s2d_device* dev,
-   struct s2d_image** image);
+  (struct ssol_device* dev,
+   struct ssol_image** image);
 
 SSOL_API res_T
 ssol_image_ref_get
-  (struct s2d_image* image);
+  (struct ssol_image* image);
 
 SSOL_API res_T
 ssol_image_ref_put
-  (struct s2d_image* image);
+  (struct ssol_image* image);
 
 SSOL_API res_T
 ssol_image_setup
-  (struct s2d_image* image,
+  (struct ssol_image* image,
    const size_t width,
    const size_t height,
-   const enum s2d_pixel_format format);
+   const enum ssol_pixel_format format);
 
 /*******************************************************************************
  * Scene API - Opaque abstraction of the virtual environment. It contains a
