@@ -48,6 +48,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
   ssol_device.c
+  ssol_quadric.c
   ssol_shape.c)
   
 set(SSOL_FILES_INC_API
@@ -55,6 +56,7 @@ set(SSOL_FILES_INC_API
 
 set(SSOL_FILES_INC
   ssol_device_c.h
+  ssol_quadric_c.h
   ssol_shape_c.h)
   
 set(SSOL_FILES_DOC COPYING README.md)

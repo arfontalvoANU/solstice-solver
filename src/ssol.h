@@ -51,6 +51,7 @@ struct ssol_material;
 struct ssol_object;
 struct ssol_object_instance;
 struct ssol_scene;
+struct ssol_quadric;
 struct ssol_shape;
 struct ssol_spectrum;
 struct ssol_sun;
@@ -63,12 +64,6 @@ enum ssol_pixel_format {
 enum ssol_parametrization_type {
   SSOL_PARAMETRIZATION_TEXCOORD, /* Map from 3D to 2D with texcoord */
   SSOL_PARAMETRIZATION_PRIMITIVE_ID /* Map from 3D to 1D with primitive id */
-};
-
-enum ssol_quadric_type {
-  SSOL_QUADRIC_PLANE,
-  SSOL_QUADRIC_PARABOL,
-  SSOL_QUADRIC_PARABOLIC_CYLINDER
 };
 
 enum ssol_carving_type {
@@ -108,27 +103,6 @@ struct ssol_image_layout {
 static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
   SSOL_VERTEX_DATA_NULL__;
 
-/* The following quadric definitions are in local coordinate system. */
-struct ssol_quadric_plane {
-  char unused; /* Define z = 0 */
-};
-struct ssol_quadric_parabol {
-  double focal; /* Define x^2 + y^2 - 4 focal z = 0 */
-};
-
-struct ssol_quadric_parabolic_cylinder {
-  double focal; /* Define y^2 - 4 focal z = 0 */
-};
-
-struct ssol_quadric {
-  enum ssol_quadric_type type;
-  union {
-    struct ssol_quadric_plane plane;
-    struct ssol_quadric_parabol parabol;
-    struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
-  } data;
-};
-
 struct ssol_carving_circle {
   double radius;
 };
@@ -151,7 +125,7 @@ struct ssol_carving {
 };
 
 struct ssol_punched_surface {
-  struct ssol_quadric quadric;
+  struct ssol_quadric* quadric;
   struct ssol_carving* carvings;
   size_t nb_carvings;
 };
@@ -307,6 +281,46 @@ ssol_mesh_setup
    const struct ssol_vertex_data attribs[],
    const unsigned nattribs,
    void* data);
+
+/*******************************************************************************
+* Quadric API - Define an equation that can be used to define a punched surface
+******************************************************************************/
+
+/* Define z = 0 in local space; no further setting available */
+SSOL_API res_T
+ssol_quadric_plane
+  (struct ssol_device* dev,
+   struct ssol_quadric** plane);
+
+SSOL_API res_T
+ssol_quadric_parabol
+  (struct ssol_device* dev,
+   struct ssol_quadric** parabol);
+
+SSOL_API res_T
+ssol_quadric_parabolic_cylinder
+  (struct ssol_device* dev,
+   struct ssol_quadric** parabolic_cylinder);
+
+/* Define x^2 + y^2 - 4 focal z = 0 in local space */
+SSOL_API res_T
+ssol_quadric_parabol_set_focal
+  (struct ssol_quadric* parabol,
+   double focal);
+
+/* Define y^2 - 4 focal z = 0 in local space */
+SSOL_API res_T
+ssol_quadric_parabolic_cylinder_set_focal
+  (struct ssol_quadric* parabolic_cylinder,
+   double focal);
+
+SSOL_API res_T
+ssol_quadric_ref_get
+  (struct ssol_quadric* quadric);
+
+SSOL_API res_T
+ssol_quadric_ref_put
+  (struct ssol_quadric* quadric);
 
 /*******************************************************************************
  * Material API - Define the surfacic (e.g.: BRDF) as well as the volumic
