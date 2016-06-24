@@ -63,7 +63,7 @@ ssol_device_create
   dev->verbose = verbose;
   
   res = s3d_device_create(logger, mem_allocator, verbose, &dev->s3d);
-  if (RES_OK != res)
+  if (res != RES_OK)
     goto error;
 
   ref_init(&dev->ref);
