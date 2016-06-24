@@ -60,6 +60,11 @@ enum ssol_pixel_format {
   SSOL_PIXEL_FORMAT_COUNT__
 };
 
+enum ssol_parametrization_type {
+  SSOL_PARAMETRIZATION_TEXCOORD, /* Map from 3D to 2D with texcoord */
+  SSOL_PARAMETRIZATION_PRIMITIVE_ID /* Map from 3D to 1D with primitive id */
+};
+
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
@@ -349,14 +354,14 @@ ssol_object_instance_set_transform
   (struct ssol_object_instance* instance,
    const double transform[]); /* 3x4 column major matrix */
 
-/* Rely on the parametrisation of the object instance */
 SSOL_API res_T
-ssol_object_instance_set_receiver_map
+ssol_object_instance_set_receiver_image
   (struct ssol_object_instance* instance,
-   const size_t width, const size_t height); /* Map definition */
+   struct ssol_image* image,
+   const enum ssol_parametrization_type type);
 
 /*******************************************************************************
- * Spectrum API - Collection of wavelength with its associated data.
+ * Spectrum API - Collection of wavelengths with their associated data.
  ******************************************************************************/
 SSOL_API res_T
 ssol_spectrum_create
