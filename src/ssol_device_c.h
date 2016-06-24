@@ -17,12 +17,15 @@
 #define SSOL_DEVICE_C_H
 
 #include <rsys/ref_count.h>
+#include <star/s3d.h>
 
 struct ssol_device {
   struct logger* logger;
   struct mem_allocator* allocator;
   const unsigned nthreads_hint;
   int verbose;
+
+  struct s3d_device* s3d;
 
   ref_T ref;
 };
