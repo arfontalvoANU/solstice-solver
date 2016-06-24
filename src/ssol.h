@@ -46,6 +46,7 @@ struct mem_allocator;
 
 /* Opaque Solstice solver types */
 struct ssol_device;
+struct ssol_image;
 struct ssol_material;
 struct ssol_object;
 struct ssol_object_instance;
@@ -53,6 +54,11 @@ struct ssol_scene;
 struct ssol_shape;
 struct ssol_spectrum;
 struct ssol_sun;
+
+enum ssol_pixel_format {
+  SSOL_PIXEL_DOUBLE3,
+  SSOL_PIXEL_FORMAT_COUNT__
+};
 
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
@@ -89,16 +95,16 @@ struct ssol_vertex_data {
 static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
   SSOL_VERTEX_DATA_NULL__;
 
-/* the following quadric definitions are in local coordinate system */
+/* The following quadric definitions are in local coordinate system. */
 struct ssol_quadric_plane {
-  char unused; /* define z = 0 */
+  char unused; /* Define z = 0 */
 };
 struct ssol_quadric_parabol {
-  double focal; /* define x² + y² - 4 focal z = 0 */
+  double focal; /* Define x^2 + y^2 - 4 focal z = 0 */
 };
 
 struct ssol_quadric_parabolic_cylinder {
-  double focal; /* define y² - 4 focal z = 0 */
+  double focal; /* Define y^2 - 4 focal z = 0 */
 };
 
 struct ssol_quadric {
@@ -168,6 +174,29 @@ ssol_device_ref_get
 SHT_API res_T
 ssol_device_ref_put
   (struct sht_device* dev);
+
+/*******************************************************************************
+ * Image API
+ ******************************************************************************/
+SSOL_API res_T
+ssol_image_create
+  (struct s2d_device* dev,
+   struct s2d_image** image);
+
+SSOL_API res_T
+ssol_image_ref_get
+  (struct s2d_image* image);
+
+SSOL_API res_T
+ssol_image_ref_put
+  (struct s2d_image* image);
+
+SSOL_API res_T
+ssol_image_setup
+  (struct s2d_image* image,
+   const size_t width,
+   const size_t height,
+   const enum s2d_pixel_format format);
 
 /*******************************************************************************
  * Scene API - Opaque abstraction of the virtual environment. It contains a
