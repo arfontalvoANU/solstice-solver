@@ -47,13 +47,15 @@ set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
-  ssol_device.c)
+  ssol_device.c
+  ssol_shape.c)
   
 set(SSOL_FILES_INC_API
   ssol.h)
 
 set(SSOL_FILES_INC
-  ssol_device_c.h)
+  ssol_device_c.h
+  ssol_shape_c.h)
   
 set(SSOL_FILES_DOC COPYING README.md)
 
@@ -101,8 +103,9 @@ if(NOT NO_TEST)
     build_test(${_name} ${ARGN})
     register_test(${_name} ${_name})
   endfunction()
-
+  
   new_test(test_ssol_device)
+  new_test(test_ssol_shape)
 endif(NOT NO_TEST)
 
 ################################################################################
