@@ -95,6 +95,14 @@ struct ssol_vertex_data {
      void* ctx); /* Pointer toward user data */
 };
 
+struct ssol_image_layout {
+  size_t row_pitch; /* #bytes between 2 consecutive row */
+  size_t offset; /* Byte offset where the image begins */
+  size_t size; /* Overall size of the image buffer */
+  size_t width, height; /* #pixels in X and Y */
+  enum ssol_pixel_format pixel_format; /* Format of a pixel */
+};
+
 /* Invalid vertex data */
 #define SSOL_VERTEX_DATA_NULL__ { SSOL_ATTRIBS_COUNT__, NULL }
 static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
@@ -206,6 +214,20 @@ ssol_image_setup
    const size_t width,
    const size_t height,
    const enum ssol_pixel_format format);
+
+SSOL_API res_T
+ssol_image_get_layout
+  (const struct ssol_image* image,
+   struct ssol_image_layout* layout);
+
+SSOL_API res_T
+ssol_image_map
+  (const struct ssol_image* image,
+   void** memory);
+
+SSOL_API res_T
+ssol_image_unmap
+  (const struct ssol_image* image);
 
 /*******************************************************************************
  * Scene API - Opaque abstraction of the virtual environment. It contains a

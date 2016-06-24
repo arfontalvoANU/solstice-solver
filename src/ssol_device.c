@@ -28,7 +28,6 @@ device_release(ref_T* ref)
   struct ssol_device* dev;
   ASSERT(ref);
   dev = CONTAINER_OF(ref, struct ssol_device, ref);
-  
   MEM_RM(dev->allocator, dev);
 }
 

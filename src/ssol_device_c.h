@@ -17,7 +17,6 @@
 #define SSOL_DEVICE_C_H
 
 #include <rsys/ref_count.h>
-#include <rsys/free_list.h>
 
 struct ssol_device {
   struct logger* logger;
