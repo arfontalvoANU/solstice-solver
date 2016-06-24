@@ -25,6 +25,7 @@ option(NO_TEST "Do not build tests" OFF)
 ################################################################################
 find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.3 REQUIRED)
+find_package(Star3D 0.3 REQUIRED)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${RCMAKE_SOURCE_DIR})
 include(rcmake)
@@ -32,6 +33,7 @@ include(rcmake_runtime)
 
 include_directories(
   ${RSys_INCLUDE_DIR}
+  ${Star3D_INCLUDE_DIR}
   )
 
 rcmake_append_runtime_dirs(_runtime_dirs RSys)
@@ -62,7 +64,7 @@ rcmake_prepend_path(SSOL_FILES_INC_API ${SSOL_SOURCE_DIR})
 rcmake_prepend_path(SSOL_FILES_DOC ${PROJECT_SOURCE_DIR}/../)
 
 add_library(solstice-solver SHARED ${SSOL_FILES_SRC} ${SSOL_FILES_INC} ${SSOL_FILES_INC_API})
-target_link_libraries(solstice-solver RSys)
+target_link_libraries(solstice-solver RSys Star3D)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_link_libraries(solstice-solver m)
@@ -83,7 +85,7 @@ if(NOT NO_TEST)
     add_executable(${_name}
       ${SSOL_SOURCE_DIR}/test_ssol_utils.h
       ${SSOL_SOURCE_DIR}/${_name}.c)
-    target_link_libraries(${_name} solstice-solver RSys)
+    target_link_libraries(${_name} solstice-solver RSys Star3D)
     set(_libraries  ${ARGN})
     foreach(_lib ${_libraries})
       target_link_libraries(${_name} ${_lib})
