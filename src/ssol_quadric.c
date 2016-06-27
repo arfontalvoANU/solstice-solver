@@ -146,7 +146,7 @@ quadric_create(struct ssol_device* dev, struct ssol_quadric** out_quadric)
   ASSERT(dev && out_quadric);
 
   quadric = (struct ssol_quadric*)MEM_CALLOC
-  (dev->allocator, 1, sizeof(struct ssol_quadric));
+    (dev->allocator, 1, sizeof(struct ssol_quadric));
   if (!quadric) {
     res = RES_MEM_ERR;
     goto error;
@@ -177,7 +177,7 @@ quadric_plane_create(struct ssol_device* dev, struct quadric_plane** out_plane)
   ASSERT(dev && out_plane);
 
   plane = (struct quadric_plane*)MEM_CALLOC
-  (dev->allocator, 1, sizeof(struct quadric_plane));
+    (dev->allocator, 1, sizeof(struct quadric_plane));
   if (!plane) {
     res = RES_MEM_ERR;
     goto error;
@@ -208,7 +208,7 @@ quadric_parabol_create(struct ssol_device* dev, struct quadric_parabol** out_par
   ASSERT(dev && out_parabol);
 
   parabol = (struct quadric_parabol*)MEM_CALLOC
-  (dev->allocator, 1, sizeof(struct quadric_parabol));
+    (dev->allocator, 1, sizeof(struct quadric_parabol));
   if (!parabol) {
     res = RES_MEM_ERR;
     goto error;
@@ -413,6 +413,7 @@ ssol_quadric_ref_get
 (struct ssol_quadric* quadric)
 {
   if (!quadric) return RES_BAD_ARG;
+  ASSERT(QUADRIC_FIRST_TYPE <= quadric->type && quadric->type <= QUADRIC_LAST_TYPE);
   ref_get(&quadric->ref);
   return RES_OK;
 }
@@ -422,6 +423,7 @@ ssol_quadric_ref_put
 (struct ssol_quadric* quadric)
 {
   if (!quadric) return RES_BAD_ARG;
+  ASSERT(QUADRIC_FIRST_TYPE <= quadric->type && quadric->type <= QUADRIC_LAST_TYPE);
   ref_put(&quadric->ref, quadric_release);
   return RES_OK;
 }

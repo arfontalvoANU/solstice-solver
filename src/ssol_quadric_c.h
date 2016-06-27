@@ -22,7 +22,10 @@ enum quadric_type {
   QUADRIC_NONE,
   QUADRIC_PLANE,
   QUADRIC_PARABOL,
-  QUADRIC_PARABOLIC_CYLINDER
+  QUADRIC_PARABOLIC_CYLINDER,
+
+  QUADRIC_FIRST_TYPE = QUADRIC_PLANE,
+  QUADRIC_LAST_TYPE = QUADRIC_PARABOLIC_CYLINDER
 };
 
 /* The following quadric definitions are in local coordinate system. */

@@ -21,7 +21,10 @@
 enum shape_type {
   SHAPE_NONE,
   SHAPE_MESH,
-  SHAPE_PUNCHED
+  SHAPE_PUNCHED,
+
+  SHAPE_FIRST_TYPE = SHAPE_MESH,
+  SHAPE_LAST_TYPE = SHAPE_PUNCHED
 };
 
 struct shape_mesh {
