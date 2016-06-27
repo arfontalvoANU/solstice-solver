@@ -66,6 +66,13 @@ enum ssol_parametrization_type {
   SSOL_PARAMETRIZATION_PRIMITIVE_ID /* Map from 3D to 1D with primitive id */
 };
 
+enum ssol_quadric_type {
+  SSOL_QUADRIC_PLANE,
+  SSOL_QUADRIC_PARABOL,
+  SSOL_QUADRIC_PARABOLIC_CYLINDER,
+  SSOL_GENERAL_QUADRIC
+};
+
 enum ssol_carving_type {
   SSOL_CARVING_CIRCLE,
   SSOL_CARVING_POLYGON
@@ -102,6 +109,33 @@ struct ssol_image_layout {
 #define SSOL_VERTEX_DATA_NULL__ { SSOL_ATTRIBS_COUNT__, NULL }
 static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
   SSOL_VERTEX_DATA_NULL__;
+
+/* The following quadric definitions are in local coordinate system. */
+struct ssol_quadric_plane {
+  char unused; /* Define z = 0 */
+};
+struct ssol_quadric_parabol {
+  double focal; /* Define x^2 + y^2 - 4 focal z = 0 */
+};
+
+struct ssol_quadric_parabolic_cylinder {
+  double focal; /* Define y^2 - 4 focal z = 0 */
+};
+
+struct ssol_general_quadric {
+  double a, b, c, d, e, f, g, h, i, j;
+  /* Define ax² + 2bxy + 2cxz + 2dx + ey² + 2fyz + 2gy + hz² + 2iz + j = 0 */
+};
+
+struct ssol_quadric {
+  enum ssol_quadric_type type;
+  union {
+    struct ssol_quadric_plane plane;
+    struct ssol_quadric_parabol parabol;
+    struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
+    struct ssol_quadric_parabolic_cylinder general_quadric;
+  } data;
+};
 
 struct ssol_carving_circle {
   double radius;
