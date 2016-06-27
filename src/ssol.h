@@ -288,17 +288,17 @@ ssol_mesh_setup
 
 /* Define z = 0 in local space; no further setting available */
 SSOL_API res_T
-ssol_quadric_plane
+ssol_quadric_create_plane
   (struct ssol_device* dev,
    struct ssol_quadric** plane);
 
 SSOL_API res_T
-ssol_quadric_parabol
+ssol_quadric_create_parabol
   (struct ssol_device* dev,
    struct ssol_quadric** parabol);
 
 SSOL_API res_T
-ssol_quadric_parabolic_cylinder
+ssol_quadric_create_parabolic_cylinder
   (struct ssol_device* dev,
    struct ssol_quadric** parabolic_cylinder);
 

@@ -266,7 +266,7 @@ error:
 ******************************************************************************/
 
 res_T
-ssol_quadric_plane
+ssol_quadric_create_plane
 (struct ssol_device* dev,
   struct ssol_quadric** out_plane)
 {
@@ -302,7 +302,7 @@ error:
 }
 
 res_T
-ssol_quadric_parabol
+ssol_quadric_create_parabol
 (struct ssol_device* dev,
   struct ssol_quadric** out_parabol)
 {
@@ -339,7 +339,7 @@ error:
 }
 
 res_T
-ssol_quadric_parabolic_cylinder
+ssol_quadric_create_parabolic_cylinder
 (struct ssol_device* dev,
   struct ssol_quadric** out_parabolic_cylinder)
 {
