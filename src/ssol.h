@@ -138,6 +138,7 @@ struct ssol_quadric {
 };
 
 struct ssol_carving_circle {
+  double center[2];
   double radius;
 };
 
@@ -154,7 +155,6 @@ struct ssol_carving {
     struct ssol_carving_circle circle;
     struct ssol_carving_polygon polygon;
   } data;
-  double offset[2];
   char internal; /* TODO comment/rename (?) this */
 };
 
