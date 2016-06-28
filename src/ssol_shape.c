@@ -161,7 +161,10 @@ shape_create
   struct ssol_shape* shape = NULL;
   res_T res = RES_OK;
 
-  if (!dev || !out_shape) {
+  if (!dev
+      || !out_shape
+      || type < SHAPE_FIRST_TYPE
+      || type > SHAPE_LAST_TYPE) {
     return RES_BAD_ARG;
   }
 
@@ -218,8 +221,7 @@ ssol_shape_ref_get
 (struct ssol_shape* shape)
 {
   if (!shape) return RES_BAD_ARG;
-  ASSERT(shape->type == SHAPE_NONE
-    || (SHAPE_FIRST_TYPE <= shape->type && shape->type <= SHAPE_LAST_TYPE));
+  ASSERT(SHAPE_FIRST_TYPE <= shape->type && shape->type <= SHAPE_LAST_TYPE);
   ref_get(&shape->ref);
   return RES_OK;
 }
@@ -229,8 +231,7 @@ ssol_shape_ref_put
 (struct ssol_shape* shape)
 {
   if (!shape) return RES_BAD_ARG;
-  ASSERT(shape->type == SHAPE_NONE
-    || (SHAPE_FIRST_TYPE <= shape->type && shape->type <= SHAPE_LAST_TYPE));
+  ASSERT(SHAPE_FIRST_TYPE <= shape->type && shape->type <= SHAPE_LAST_TYPE);
   ref_put(&shape->ref, shape_release);
   return RES_OK;
 }

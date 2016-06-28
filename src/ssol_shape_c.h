@@ -19,7 +19,6 @@
 #include <rsys/ref_count.h>
 
 enum shape_type {
-  SHAPE_NONE,
   SHAPE_MESH,
   SHAPE_PUNCHED,
 
