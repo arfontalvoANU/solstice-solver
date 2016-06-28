@@ -70,12 +70,18 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
-  SSOL_GENERAL_QUADRIC
+  SSOL_GENERAL_QUADRIC,
+
+  SSOL_QUADRIC_FIRST_TYPE = SSOL_QUADRIC_PLANE,
+  SSOL_QUADRIC_LAST_TYPE = SSOL_GENERAL_QUADRIC
 };
 
 enum ssol_carving_type {
   SSOL_CARVING_CIRCLE,
-  SSOL_CARVING_POLYGON
+  SSOL_CARVING_POLYGON,
+
+  SSOL_CARVING_FIRST_TYPE = SSOL_CARVING_CIRCLE,
+  SSOL_CARVING_LAST_TYPE = SSOL_CARVING_POLYGON
 };
 
 /* Attribute of a shape */
@@ -133,7 +139,7 @@ struct ssol_quadric {
     struct ssol_quadric_plane plane;
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
-    struct ssol_quadric_parabolic_cylinder general_quadric;
+    struct ssol_general_quadric general_quadric;
   } data;
 };
 
