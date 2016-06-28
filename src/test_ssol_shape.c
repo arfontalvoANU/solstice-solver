@@ -18,14 +18,6 @@
 
 #include <rsys/logger.h>
 
-static void
-log_stream(const char* msg, void* ctx)
-{
-  ASSERT(msg);
-  (void) msg, (void) ctx;
-  printf("%s\n", msg);
-}
-
 /*******************************************************************************
 * Box
 ******************************************************************************/
