@@ -98,6 +98,17 @@ cbox_get_uv(const unsigned ivert, float uv[2], void* data)
   uv[1] = 1.f;
 }
 
+static INLINE void
+get_polygon_vertices(const size_t ivert, double position[2], void* ctx)
+{
+  (void) ivert, (void) ctx;
+  position[0] = -1.f;
+  position[1] = 1.f;
+}
+
+/*******************************************************************************
+* test main program
+******************************************************************************/
 int
 main(int argc, char** argv)
 {
@@ -107,6 +118,9 @@ main(int argc, char** argv)
   struct ssol_shape* shape;
   struct ssol_vertex_data attribs[3];
   void* data = (void*) &cbox_walls_desc;
+  struct ssol_punched_surface punched_surface;
+  struct ssol_carving carving;
+  struct ssol_quadric quadric;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -145,6 +159,88 @@ main(int argc, char** argv)
   CHECK(ssol_mesh_setup(shape, cbox_walls_ntris, cbox_get_ids, cbox_walls_nverts, attribs, 3, data), RES_OK);
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
+
+  CHECK(ssol_shape_create_punched_surface(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_shape_create_punched_surface(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_shape_create_punched_surface(NULL, &shape), RES_BAD_ARG);
+  CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
+
+  CHECK(ssol_shape_ref_get(NULL), RES_BAD_ARG);
+  CHECK(ssol_shape_ref_get(shape), RES_OK);
+
+  CHECK(ssol_shape_ref_put(NULL), RES_BAD_ARG);
+  CHECK(ssol_shape_ref_put(shape), RES_OK);
+
+  carving.type = SSOL_CARVING_CIRCLE;
+  carving.internal = 0;
+  carving.data.circle.center[0] = 0;
+  carving.data.circle.center[1] = 0;
+  carving.data.circle.radius = 1;
+  quadric.type = SSOL_QUADRIC_PLANE;
+  punched_surface.nb_carvings = 1;
+  punched_surface.quadric = &quadric;
+  punched_surface.carvings = &carving;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  punched_surface.nb_carvings = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  punched_surface.nb_carvings = 1;
+
+  punched_surface.carvings = NULL;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  punched_surface.carvings = &carving;
+
+  punched_surface.quadric = NULL;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  punched_surface.quadric = &quadric;
+
+  quadric.type = (enum ssol_quadric_type)999;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.type = SSOL_QUADRIC_PLANE;
+
+  carving.type = (enum ssol_carving_type)999;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  carving.type = SSOL_CARVING_CIRCLE;
+
+  carving.data.circle.radius = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  carving.data.circle.radius = 1;
+
+  carving.type = SSOL_CARVING_POLYGON;
+  carving.data.polygon.get = get_polygon_vertices;
+  carving.data.polygon.nb_vertices = 1;
+  carving.data.polygon.context = NULL;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  carving.data.polygon.nb_vertices = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  carving.data.polygon.nb_vertices = 1;
+
+  carving.data.polygon.get = NULL;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  carving.data.polygon.get = get_polygon_vertices;
+
+  quadric.type = SSOL_QUADRIC_PARABOL;
+  quadric.data.parabol.focal = 1;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  quadric.data.parabol.focal = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.data.parabol.focal = 1;
+
+  quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
+  quadric.data.parabolic_cylinder.focal = 1;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  quadric.data.parabolic_cylinder.focal = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.data.parabolic_cylinder.focal = 1;
+
+  quadric.type = SSOL_GENERAL_QUADRIC;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  CHECK(ssol_shape_ref_put(shape), RES_OK);
+
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   logger_release(&logger);

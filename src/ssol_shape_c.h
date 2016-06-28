@@ -27,24 +27,11 @@ enum shape_type {
   SHAPE_LAST_TYPE = SHAPE_PUNCHED
 };
 
-struct shape_mesh {
-  struct s3d_shape* shape;
-
-  struct ssol_device* dev;
-  ref_T ref;
-};
-
-struct shape_punched {
-  char TODO;
-};
-
 struct ssol_shape {
   enum shape_type type;
 
-  union {
-    struct shape_mesh* mesh;
-    struct shape_punched* punched;
-  } data;
+  struct s3d_shape* shape;
+  struct ssol_quadric* quadric; /* NULL if type != SHAPE_PUNCHED */
 
   struct ssol_device* dev;
   ref_T ref;
