@@ -323,46 +323,6 @@ ssol_mesh_setup
    void* data);
 
 /*******************************************************************************
-* Quadric API - Define an equation that can be used to define a punched surface
-******************************************************************************/
-
-/* Define z = 0 in local space; no further setting available */
-SSOL_API res_T
-ssol_quadric_create_plane
-  (struct ssol_device* dev,
-   struct ssol_quadric** plane);
-
-SSOL_API res_T
-ssol_quadric_create_parabol
-  (struct ssol_device* dev,
-   struct ssol_quadric** parabol);
-
-SSOL_API res_T
-ssol_quadric_create_parabolic_cylinder
-  (struct ssol_device* dev,
-   struct ssol_quadric** parabolic_cylinder);
-
-/* Define x^2 + y^2 - 4 focal z = 0 in local space */
-SSOL_API res_T
-ssol_quadric_parabol_set_focal
-  (struct ssol_quadric* parabol,
-   double focal);
-
-/* Define y^2 - 4 focal z = 0 in local space */
-SSOL_API res_T
-ssol_quadric_parabolic_cylinder_set_focal
-  (struct ssol_quadric* parabolic_cylinder,
-   double focal);
-
-SSOL_API res_T
-ssol_quadric_ref_get
-  (struct ssol_quadric* quadric);
-
-SSOL_API res_T
-ssol_quadric_ref_put
-  (struct ssol_quadric* quadric);
-
-/*******************************************************************************
  * Material API - Define the surfacic (e.g.: BRDF) as well as the volumic
  * (e.g.: refractive index) properties of a geometry.
  ******************************************************************************/
