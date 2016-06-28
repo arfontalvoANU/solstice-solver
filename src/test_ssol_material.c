@@ -101,7 +101,10 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_mirror(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_mirror(dev, &material), RES_OK);
 
+  CHECK(ssol_material_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_material_ref_get(material), RES_OK);
+
+  CHECK(ssol_material_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_material_ref_put(material), RES_OK);
 
   shader.shading_normal = get_shading_normal;
