@@ -346,6 +346,11 @@ ssol_material_create_mirror
    struct ssol_material** mtl);
 
 SSOL_API res_T
+ssol_material_create_virtual
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
 ssol_material_ref_get
   (struct ssol_material* mtl);
 
