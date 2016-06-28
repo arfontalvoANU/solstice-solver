@@ -49,6 +49,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 set(SSOL_FILES_SRC
   ssol_device.c
   ssol_material.c
+  ssol_object.c
   ssol_shape.c)
   
 set(SSOL_FILES_INC_API
@@ -57,6 +58,7 @@ set(SSOL_FILES_INC_API
 set(SSOL_FILES_INC
   ssol_device_c.h
   ssol_material_c.h
+  ssol_object_c.h
   ssol_shape_c.h)
   
 set(SSOL_FILES_DOC COPYING README.md)
@@ -108,6 +110,7 @@ if(NOT NO_TEST)
   
   new_test(test_ssol_device)
   new_test(test_ssol_material)
+  new_test(test_ssol_object)
   new_test(test_ssol_shape)
 endif(NOT NO_TEST)
 

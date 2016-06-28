@@ -369,6 +369,8 @@ ssol_mirror_set_shader
 SSOL_API res_T
 ssol_object_create
   (struct ssol_device* dev,
+   struct ssol_shape* shape,
+   struct ssol_material* mtl,
    struct ssol_object** obj);
 
 SSOL_API res_T
@@ -378,16 +380,6 @@ ssol_object_ref_get
 SSOL_API res_T
 ssol_object_ref_put
   (struct ssol_object* obj);
-
-SSOL_API res_T /* Geometric shape of the object */
-ssol_object_set_shape
-  (struct ssol_object* obj,
-   struct ssol_shape* shape);
-
-SSOL_API res_T /* Properties of the object */
-ssol_object_set_material
-  (struct ssol_object* obj,
-   struct ssol_material* mtl);
 
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as
