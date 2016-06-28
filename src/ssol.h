@@ -170,9 +170,23 @@ struct ssol_punched_surface {
   size_t nb_carvings;
 };
 
+
+typedef void
+(*ssol_shader_getter_T)
+  (struct ssol_device* dev,
+   const double wavelength, /* In nanometer */
+   const double P[3], /* World space position */
+   const double Ng[3], /* World space geometry normal */
+   const double uv[2], /* Parametric coordinates */
+   const double wo[3], /* Incident direction */
+   double* val); /* Returned value */
+
 /* Material descriptors */
-struct ssol_miror_desc {
-  char dummy; /* TODO */
+struct ssol_mirror_shader {
+  ssol_shader_getter_T shading_normal;
+  ssol_shader_getter_T reflectivity;
+  ssol_shader_getter_T diffuse_specular_ratio;
+  ssol_shader_getter_T roughness;
 };
 
 /*
@@ -327,9 +341,9 @@ ssol_mesh_setup
  * (e.g.: refractive index) properties of a geometry.
  ******************************************************************************/
 SSOL_API res_T
-ssol_material_create
+ssol_material_create_mirror
   (struct ssol_device* dev,
-   struct ssol_material* mtl);
+   struct ssol_material** mtl);
 
 SSOL_API res_T
 ssol_material_ref_get
@@ -340,9 +354,9 @@ ssol_material_ref_put
   (struct ssol_material* mtl);
 
 SSOL_API res_T
-ssol_miror_setup
+ssol_mirror_set_shader
   (struct ssol_material* mtl,
-   const struct ssol_miror_desc* desc);
+   const struct ssol_mirror_shader* shader);
 
 /*******************************************************************************
  * Object API - Opaque abstraction of a geometry with its associated properties.

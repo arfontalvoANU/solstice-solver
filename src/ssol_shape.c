@@ -17,9 +17,9 @@
 #include "ssol_shape_c.h"
 #include "ssol_device_c.h"
 
-#include <rsys\rsys.h>
-#include <rsys\mem_allocator.h>
-#include <rsys\ref_count.h>
+#include <rsys/rsys.h>
+#include <rsys/mem_allocator.h>
+#include <rsys/ref_count.h>
 
 /*******************************************************************************
 * Helper functions
