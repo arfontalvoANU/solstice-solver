@@ -428,7 +428,7 @@ ssol_object_instance_is_attached
 SSOL_API res_T
 ssol_spectrum_create
   (struct ssol_device* dev,
-   struct ssol_spectrum* spectrum);
+   struct ssol_spectrum** spectrum);
 
 SSOL_API res_T
 ssol_spectrum_ref_get
@@ -486,7 +486,7 @@ ssol_sun_set_direction
 SSOL_API res_T
 ssol_sun_set_spectrum
   (struct ssol_sun* sun,
-   const struct ssol_spectrum* spectrum);
+   struct ssol_spectrum* spectrum);
 
 SSOL_API res_T
 ssol_sun_set_pillbox_aperture
