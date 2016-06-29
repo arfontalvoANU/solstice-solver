@@ -28,6 +28,8 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_spectrum* spectrum;
+  double wavelengths[3] = { 10, 20, 30 };
+  double data[3] = { 1, 2.1, 1.5 };
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -48,6 +50,12 @@ main(int argc, char** argv)
 
   CHECK(ssol_spectrum_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
+
+  CHECK(ssol_spectrum_setup(NULL, wavelengths, data, 3), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, NULL, data, 3), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, wavelengths, NULL, 3), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 0), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
 
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
 
