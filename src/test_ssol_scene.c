@@ -79,6 +79,10 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_object_instance(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_object_instance(scene, instance), RES_OK);
 
+  CHECK(ssol_scene_attach_object_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_clear(NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_clear(scene), RES_OK);
+
   CHECK(ssol_scene_ref_put(scene), RES_OK);
 
   CHECK(ssol_object_instance_ref_put(instance), RES_OK);
