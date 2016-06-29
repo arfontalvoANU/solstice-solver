@@ -285,6 +285,12 @@ ssol_scene_detach_object_instance
   (struct ssol_scene* scn,
    struct ssol_object_instance* instance);
 
+/* Detach all the instances from the scene and release the reference that the
+* scene takes onto them */
+SSOL_API res_T
+ssol_scene_clear
+  (struct ssol_scene* scn);
+
 SSOL_API res_T
 ssol_scene_attach_sun
   (struct ssol_scene* scn,
@@ -410,6 +416,11 @@ ssol_object_instance_set_receiver_image
   (struct ssol_object_instance* instance,
    struct ssol_image* image,
    const enum ssol_parametrization_type type);
+
+SSOL_API res_T
+ssol_object_instance_is_attached
+  (struct ssol_object_instance* instance,
+   char* is_attached);
 
 /*******************************************************************************
  * Spectrum API - Collection of wavelengths with their associated data.

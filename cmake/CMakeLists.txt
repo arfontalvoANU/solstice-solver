@@ -52,6 +52,7 @@ set(SSOL_FILES_SRC
   ssol_material.c
   ssol_object.c
   ssol_object_instance.c
+  ssol_scene.c
   ssol_shape.c)
   
 set(SSOL_FILES_INC_API
@@ -63,6 +64,7 @@ set(SSOL_FILES_INC
   ssol_material_c.h
   ssol_object_c.h
   ssol_object_instance_c.h
+  ssol_scene_c.h
   ssol_shape_c.h)
   
 set(SSOL_FILES_DOC COPYING README.md)
@@ -117,6 +119,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_material)
   new_test(test_ssol_object)
   new_test(test_ssol_object_instance)
+  new_test(test_ssol_scene)
   new_test(test_ssol_shape)
 endif(NOT NO_TEST)
 
