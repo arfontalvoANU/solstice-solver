@@ -54,7 +54,8 @@ set(SSOL_FILES_SRC
   ssol_object_instance.c
   ssol_scene.c
   ssol_shape.c
-  ssol_spectrum.c)
+  ssol_spectrum.c
+  ssol_sun.c)
   
 set(SSOL_FILES_INC_API
   ssol.h)
@@ -67,7 +68,8 @@ set(SSOL_FILES_INC
   ssol_object_instance_c.h
   ssol_scene_c.h
   ssol_shape_c.h
-  ssol_spectrum_c.h)
+  ssol_spectrum_c.h
+  ssol_sun_c.h)
   
 set(SSOL_FILES_DOC COPYING README.md)
 
@@ -124,6 +126,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_scene)
   new_test(test_ssol_shape)
   new_test(test_ssol_spectrum)
+  new_test(test_ssol_sun)
 endif(NOT NO_TEST)
 
 ################################################################################
