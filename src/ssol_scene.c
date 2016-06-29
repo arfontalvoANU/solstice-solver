@@ -15,6 +15,7 @@
 
 #include "ssol.h"
 #include "ssol_scene_c.h"
+#include "ssol_sun_c.h"
 #include "ssol_device_c.h"
 #include "ssol_object_instance_c.h"
 
@@ -38,6 +39,7 @@ scene_release(ref_T* ref)
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
   if (scene->scene3D) s3d_scene_ref_put(scene->scene3D);
+  if (scene->sun) ssol_sun_ref_put(scene->sun);
   MEM_RM(dev->allocator, scene);
   SSOL(device_ref_put(dev));
 }
@@ -173,5 +175,36 @@ ssol_scene_clear
       (node, struct ssol_object_instance, scene_attachment);
     scene_detach_instance(scene, instance);
   }
+  return RES_OK;
+}
+
+res_T
+ssol_scene_attach_sun
+  (struct ssol_scene* scene,
+   struct ssol_sun* sun)
+{
+  if (!scene || ! sun || sun->scene_attachment)
+    return RES_BAD_ARG;
+
+  SSOL(sun_ref_get(sun));
+  scene->sun = sun;
+  sun->scene_attachment = scene;
+  return RES_OK;
+}
+
+res_T
+ssol_scene_detach_sun
+  (struct ssol_scene* scene,
+   struct ssol_sun* sun)
+{
+  if (!scene || !sun || sun->scene_attachment != scene)
+    return RES_BAD_ARG;
+
+#ifndef NDEBUG
+  ASSERT(sun == scene->sun);
+#endif
+  sun->scene_attachment = NULL;
+  scene->sun = NULL;
+  SSOL(sun_ref_put(sun));
   return RES_OK;
 }

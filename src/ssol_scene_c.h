@@ -23,6 +23,7 @@ struct ssol_scene {
   struct list_node instances; /* List of attached instances */
   size_t instances_count;
   struct s3d_scene* scene3D;
+  struct ssol_sun* sun;
 
   struct ssol_device* dev;
   ref_T ref;
