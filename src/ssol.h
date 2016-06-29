@@ -440,7 +440,7 @@ ssol_spectrum_setup
 /* The sun disk is infinitesimal small. The sun is thus only represented by its
  * main direction */
 SSOL_API res_T
-ssol_sun_create_directionnal
+ssol_sun_create_directional
   (struct ssol_device* dev,
    struct ssol_sun** sun);
 
