@@ -103,13 +103,13 @@ ssol_spectrum_ref_put
 SSOL_API res_T
 ssol_spectrum_setup
   (struct ssol_spectrum* spectrum,
-   const double* wavelenghts,
+   const double* wavelengths,
    const double* data,
    const size_t nwavelength)
 {
   if (!spectrum
     || nwavelength <= 0
-    || !wavelenghts
+    || !wavelengths
     || !data)
     return RES_BAD_ARG;
   /* TODO */
