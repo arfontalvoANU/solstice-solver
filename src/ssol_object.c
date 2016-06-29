@@ -54,7 +54,7 @@ object_ok(const struct ssol_object* object) {
 ******************************************************************************/
 
 /*******************************************************************************
-* Exported ssol_material functions
+* Exported ssol_object functions
 ******************************************************************************/
 
 res_T
@@ -76,6 +76,8 @@ ssol_object_create
     res = RES_MEM_ERR;
     goto error;
   }
+  
+  /* check if material/shape association is legit: TODO */
 
   SSOL(shape_ref_get(shape));
   SSOL(material_ref_get(material));
