@@ -462,7 +462,8 @@ ssol_sun_create_pillbox
    struct ssol_sun** sun);
 
 /* The sun disk intensity is controlled by a circumsolar ratio.
- * TODO add a reference */
+ * From the paper "Sunshape distributions for terrestrial solar simulations".
+ * D. Buie, A.G. Monger, C.J. Dey */
 SSOL_API res_T
 ssol_sun_create_circumsolar_ratio
   (struct ssol_device* dev,
