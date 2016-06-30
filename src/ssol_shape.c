@@ -33,6 +33,7 @@ shape_release(ref_T* ref)
 
   ASSERT(shape->dev);
   s3d_shape_ref_put(shape->shape);
+  s3d_scene_ref_put(shape->scene);
   SSOL(device_ref_put(shape->dev));
   MEM_RM(shape->dev->allocator, shape->quadric);
   MEM_RM(shape->dev->allocator, shape);
@@ -150,7 +151,7 @@ shape_ok(const struct ssol_shape* shape)
 {
   if(!shape
   || !shape->dev
-  || !shape->shape
+  || !shape->scene
   || SHAPE_FIRST_TYPE > shape->type
   || shape->type > SHAPE_LAST_TYPE)
     return RES_BAD_ARG;
@@ -183,9 +184,12 @@ shape_create
     goto error;
   }
 
+  /* create a s3d_scene to hold a mesh */
   res = s3d_shape_create_mesh(dev->s3d, &shape->shape);
-  if (res != RES_OK)
-    goto error;
+  if (res != RES_OK) goto error;
+  res = s3d_scene_create(dev->s3d, &shape->scene);
+  if (res != RES_OK) goto error;
+  res = s3d_scene_attach_shape(shape->scene, shape->shape);
 
   SSOL(device_ref_get(dev));
   shape->dev = dev;
@@ -253,7 +257,7 @@ ssol_punched_surface_setup
   if(shape->type != SHAPE_PUNCHED) return RES_BAD_ARG;
 
   ASSERT(shape->ref);
-  ASSERT(shape->dev && shape->dev->allocator && shape->shape);
+  ASSERT(shape->dev && shape->dev->allocator && shape->scene);
 
   /* save quadric for further object instancing */
   MEM_RM(shape->dev->allocator, shape->quadric);
@@ -289,7 +293,7 @@ ssol_mesh_setup
     return RES_BAD_ARG;
   }
   ASSERT(shape->ref);
-  ASSERT(shape->dev && shape->dev->allocator && shape->shape);
+  ASSERT(shape->dev && shape->dev->allocator && shape->scene);
 
   attrib3 = (struct s3d_vertex_data*)MEM_CALLOC
     (shape->dev->allocator, nattribs, sizeof(struct s3d_vertex_data));
