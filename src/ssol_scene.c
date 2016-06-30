@@ -1,17 +1,17 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "ssol_scene_c.h"
@@ -19,14 +19,13 @@
 #include "ssol_device_c.h"
 #include "ssol_object_instance_c.h"
 
-#include <rsys\rsys.h>
-#include <rsys\mem_allocator.h>
-#include <rsys\ref_count.h>
+#include <rsys/rsys.h>
+#include <rsys/mem_allocator.h>
+#include <rsys/ref_count.h>
 
 /*******************************************************************************
-* Helper functions
-******************************************************************************/
-
+ * Helper functions
+ ******************************************************************************/
 static void
 scene_release(ref_T* ref)
 {
@@ -58,13 +57,8 @@ scene_detach_instance
 }
 
 /*******************************************************************************
-* Local functions
-******************************************************************************/
-
-/*******************************************************************************
-* Exported ssol_image functions
-******************************************************************************/
-
+ * Exported ssol_image functions
+ ******************************************************************************/
 res_T
 ssol_scene_create
   (struct ssol_device* dev,
@@ -120,15 +114,14 @@ ssol_scene_ref_put
 
 res_T
 ssol_scene_attach_object_instance
-  (struct ssol_scene* scene,
-   struct ssol_object_instance* instance)
+  (struct ssol_scene* scene, struct ssol_object_instance* instance)
 {
   if (!scene || !instance)
     return RES_BAD_ARG;
   if (!is_list_empty(&instance->scene_attachment))
     return RES_BAD_ARG;
 
-  /* instance is chained into the list of instance of the scene */
+  /* Instance is chained into the list of instance of the scene */
   list_add_tail(&scene->instances, &instance->scene_attachment);
   SSOL(object_instance_ref_get(instance));
   scene->instances_count++;
@@ -164,8 +157,7 @@ ssol_scene_detach_object_instance
 }
 
 res_T
-ssol_scene_clear
-  (struct ssol_scene* scene)
+ssol_scene_clear(struct ssol_scene* scene)
 {
   struct list_node* node, *tmp;
   if (!scene) return RES_BAD_ARG;
@@ -179,9 +171,7 @@ ssol_scene_clear
 }
 
 res_T
-ssol_scene_attach_sun
-  (struct ssol_scene* scene,
-   struct ssol_sun* sun)
+ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
   if (!scene || ! sun || sun->scene_attachment)
     return RES_BAD_ARG;
@@ -193,18 +183,15 @@ ssol_scene_attach_sun
 }
 
 res_T
-ssol_scene_detach_sun
-  (struct ssol_scene* scene,
-   struct ssol_sun* sun)
+ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
   if (!scene || !sun || sun->scene_attachment != scene)
     return RES_BAD_ARG;
 
-#ifndef NDEBUG
   ASSERT(sun == scene->sun);
-#endif
   sun->scene_attachment = NULL;
   scene->sun = NULL;
   SSOL(sun_ref_put(sun));
   return RES_OK;
 }
+

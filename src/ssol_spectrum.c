@@ -1,17 +1,17 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "ssol_spectrum_c.h"
@@ -23,9 +23,8 @@
 #include <rsys/math.h>
 
 /*******************************************************************************
-* Helper functions
-******************************************************************************/
-
+ * Helper functions
+ ******************************************************************************/
 static void
 spectrum_release(ref_T* ref)
 {
@@ -40,17 +39,11 @@ spectrum_release(ref_T* ref)
 }
 
 /*******************************************************************************
-* Local functions
-******************************************************************************/
-
-/*******************************************************************************
 * Exported ssol_image functions
 ******************************************************************************/
-
 res_T
 ssol_spectrum_create
-  (struct ssol_device* dev,
-   struct ssol_spectrum** out_spectrum)
+  (struct ssol_device* dev, struct ssol_spectrum** out_spectrum)
 {
   struct ssol_spectrum* spectrum = NULL;
   res_T res = RES_OK;
@@ -81,8 +74,7 @@ error:
 }
 
 res_T
-ssol_spectrum_ref_get
-  (struct ssol_spectrum* spectrum)
+ssol_spectrum_ref_get(struct ssol_spectrum* spectrum)
 {
   if (!spectrum)
     return RES_BAD_ARG;
@@ -91,8 +83,7 @@ ssol_spectrum_ref_get
 }
 
 res_T
-ssol_spectrum_ref_put
-  (struct ssol_spectrum* spectrum)
+ssol_spectrum_ref_put(struct ssol_spectrum* spectrum)
 {
   if (!spectrum)
     return RES_BAD_ARG;
@@ -107,10 +98,10 @@ ssol_spectrum_setup
    const double* data,
    const size_t nwavelength)
 {
-  if (!spectrum
-    || nwavelength <= 0
-    || !wavelengths
-    || !data)
+  if(!spectrum
+  || nwavelength <= 0
+  || !wavelengths
+  || !data)
     return RES_BAD_ARG;
   /* TODO */
   return RES_OK;

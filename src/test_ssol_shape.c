@@ -1,17 +1,17 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
@@ -19,14 +19,14 @@
 #include <rsys/logger.h>
 
 /*******************************************************************************
-* Box
-******************************************************************************/
-struct cbox_desc {
+ * Box
+ ******************************************************************************/
+struct desc {
   const float* vertices;
   const unsigned* indices;
 };
 
-static const float cbox_walls [] = {
+static const float walls [] = {
   552.f, 0.f,   0.f,
   0.f,   0.f,   0.f,
   0.f,   559.f, 0.f,
@@ -36,27 +36,27 @@ static const float cbox_walls [] = {
   0.f,   559.f, 548.f,
   552.f, 559.f, 548.f
 };
-const unsigned cbox_walls_nverts = sizeof(cbox_walls) / sizeof(float[3]);
+const unsigned walls_nverts = sizeof(walls) / sizeof(float[3]);
 
-const unsigned cbox_walls_ids [] = {
+const unsigned walls_ids [] = {
   0, 1, 2, 2, 3, 0, /* Bottom */
   4, 5, 6, 6, 7, 4, /* Top */
   1, 2, 6, 6, 5, 1, /* Left */
   0, 3, 7, 7, 4, 0, /* Right */
   2, 3, 7, 7, 6, 2  /* Back */
 };
-const unsigned cbox_walls_ntris = sizeof(cbox_walls_ids) / sizeof(unsigned[3]);
+const unsigned walls_ntris = sizeof(walls_ids) / sizeof(unsigned[3]);
 
-static const struct cbox_desc cbox_walls_desc = { cbox_walls, cbox_walls_ids };
+static const struct desc walls_desc = { walls, walls_ids };
 
 /*******************************************************************************
-* Callbacks
-******************************************************************************/
+ * Callbacks
+ ******************************************************************************/
 static INLINE void
-cbox_get_ids(const unsigned itri, unsigned ids[3], void* data)
+get_ids(const unsigned itri, unsigned ids[3], void* data)
 {
   const unsigned id = itri * 3;
-  struct cbox_desc* desc = data;
+  struct desc* desc = data;
   NCHECK(desc, NULL);
   ids[0] = desc->indices[id + 0];
   ids[1] = desc->indices[id + 1];
@@ -64,9 +64,9 @@ cbox_get_ids(const unsigned itri, unsigned ids[3], void* data)
 }
 
 static INLINE void
-cbox_get_position(const unsigned ivert, float position[3], void* data)
+get_position(const unsigned ivert, float position[3], void* data)
 {
-  struct cbox_desc* desc = data;
+  struct desc* desc = data;
   NCHECK(desc, NULL);
   position[0] = desc->vertices[ivert * 3 + 0];
   position[1] = desc->vertices[ivert * 3 + 1];
@@ -74,7 +74,7 @@ cbox_get_position(const unsigned ivert, float position[3], void* data)
 }
 
 static INLINE void
-cbox_get_normal(const unsigned ivert, float normal[3], void* data)
+get_normal(const unsigned ivert, float normal[3], void* data)
 {
   (void) ivert, (void) data;
   normal[0] = 1.f;
@@ -83,7 +83,7 @@ cbox_get_normal(const unsigned ivert, float normal[3], void* data)
 }
 
 static INLINE void
-cbox_get_uv(const unsigned ivert, float uv[2], void* data)
+get_uv(const unsigned ivert, float uv[2], void* data)
 {
   (void) ivert, (void) data;
   uv[0] = -1.f;
@@ -99,8 +99,8 @@ get_polygon_vertices(const size_t ivert, double position[2], void* ctx)
 }
 
 /*******************************************************************************
-* test main program
-******************************************************************************/
+ * Test main program
+ ******************************************************************************/
 int
 main(int argc, char** argv)
 {
@@ -109,7 +109,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_shape* shape;
   struct ssol_vertex_data attribs[3];
-  void* data = (void*) &cbox_walls_desc;
+  void* data = (void*) &walls_desc;
   struct ssol_punched_surface punched_surface;
   struct ssol_carving carving;
   struct ssol_quadric quadric;
@@ -136,19 +136,26 @@ main(int argc, char** argv)
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 
   attribs[0].usage = SSOL_POSITION;
-  attribs[0].get = cbox_get_position;
+  attribs[0].get = get_position;
   attribs[1].usage = SSOL_NORMAL;
-  attribs[1].get = cbox_get_normal;
+  attribs[1].get = get_normal;
   attribs[2].usage = SSOL_TEXCOORD;
-  attribs[2].get = cbox_get_uv;
+  attribs[2].get = get_uv;
 
-  CHECK(ssol_mesh_setup(NULL, cbox_walls_ntris, cbox_get_ids, cbox_walls_nverts, attribs, 1, data), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, 0, cbox_get_ids, cbox_walls_nverts, attribs, 1, data), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, cbox_walls_ntris, NULL, cbox_walls_nverts, attribs, 1, data), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, cbox_walls_ntris, cbox_get_ids, 0, attribs, 1, data), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, cbox_walls_ntris, cbox_get_ids, cbox_walls_nverts, NULL, 1, data), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, cbox_walls_ntris, cbox_get_ids, cbox_walls_nverts, attribs, 0, data), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, cbox_walls_ntris, cbox_get_ids, cbox_walls_nverts, attribs, 3, data), RES_OK);
+  CHECK(ssol_mesh_setup
+    (NULL, walls_ntris, get_ids, walls_nverts, attribs, 1, data), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup
+    (shape, 0, get_ids, walls_nverts, attribs, 1, data), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup
+    (shape, walls_ntris, NULL, walls_nverts, attribs, 1, data), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup
+    (shape, walls_ntris, get_ids, 0, attribs, 1, data), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup
+    (shape, walls_ntris, get_ids, walls_nverts, NULL, 1, data), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup
+    (shape, walls_ntris, get_ids, walls_nverts, attribs, 0, data), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup
+    (shape, walls_ntris, get_ids, walls_nverts, attribs, 3, data), RES_OK);
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 

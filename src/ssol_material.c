@@ -1,30 +1,29 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "ssol_material_c.h"
 #include "ssol_device_c.h"
 
-#include <rsys\rsys.h>
-#include <rsys\mem_allocator.h>
-#include <rsys\ref_count.h>
+#include <rsys/rsys.h>
+#include <rsys/mem_allocator.h>
+#include <rsys/ref_count.h>
 
 /*******************************************************************************
-* Helper functions
-******************************************************************************/
-
+ * Helper functions
+ ******************************************************************************/
 static void
 material_release(ref_T* ref)
 {
@@ -39,20 +38,20 @@ material_release(ref_T* ref)
 }
 
 static INLINE res_T
-shader_ok(const struct ssol_mirror_shader* shader) {
-  if (!shader
-      || !shader->shading_normal
-      || !shader->reflectivity
-      || !shader->diffuse_specular_ratio
-      || !shader->roughness)
+shader_ok(const struct ssol_mirror_shader* shader)
+{
+  if(!shader
+  || !shader->shading_normal
+  || !shader->reflectivity
+  || !shader->diffuse_specular_ratio
+  || !shader->roughness)
     return RES_BAD_ARG;
   return RES_OK;
 }
 
 /*******************************************************************************
-* Local functions
-******************************************************************************/
-
+ * Local functions
+ ******************************************************************************/
 static res_T
 ssol_material_create
   (struct ssol_device* dev,
@@ -61,10 +60,10 @@ ssol_material_create
 {
   struct ssol_material* material = NULL;
   res_T res = RES_OK;
-  if (!dev
-      || !out_material
-      || type < MATERIAL_FIRST_TYPE
-      || type > MATERIAL_LAST_TYPE) {
+  if(!dev
+  || !out_material
+  || type < MATERIAL_FIRST_TYPE
+  || type > MATERIAL_LAST_TYPE) {
     return RES_BAD_ARG;
   }
 
@@ -92,47 +91,44 @@ error:
 }
 
 /*******************************************************************************
-* Exported ssol_material functions
-******************************************************************************/
-
+ * Exported ssol_material functions
+ ******************************************************************************/
 res_T
-ssol_material_ref_get
-  (struct ssol_material* material)
+ssol_material_ref_get(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(MATERIAL_FIRST_TYPE <= material->type && material->type <= MATERIAL_LAST_TYPE);
+  ASSERT(material->type >= MATERIAL_FIRST_TYPE);
+  ASSERT(material->type <= MATERIAL_LAST_TYPE);
   ref_get(&material->ref);
   return RES_OK;
 }
 
 res_T
-ssol_material_ref_put
-  (struct ssol_material* material)
+ssol_material_ref_put(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(MATERIAL_FIRST_TYPE <= material->type && material->type <= MATERIAL_LAST_TYPE);
+  ASSERT(material->type >= MATERIAL_FIRST_TYPE);
+  ASSERT(material->type <= MATERIAL_LAST_TYPE);
   ref_put(&material->ref, material_release);
   return RES_OK;
 }
 
 res_T
 ssol_material_create_mirror
-  (struct ssol_device* dev,
-   struct ssol_material** out_material)
+  (struct ssol_device* dev, struct ssol_material** out_material)
 {
   return ssol_material_create(dev, out_material, MATERIAL_MIRROR);
 }
 
 res_T
 ssol_mirror_set_shader
-  (struct ssol_material* material,
-   const struct ssol_mirror_shader* shader)
+  (struct ssol_material* material, const struct ssol_mirror_shader* shader)
 {
-  if (!material
-      || material->type != MATERIAL_MIRROR
-      || shader_ok(shader) != RES_OK)
+  if(!material
+  || material->type != MATERIAL_MIRROR
+  || shader_ok(shader) != RES_OK)
     return RES_BAD_ARG;
 
   material->data.mirror = *shader;
@@ -142,8 +138,8 @@ ssol_mirror_set_shader
 
 res_T
 ssol_material_create_virtual
-(struct ssol_device* dev,
-  struct ssol_material** out_material)
+  (struct ssol_device* dev, struct ssol_material** out_material)
 {
   return ssol_material_create(dev, out_material, MATERIAL_VIRTUAL);
 }
+

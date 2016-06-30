@@ -1,36 +1,30 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
 
 #include <rsys/logger.h>
 
-/*******************************************************************************
-* test main program
-******************************************************************************/
 int
 main(int argc, char** argv)
 {
   struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
-  struct ssol_carving carving;
-  struct ssol_quadric quadric;
   struct ssol_shape* shape;
-  struct ssol_punched_surface punched_surface;
   struct ssol_material* material;
   struct ssol_object* object;
   struct ssol_object_instance* instance;
@@ -50,15 +44,6 @@ main(int argc, char** argv)
 
   CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
 
-  carving.type = SSOL_CARVING_CIRCLE;
-  carving.internal = 0;
-  carving.data.circle.center[0] = 0;
-  carving.data.circle.center[1] = 0;
-  carving.data.circle.radius = 1;
-  quadric.type = SSOL_QUADRIC_PLANE;
-  punched_surface.nb_carvings = 1;
-  punched_surface.quadric = &quadric;
-  punched_surface.carvings = &carving;
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
   CHECK(ssol_object_create(dev, shape, material, &object), RES_OK);
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);

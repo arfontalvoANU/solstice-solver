@@ -59,7 +59,7 @@ main(int argc, char** argv)
   CHECK(ssol_device_create(&logger, &allocator, 0, 0, &dev), RES_BAD_ARG);
   CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
-  
+
   logger_release(&logger);
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);

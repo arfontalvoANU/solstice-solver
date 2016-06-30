@@ -129,8 +129,8 @@ struct ssol_quadric_parabolic_cylinder {
 };
 
 struct ssol_general_quadric {
+  /* Define ax^2 + 2bxy + 2cxz + 2dx + ey^2 + 2fyz + 2gy + hz^2 + 2iz + j = 0 */
   double a, b, c, d, e, f, g, h, i, j;
-  /* Define ax² + 2bxy + 2cxz + 2dx + ey² + 2fyz + 2gy + hz² + 2iz + j = 0 */
 };
 
 struct ssol_quadric {
