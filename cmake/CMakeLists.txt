@@ -25,7 +25,7 @@ option(NO_TEST "Do not build tests" OFF)
 ################################################################################
 find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.3 REQUIRED)
-find_package(Star3D 0.3 REQUIRED)
+find_package(Star3D 0.4 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${RCMAKE_SOURCE_DIR})
