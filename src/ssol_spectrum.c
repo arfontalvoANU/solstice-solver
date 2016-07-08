@@ -34,6 +34,8 @@ spectrum_release(ref_T* ref)
   spectrum = CONTAINER_OF(ref, struct ssol_spectrum, ref);
   dev = spectrum->dev;
   ASSERT(dev && dev->allocator);
+  darray_double_clear(&spectrum->frequencies);
+  darray_double_clear(&spectrum->intensities);
   MEM_RM(dev->allocator, spectrum);
   SSOL(device_ref_put(dev));
 }
@@ -61,6 +63,8 @@ ssol_spectrum_create
   SSOL(device_ref_get(dev));
   spectrum->dev = dev;
   ref_init(&spectrum->ref);
+  darray_double_init(dev->allocator, &spectrum->frequencies);
+  darray_double_init(dev->allocator, &spectrum->intensities);
 
 exit:
   if (out_spectrum) *out_spectrum = spectrum;
@@ -98,11 +102,24 @@ ssol_spectrum_setup
    const double* data,
    const size_t nwavelength)
 {
+  res_T res = RES_OK;
   if(!spectrum
   || nwavelength <= 0
   || !wavelengths
   || !data)
     return RES_BAD_ARG;
-  /* TODO */
-  return RES_OK;
+
+  res = darray_double_reserve(&spectrum->frequencies, nwavelength);
+  if (res != RES_OK) return res;
+
+  res = darray_double_reserve(&spectrum->intensities, nwavelength);
+  if (res != RES_OK) {
+    darray_double_clear(&spectrum->frequencies);
+    return res;
+  }
+
+  memcpy(spectrum->frequencies.data, wavelengths, nwavelength * sizeof(double));
+  memcpy(spectrum->intensities.data, data, nwavelength * sizeof(double));
+
+  return res;
 }

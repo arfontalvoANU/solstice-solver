@@ -17,9 +17,11 @@
 #define SSOL_SPECTRUM_C_H
 
 #include <rsys/ref_count.h>
-#include <rsys/list.h>
+#include <rsys/dynamic_array_double.h>
 
 struct ssol_spectrum {
+  struct darray_double frequencies;
+  struct darray_double intensities;
   struct ssol_device* dev;
   ref_T ref;
 };
