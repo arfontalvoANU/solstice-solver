@@ -16,9 +16,14 @@
 #ifndef SSOL_SOLVER_C_H
 #define SSOL_SOLVER_C_H
 
+#include "ssol_distributions_c.h"
+
 #include <rsys/ref_count.h>
 #include <rsys/list.h>
 #include <rsys/dynamic_array.h>
+
+#include <star/ssp.h>
+
 
 #define DARRAY_NAME quadric
 #define DARRAY_DATA struct ssol_quadric
@@ -33,6 +38,7 @@
 #undef DARRAY_DATA
 
 struct solver_data {
+  struct ssol_device* dev;
   /* data comming from instances of the scene */
   size_t shapes_count;
   size_t quadrics_count;
@@ -41,15 +47,22 @@ struct solver_data {
   /* the 3D scene used for raytracing */
   struct s3d_scene *scene;
   /* the random distribution for sun sampling */
+  struct ssol_ran_sun_dir* sun_dir_ran;
+  struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
 };
 
-SSOL_API res_T
+res_T
+set_sun_distributions
+(const struct ssol_sun* sun,
+  struct solver_data* data);
+
+res_T
 process_instances
   (const struct ssol_scene* scene,
    struct solver_data* data);
 
 /* transform a single quadric in world space */
-SSOL_API res_T
+res_T
 quadric_transform
   (const struct ssol_quadric* quadric,
    const double transform[],

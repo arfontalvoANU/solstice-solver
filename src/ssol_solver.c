@@ -19,11 +19,15 @@
 #include "ssol_scene_c.h"
 #include "ssol_shape_c.h"
 #include "ssol_object_c.h"
+#include "ssol_sun_c.h"
+#include "ssol_spectrum_c.h"
 #include "ssol_object_instance_c.h"
 
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+
+#include <star/ssp.h>
 
 /*******************************************************************************
 * Helper functions
@@ -128,12 +132,70 @@ get_transform
 }
 
 /*******************************************************************************
-* Local functions
+* ssol_solver functions
 ******************************************************************************/
 
-/*******************************************************************************
-* Exported ssol_solver functions
-******************************************************************************/
+res_T
+init_solver_data
+(struct solver_data* data,
+  struct ssol_device* dev)
+{
+  res_T res = RES_OK;
+  if (!data || !dev) return RES_BAD_ARG;
+
+  data->dev = dev;
+  darray_quadric_init(dev->allocator, &data->quadrics);
+  darray_3dshape_init(dev->allocator, &data->shapes);
+  res = ssp_ranst_piecewise_linear_create(dev->allocator, &data->sun_spectrum_ran);
+  if (res != RES_OK) return res;
+  res = ssol_ran_sun_dir_create(dev->allocator, &data->sun_dir_ran);
+  if (res != RES_OK) {
+    SSP(ranst_piecewise_linear_ref_put(data->sun_spectrum_ran));
+    return res;
+  }
+  return res;
+}
+
+res_T
+set_sun_distributions
+  (const struct ssol_sun* sun,
+   struct solver_data* data)
+{
+  struct ssol_spectrum* spectrum;
+  struct mem_allocator* allocator;
+  const double* frequencies;
+  const double* intensities;
+  res_T res = RES_OK;
+  size_t sz;
+  if (!sun || !data) return RES_BAD_ARG;
+
+  ASSERT(data->dev && data->dev->allocator);
+  allocator = data->dev->allocator;
+  /* first set the spectrum distribution */
+  spectrum = sun->spectrum;
+  frequencies = darray_double_cdata_get(&spectrum->frequencies);
+  intensities = darray_double_cdata_get(&spectrum->intensities);
+  sz = darray_double_size_get(&spectrum->frequencies);
+  res = ssp_ranst_piecewise_linear_setup(data->sun_spectrum_ran, frequencies, intensities, sz);
+  if (res != RES_OK) return res;
+  /* then the direction distribution */
+  switch (sun->type) {
+  case SUN_DIRECTIONAL:
+    res = ssol_ran_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
+    break;
+  case SUN_PILLBOX:
+    res = ssol_ran_sun_dir_pillbox_setup(data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
+    break;
+  case SUN_CSR:
+    res = ssol_ran_sun_dir_buie_setup(data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
+    break;
+  default:
+    res = RES_OK;
+    FATAL("Unreachable code \n");
+  }
+
+  return res;
+}
 
 /* Implementation notes:
  *
@@ -225,6 +287,9 @@ process_instances
    struct solver_data* data)
 {
   struct list_node* node;
+  const double* transform;
+  int i;
+  float tr[12];
 
   if (!scene || !data)
     return RES_BAD_ARG;
@@ -240,9 +305,9 @@ process_instances
     struct s3d_scene* scene3D;
     struct s3d_shape* shape3D;
 
+    transform = get_transform(instance);
     if (is_instance_punched(instance)) {
       const struct ssol_quadric* quadric = get_quadric(instance);
-      const double* transform = get_transform(instance);
       struct ssol_quadric transformed;
       quadric_transform(quadric, transform, &transformed);
       darray_quadric_push_back(&data->quadrics, &transformed);
@@ -252,7 +317,8 @@ process_instances
     scene3D = get_3dscene(instance);
     s3d_scene_instantiate(scene3D, &shape3D);
     /* apply transform: TODO */
-   
+    FOR_EACH(i, 0, 12) tr[i] = (float)transform[i];
+    s3d_instance_set_transform(shape3D, tr);
 
     darray_3dshape_push_back(&data->shapes, &shape3D);
     /* and attach it to the main scene */
