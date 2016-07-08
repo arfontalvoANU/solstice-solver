@@ -26,6 +26,7 @@ option(NO_TEST "Do not build tests" OFF)
 find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.3 REQUIRED)
 find_package(Star3D 0.3 REQUIRED)
+find_package(StarSP 0.4 REQUIRED)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${RCMAKE_SOURCE_DIR})
 include(rcmake)
@@ -48,6 +49,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
   ssol_device.c
+  ssol_distributions.c
   ssol_image.c
   ssol_material.c
   ssol_object.c
@@ -63,6 +65,7 @@ set(SSOL_FILES_INC_API
 
 set(SSOL_FILES_INC
   ssol_device_c.h
+  ssol_distributions_c.h
   ssol_image_c.h
   ssol_material_c.h
   ssol_object_c.h
@@ -82,7 +85,7 @@ rcmake_prepend_path(SSOL_FILES_INC_API ${SSOL_SOURCE_DIR})
 rcmake_prepend_path(SSOL_FILES_DOC ${PROJECT_SOURCE_DIR}/../)
 
 add_library(solstice-solver SHARED ${SSOL_FILES_SRC} ${SSOL_FILES_INC} ${SSOL_FILES_INC_API})
-target_link_libraries(solstice-solver RSys Star3D)
+target_link_libraries(solstice-solver RSys Star3D StarSP)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_link_libraries(solstice-solver m)
@@ -103,7 +106,7 @@ if(NOT NO_TEST)
     add_executable(${_name}
       ${SSOL_SOURCE_DIR}/test_ssol_utils.h
       ${SSOL_SOURCE_DIR}/${_name}.c)
-    target_link_libraries(${_name} solstice-solver RSys Star3D)
+    target_link_libraries(${_name} solstice-solver RSys Star3D StarSP)
     set(_libraries  ${ARGN})
     foreach(_lib ${_libraries})
       target_link_libraries(${_name} ${_lib})
@@ -119,7 +122,7 @@ if(NOT NO_TEST)
     build_test(${_name} ${ARGN})
     register_test(${_name} ${_name})
   endfunction()
-
+  
   new_test(test_ssol_device)
   new_test(test_ssol_image)
   new_test(test_ssol_material)
