@@ -409,7 +409,7 @@ ssol_object_instance_ref_put
 SSOL_API res_T
 ssol_object_instance_set_transform
   (struct ssol_object_instance* instance,
-   const double transform[]); /* 3x4 column major matrix */
+   const double transform[12]); /* 3x4 column major matrix */
 
 SSOL_API res_T
 ssol_object_instance_set_receiver_image

@@ -106,7 +106,7 @@ ssol_object_instance_ref_put
 
 res_T
 ssol_object_instance_set_transform
-  (struct ssol_object_instance* instance, const double transform[])
+  (struct ssol_object_instance* instance, const double transform[12])
 {
   if (!instance || !transform)
     return RES_BAD_ARG;
