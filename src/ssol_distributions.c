@@ -54,8 +54,8 @@ struct ran_dirac_state
 
 /* one single type for all distributions
 * only the state type depends on the distribution type */
-struct ssol_ran_sun_dir {
-  double*(*get)(const struct ssol_ran_sun_dir* ran, struct ssp_rng* rng, double dir[3]);
+struct ssol_ranst_sun_dir {
+  double*(*get)(const struct ssol_ranst_sun_dir* ran, struct ssp_rng* rng, double dir[3]);
   ref_T ref;
   struct mem_allocator* allocator;
   union {
@@ -72,24 +72,24 @@ struct ssol_ran_sun_dir {
 static void
 distrib_sun_release(ref_T* ref)
 {
-  struct ssol_ran_sun_dir* ran;
+  struct ssol_ranst_sun_dir* ran;
   ASSERT(ref);
-  ran = CONTAINER_OF(ref, struct ssol_ran_sun_dir, ref);
+  ran = CONTAINER_OF(ref, struct ssol_ranst_sun_dir, ref);
   MEM_RM(ran->allocator, ran);
 }
 
 res_T
-ssol_ran_sun_dir_create
+ssol_ranst_sun_dir_create
   (struct mem_allocator* allocator,
-   struct ssol_ran_sun_dir** out_ran)
+   struct ssol_ranst_sun_dir** out_ran)
 {
-  struct ssol_ran_sun_dir* ran = NULL;
+  struct ssol_ranst_sun_dir* ran = NULL;
 
   if (!out_ran) return RES_BAD_ARG;
 
   allocator = allocator ? allocator : &mem_default_allocator;
 
-  ran = MEM_CALLOC(allocator, 1, sizeof(struct ssol_ran_sun_dir));
+  ran = MEM_CALLOC(allocator, 1, sizeof(struct ssol_ranst_sun_dir));
   if (!ran) return RES_MEM_ERR;
 
   ref_init(&ran->ref);
@@ -100,8 +100,8 @@ ssol_ran_sun_dir_create
 }
 
 res_T
-ssol_ran_sun_dir_ref_get
-  (struct ssol_ran_sun_dir* ran)
+ssol_ranst_sun_dir_ref_get
+  (struct ssol_ranst_sun_dir* ran)
 {
   if (!ran) return RES_BAD_ARG;
   ref_get(&ran->ref);
@@ -109,8 +109,8 @@ ssol_ran_sun_dir_ref_get
 }
 
 res_T
-ssol_ran_sun_dir_ref_put
-  (struct ssol_ran_sun_dir* ran)
+ssol_ranst_sun_dir_ref_put
+  (struct ssol_ranst_sun_dir* ran)
 {
   if (!ran) return RES_BAD_ARG;
   ref_put(&ran->ref, distrib_sun_release);
@@ -118,8 +118,8 @@ ssol_ran_sun_dir_ref_put
 }
 
 double*
-ssol_ran_sun_dir_get
-  (const struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_get
+  (const struct ssol_ranst_sun_dir* ran,
    struct ssp_rng* rng,
    double dir[3])
 {
@@ -238,7 +238,7 @@ void fill_buie_state(struct ran_buie_state* s, double p) {
 
 double*
 ssol_ran_buie_get
-  (const struct ssol_ran_sun_dir* ran, struct ssp_rng* rng, double dir[3])
+  (const struct ssol_ranst_sun_dir* ran, struct ssp_rng* rng, double dir[3])
 {
   double phi, theta, sinTheta, cosTheta, cosPhi, sinPhi;
   ASSERT(ran->state.buie.thetaSD > 0);
@@ -256,8 +256,8 @@ ssol_ran_buie_get
 }
 
 res_T
-ssol_ran_sun_dir_buie_setup
-  (struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_buie_setup
+  (struct ssol_ranst_sun_dir* ran,
    double param,
    const double dir[3])
 {
@@ -278,7 +278,7 @@ ssol_ran_sun_dir_buie_setup
 
 double*
 ssol_ran_pillbox_get
-(const struct ssol_ran_sun_dir* ran,
+(const struct ssol_ranst_sun_dir* ran,
   struct ssp_rng* rng,
   double dir[3])
 {
@@ -292,8 +292,8 @@ ssol_ran_pillbox_get
 }
 
 res_T
-ssol_ran_sun_dir_pillbox_setup
-  (struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_pillbox_setup
+  (struct ssol_ranst_sun_dir* ran,
    double aperture,
     const double dir[3])
 {
@@ -313,7 +313,7 @@ ssol_ran_sun_dir_pillbox_setup
 
 double*
 ssol_ran_dirac_get
-(const struct ssol_ran_sun_dir* ran,
+(const struct ssol_ranst_sun_dir* ran,
   struct ssp_rng* rng,
   double dir[3])
 {
@@ -324,8 +324,8 @@ ssol_ran_dirac_get
 }
 
 res_T
-ssol_ran_sun_dir_dirac_setup
-  (struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_dirac_setup
+  (struct ssol_ranst_sun_dir* ran,
    const double dir[3])
 {
   if (!ran || !dir) return RES_BAD_ARG;

@@ -21,45 +21,45 @@
 ******************************************************************************/
 
 /* Forward declaration of opaque types */
-struct ssol_ran_sun_dir;
+struct ssol_ranst_sun_dir;
 
 /* Forward declaration of external types */
 struct ssp_rng;
 struct mem_allocator;
 
 res_T
-ssol_ran_sun_dir_create
+ssol_ranst_sun_dir_create
   (struct mem_allocator* allocator,
-   struct ssol_ran_sun_dir** ran);
+   struct ssol_ranst_sun_dir** ran);
 
 res_T
-ssol_ran_sun_dir_buie_setup
-  (struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_buie_setup
+  (struct ssol_ranst_sun_dir* ran,
    double param,
    const double dir[3]);
 
 res_T
-ssol_ran_sun_dir_pillbox_setup
-(struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_pillbox_setup
+(struct ssol_ranst_sun_dir* ran,
   double aperture, /* apparent size in radians */
   const double dir[3]);
 
 res_T
-ssol_ran_sun_dir_dirac_setup
-(struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_dirac_setup
+(struct ssol_ranst_sun_dir* ran,
   const double dir[3]);
 
 res_T
-ssol_ran_sun_dir_ref_get
-  (struct ssol_ran_sun_dir* ran);
+ssol_ranst_sun_dir_ref_get
+  (struct ssol_ranst_sun_dir* ran);
 
 res_T
-ssol_ran_sun_dir_ref_put
-  (struct ssol_ran_sun_dir* ran);
+ssol_ranst_sun_dir_ref_put
+  (struct ssol_ranst_sun_dir* ran);
 
 double*
-ssol_ran_sun_dir_get
-  (const struct ssol_ran_sun_dir* ran,
+ssol_ranst_sun_dir_get
+  (const struct ssol_ranst_sun_dir* ran,
    struct ssp_rng* rng,
    double dir[3]);
 

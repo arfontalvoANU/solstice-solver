@@ -148,7 +148,7 @@ init_solver_data
   darray_3dshape_init(dev->allocator, &data->shapes);
   res = ssp_ranst_piecewise_linear_create(dev->allocator, &data->sun_spectrum_ran);
   if (res != RES_OK) return res;
-  res = ssol_ran_sun_dir_create(dev->allocator, &data->sun_dir_ran);
+  res = ssol_ranst_sun_dir_create(dev->allocator, &data->sun_dir_ran);
   if (res != RES_OK) {
     SSP(ranst_piecewise_linear_ref_put(data->sun_spectrum_ran));
     return res;
@@ -181,13 +181,13 @@ set_sun_distributions
   /* then the direction distribution */
   switch (sun->type) {
   case SUN_DIRECTIONAL:
-    res = ssol_ran_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
+    res = ssol_ranst_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
     break;
   case SUN_PILLBOX:
-    res = ssol_ran_sun_dir_pillbox_setup(data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
+    res = ssol_ranst_sun_dir_pillbox_setup(data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
     break;
   case SUN_CSR:
-    res = ssol_ran_sun_dir_buie_setup(data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
+    res = ssol_ranst_sun_dir_buie_setup(data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
     break;
   default:
     res = RES_OK;

@@ -46,8 +46,8 @@ struct solver_data {
   struct darray_3dshape shapes;
   /* the 3D scene used for raytracing */
   struct s3d_scene *scene;
-  /* the random distribution for sun sampling */
-  struct ssol_ran_sun_dir* sun_dir_ran;
+  /* the random distributions for sun sampling */
+  struct ssol_ranst_sun_dir* sun_dir_ran;
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
 };
 
