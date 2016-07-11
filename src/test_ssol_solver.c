@@ -29,13 +29,6 @@ main(int argc, char** argv)
   struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
-  struct ssol_quadric plane;
-  struct ssol_quadric parabol;
-  struct ssol_quadric general;
-  struct ssol_quadric quadric;
-  double identity[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0};
-  int i;
-  double* p;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -47,22 +40,7 @@ main(int argc, char** argv)
 
   CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
-  plane.type = SSOL_QUADRIC_PLANE;
-  quadric_transform(&plane, identity, &quadric);
-  CHECK(quadric.data.general_quadric.i, 0.5);
 
-  parabol.type = SSOL_QUADRIC_PARABOL;
-  parabol.data.parabol.focal = 1;
-  quadric_transform(&parabol, identity, &quadric);
-  CHECK(quadric.data.general_quadric.a, 1);
-  CHECK(quadric.data.general_quadric.e, 1);
-  CHECK(quadric.data.general_quadric.i, -2);
-
-  general.type = SSOL_GENERAL_QUADRIC;
-  p = &general.data.general_quadric.a;
-  for (i = 0; i < 10; i++) p[i] = rand() / (double)RAND_MAX;
-  quadric_transform(&general, identity, &quadric);
-  CHECK(memcmp(&general, &quadric, sizeof(struct ssol_quadric)), 0);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   logger_release(&logger);
