@@ -16,7 +16,7 @@
 #ifndef SSOL_SOLVER_C_H
 #define SSOL_SOLVER_C_H
 
-#include "ssol_distributions_c.h"
+#include "ssol_ranst_sun_dir.h"
 
 #include <rsys/ref_count.h>
 #include <rsys/list.h>
@@ -46,7 +46,7 @@ struct solver_data {
   /* the 3D scene used for raytracing */
   struct s3d_scene *scene;
   /* the random distributions for sun sampling */
-  struct ssol_ranst_sun_dir* sun_dir_ran;
+  struct ranst_sun_dir* sun_dir_ran;
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
 };
 

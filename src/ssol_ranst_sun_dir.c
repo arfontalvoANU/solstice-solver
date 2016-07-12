@@ -14,7 +14,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_distributions_c.h"
+#include "ssol_ranst_sun_dir.h"
 
 #include <star/ssp.h>
 
@@ -50,9 +50,9 @@ struct ran_dirac_state {
 
 /* One single type for all distributions. Only the state type depends on the
  * distribution type */
-struct ssol_ranst_sun_dir {
+struct ranst_sun_dir {
   double*(*get)
-    (const struct ssol_ranst_sun_dir* ran, struct ssp_rng* rng, double dir[3]);
+    (const struct ranst_sun_dir* ran, struct ssp_rng* rng, double dir[3]);
   union {
     struct ran_buie_state buie;
     struct ran_pillbox_state pillbox;
@@ -69,16 +69,16 @@ struct ssol_ranst_sun_dir {
 static void
 distrib_sun_release(ref_T* ref)
 {
-  struct ssol_ranst_sun_dir* ran;
+  struct ranst_sun_dir* ran;
   ASSERT(ref);
-  ran = CONTAINER_OF(ref, struct ssol_ranst_sun_dir, ref);
+  ran = CONTAINER_OF(ref, struct ranst_sun_dir, ref);
   MEM_RM(ran->allocator, ran);
 }
 
 /*******************************************************************************
  * Buie distribution
  ******************************************************************************/
-static double
+static FINLINE double
 chi_value(const double csr)
 {
   if (csr > 0.145) {
@@ -99,21 +99,21 @@ chi_value(const double csr)
                          csr * (-606122.7511711778 + 5521693.445014727 * csr))));
 }
 
-static double
+static FINLINE double
 phi_solar_disk(const double theta)
 {
   /* The parameter theta is the zenith angle in radians */
   return cos(326 * theta) / cos(308 * theta);
 }
 
-static double
+static FINLINE double
 phi_circum_solor_region(const double theta, const struct ran_buie_state* state)
 {
   /* The parameter theta is the zenith angle in radians */
   return state->etokTimes1000toGamma * pow(theta, state->gamma);
 }
 
-static double
+static FINLINE double
 phi(const double theta, const struct ran_buie_state* state)
 {
   /* The parameter theta is the zenith angle in radians */
@@ -121,21 +121,21 @@ phi(const double theta, const struct ran_buie_state* state)
   else return phi_circum_solor_region(theta, state);
 }
 
-static double
+static FINLINE double
 pdf_theta(const double theta, const struct ran_buie_state* state)
 {
   /* The parameter theta is the zenith angle in radians */
   return state->alpha * phi(theta, state) * sin(theta);
 }
 
-static double
+static FINLINE double
 gamma_value(const double chi)
 {
   /* gamma is the gradient of the 2nd part of the curve in log/log space*/
   return 2.2 * log(0.52 * chi) * pow(chi, 0.43) - 0.1;
 }
 
-static double
+static FINLINE double
 k_value(const double chi)
 {
   /* k is the intercept of the 2nd part of the curve at an angular displacement
@@ -143,7 +143,7 @@ k_value(const double chi)
   return 0.9 * log(13.5 * chi) * pow(chi, -0.3);
 }
 
-static double
+static FINLINE double
 integral_B
   (const double k,
    const double gamma,
@@ -154,7 +154,7 @@ integral_B
   return exp(k) * pow(1000, gamma) / g2 * (pow(thetaCS, g2) - pow(thetaSD, g2));
 }
 
-static double
+static FINLINE double
 proba_rect1
   (const double widthR1,
    const double heightR1,
@@ -166,7 +166,7 @@ proba_rect1
   return areaR1 / (areaR1 + areaR2);
 }
 
-static double
+static FINLINE double
 zenith_angle(struct ssp_rng* rng, const struct ran_buie_state* state)
 {
   double theta;
@@ -210,12 +210,13 @@ fill_buie_state(struct ran_buie_state* s, const double p)
    * obtained remains fixed. */
   s->hRect1 = 1.001 * pdf_theta(0.0038915695846209047, s);
   s->hRect2 = pdf_theta(s->thetaSD, s);
-  s->proba_rect1 = proba_rect1(s->thetaSD, s->hRect1, s->deltaThetaCSSD, s->hRect2);
+  s->proba_rect1 = proba_rect1
+    (s->thetaSD, s->hRect1, s->deltaThetaCSSD, s->hRect2);
 }
 
 static double*
-ssol_ran_buie_get
-  (const struct ssol_ranst_sun_dir* ran, struct ssp_rng* rng, double dir[3])
+ran_buie_get
+  (const struct ranst_sun_dir* ran, struct ssp_rng* rng, double dir[3])
 {
   double phi, theta, sinTheta, cosTheta, cosPhi, sinPhi;
   ASSERT(ran->state.buie.thetaSD > 0);
@@ -233,11 +234,11 @@ ssol_ran_buie_get
 }
 
 /*******************************************************************************
- * Pillbox distribution
+ * Pillbox random variate
  ******************************************************************************/
 static double*
-ssol_ran_pillbox_get
-  (const struct ssol_ranst_sun_dir* ran,
+ran_pillbox_get
+  (const struct ranst_sun_dir* ran,
    struct ssp_rng* rng,
    double dir[3])
 {
@@ -252,11 +253,11 @@ ssol_ran_pillbox_get
 }
 
 /*******************************************************************************
-* Dirac distribution
-******************************************************************************/
+ * Dirac distribution
+ ******************************************************************************/
 static double*
-ssol_ran_dirac_get
-(const struct ssol_ranst_sun_dir* ran,
+ran_dirac_get
+(const struct ranst_sun_dir* ran,
   struct ssp_rng* rng,
   double dir[3])
 {
@@ -270,17 +271,17 @@ ssol_ran_dirac_get
  * Local functions
  ******************************************************************************/
 res_T
-ssol_ranst_sun_dir_create
+ranst_sun_dir_create
   (struct mem_allocator* allocator,
-   struct ssol_ranst_sun_dir** out_ran)
+   struct ranst_sun_dir** out_ran)
 {
-  struct ssol_ranst_sun_dir* ran = NULL;
+  struct ranst_sun_dir* ran = NULL;
 
   if (!out_ran) return RES_BAD_ARG;
 
   allocator = allocator ? allocator : &mem_default_allocator;
 
-  ran = MEM_CALLOC(allocator, 1, sizeof(struct ssol_ranst_sun_dir));
+  ran = MEM_CALLOC(allocator, 1, sizeof(struct ranst_sun_dir));
   if (!ran) return RES_MEM_ERR;
 
   ref_init(&ran->ref);
@@ -291,7 +292,7 @@ ssol_ranst_sun_dir_create
 }
 
 res_T
-ssol_ranst_sun_dir_ref_get(struct ssol_ranst_sun_dir* ran)
+ranst_sun_dir_ref_get(struct ranst_sun_dir* ran)
 {
   if (!ran) return RES_BAD_ARG;
   ref_get(&ran->ref);
@@ -299,7 +300,7 @@ ssol_ranst_sun_dir_ref_get(struct ssol_ranst_sun_dir* ran)
 }
 
 res_T
-ssol_ranst_sun_dir_ref_put(struct ssol_ranst_sun_dir* ran)
+ranst_sun_dir_ref_put(struct ranst_sun_dir* ran)
 {
   if (!ran) return RES_BAD_ARG;
   ref_put(&ran->ref, distrib_sun_release);
@@ -307,8 +308,8 @@ ssol_ranst_sun_dir_ref_put(struct ssol_ranst_sun_dir* ran)
 }
 
 double*
-ssol_ranst_sun_dir_get
-  (const struct ssol_ranst_sun_dir* ran,
+ranst_sun_dir_get
+  (const struct ranst_sun_dir* ran,
    struct ssp_rng* rng,
    double dir[3])
 {
@@ -317,8 +318,8 @@ ssol_ranst_sun_dir_get
 }
 
 res_T
-ssol_ranst_sun_dir_buie_setup
-  (struct ssol_ranst_sun_dir* ran,
+ranst_sun_dir_buie_setup
+  (struct ranst_sun_dir* ran,
    double param,
    const double dir[3])
 {
@@ -327,15 +328,15 @@ ssol_ranst_sun_dir_buie_setup
   if (!ran || !dir || param < minCRSValue || param > maxCRSValue)
     return RES_BAD_ARG;
 
-  ran->get = ssol_ran_buie_get;
+  ran->get = ran_buie_get;
   d33_basis(ran->state.buie.basis, dir);
   fill_buie_state(&ran->state.buie, param);
   return RES_OK;
 }
 
 res_T
-ssol_ranst_sun_dir_pillbox_setup
-  (struct ssol_ranst_sun_dir* ran,
+ranst_sun_dir_pillbox_setup
+  (struct ranst_sun_dir* ran,
    double aperture,
     const double dir[3])
 {
@@ -343,22 +344,22 @@ ssol_ranst_sun_dir_pillbox_setup
   if (!ran || !dir || aperture <= 0 || aperture >= PI )
     return RES_BAD_ARG;
   radius = tan(0.5 * aperture);
-  ran->get = ssol_ran_pillbox_get;
+  ran->get = ran_pillbox_get;
   ran->state.pillbox.radius = radius;
   d33_basis(ran->state.pillbox.basis, dir);
   return RES_OK;
 }
 
 res_T
-ssol_ranst_sun_dir_dirac_setup
-  (struct ssol_ranst_sun_dir* ran,
+ranst_sun_dir_dirac_setup
+  (struct ranst_sun_dir* ran,
    const double dir[3])
 {
   if (!ran || !dir) return RES_BAD_ARG;
   if (0 == d3_normalize(ran->state.dirac.dir, dir))
     /* zero vector */
     return RES_BAD_ARG;
-  ran->get = ssol_ran_dirac_get;
+  ran->get = ran_dirac_get;
   return RES_OK;
 }
 

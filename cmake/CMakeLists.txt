@@ -50,11 +50,11 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
   ssol_device.c
-  ssol_distributions.c
   ssol_image.c
   ssol_material.c
   ssol_object.c
   ssol_object_instance.c
+  ssol_ranst_sun_dir.c
   ssol_scene.c
   ssol_shape.c
   ssol_spectrum.c
@@ -66,11 +66,11 @@ set(SSOL_FILES_INC_API
 
 set(SSOL_FILES_INC
   ssol_device_c.h
-  ssol_distributions_c.h
   ssol_image_c.h
   ssol_material_c.h
   ssol_object_c.h
   ssol_object_instance_c.h
+  ssol_ranst_sun_dir.h
   ssol_scene_c.h
   ssol_shape_c.h
   ssol_spectrum_c.h

@@ -188,14 +188,14 @@ set_sun_distributions
   /* then the direction distribution */
   switch (sun->type) {
   case SUN_DIRECTIONAL:
-    res = ssol_ranst_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
+    res = ranst_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
     break;
   case SUN_PILLBOX:
-    res = ssol_ranst_sun_dir_pillbox_setup
+    res = ranst_sun_dir_pillbox_setup
       (data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
     break;
   case SUN_CSR:
-    res = ssol_ranst_sun_dir_buie_setup
+    res = ranst_sun_dir_buie_setup
       (data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
     break;
   default:
