@@ -27,6 +27,7 @@ find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.3 REQUIRED)
 find_package(Star3D 0.4 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
+find_package(OpenMP 1.2 REQUIRED)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${RCMAKE_SOURCE_DIR})
 include(rcmake)
@@ -93,8 +94,13 @@ endif()
 
 set_target_properties(solstice-solver PROPERTIES
   DEFINE_SYMBOL SSOL_SHARED_BUILD
+  COMPILE_FLAGS ${OpenMP_C_FLAGS}
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR})
+
+if(CMAKE_COMPILER_IS_GNUCC)
+  set_target_properties(solstice-solver PROPERTIES LINK_FLAGS ${OpenMP_C_FLAGS})
+endif()
 
 rcmake_setup_devel(solstice-solver SolSolver ${VERSION} solstice/ssol_version.h)
 
@@ -122,7 +128,7 @@ if(NOT NO_TEST)
     build_test(${_name} ${ARGN})
     register_test(${_name} ${_name})
   endfunction()
-  
+
   new_test(test_ssol_device)
   new_test(test_ssol_image)
   new_test(test_ssol_material)

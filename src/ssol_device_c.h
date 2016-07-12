@@ -22,7 +22,7 @@
 struct ssol_device {
   struct logger* logger;
   struct mem_allocator* allocator;
-  const unsigned nthreads_hint;
+  unsigned nthreads;
   int verbose;
 
   struct s3d_device* s3d;

@@ -19,6 +19,8 @@
 #include <rsys/logger.h>
 #include <rsys/mem_allocator.h>
 
+#include <omp.h>
+
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
@@ -61,7 +63,9 @@ ssol_device_create
   dev->logger = logger ? logger : LOGGER_DEFAULT;
   dev->allocator = allocator;
   dev->verbose = verbose;
-  
+  dev->nthreads = MMIN(nthreads_hint, (unsigned)omp_get_num_procs());
+  omp_set_num_threads((int)dev->nthreads);
+
   res = s3d_device_create(logger, mem_allocator, verbose, &dev->s3d);
   if (res != RES_OK)
     goto error;
