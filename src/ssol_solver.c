@@ -1,17 +1,17 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "ssol_solver_c.h"
@@ -23,19 +23,20 @@
 #include "ssol_spectrum_c.h"
 #include "ssol_object_instance_c.h"
 
-#include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/rsys.h>
 
 #include <star/ssp.h>
 
 /*******************************************************************************
-* Helper functions
-******************************************************************************/
+ * Helper functions
+ ******************************************************************************/
 
-static void quadric_to_mat4x4
-  (const struct ssol_general_quadric* from, double* to)
+static void
+quadric_to_mat4x4(const struct ssol_general_quadric* from, double* to)
 {
+  ASSERT(from && to);
   to[0] = from->a;
   to[1] = to[4] = from->b;
   to[2] = to[8] = from->c;
@@ -48,9 +49,10 @@ static void quadric_to_mat4x4
   to[15] = from->j;
 }
 
-static void mat4x4_to_quadric
-  (const double* from, struct ssol_general_quadric* to)
+static void
+mat4x4_to_quadric(const double* from, struct ssol_general_quadric* to)
 {
+  ASSERT(to && from);
   to->a = from[0];
   to->b = from[1];
   to->c = from[2];
@@ -63,10 +65,12 @@ static void mat4x4_to_quadric
   to->j = from[15];
 }
 
-static void mat_3x4_to_4x4
-  (const double* from, double* to)
+static void
+mat_3x4_to_4x4(const double* from, double* to)
 {
   int r, c, idx_f = 0, idx_t = 0;
+  ASSERT(from && to);
+
   for (c = 0; c < 4; c++) {
     for (r = 0; r < 3; r++) {
       to[idx_t++] = from[idx_f++];
@@ -76,10 +80,11 @@ static void mat_3x4_to_4x4
 }
 
 static void
-mat_4x4_mul
-  (const double* a, const double* b, double* to)
+mat_4x4_mul(const double* a, const double* b, double* to)
 {
   int r, c, k;
+  ASSERT(a && b && to);
+
   for (c = 0; c < 4; c++) {
     for (r = 0; r < 4; r++) {
       to[r * 4 + c] = 0;
@@ -91,10 +96,11 @@ mat_4x4_mul
 }
 
 static void
-mat_4x4_transp
-  (const double* from, double* to)
+mat_4x4_transp(const double* from, double* to)
 {
   int r, c, idx_f = 0, idx_t = 0;
+  ASSERT(from && to);
+
   for (c = 0; c < 4; c++) {
     for (r = 0; r < 4; r++) {
       to[15 - idx_t++] = from[idx_f++];
@@ -102,43 +108,41 @@ mat_4x4_transp
   }
 }
 
-static int
+static INLINE int
 is_instance_punched
   (const struct ssol_object_instance* instance)
 {
+  ASSERT(instance);
   return instance->object->shape->type == SHAPE_PUNCHED;
 }
 
 static const struct ssol_quadric*
-get_quadric
-  (const struct ssol_object_instance* instance)
+get_quadric (const struct ssol_object_instance* instance)
 {
-  ASSERT(is_instance_punched(instance));
+  ASSERT(instance && is_instance_punched(instance));
   return instance->object->shape->quadric;
 }
 
 static struct s3d_scene*
-get_3dscene
-(const struct ssol_object_instance* instance)
+get_3dscene(const struct ssol_object_instance* instance)
 {
+  ASSERT(instance);
   return instance->object->shape->scene;
 }
 
 static const double*
-get_transform
-(const struct ssol_object_instance* instance)
+get_transform(const struct ssol_object_instance* instance)
 {
+  ASSERT(instance);
   return instance->transform;
 }
 
-/*******************************************************************************
-* ssol_solver functions
-******************************************************************************/
-
-res_T
+/* FIXME Dead code. Remove it? */
+#if 0
+static res_T
 init_solver_data
-(struct solver_data* data,
-  struct ssol_device* dev)
+  (struct solver_data* data,
+   struct ssol_device* dev)
 {
   res_T res = RES_OK;
   if (!data || !dev) return RES_BAD_ARG;
@@ -155,14 +159,17 @@ init_solver_data
   }
   return res;
 }
+#endif
 
+/*******************************************************************************
+ * Local functions
+ ******************************************************************************/
 res_T
 set_sun_distributions
   (const struct ssol_sun* sun,
    struct solver_data* data)
 {
   struct ssol_spectrum* spectrum;
-  struct mem_allocator* allocator;
   const double* frequencies;
   const double* intensities;
   res_T res = RES_OK;
@@ -170,13 +177,13 @@ set_sun_distributions
   if (!sun || !data) return RES_BAD_ARG;
 
   ASSERT(data->dev && data->dev->allocator);
-  allocator = data->dev->allocator;
   /* first set the spectrum distribution */
   spectrum = sun->spectrum;
   frequencies = darray_double_cdata_get(&spectrum->frequencies);
   intensities = darray_double_cdata_get(&spectrum->intensities);
   sz = darray_double_size_get(&spectrum->frequencies);
-  res = ssp_ranst_piecewise_linear_setup(data->sun_spectrum_ran, frequencies, intensities, sz);
+  res = ssp_ranst_piecewise_linear_setup
+    (data->sun_spectrum_ran, frequencies, intensities, sz);
   if (res != RES_OK) return res;
   /* then the direction distribution */
   switch (sun->type) {
@@ -184,10 +191,12 @@ set_sun_distributions
     res = ssol_ranst_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
     break;
   case SUN_PILLBOX:
-    res = ssol_ranst_sun_dir_pillbox_setup(data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
+    res = ssol_ranst_sun_dir_pillbox_setup
+      (data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
     break;
   case SUN_CSR:
-    res = ssol_ranst_sun_dir_buie_setup(data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
+    res = ssol_ranst_sun_dir_buie_setup
+      (data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
     break;
   default:
     res = RES_OK;
@@ -208,8 +217,7 @@ set_sun_distributions
  * Ultimately we could process quadric directly without intermediate
  * matricial representation.
  *
- * These are possible performance improvement.
- */
+ * These are possible performance improvement. */
 res_T
 quadric_transform
   (const struct ssol_quadric* quadric,
@@ -277,7 +285,6 @@ quadric_transform
   mat_4x4_mul(transp, quadric44, tmp);
   mat_4x4_mul(tmp, transform44, quadric44);
   mat4x4_to_quadric(quadric44, tr);
-
   return RES_OK;
 }
 
