@@ -320,7 +320,7 @@ ranst_sun_dir_get
 res_T
 ranst_sun_dir_buie_setup
   (struct ranst_sun_dir* ran,
-   double param,
+   const double param,
    const double dir[3])
 {
   const double minCRSValue = 1E-6;
@@ -337,8 +337,8 @@ ranst_sun_dir_buie_setup
 res_T
 ranst_sun_dir_pillbox_setup
   (struct ranst_sun_dir* ran,
-   double aperture,
-    const double dir[3])
+   const double aperture,
+   const double dir[3])
 {
   double radius;
   if (!ran || !dir || aperture <= 0 || aperture >= PI )
