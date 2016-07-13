@@ -489,6 +489,11 @@ ssol_sun_set_direction
   (struct ssol_sun* sun,
    const double direction[3]);
 
+SSOL_API res_T
+ssol_sun_set_dni
+  (struct ssol_sun* sun,
+   const double dni);
+
 /* List of per wavelength power of the sun */
 SSOL_API res_T
 ssol_sun_set_spectrum

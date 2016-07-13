@@ -35,6 +35,7 @@ struct buie {
 
 struct ssol_sun {
   double direction[3];
+  double dni;
   struct ssol_spectrum* spectrum;
   struct ssol_scene* scene_attachment;
   enum sun_type type;

@@ -118,6 +118,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, NULL), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
+  CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
+  CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
+  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+
   CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);

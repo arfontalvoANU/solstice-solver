@@ -123,6 +123,15 @@ ssol_sun_set_direction(struct ssol_sun* sun, const double direction[3])
 }
 
 res_T
+ssol_sun_set_dni(struct ssol_sun* sun, const double dni)
+{
+  if (!sun || dni <= 0)
+    return RES_BAD_ARG;
+  sun->dni = dni;
+  return RES_OK;
+}
+
+res_T
 ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 {
   if (!sun || !spectrum)
