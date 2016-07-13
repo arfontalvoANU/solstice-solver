@@ -34,8 +34,8 @@ spectrum_release(ref_T* ref)
   spectrum = CONTAINER_OF(ref, struct ssol_spectrum, ref);
   dev = spectrum->dev;
   ASSERT(dev && dev->allocator);
-  darray_double_clear(&spectrum->frequencies);
-  darray_double_clear(&spectrum->intensities);
+  darray_double_release(&spectrum->frequencies);
+  darray_double_release(&spectrum->intensities);
   MEM_RM(dev->allocator, spectrum);
   SSOL(device_ref_put(dev));
 }
