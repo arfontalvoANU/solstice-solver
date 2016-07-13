@@ -14,16 +14,61 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
+#include "ssol_brdf_composite.h"
+#include "ssol_brdf_reflection.h"
+#include "ssol_c.h"
 #include "ssol_material_c.h"
 #include "ssol_device_c.h"
 
+#include <rsys/double3.h>
+#include <rsys/float3.h>
+#include <rsys/float33.h>
+#include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
-#include <rsys/ref_count.h>
+
+#include <math.h>
 
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static res_T
+mirror_shade
+  (const struct ssol_material* mtl,
+   const double wavelength, /* In nanometer */
+   const double P[3], /* World space position */
+   const double Ng[3], /* World space geometry normal */
+   const double Ns[3], /* World space shading normal */
+   const double uv[2], /* Texture coordinates */
+   const double w[3], /* Incoming direction. Point toward the surface */
+   struct brdf_composite* brdfs)
+{
+  struct brdf* reflect = NULL;
+  const struct ssol_mirror_shader* shader;
+  double normal[3];
+  double R; /* Reflectivity */
+  res_T res;
+  ASSERT(mtl && P && Ng && Ns && uv && w && mtl->type == MATERIAL_MIRROR);
+
+  shader = &mtl->data.mirror;
+
+  /* FIXME currently the mirror material is a purely reflective BRDF. Discard
+   * the diffuse_specular_ration & the rougness parameters */
+  shader->normal(mtl->dev, wavelength, P, Ng, Ns, uv, w, normal);
+  shader->reflectivity(mtl->dev, wavelength, P, Ng, Ns, uv, w, &R);
+
+  if(RES_OK != (res = brdf_reflection_create(mtl->dev, &reflect))) goto error;
+  if(RES_OK != (res = brdf_reflection_setup(reflect, R))) goto error;
+  if(RES_OK != (res = brdf_composite_add(brdfs, reflect))) goto error;
+  brdf_ref_put(reflect);
+
+exit:
+  if(reflect) brdf_ref_put(reflect);
+  return res;
+error:
+  goto exit;
+}
+
 static void
 material_release(ref_T* ref)
 {
@@ -40,7 +85,7 @@ static INLINE res_T
 shader_ok(const struct ssol_mirror_shader* shader)
 {
   if(!shader
-  || !shader->shading_normal
+  || !shader->normal
   || !shader->reflectivity
   || !shader->diffuse_specular_ratio
   || !shader->roughness)
@@ -140,5 +185,98 @@ ssol_material_create_virtual
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
   return ssol_material_create(dev, out_material, MATERIAL_VIRTUAL);
+}
+
+/*******************************************************************************
+ * Local functions
+ ******************************************************************************/
+res_T
+material_shade
+  (const struct ssol_material* mtl,
+   const double wavelength, /* In nanometer */
+   const struct s3d_hit* hit, /* Hit point to shade */
+   const float dir[3], /* Incoming direction */
+   struct brdf_composite* brdfs) /* Container of BRDFs */
+{
+  struct s3d_attrib attr;
+  double w[3]; /* Incoming direction */
+  double P[3]; /* World space hit position */
+  double Ng[3]; /* World space normalized geometry normal */
+  double Ns[3]; /* World space normalized shading normal */
+  double uv[2]; /* Texture coordinates */
+  double len;
+  char has_texcoord, has_normal;
+  res_T res = RES_OK;
+  ASSERT(mtl && dir && hit && brdfs);
+
+  /* Convert the incoming direction in double */
+  w[0] = (double)dir[0];
+  w[1] = (double)dir[1];
+  w[2] = (double)dir[2];
+
+  /* Retrieve the hit position */
+  S3D(primitive_get_attrib(&hit->prim, S3D_POSITION, hit->uv, &attr));
+  ASSERT(attr.type == S3D_FLOAT3);
+  P[0] = (double)attr.value[0];
+  P[1] = (double)attr.value[1];
+  P[2] = (double)attr.value[2];
+
+  /* Normalize the geometry normal */
+  len = sqrt(f3_len(hit->normal));
+  Ng[0] = (double)hit->normal[0] / len;
+  Ng[1] = (double)hit->normal[1] / len;
+  Ng[2] = (double)hit->normal[2] / len;
+
+  /* Retrieve the tex coord */
+  S3D(primitive_has_attrib(&hit->prim, SSOL_TO_S3D_TEXCOORD, &has_texcoord));
+  if(!has_texcoord) {
+    uv[0] = (double)hit->uv[0];
+    uv[1] = (double)hit->uv[1];
+  } else {
+    S3D(primitive_get_attrib(&hit->prim, SSOL_TO_S3D_TEXCOORD, hit->uv, &attr));
+    ASSERT(attr.type == S3D_FLOAT2);
+    uv[0] = (double)attr.value[0];
+    uv[1] = (double)attr.value[1];
+  }
+
+  /* Retrieve and normalize the shading normal in world space */
+  S3D(primitive_has_attrib(&hit->prim, SSOL_TO_S3D_NORMAL, &has_normal));
+  if(!has_normal) {
+    d3_set(Ns, Ng);
+  } else {
+    float transform[12];
+    float vec[3];
+
+    S3D(primitive_get_attrib(&hit->prim, SSOL_TO_S3D_NORMAL, hit->uv, &attr));
+    ASSERT(attr.type == S3D_FLOAT3);
+
+    S3D(primitive_get_transform(&hit->prim, transform));
+    /* Check that transform is not "identity" */
+    if(!f3_eq(transform + 0, f3(vec, 1.f, 0.f, 0.f))
+    && !f3_eq(transform + 3, f3(vec, 0.f, 1.f, 0.f))
+    && !f3_eq(transform + 6, f3(vec, 0.f, 0.f, 1.f))) {
+      /* Transform the normal in world space, i.e. multiply it by the inverse
+       * transpose of the "object to world" primitive matrix. Since the affine
+       * part of the 3x4 transformation matrix does not influence the normal
+       * transformation, use the linear part only. */
+      f33_invtrans(transform, transform);
+      f33_mulf3(attr.value, transform, attr.value);
+    }
+
+    len = sqrt(f3_len(attr.value));
+    Ns[0] = (double)attr.value[0] / len;
+    Ns[1] = (double)attr.value[1] / len;
+    Ns[2] = (double)attr.value[2] / len;
+  }
+
+  /* Specific material shading */
+  switch(mtl->type) {
+    case MATERIAL_MIRROR:
+      res = mirror_shade(mtl, wavelength, P, Ng, Ns, uv, w, brdfs);
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+
+  return res;
 }
 

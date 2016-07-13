@@ -14,6 +14,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
+#include "ssol_c.h"
 #include "ssol_shape_c.h"
 #include "ssol_device_c.h"
 
@@ -305,15 +306,15 @@ ssol_mesh_setup
     attrib3[i].get = attribs[i].get;
     switch (attribs[i].usage) {
       case SSOL_POSITION:
-        attrib3[i].usage = S3D_POSITION;
+        attrib3[i].usage = SSOL_TO_S3D_POSITION;
         attrib3[i].type = S3D_FLOAT3;
         break;
       case SSOL_NORMAL:
-        attrib3[i].usage = S3D_ATTRIB_0;
+        attrib3[i].usage = SSOL_TO_S3D_NORMAL;
         attrib3[i].type = S3D_FLOAT3;
         break;
       case SSOL_TEXCOORD:
-        attrib3[i].usage = S3D_ATTRIB_1;
+        attrib3[i].usage = SSOL_TO_S3D_TEXCOORD;
         attrib3[i].type = S3D_FLOAT2;
         break;
       default:

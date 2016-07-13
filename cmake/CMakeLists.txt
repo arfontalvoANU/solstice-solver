@@ -71,6 +71,7 @@ set(SSOL_FILES_INC
   ssol_brdf.h
   ssol_brdf_composite.h
   ssol_brdf_reflection.h
+  ssol_c.h
   ssol_device_c.h
   ssol_image_c.h
   ssol_material_c.h

@@ -178,13 +178,14 @@ typedef void
    const double wavelength, /* In nanometer */
    const double P[3], /* World space position */
    const double Ng[3], /* World space geometry normal */
-   const double uv[2], /* Parametric coordinates */
-   const double wo[3], /* Incident direction */
+   const double Ns[3], /* World space shading normal */
+   const double uv[2], /* Texture coordinates */
+   const double w[3], /* Incoming direction. Point toward the surface */
    double* val); /* Returned value */
 
 /* Material descriptors */
 struct ssol_mirror_shader {
-  ssol_shader_getter_T shading_normal;
+  ssol_shader_getter_T normal;
   ssol_shader_getter_T reflectivity;
   ssol_shader_getter_T diffuse_specular_ratio;
   ssol_shader_getter_T roughness;

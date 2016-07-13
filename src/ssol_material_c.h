@@ -18,6 +18,9 @@
 
 #include <rsys/ref_count.h>
 
+struct brdf_composite;
+struct s3d_hit;
+
 enum material_type {
   MATERIAL_VIRTUAL,
   MATERIAL_MIRROR,
@@ -37,4 +40,13 @@ struct ssol_material {
   ref_T ref;
 };
 
+extern LOCAL_SYM res_T
+material_shade
+  (const struct ssol_material* mtl,
+   const double wavelength, /* In nanometer */
+   const struct s3d_hit* hit, /* Hit point to shade */
+   const float w[3], /* Incoming direction */
+   struct brdf_composite* brdfs); /* Container of BRDFs */
+
 #endif /* SSOL_MATERIAL_C_H */
+
