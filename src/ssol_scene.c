@@ -29,16 +29,14 @@
 static void
 scene_release(ref_T* ref)
 {
-  struct ssol_scene* scene;
   struct ssol_device* dev;
+  struct ssol_scene* scene = CONTAINER_OF(ref, struct ssol_scene, ref);
   ASSERT(ref);
-  scene = CONTAINER_OF(ref, struct ssol_scene, ref);
-  SSOL(scene_clear(scene));
   dev = scene->dev;
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
-  if (scene->scene3D) s3d_scene_ref_put(scene->scene3D);
-  if (scene->sun) ssol_sun_ref_put(scene->sun);
+  if (scene->scene3D) S3D(scene_ref_put(scene->scene3D));
+  if (scene->sun) SSOL(sun_ref_put(scene->sun));
   MEM_RM(dev->allocator, scene);
   SSOL(device_ref_put(dev));
 }

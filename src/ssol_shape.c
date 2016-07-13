@@ -27,16 +27,16 @@
 static void
 shape_release(ref_T* ref)
 {
-  struct ssol_shape* shape;
+  struct ssol_device* dev;
+  struct ssol_shape* shape = CONTAINER_OF(ref, struct ssol_shape, ref);
   ASSERT(ref);
-  shape = CONTAINER_OF(ref, struct ssol_shape, ref);
-
-  ASSERT(shape->dev);
-  s3d_shape_ref_put(shape->shape);
-  s3d_scene_ref_put(shape->scene);
-  SSOL(device_ref_put(shape->dev));
-  MEM_RM(shape->dev->allocator, shape->quadric);
-  MEM_RM(shape->dev->allocator, shape);
+  dev = shape->dev;
+  ASSERT(dev && dev->allocator);
+  S3D(shape_ref_put(shape->shape));
+  S3D(scene_ref_put(shape->scene));
+  MEM_RM(dev->allocator, shape->quadric);
+  MEM_RM(dev->allocator, shape);
+  SSOL(device_ref_put(dev));
 }
 
 static INLINE res_T

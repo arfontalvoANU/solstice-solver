@@ -27,16 +27,15 @@
 static void
 object_release(ref_T* ref)
 {
-  struct ssol_object* object;
+  struct ssol_device* dev;
+  struct ssol_object* object = CONTAINER_OF(ref, struct ssol_object, ref);
   ASSERT(ref);
-  object = CONTAINER_OF(ref, struct ssol_object, ref);
-
-  ASSERT(object->dev && object->dev->allocator);
-
+  dev = object->dev;
+  ASSERT(dev && dev->allocator);
   SSOL(shape_ref_put(object->shape));
   SSOL(material_ref_put(object->material));
-  SSOL(device_ref_put(object->dev));
-  MEM_RM(object->dev->allocator, object);
+  MEM_RM(dev->allocator, object);
+  SSOL(device_ref_put(dev));
 }
 
 static INLINE res_T

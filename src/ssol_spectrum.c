@@ -28,10 +28,9 @@
 static void
 spectrum_release(ref_T* ref)
 {
-  struct ssol_spectrum* spectrum;
   struct ssol_device* dev;
+  struct ssol_spectrum* spectrum = CONTAINER_OF(ref, struct ssol_spectrum, ref);
   ASSERT(ref);
-  spectrum = CONTAINER_OF(ref, struct ssol_spectrum, ref);
   dev = spectrum->dev;
   ASSERT(dev && dev->allocator);
   darray_double_release(&spectrum->frequencies);

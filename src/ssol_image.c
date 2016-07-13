@@ -27,14 +27,13 @@
 static void
 image_release(ref_T* ref)
 {
-  struct ssol_image* image;
+  struct ssol_device* dev;
+  struct ssol_image* image = CONTAINER_OF(ref, struct ssol_image, ref);
   ASSERT(ref);
-  image = CONTAINER_OF(ref, struct ssol_image, ref);
-
-  ASSERT(image->dev && image->dev->allocator);
-
-  SSOL(device_ref_put(image->dev));
+  dev = image->dev;
+  ASSERT(dev && dev->allocator);
   MEM_RM(image->dev->allocator, image);
+  SSOL(device_ref_put(dev));
 }
 
 /*******************************************************************************

@@ -30,14 +30,12 @@
 static void
 sun_release(ref_T* ref)
 {
-  struct ssol_sun* sun;
   struct ssol_device* dev;
+  struct ssol_sun* sun = CONTAINER_OF(ref, struct ssol_sun, ref);
   ASSERT(ref);
-  sun = CONTAINER_OF(ref, struct ssol_sun, ref);
   dev = sun->dev;
-  if (sun->spectrum)
-    SSOL(spectrum_ref_put(sun->spectrum));
   ASSERT(dev && dev->allocator);
+  if (sun->spectrum) SSOL(spectrum_ref_put(sun->spectrum));
   MEM_RM(dev->allocator, sun);
   SSOL(device_ref_put(dev));
 }

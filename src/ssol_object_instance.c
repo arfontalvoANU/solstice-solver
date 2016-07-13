@@ -31,19 +31,17 @@
 static void
 object_instance_release(ref_T* ref)
 {
-  struct ssol_object_instance* instance;
+  struct ssol_device* dev;
+  struct ssol_object_instance* instance
+    = CONTAINER_OF(ref, struct ssol_object_instance, ref);
   ASSERT(ref);
-  instance = CONTAINER_OF(ref, struct ssol_object_instance, ref);
-
-  ASSERT(instance->dev && instance->dev->allocator);
-
-  if (instance->object)
-    SSOL(object_ref_put(instance->object));
-  if (instance->image)
-    SSOL(image_ref_put(instance->image));
-  SSOL(device_ref_put(instance->dev));
-  MEM_RM(instance->dev->allocator, instance->receiver_name);
-  MEM_RM(instance->dev->allocator, instance);
+  dev = instance->dev;
+  ASSERT(dev && dev->allocator);
+  SSOL(object_ref_put(instance->object));
+  if (instance->image) SSOL(image_ref_put(instance->image));
+  MEM_RM(dev->allocator, instance->receiver_name);
+  MEM_RM(dev->allocator, instance);
+  SSOL(device_ref_put(dev));
 }
 
 /*******************************************************************************

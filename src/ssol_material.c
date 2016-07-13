@@ -27,14 +27,13 @@
 static void
 material_release(ref_T* ref)
 {
-  struct ssol_material* material;
+  struct ssol_device* dev;
+  struct ssol_material* material = CONTAINER_OF(ref, struct ssol_material, ref);
   ASSERT(ref);
-  material = CONTAINER_OF(ref, struct ssol_material, ref);
-
-  ASSERT(material->dev && material->dev->allocator);
-
-  SSOL(device_ref_put(material->dev));
-  MEM_RM(material->dev->allocator, material);
+  dev = material->dev;
+  ASSERT(dev && dev->allocator);
+  MEM_RM(dev->allocator, material);
+  SSOL(device_ref_put(dev));
 }
 
 static INLINE res_T
