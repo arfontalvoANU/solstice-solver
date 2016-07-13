@@ -194,7 +194,7 @@ set_sun_distributions
     res = ranst_sun_dir_pillbox_setup
       (data->sun_dir_ran, sun->data.pillbox.aperture, sun->direction);
     break;
-  case SUN_CSR:
+  case SUN_BUIE:
     res = ranst_sun_dir_buie_setup
       (data->sun_dir_ran, sun->data.csr.ratio, sun->direction);
     break;

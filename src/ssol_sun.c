@@ -89,10 +89,10 @@ ssol_sun_create_pillbox(struct ssol_device* dev, struct ssol_sun** out_sun)
 }
 
 res_T
-ssol_sun_create_circumsolar_ratio
+ssol_sun_create_buie
   (struct ssol_device* dev, struct ssol_sun** out_sun)
 {
-  return sun_create(dev, out_sun, SUN_CSR);
+  return sun_create(dev, out_sun, SUN_BUIE);
 }
 
 res_T
@@ -147,14 +147,14 @@ ssol_sun_set_pillbox_aperture
 }
 
 res_T
-ssol_sun_set_circumsolar_ratio
+ssol_sun_set_buie_param
   (struct ssol_sun* sun,
    const double ratio)
 {
   if(!sun
   || ratio <= 0
   || ratio >= 1
-  || sun->type != SUN_CSR)
+  || sun->type != SUN_BUIE)
     return RES_BAD_ARG;
   sun->data.csr.ratio = ratio;
   return RES_OK;

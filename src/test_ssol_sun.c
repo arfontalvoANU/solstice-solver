@@ -63,10 +63,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_BAD_ARG);
 
-  CHECK(ssol_sun_set_circumsolar_ratio(NULL, 0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, -0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, 999), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 0.1), RES_BAD_ARG);
 
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
@@ -93,16 +93,16 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_OK);
 
-  CHECK(ssol_sun_set_circumsolar_ratio(NULL, 0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, -0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, 999), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 0.1), RES_BAD_ARG);
 
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
-  CHECK(ssol_sun_create_circumsolar_ratio(NULL, &sun), RES_BAD_ARG);
-  CHECK(ssol_sun_create_circumsolar_ratio(dev, NULL), RES_BAD_ARG);
-  CHECK(ssol_sun_create_circumsolar_ratio(dev, &sun), RES_OK);
+  CHECK(ssol_sun_create_buie(NULL, &sun), RES_BAD_ARG);
+  CHECK(ssol_sun_create_buie(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_create_buie(dev, &sun), RES_OK);
 
   CHECK(ssol_sun_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_sun_ref_get(sun), RES_OK);
@@ -123,10 +123,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_BAD_ARG);
 
-  CHECK(ssol_sun_set_circumsolar_ratio(NULL, 0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, -0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, 999), RES_BAD_ARG);
-  CHECK(ssol_sun_set_circumsolar_ratio(sun, 0.1), RES_OK);
+  CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 0.1), RES_OK);
 
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 

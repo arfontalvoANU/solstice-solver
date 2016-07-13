@@ -471,7 +471,7 @@ ssol_sun_create_pillbox
  * From the paper "Sunshape distributions for terrestrial solar simulations".
  * D. Buie, A.G. Monger, C.J. Dey */
 SSOL_API res_T
-ssol_sun_create_circumsolar_ratio
+ssol_sun_create_buie
   (struct ssol_device* dev,
    struct ssol_sun** sun);
 
@@ -501,9 +501,9 @@ ssol_sun_set_pillbox_aperture
    const double angle); /* In radian */
 
 SSOL_API res_T
-ssol_sun_set_circumsolar_ratio
+ssol_sun_set_buie_param
   (struct ssol_sun* sun,
-   const double ratio); /* In [0, 1] */
+   const double param); /* In ]0, 1[ */
 
 END_DECLS
 
