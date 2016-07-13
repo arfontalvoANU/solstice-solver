@@ -27,14 +27,10 @@
 #define DARRAY_NAME quadric
 #define DARRAY_DATA struct ssol_quadric
 #include <rsys/dynamic_array.h>
-#undef DARRAY_NAME
-#undef DARRAY_DATA
 
 #define DARRAY_NAME 3dshape
 #define DARRAY_DATA struct s3d_shape*
 #include <rsys/dynamic_array.h>
-#undef DARRAY_NAME
-#undef DARRAY_DATA
 
 struct solver_data {
   struct ssol_device* dev;
