@@ -29,7 +29,7 @@ struct pillbox {
   double aperture;
 };
 
-struct csr {
+struct buie {
   double ratio;
 };
 
@@ -40,7 +40,7 @@ struct ssol_sun {
   enum sun_type type;
   union {
     struct pillbox pillbox;
-    struct csr csr;
+    struct buie csr;
   } data;
 
   struct ssol_device* dev;
