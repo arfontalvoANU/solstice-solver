@@ -70,6 +70,8 @@ ssol_object_instantiate
 
   list_init(&instance->scene_attachment);
   instance->dev = dev;
+  instance->object = object;
+  SSOL(object_ref_get(object));
   SSOL(device_ref_get(dev));
   ref_init(&instance->ref);
 
