@@ -294,43 +294,50 @@ process_instances
    struct solver_data* data)
 {
   struct list_node* node;
-  const double* transform;
   int i;
   float tr[12];
+  res_T res = RES_OK;
 
   if (!scene || !data)
     return RES_BAD_ARG;
-  data->quadrics_count = 0;
-  data->shapes_count = scene->instances_count;
-  darray_3dshape_reserve(&data->shapes, data->shapes_count);
+  darray_3dshape_reserve(&data->shapes, scene->instances_count);
 
   /* create the main scene */
-  s3d_scene_create(0, &data->scene);
+  res = s3d_scene_create(0, &data->scene);
+  if (res != RES_OK) goto error;
   LIST_FOR_EACH(node, &scene->instances) {
     struct ssol_object_instance* instance = CONTAINER_OF
       (node, struct ssol_object_instance, scene_attachment);
     struct s3d_scene* scene3D;
     struct s3d_shape* shape3D;
-
-    transform = get_transform(instance);
+    const double* transform = get_transform(instance);
     if (is_instance_punched(instance)) {
       const struct ssol_quadric* quadric = get_quadric(instance);
       struct ssol_quadric transformed;
       quadric_transform(quadric, transform, &transformed);
       darray_quadric_push_back(&data->quadrics, &transformed);
-      ++data->quadrics_count;
     }
     /* instantiate each s3d_scene as a s3d_shape */
     scene3D = get_3dscene(instance);
-    s3d_scene_instantiate(scene3D, &shape3D);
-    /* apply transform: TODO */
+    res = s3d_scene_instantiate(scene3D, &shape3D);
+    if (res != RES_OK) goto error;
+    /* apply transform */
     FOR_EACH(i, 0, 12) tr[i] = (float)transform[i];
-    s3d_instance_set_transform(shape3D, tr);
+    res = s3d_instance_set_transform(shape3D, tr);
+    if (res != RES_OK) goto error;
 
     darray_3dshape_push_back(&data->shapes, &shape3D);
     /* and attach it to the main scene */
-    s3d_scene_attach_shape(data->scene, shape3D);
+    res = s3d_scene_attach_shape(data->scene, shape3D);
+    if (res != RES_OK) goto error;
   }
 
-  return RES_OK;
+exit:
+  return res;
+error:
+  darray_quadric_release(&data->quadrics);
+  darray_3dshape_release(&data->shapes);
+  S3D(scene_clear(data->scene));
+  S3D(scene_ref_put(data->scene));
+  goto exit;
 }

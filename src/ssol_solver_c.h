@@ -35,8 +35,6 @@
 struct solver_data {
   struct ssol_device* dev;
   /* data comming from instances of the scene */
-  size_t shapes_count;
-  size_t quadrics_count;
   struct darray_quadric quadrics;
   struct darray_3dshape shapes;
   /* the 3D scene used for raytracing */
