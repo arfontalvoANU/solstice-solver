@@ -42,6 +42,7 @@ object_instance_release(ref_T* ref)
   if (instance->image)
     SSOL(image_ref_put(instance->image));
   SSOL(device_ref_put(instance->dev));
+  MEM_RM(instance->dev->allocator, instance->receiver_name);
   MEM_RM(instance->dev->allocator, instance);
 }
 
@@ -114,6 +115,22 @@ ssol_object_instance_set_transform
   /* Keep transform for later use */
   memcpy(instance->transform, transform, sizeof(instance->transform));
 
+  return RES_OK;
+}
+
+res_T
+ssol_object_instance_set_receiver
+  (struct ssol_object_instance* instance,
+   const char* name)
+{
+  if (!instance || !name)
+    return RES_BAD_ARG;
+
+  /* keep name */
+  instance->receiver_name = MEM_ALLOC(instance->dev->allocator, strlen(name) + 1);
+  if (!instance->receiver_name) return RES_MEM_ERR;
+  strcpy(instance->receiver_name, name);
+  
   return RES_OK;
 }
 

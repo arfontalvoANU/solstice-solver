@@ -58,6 +58,10 @@ main(int argc, char** argv)
   CHECK(ssol_object_instance_set_transform(instance, NULL), RES_BAD_ARG);
   CHECK(ssol_object_instance_set_transform(instance, transform), RES_OK);
 
+  CHECK(ssol_object_instance_set_receiver(NULL, "receiver 1"), RES_BAD_ARG);
+  CHECK(ssol_object_instance_set_receiver(instance, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_instance_set_receiver(instance, "receiver 1"), RES_OK);
+
   CHECK(ssol_image_create(dev, &image), RES_OK);
   CHECK(ssol_object_instance_set_receiver_image
     (NULL, image, SSOL_PARAMETRIZATION_PRIMITIVE_ID), RES_BAD_ARG);

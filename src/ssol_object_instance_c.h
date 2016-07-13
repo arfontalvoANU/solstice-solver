@@ -25,6 +25,7 @@ struct ssol_object_instance {
   struct ssol_image* image;
   enum ssol_parametrization_type param_type;
   struct list_node scene_attachment;
+  char* receiver_name; /* NULL if not a receiver */
 
   struct ssol_device* dev;
   ref_T ref;

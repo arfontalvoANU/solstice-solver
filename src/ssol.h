@@ -120,6 +120,7 @@ static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
 struct ssol_quadric_plane {
   char unused; /* Define z = 0 */
 };
+
 struct ssol_quadric_parabol {
   double focal; /* Define x^2 + y^2 - 4 focal z = 0 */
 };
@@ -410,6 +411,11 @@ SSOL_API res_T
 ssol_object_instance_set_transform
   (struct ssol_object_instance* instance,
    const double transform[12]); /* 3x4 column major matrix */
+
+SSOL_API res_T
+ssol_object_instance_set_receiver
+  (struct ssol_object_instance* instance,
+   const char* name);
 
 SSOL_API res_T
 ssol_object_instance_set_receiver_image
