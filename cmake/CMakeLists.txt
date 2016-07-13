@@ -50,6 +50,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
   ssol_brdf.c
+  ssol_brdf_composite.c
   ssol_brdf_reflection.c
   ssol_device.c
   ssol_image.c
@@ -68,6 +69,7 @@ set(SSOL_FILES_INC_API
 
 set(SSOL_FILES_INC
   ssol_brdf.h
+  ssol_brdf_composite.h
   ssol_brdf_reflection.h
   ssol_device_c.h
   ssol_image_c.h
