@@ -43,6 +43,7 @@
 /* Forward declaration of external types */
 struct logger;
 struct mem_allocator;
+struct ssp_rng;
 
 /* Opaque Solstice solver types */
 struct ssol_device;
