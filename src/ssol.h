@@ -416,7 +416,7 @@ ssol_object_instance_set_transform
 SSOL_API res_T
 ssol_object_instance_set_receiver
   (struct ssol_object_instance* instance,
-   const char* name);
+   const char* name); /* May be NULL <=> it is no more a receiver */
 
 SSOL_API res_T
 ssol_object_instance_is_attached

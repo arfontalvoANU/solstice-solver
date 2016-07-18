@@ -16,8 +16,9 @@
 #ifndef SSOL_OBJECT_INSTANCE_C_H
 #define SSOL_OBJECT_INSTANCE_C_H
 
-#include <rsys/ref_count.h>
 #include <rsys/list.h>
+#include <rsys/ref_count.h>
+#include <rsys/str.h>
 
 struct ssol_object_instance {
   struct ssol_object* object; /* Instantiated object */
@@ -25,7 +26,7 @@ struct ssol_object_instance {
   struct s3d_shape* shape; /* Instantiated Star-3D shape */
 
   struct list_node scene_attachment;
-  char* receiver_name; /* NULL if not a receiver */
+  struct str receiver_name; /* Emptry if not a receiver */
 
   struct ssol_device* dev;
   ref_T ref;

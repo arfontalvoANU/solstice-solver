@@ -39,7 +39,7 @@ object_instance_release(ref_T* ref)
   ASSERT(dev && dev->allocator);
   SSOL(object_ref_put(instance->object));
   if(instance->shape) S3D(shape_ref_put(instance->shape));
-  MEM_RM(dev->allocator, instance->receiver_name);
+  str_release(&instance->receiver_name);
   MEM_RM(dev->allocator, instance);
   SSOL(device_ref_put(dev));
 }
@@ -74,6 +74,7 @@ ssol_object_instantiate
   list_init(&instance->scene_attachment);
   instance->dev = dev;
   instance->object = object;
+  str_init(dev->allocator, &instance->receiver_name);
   SSOL(object_ref_get(object));
   SSOL(device_ref_get(dev));
   ref_init(&instance->ref);
@@ -131,15 +132,15 @@ ssol_object_instance_set_receiver
   (struct ssol_object_instance* instance,
    const char* name)
 {
-  if (!instance || !name)
+  if(!instance)
     return RES_BAD_ARG;
 
-  /* keep name */
-  instance->receiver_name = MEM_ALLOC(instance->dev->allocator, strlen(name) + 1);
-  if (!instance->receiver_name) return RES_MEM_ERR;
-  strcpy(instance->receiver_name, name);
-
-  return RES_OK;
+  if(name) {
+    return str_set(&instance->receiver_name, name);
+  } else {
+    str_clear(&instance->receiver_name);
+    return RES_OK;
+  }
 }
 
 res_T
