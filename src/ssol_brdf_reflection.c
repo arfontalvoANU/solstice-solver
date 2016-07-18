@@ -66,10 +66,10 @@ brdf_reflection_create
   brdf->sample = reflection_sample;
   reflection = brdf->data;
   reflection->reflectivity = 1.0;
-error:
+exit:
   *out_brdf = brdf;
   return res;
-exit:
+error:
   if(brdf) {
     brdf_ref_put(brdf);
     brdf = NULL;

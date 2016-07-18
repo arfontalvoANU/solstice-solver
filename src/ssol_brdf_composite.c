@@ -71,10 +71,10 @@ brdf_composite_create
   SSOL(device_ref_get(dev));
   brdfs->dev = dev;
 
-error:
+exit:
   *out_brdfs = brdfs;
   return res;
-exit:
+error:
   if(brdfs) {
     brdf_composite_ref_put(brdfs);
     brdfs = NULL;
