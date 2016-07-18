@@ -87,7 +87,6 @@ shader_ok(const struct ssol_mirror_shader* shader)
   if(!shader
   || !shader->normal
   || !shader->reflectivity
-  || !shader->diffuse_specular_ratio
   || !shader->roughness)
     return RES_BAD_ARG;
   return RES_OK;

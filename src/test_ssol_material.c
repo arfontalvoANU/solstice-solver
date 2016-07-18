@@ -50,21 +50,6 @@ get_reflectivity
 }
 
 static void
-get_diffuse_specular_ratio
-  (struct ssol_device* dev,
-   const double wavelength,
-   const double P[3],
-   const double Ng[3],
-   const double Ns[3],
-   const double uv[2],
-   const double w[3],
-   double* val)
-{
-  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv, (void)w;
-  *val = 0;
-}
-
-static void
 get_roughness
   (struct ssol_device* dev,
    const double wavelength,
@@ -113,7 +98,6 @@ main(int argc, char** argv)
 
   shader.normal = get_normal;
   shader.reflectivity = get_reflectivity;
-  shader.diffuse_specular_ratio = get_diffuse_specular_ratio;
   shader.roughness = get_roughness;
 
   CHECK(ssol_mirror_set_shader(NULL, &shader), RES_BAD_ARG);
@@ -127,10 +111,6 @@ main(int argc, char** argv)
   shader.reflectivity = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
   shader.reflectivity = get_reflectivity;
-
-  shader.diffuse_specular_ratio = NULL;
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.diffuse_specular_ratio = get_diffuse_specular_ratio;
 
   shader.roughness = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);

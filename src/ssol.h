@@ -187,7 +187,6 @@ typedef void
 struct ssol_mirror_shader {
   ssol_shader_getter_T normal;
   ssol_shader_getter_T reflectivity;
-  ssol_shader_getter_T diffuse_specular_ratio;
   ssol_shader_getter_T roughness;
 };
 
