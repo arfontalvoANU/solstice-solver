@@ -30,3 +30,4 @@ struct ssol_scene {
 };
 
 #endif /* SSOL_SCENE_C_H */
+

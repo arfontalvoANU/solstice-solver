@@ -327,3 +327,4 @@ ssol_mesh_setup
   MEM_RM(shape->dev->allocator, attrib3);
   return res;
 }
+

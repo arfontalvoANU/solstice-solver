@@ -27,7 +27,6 @@ main(int argc, char** argv)
   struct ssol_shape* shape;
   struct ssol_material* material;
   struct ssol_object* object;
-  struct ssol_image* image;
   struct ssol_object_instance* instance;
   double transform[12];
   (void) argc, (void) argv;
@@ -62,19 +61,8 @@ main(int argc, char** argv)
   CHECK(ssol_object_instance_set_receiver(instance, NULL), RES_BAD_ARG);
   CHECK(ssol_object_instance_set_receiver(instance, "receiver 1"), RES_OK);
 
-  CHECK(ssol_image_create(dev, &image), RES_OK);
-  CHECK(ssol_object_instance_set_receiver_image
-    (NULL, image, SSOL_PARAMETRIZATION_PRIMITIVE_ID), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_receiver_image
-    (instance, NULL, SSOL_PARAMETRIZATION_PRIMITIVE_ID), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_receiver_image
-    (instance, image, (enum ssol_parametrization_type)999), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_receiver_image
-    (instance, image, SSOL_PARAMETRIZATION_PRIMITIVE_ID), RES_OK);
-
   CHECK(ssol_object_instance_ref_put(instance), RES_OK);
 
-  CHECK(ssol_image_ref_put(image), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_material_ref_put(material), RES_OK);

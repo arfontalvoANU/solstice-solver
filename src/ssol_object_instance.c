@@ -38,7 +38,6 @@ object_instance_release(ref_T* ref)
   dev = instance->dev;
   ASSERT(dev && dev->allocator);
   SSOL(object_ref_put(instance->object));
-  if (instance->image) SSOL(image_ref_put(instance->image));
   MEM_RM(dev->allocator, instance->receiver_name);
   MEM_RM(dev->allocator, instance);
   SSOL(device_ref_put(dev));
@@ -55,8 +54,9 @@ ssol_object_instantiate
   struct ssol_object_instance* instance = NULL;
   struct ssol_device* dev;
   res_T res = RES_OK;
-  if (!object || !object->dev || !out_instance) {
-    return RES_BAD_ARG;
+  if (!object || !out_instance) {
+    res = RES_BAD_ARG;
+    goto error;
   }
 
   dev = object->dev;
@@ -130,26 +130,6 @@ ssol_object_instance_set_receiver
   instance->receiver_name = MEM_ALLOC(instance->dev->allocator, strlen(name) + 1);
   if (!instance->receiver_name) return RES_MEM_ERR;
   strcpy(instance->receiver_name, name);
-  
-  return RES_OK;
-}
-
-res_T
-ssol_object_instance_set_receiver_image
-  (struct ssol_object_instance* instance,
-   struct ssol_image* image,
-   const enum ssol_parametrization_type type)
-{
-  if(!instance
-  || !image
-  || (  type != SSOL_PARAMETRIZATION_TEXCOORD
-     && type != SSOL_PARAMETRIZATION_PRIMITIVE_ID))
-    return RES_BAD_ARG;
-
-  if (instance->image) SSOL(image_ref_put(instance->image));
-  SSOL(image_ref_get(image));
-  instance->image = image;
-  instance->param_type = type;
 
   return RES_OK;
 }

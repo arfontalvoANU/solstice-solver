@@ -20,10 +20,9 @@
 #include <rsys/list.h>
 
 struct ssol_object_instance {
-  struct ssol_object* object;
-  double transform[12];
-  struct ssol_image* image;
-  enum ssol_parametrization_type param_type;
+  struct ssol_object* object; /* Instantiated object */
+  double transform[12]; /* Object to world 3x4 column major affine transform */
+
   struct list_node scene_attachment;
   char* receiver_name; /* NULL if not a receiver */
 

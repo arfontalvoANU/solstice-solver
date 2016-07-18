@@ -419,12 +419,6 @@ ssol_object_instance_set_receiver
    const char* name);
 
 SSOL_API res_T
-ssol_object_instance_set_receiver_image
-  (struct ssol_object_instance* instance,
-   struct ssol_image* image,
-   const enum ssol_parametrization_type type);
-
-SSOL_API res_T
 ssol_object_instance_is_attached
   (struct ssol_object_instance* instance,
    char* is_attached);
