@@ -38,6 +38,7 @@ object_instance_release(ref_T* ref)
   dev = instance->dev;
   ASSERT(dev && dev->allocator);
   SSOL(object_ref_put(instance->object));
+  if(instance->shape) S3D(shape_ref_put(instance->shape));
   MEM_RM(dev->allocator, instance->receiver_name);
   MEM_RM(dev->allocator, instance);
   SSOL(device_ref_put(dev));
@@ -53,6 +54,8 @@ ssol_object_instantiate
 {
   struct ssol_object_instance* instance = NULL;
   struct ssol_device* dev;
+  struct s3d_scene* scn = NULL;
+
   res_T res = RES_OK;
   if (!object || !out_instance) {
     res = RES_BAD_ARG;
@@ -75,8 +78,13 @@ ssol_object_instantiate
   SSOL(device_ref_get(dev));
   ref_init(&instance->ref);
 
+  /* Create the Star-3D instance */
+  res = s3d_scene_instantiate(object->s3d_scn, &instance->shape);
+  if(res != RES_OK) goto error;
+
 exit:
-  if (out_instance) *out_instance = instance;
+  if(scn) S3D(scene_ref_put(scn));
+  if(out_instance) *out_instance = instance;
   return res;
 error:
   if (instance) {
@@ -144,3 +152,16 @@ ssol_object_instance_is_attached
 
   return RES_OK;
 }
+
+/*******************************************************************************
+ * Local functions
+ ******************************************************************************/
+unsigned
+object_instance_get_s3d_id(const struct ssol_object_instance* instance)
+{
+  unsigned id;
+  ASSERT(instance);
+  S3D(shape_get_id(instance->shape, &id));
+  return id;
+}
+

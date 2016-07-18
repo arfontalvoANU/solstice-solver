@@ -116,6 +116,8 @@ is_instance_punched
   return instance->object->shape->type == SHAPE_PUNCHED;
 }
 
+/* FIXME Dead code. Remove it? */
+#if 0
 static const struct ssol_quadric*
 get_quadric (const struct ssol_object_instance* instance)
 {
@@ -137,8 +139,6 @@ get_transform(const struct ssol_object_instance* instance)
   return instance->transform;
 }
 
-/* FIXME Dead code. Remove it? */
-#if 0
 static res_T
 init_solver_data
   (struct solver_data* data,
@@ -288,6 +288,7 @@ quadric_transform
   return RES_OK;
 }
 
+#if 0
 res_T
 process_instances
   (const struct ssol_scene* scene,
@@ -341,3 +342,4 @@ error:
   S3D(scene_ref_put(data->scene));
   goto exit;
 }
+#endif

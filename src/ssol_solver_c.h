@@ -49,10 +49,12 @@ set_sun_distributions
 (const struct ssol_sun* sun,
   struct solver_data* data);
 
+#if 0
 extern LOCAL_SYM res_T
 process_instances
   (const struct ssol_scene* scene,
    struct solver_data* data);
+#endif
 
 /* transform a single quadric in world space */
 extern LOCAL_SYM res_T

@@ -22,6 +22,8 @@ struct ssol_object {
   struct ssol_shape* shape;
   struct ssol_material* material;
 
+  struct s3d_scene* s3d_scn; /* Scene to instantiate */
+
   struct ssol_device* dev;
   ref_T ref;
 };

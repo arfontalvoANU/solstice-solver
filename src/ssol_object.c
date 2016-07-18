@@ -14,8 +14,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_object_c.h"
 #include "ssol_device_c.h"
+#include "ssol_object_c.h"
+#include "ssol_shape_c.h"
 
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
@@ -34,6 +35,7 @@ object_release(ref_T* ref)
   ASSERT(dev && dev->allocator);
   SSOL(shape_ref_put(object->shape));
   SSOL(material_ref_put(object->material));
+  if(object->s3d_scn) S3D(scene_ref_put(object->s3d_scn));
   MEM_RM(dev->allocator, object);
   SSOL(device_ref_put(dev));
 }
@@ -70,9 +72,7 @@ ssol_object_create
     res = RES_MEM_ERR;
     goto error;
   }
-
   /* Check if material/shape association is legit: TODO */
-
   SSOL(shape_ref_get(shape));
   SSOL(material_ref_get(material));
   SSOL(device_ref_get(dev));
@@ -80,6 +80,13 @@ ssol_object_create
   object->shape = shape;
   object->material = material;
   ref_init(&object->ref);
+
+  /* Create the Star-3D scene to instantiate through the object instance */
+  res = s3d_scene_create(dev->s3d, &object->s3d_scn);
+  if(res != RES_OK) goto error;
+  res = s3d_scene_attach_shape
+    (object->s3d_scn, shape_get_s3d_shape(object->shape));
+  if(res != RES_OK) goto error;
 
 exit:
   if (out_object) *out_object = object;

@@ -29,12 +29,18 @@ enum shape_type {
 struct ssol_shape {
   enum shape_type type;
 
-  struct s3d_shape* shape; /* 3D shape for the mesh */
-  struct s3d_scene* scene; /* 3D scene for shape instantiation */
+  struct s3d_shape* s3d_shape; /* 3D shape for the mesh */
   struct ssol_quadric* quadric; /* NULL if type != SHAPE_PUNCHED */
 
   struct ssol_device* dev;
   ref_T ref;
 };
+
+static FINLINE struct s3d_shape*
+shape_get_s3d_shape(struct ssol_shape* shape)
+{
+  ASSERT(shape);
+  return shape->s3d_shape;
+}
 
 #endif /* SSOL_SHAPE_C_H */

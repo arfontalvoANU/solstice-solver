@@ -22,6 +22,7 @@
 struct ssol_object_instance {
   struct ssol_object* object; /* Instantiated object */
   double transform[12]; /* Object to world 3x4 column major affine transform */
+  struct s3d_shape* shape; /* Instantiated Star-3D shape */
 
   struct list_node scene_attachment;
   char* receiver_name; /* NULL if not a receiver */
@@ -29,5 +30,10 @@ struct ssol_object_instance {
   struct ssol_device* dev;
   ref_T ref;
 };
+
+/* Return the Star-3D identifier of the object instance */
+extern LOCAL_SYM unsigned
+object_instance_get_s3d_id
+  (const struct ssol_object_instance* instance);
 
 #endif /* SSOL_OBJECT_INSTANCE_C_H */
