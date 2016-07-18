@@ -19,9 +19,27 @@
 #include "ssol_device_c.h"
 #include "ssol_object_instance_c.h"
 
-#include <rsys/rsys.h>
+#include <rsys/hash_table.h>
+#include <rsys/list.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/rsys.h>
+
+/* Define the htable_instance data structure */
+#define HTABLE_NAME instance
+#define HTABLE_KEY unsigned /* S3D object instance identifier */
+#define HTABLE_DATA struct ssol_object_instance*
+#include <rsys/hash_table.h>
+
+struct ssol_scene
+{
+  struct htable_instance instances;
+  struct s3d_scene* s3d_scn;
+  struct ssol_sun* sun;
+
+  struct ssol_device* dev;
+  ref_T ref;
+};
 
 /*******************************************************************************
  * Helper functions
@@ -35,23 +53,11 @@ scene_release(ref_T* ref)
   dev = scene->dev;
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
-  if (scene->scene3D) S3D(scene_ref_put(scene->scene3D));
-  if (scene->sun) SSOL(sun_ref_put(scene->sun));
+  if(scene->s3d_scn) S3D(scene_ref_put(scene->s3d_scn));
+  if(scene->sun) SSOL(sun_ref_put(scene->sun));
+  htable_instance_release(&scene->instances);
   MEM_RM(dev->allocator, scene);
   SSOL(device_ref_put(dev));
-}
-
-static void
-scene_detach_instance
-  (struct ssol_scene* scene,
-   struct ssol_object_instance* instance)
-{
-  ASSERT(scene && instance && !is_list_empty(&instance->scene_attachment));
-  ASSERT(scene->instances_count != 0);
-
-  list_del(&instance->scene_attachment);
-  --scene->instances_count;
-  SSOL(object_instance_ref_put(instance));
 }
 
 /*******************************************************************************
@@ -74,10 +80,13 @@ ssol_scene_create
     res = RES_MEM_ERR;
     goto error;
   }
-  list_init(&scene->instances);
+  htable_instance_init(dev->allocator, &scene->instances);
   SSOL(device_ref_get(dev));
   scene->dev = dev;
   ref_init(&scene->ref);
+
+  res = s3d_scene_create(dev->s3d, &scene->s3d_scn);
+  if(res != RES_OK) goto error;
 
 exit:
   if (out_scene) *out_scene = scene;
@@ -91,21 +100,17 @@ error:
 }
 
 res_T
-ssol_scene_ref_get
-  (struct ssol_scene* scene)
+ssol_scene_ref_get(struct ssol_scene* scene)
 {
-  if (!scene)
-    return RES_BAD_ARG;
+  if(!scene) return RES_BAD_ARG;
   ref_get(&scene->ref);
   return RES_OK;
 }
 
 res_T
-ssol_scene_ref_put
-  (struct ssol_scene* scene)
+ssol_scene_ref_put(struct ssol_scene* scene)
 {
-  if (!scene)
-    return RES_BAD_ARG;
+  if(!scene) return RES_BAD_ARG;
   ref_put(&scene->ref, scene_release);
   return RES_OK;
 }
@@ -114,15 +119,26 @@ res_T
 ssol_scene_attach_object_instance
   (struct ssol_scene* scene, struct ssol_object_instance* instance)
 {
-  if (!scene || !instance)
-    return RES_BAD_ARG;
-  if (!is_list_empty(&instance->scene_attachment))
-    return RES_BAD_ARG;
+  struct s3d_shape* shape;
+  unsigned id;
+  res_T res;
 
-  /* Instance is chained into the list of instance of the scene */
-  list_add_tail(&scene->instances, &instance->scene_attachment);
+  if(!scene || !instance) return RES_BAD_ARG;
+  shape = object_instance_get_s3d_shape(instance);
+
+  /* Try to attach the instantiated s3d shape to s3d scene */
+  res = s3d_scene_attach_shape(scene->s3d_scn, shape);
+  if(res != RES_OK) return res;
+
+  /* Register the instance against the scene */
+  S3D(shape_get_id(shape, &id));
+  ASSERT(!htable_instance_find(&scene->instances, &id));
+  res = htable_instance_set(&scene->instances, &id, &instance);
+  if(res != RES_OK) {
+    S3D(scene_detach_shape(scene->s3d_scn, shape));
+    return res;
+  }
   SSOL(object_instance_ref_get(instance));
-  scene->instances_count++;
   return RES_OK;
 }
 
@@ -131,40 +147,51 @@ ssol_scene_detach_object_instance
   (struct ssol_scene* scene,
    struct ssol_object_instance* instance)
 {
-  char is_attached;
-  if (!scene || !instance) return RES_BAD_ARG;
-  if (!(SSOL(object_instance_is_attached(instance, &is_attached)), is_attached))
-    return RES_BAD_ARG;
+  struct ssol_object_instance** pinst;
+  struct ssol_object_instance* inst;
+  struct s3d_shape* shape;
+  unsigned id;
+  size_t n;
+  (void)n, (void)inst;
 
-#ifndef NDEBUG
-  { /* Check that  instance is attached to `scene' */
-    struct list_node* node;
-    char is_found = 0;
-    LIST_FOR_EACH(node, &scene->instances) {
-      if (node == &instance->scene_attachment) {
-        is_found = 1;
-        break;
-      }
-    }
-    ASSERT(is_found);
-  }
-#endif
+  if(!scene || !instance) return RES_BAD_ARG;
 
-  scene_detach_instance(scene, instance);
+  /* Retrieve the object instance identifier */
+  shape = object_instance_get_s3d_shape(instance);
+  S3D(shape_get_id(shape, &id));
+
+  /* Check that the instance is effectively registered into the scene */
+  pinst = htable_instance_find(&scene->instances, &id);
+  if(!pinst) return RES_BAD_ARG;
+  inst = *pinst;
+  ASSERT(inst == instance);
+
+  /* Detach the object instance */
+  n = htable_instance_erase(&scene->instances, &id);
+  ASSERT(n == 1);
+  S3D(scene_detach_shape(scene->s3d_scn, shape));
+  SSOL(object_instance_ref_put(instance));
+
   return RES_OK;
 }
 
 res_T
 ssol_scene_clear(struct ssol_scene* scene)
 {
-  struct list_node* node, *tmp;
-  if (!scene) return RES_BAD_ARG;
+  struct htable_instance_iterator it, it_end;
+  if(!scene) return RES_BAD_ARG;
 
-  LIST_FOR_EACH_SAFE(node, tmp, &scene->instances) {
-    struct ssol_object_instance* instance = CONTAINER_OF
-      (node, struct ssol_object_instance, scene_attachment);
-    scene_detach_instance(scene, instance);
+  htable_instance_begin(&scene->instances, &it);
+  htable_instance_end(&scene->instances, &it_end);
+  while(!htable_instance_iterator_eq(&it, &it_end)) {
+    struct ssol_object_instance* inst;
+    inst = *htable_instance_iterator_data_get(&it);
+    S3D(scene_detach_shape(scene->s3d_scn, object_instance_get_s3d_shape(inst)));
+    SSOL(object_instance_ref_put(inst));
+    htable_instance_iterator_next(&it);
   }
+  htable_instance_clear(&scene->instances);
+  S3D(scene_clear(scene->s3d_scn));
   return RES_OK;
 }
 
@@ -191,5 +218,27 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
   scene->sun = NULL;
   SSOL(sun_ref_put(sun));
   return RES_OK;
+}
+
+/*******************************************************************************
+ * Local functions
+ ******************************************************************************/
+struct s3d_scene*
+scene_get_s3d_scene(const struct ssol_scene* scn)
+{
+  ASSERT(scn);
+  return scn->s3d_scn;
+}
+
+struct ssol_object_instance*
+scene_get_object_instance_from_s3d_hit
+  (struct ssol_scene* scn,
+   const struct s3d_hit* hit)
+{
+  struct ssol_object_instance** pinst;
+  ASSERT(scn && hit);
+  pinst = htable_instance_find(&scn->instances, &hit->prim.inst_id);
+  ASSERT(pinst);
+  return *pinst;
 }
 

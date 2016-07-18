@@ -16,18 +16,21 @@
 #ifndef SSOL_SCENE_C_H
 #define SSOL_SCENE_C_H
 
-#include <rsys/ref_count.h>
-#include <rsys/list.h>
+#include <rsys/rsys.h>
 
-struct ssol_scene {
-  struct list_node instances; /* List of attached instances */
-  size_t instances_count;
-  struct s3d_scene* scene3D;
-  struct ssol_sun* sun;
+struct s3d_hit;
+struct s3d_scene;
+struct ssol_object_instance;
+struct ssol_scene;
 
-  struct ssol_device* dev;
-  ref_T ref;
-};
+extern LOCAL_SYM struct s3d_scene*
+scene_get_s3d_scene
+  (const struct ssol_scene* scn);
+
+extern LOCAL_SYM struct ssol_object_instance*
+scene_get_object_instance_from_s3d_hit
+  (struct ssol_scene* scn,
+   const struct s3d_hit* hit);
 
 #endif /* SSOL_SCENE_C_H */
 
