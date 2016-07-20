@@ -26,6 +26,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_spectrum* spectrum;
   struct ssol_sun* sun;
+  double dir0[3] = { 0, 0, 0 };
   double dir[3] = { 1, 0, 0 };
   (void) argc, (void) argv;
 
@@ -56,6 +57,7 @@ main(int argc, char** argv)
 
   CHECK(ssol_sun_set_direction(NULL, dir), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_set_direction(sun, dir0), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
   CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
@@ -86,6 +88,7 @@ main(int argc, char** argv)
 
   CHECK(ssol_sun_set_direction(NULL, dir), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_set_direction(sun, dir0), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
   CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
@@ -116,6 +119,7 @@ main(int argc, char** argv)
 
   CHECK(ssol_sun_set_direction(NULL, dir), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_set_direction(sun, dir0), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);

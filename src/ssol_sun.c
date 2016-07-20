@@ -21,6 +21,7 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/math.h>
+#include <rsys/double3.h>
 
 #include <string.h>
 
@@ -118,7 +119,9 @@ ssol_sun_set_direction(struct ssol_sun* sun, const double direction[3])
 {
   if (!sun || !direction)
     return RES_BAD_ARG;
-  memcpy(sun->direction, direction, 3 * sizeof(double));
+  if (0 == d3_normalize(sun->direction, direction))
+    /* zero vector */
+    return RES_BAD_ARG;
   return RES_OK;
 }
 
