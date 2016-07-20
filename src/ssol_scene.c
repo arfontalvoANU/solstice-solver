@@ -14,9 +14,12 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
+#include "ssol_c.h"
 #include "ssol_scene_c.h"
 #include "ssol_sun_c.h"
 #include "ssol_device_c.h"
+#include "ssol_material_c.h"
+#include "ssol_object_c.h"
 #include "ssol_object_instance_c.h"
 
 #include <rsys/hash_table.h>
@@ -240,5 +243,37 @@ scene_get_object_instance_from_s3d_hit
   pinst = htable_instance_find(&scn->instances, &hit->prim.inst_id);
   ASSERT(pinst);
   return *pinst;
+}
+
+/*******************************************************************************
+ * Local miscellaneous functions
+ ******************************************************************************/
+int
+hit_filter_function
+  (const struct s3d_hit* hit,
+   const float org[3],
+   const float dir[3],
+   void* ray_data,
+   void* filter_data)
+{
+  struct ray_data* rdata;
+  struct ssol_object_instance* instance;
+  struct ssol_material* material;
+  (void)org, (void)dir, (void)filter_data;
+  ASSERT(rdata);
+
+  if(!ray_data) return 0;
+
+  rdata = ray_data;
+  if(S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from))
+    return 1; /* Discard self intersection */
+
+  instance = scene_get_object_instance_from_s3d_hit(rdata->scene, hit);
+  material = object_get_material(object_instance_get_object(instance));
+
+  if(material_get_type(material) == MATERIAL_VIRTUAL)
+    return 1; /* Discard virtual material */
+
+  return 0;
 }
 

@@ -28,4 +28,12 @@ struct ssol_object {
   ref_T ref;
 };
 
+static FINLINE struct ssol_material*
+object_get_material(const struct ssol_object* object)
+{
+  ASSERT(object);
+  return object->material;
+}
+
+
 #endif /* SSOL_OBJECT_C_H */

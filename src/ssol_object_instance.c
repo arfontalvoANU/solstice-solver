@@ -153,4 +153,3 @@ ssol_object_instance_is_attached
   return RES_OK;
 }
 
-

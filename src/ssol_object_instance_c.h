@@ -39,4 +39,19 @@ object_instance_get_s3d_shape(const struct ssol_object_instance* instance)
   return instance->s3d_shape;
 }
 
+static INLINE struct ssol_object*
+object_instance_get_object(const struct ssol_object_instance* instance)
+{
+  ASSERT(instance);
+  return instance->object;
+}
+
+static INLINE const char*
+object_instance_get_receiver_name(const struct ssol_object_instance* instance)
+{
+  ASSERT(instance);
+  return str_is_empty(&instance->receiver_name)
+    ? NULL : str_cget(&instance->receiver_name);
+}
+
 #endif /* SSOL_OBJECT_INSTANCE_C_H */
