@@ -102,6 +102,7 @@ ssol_spectrum_setup
    const size_t nwavelength)
 {
   res_T res = RES_OK;
+  size_t i;
   if(!spectrum
   || nwavelength <= 0
   || !wavelengths
@@ -117,8 +118,10 @@ ssol_spectrum_setup
     return res;
   }
 
-  memcpy(spectrum->frequencies.data, wavelengths, nwavelength * sizeof(double));
-  memcpy(spectrum->intensities.data, data, nwavelength * sizeof(double));
+  FOR_EACH(i, 0, nwavelength) {
+    darray_double_push_back(&spectrum->frequencies, wavelengths + i);
+    darray_double_push_back(&spectrum->intensities, data + i);
+  }
 
   return res;
 }
