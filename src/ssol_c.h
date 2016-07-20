@@ -25,7 +25,12 @@
 
 struct ray_data {
   struct ssol_scene* scene; /* Scene in which the ray is traced */
-  struct s3d_primitive prim_from; /* Primitive from which the scene start */
+  struct s3d_primitive prim_from; /* Primitive from which the ray starts */
+  unsigned path_id; /* Identifier of the path to which the ray belongs to */
+  unsigned ray_id; /* Identifier of the ray into the path */
+  double radiance; /* Current path radiance in W.sr^-1.m^-2 */
+  double wavelength; /* Wavelength of the current path in nanometer */
+  FILE* stream;
 };
 
 static FINLINE enum s3d_attrib_usage

@@ -259,6 +259,7 @@ hit_filter_function
   struct ray_data* rdata;
   struct ssol_object_instance* instance;
   struct ssol_material* material;
+  const char* receiver_name;
   (void)org, (void)dir, (void)filter_data;
   ASSERT(rdata);
 
@@ -269,10 +270,27 @@ hit_filter_function
     return 1; /* Discard self intersection */
 
   instance = scene_get_object_instance_from_s3d_hit(rdata->scene, hit);
-  material = object_get_material(object_instance_get_object(instance));
 
-  if(material_get_type(material) == MATERIAL_VIRTUAL)
+  /* Check if the hit surface is a receiver that registers hit data */
+  receiver_name = object_instance_get_receiver_name(instance);
+  if(receiver_name) {
+    struct surface_fragment frag;
+    surface_fragment_setup(&frag, org, dir, hit);
+    fprintf(rdata->stream, "%s %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
+      receiver_name,
+      rdata->path_id,
+      rdata->ray_id,
+      rdata->wavelength,
+      rdata->radiance,
+      SPLIT3(frag.pos),
+      SPLIT3(frag.dir),
+      SPLIT2(frag.uv));
+  }
+
+  material = object_get_material(object_instance_get_object(instance));
+  if(material_get_type(material) == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
+  }
 
   return 0;
 }

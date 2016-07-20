@@ -35,12 +35,8 @@
 static res_T
 mirror_shade
   (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const double P[3], /* World space position */
-   const double Ng[3], /* World space geometry normal */
-   const double Ns[3], /* World space shading normal */
-   const double uv[2], /* Texture coordinates */
-   const double w[3], /* Incoming direction. Point toward the surface */
    struct brdf_composite* brdfs)
 {
   struct brdf* reflect = NULL;
@@ -48,14 +44,17 @@ mirror_shade
   double normal[3];
   double R; /* Reflectivity */
   res_T res;
-  ASSERT(mtl && P && Ng && Ns && uv && w && mtl->type == MATERIAL_MIRROR);
+  ASSERT(mtl && fragment && mtl->type == MATERIAL_MIRROR);
+  ASSERT(brdfs);
 
   shader = &mtl->data.mirror;
 
   /* FIXME currently the mirror material is a purely reflective BRDF. Discard
    * the diffuse_specular_ratio & the rougness parameters */
-  shader->normal(mtl->dev, wavelength, P, Ng, Ns, uv, w, normal);
-  shader->reflectivity(mtl->dev, wavelength, P, Ng, Ns, uv, w, &R);
+  shader->normal(mtl->dev, wavelength, fragment->pos, fragment->Ng,
+    fragment->Ns, fragment->uv, fragment->dir, normal);
+  shader->reflectivity(mtl->dev, wavelength, fragment->pos, fragment->Ng,
+    fragment->Ns, fragment->uv, fragment->dir, &R);
 
   if(RES_OK != (res = brdf_reflection_create(mtl->dev, &reflect))) goto error;
   if(RES_OK != (res = brdf_reflection_setup(reflect, R))) goto error;
@@ -189,59 +188,50 @@ ssol_material_create_virtual
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
-res_T
-material_shade
-  (const struct ssol_material* mtl,
-   const double wavelength, /* In nanometer */
-   const struct s3d_hit* hit, /* Hit point to shade */
-   const float dir[3], /* Incoming direction */
-   struct brdf_composite* brdfs) /* Container of BRDFs */
+void
+surface_fragment_setup
+  (struct surface_fragment* fragment,
+   const float ray_org[3],
+   const float ray_dir[3],
+   const struct s3d_hit* hit)
 {
   struct s3d_attrib attr;
-  double w[3]; /* Incoming direction */
-  double P[3]; /* World space hit position */
-  double Ng[3]; /* World space normalized geometry normal */
-  double Ns[3]; /* World space normalized shading normal */
-  double uv[2]; /* Texture coordinates */
   double len;
   char has_texcoord, has_normal;
-  res_T res = RES_OK;
-  ASSERT(mtl && dir && hit && brdfs);
+  ASSERT(fragment && ray_org && ray_dir && hit);
 
-  /* Convert the incoming direction in double */
-  w[0] = (double)dir[0];
-  w[1] = (double)dir[1];
-  w[2] = (double)dir[2];
+  /* Setup the incoming direction */
+  fragment->dir[0] = ray_dir[0];
+  fragment->dir[1] = ray_dir[1];
+  fragment->dir[2] = ray_dir[2];
 
-  /* Retrieve the hit position */
-  S3D(primitive_get_attrib(&hit->prim, S3D_POSITION, hit->uv, &attr));
-  ASSERT(attr.type == S3D_FLOAT3);
-  P[0] = (double)attr.value[0];
-  P[1] = (double)attr.value[1];
-  P[2] = (double)attr.value[2];
+  /* Setup the surface position */
+  fragment->pos[0] = ray_org[0] + ray_dir[0] * hit->distance;
+  fragment->pos[1] = ray_org[1] + ray_dir[1] * hit->distance;
+  fragment->pos[2] = ray_org[2] + ray_dir[2] * hit->distance;
 
   /* Normalize the geometry normal */
   len = sqrt(f3_len(hit->normal));
-  Ng[0] = (double)hit->normal[0] / len;
-  Ng[1] = (double)hit->normal[1] / len;
-  Ng[2] = (double)hit->normal[2] / len;
+  fragment->Ng[0] = hit->normal[0] / len;
+  fragment->Ng[1] = hit->normal[1] / len;
+  fragment->Ng[2] = hit->normal[2] / len;
 
   /* Retrieve the tex coord */
   S3D(primitive_has_attrib(&hit->prim, SSOL_TO_S3D_TEXCOORD, &has_texcoord));
   if(!has_texcoord) {
-    uv[0] = (double)hit->uv[0];
-    uv[1] = (double)hit->uv[1];
+    fragment->uv[0] = hit->uv[0];
+    fragment->uv[1] = hit->uv[1];
   } else {
     S3D(primitive_get_attrib(&hit->prim, SSOL_TO_S3D_TEXCOORD, hit->uv, &attr));
     ASSERT(attr.type == S3D_FLOAT2);
-    uv[0] = (double)attr.value[0];
-    uv[1] = (double)attr.value[1];
+    fragment->uv[0] = attr.value[0];
+    fragment->uv[1] = attr.value[1];
   }
 
   /* Retrieve and normalize the shading normal in world space */
   S3D(primitive_has_attrib(&hit->prim, SSOL_TO_S3D_NORMAL, &has_normal));
   if(!has_normal) {
-    d3_set(Ns, Ng);
+    d3_set(fragment->Ns, fragment->Ng);
   } else {
     float transform[12];
     float vec[3];
@@ -263,16 +253,28 @@ material_shade
     }
 
     len = sqrt(f3_len(attr.value));
-    Ns[0] = (double)attr.value[0] / len;
-    Ns[1] = (double)attr.value[1] / len;
-    Ns[2] = (double)attr.value[2] / len;
+    fragment->Ns[0] = attr.value[0] / len;
+    fragment->Ns[1] = attr.value[1] / len;
+    fragment->Ns[2] = attr.value[2] / len;
   }
+}
+
+res_T
+material_shade
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   struct brdf_composite* brdfs) /* Container of BRDFs */
+{
+  res_T res = RES_OK;
+  ASSERT(mtl);
 
   /* Specific material shading */
   switch(mtl->type) {
     case MATERIAL_MIRROR:
-      res = mirror_shade(mtl, wavelength, P, Ng, Ns, uv, w, brdfs);
+      res = mirror_shade(mtl, fragment, wavelength, brdfs);
       break;
+    case MATERIAL_VIRTUAL: /* Nothing to shade */ break;
     default: FATAL("Unreachable code\n"); break;
   }
   return res;

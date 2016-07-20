@@ -21,6 +21,14 @@
 struct brdf_composite;
 struct s3d_hit;
 
+struct surface_fragment {
+  double dir[3]; /* World space incoming direction */
+  double pos[3]; /* World space position */
+  double Ng[3]; /* Normalized world space primitive normal */
+  double Ns[3]; /* Normalized world space shading normal */
+  double uv[2]; /* Texture coordinates */
+};
+
 enum material_type {
   MATERIAL_VIRTUAL,
   MATERIAL_MIRROR,
@@ -47,12 +55,18 @@ material_get_type(const struct ssol_material* mtl)
   return mtl->type;
 }
 
+extern LOCAL_SYM void
+surface_fragment_setup
+  (struct surface_fragment* fragment,
+   const float ray_org[3],
+   const float ray_dir[3],
+   const struct s3d_hit* hit);
+
 extern LOCAL_SYM res_T
 material_shade
   (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const struct s3d_hit* hit, /* Hit point to shade */
-   const float w[3], /* Incoming direction */
    struct brdf_composite* brdfs); /* Container of BRDFs */
 
 #endif /* SSOL_MATERIAL_C_H */
