@@ -50,7 +50,7 @@ mirror_shade
   shader = &mtl->data.mirror;
 
   /* FIXME currently the mirror material is a purely reflective BRDF. Discard
-   * the diffuse_specular_ratio & the rougness parameters */
+   * the roughness parameters */
   shader->normal(mtl->dev, wavelength, fragment->pos, fragment->Ng,
     fragment->Ns, fragment->uv, fragment->dir, normal);
   shader->reflectivity(mtl->dev, wavelength, fragment->pos, fragment->Ng,
