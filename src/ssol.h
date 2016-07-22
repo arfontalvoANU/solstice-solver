@@ -510,7 +510,7 @@ ssol_sun_set_buie_param
  ******************************************************************************/
 SSOL_API res_T
 ssol_solve
-  (const struct ssol_scene* scn,
+  (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
    FILE* output);

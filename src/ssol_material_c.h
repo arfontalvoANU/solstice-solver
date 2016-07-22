@@ -58,9 +58,11 @@ material_get_type(const struct ssol_material* mtl)
 extern LOCAL_SYM void
 surface_fragment_setup
   (struct surface_fragment* fragment,
-   const float ray_org[3],
-   const float ray_dir[3],
-   const struct s3d_hit* hit);
+   const float pos[3],
+   const float dir[3],
+   const float normal[3],
+   const struct s3d_primitive* primitive,
+   const float uv[2]);
 
 extern LOCAL_SYM res_T
 material_shade

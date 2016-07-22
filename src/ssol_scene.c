@@ -27,6 +27,7 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
+#include <rsys/float3.h>
 
 /* Define the htable_instance data structure */
 #define HTABLE_NAME instance
@@ -38,6 +39,7 @@ struct ssol_scene
 {
   struct htable_instance instances;
   struct s3d_scene* s3d_scn;
+  struct s3d_scene* s3d_sampling_scn;
   struct ssol_sun* sun;
 
   struct ssol_device* dev;
@@ -56,7 +58,8 @@ scene_release(ref_T* ref)
   dev = scene->dev;
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
-  if(scene->s3d_scn) S3D(scene_ref_put(scene->s3d_scn));
+  if (scene->s3d_scn) S3D(scene_ref_put(scene->s3d_scn));
+  if (scene->s3d_sampling_scn) S3D(scene_ref_put(scene->s3d_sampling_scn));
   if(scene->sun) SSOL(sun_ref_put(scene->sun));
   htable_instance_release(&scene->instances);
   MEM_RM(dev->allocator, scene);
@@ -89,7 +92,10 @@ ssol_scene_create
   ref_init(&scene->ref);
 
   res = s3d_scene_create(dev->s3d, &scene->s3d_scn);
-  if(res != RES_OK) goto error;
+  if (res != RES_OK) goto error;
+
+  res = s3d_scene_create(dev->s3d, &scene->s3d_sampling_scn);
+  if (res != RES_OK) goto error;
 
 exit:
   if (out_scene) *out_scene = scene;
@@ -233,6 +239,13 @@ scene_get_s3d_scene(const struct ssol_scene* scn)
   return scn->s3d_scn;
 }
 
+struct s3d_scene*
+scene_get_s3d_sampling_scn(const struct ssol_scene* scn)
+{
+  ASSERT(scn);
+  return scn->s3d_sampling_scn;
+}
+
 struct ssol_object_instance*
 scene_get_object_instance_from_s3d_hit
   (struct ssol_scene* scn,
@@ -256,7 +269,7 @@ hit_filter_function
    void* ray_data,
    void* filter_data)
 {
-  struct ray_data* rdata;
+  struct ray_data* rdata = ray_data;
   struct ssol_object_instance* instance;
   struct ssol_material* material;
   const char* receiver_name;
@@ -265,7 +278,6 @@ hit_filter_function
 
   if(!ray_data) return 0;
 
-  rdata = ray_data;
   if(S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from))
     return 1; /* Discard self intersection */
 
@@ -275,7 +287,9 @@ hit_filter_function
   receiver_name = object_instance_get_receiver_name(instance);
   if(receiver_name) {
     struct surface_fragment frag;
-    surface_fragment_setup(&frag, org, dir, hit);
+    float tmp[3];
+    f3_set(tmp, f3_add(tmp, org, f3_mulf(tmp, dir, hit->distance)));
+    surface_fragment_setup(&frag, tmp, dir, hit->normal, &hit->prim, hit->uv);
     fprintf(rdata->stream, "%s %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
       receiver_name,
       rdata->path_id,
@@ -295,3 +309,26 @@ hit_filter_function
   return 0;
 }
 
+struct ssol_sun*
+scene_get_sun
+  (struct ssol_scene* scn)
+{
+  ASSERT(scn);
+  return scn->sun;
+}
+
+struct ssol_device*
+  scene_get_device
+  (struct ssol_scene* scn)
+{
+  ASSERT(scn);
+  return scn->dev;
+}
+
+struct htable_instance*
+  scene_get_instances
+  (struct ssol_scene* scn)
+{
+  ASSERT(scn);
+  return &scn->instances;
+}

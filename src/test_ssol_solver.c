@@ -19,6 +19,9 @@
 #include "ssol_solver_c.h"
 
 #include <rsys/logger.h>
+#include <rsys/double3.h>
+
+#include <star/ssp.h>
 
 /*******************************************************************************
 * test main program
@@ -29,6 +32,13 @@ main(int argc, char** argv)
   struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
+  struct ssp_rng* rng;
+  struct ssol_scene* scene;
+  struct ssol_sun* sun;
+  struct ssol_spectrum* spectrum;
+  double dir[3];
+  double frequencies[3] = { 1, 2, 3 };
+  double intensities[3] = { 1, 0.8, 1 };
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -40,8 +50,30 @@ main(int argc, char** argv)
 
   CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
+  CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
+  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, frequencies, intensities, 3), RES_OK);
+  CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -10)), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_scene_create(dev, &scene), RES_OK);
+  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  
+  /* TODO: create a scene */
+
+  CHECK(ssol_solve(NULL, rng, 10, stdout), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, NULL, 10, stdout), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 0, stdout), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, stdout), RES_OK);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);
+  CHECK(ssol_scene_clear(scene), RES_OK);
+  CHECK(ssp_rng_ref_put(rng), RES_OK);
+  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
+  CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
+  CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   logger_release(&logger);
 

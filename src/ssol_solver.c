@@ -20,14 +20,59 @@
 #include "ssol_shape_c.h"
 #include "ssol_object_c.h"
 #include "ssol_sun_c.h"
+#include "ssol_material_c.h"
 #include "ssol_spectrum_c.h"
 #include "ssol_object_instance_c.h"
+#include "ssol_brdf_composite.h"
 
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
+#include <rsys/double3.h>
+#include <rsys/double44.h>
 
 #include <star/ssp.h>
+
+enum realization_termination {
+  TERM_NONE,
+  TERM_SHADOW,
+  TERM_MISSING,
+  TERM_BLOCKED,
+  TERM_ERR,
+
+  TERM_COUNT__
+};
+
+enum realization_mode {
+  MODE_NONE,
+  MODE_STD,
+  MODE_ROULETTE,
+
+  MODE_COUNT__
+};
+
+struct segment {
+  double weight;
+  float range[2];
+  struct s3d_hit hit;
+  /* TODO: use double? */
+  float org[3], dir[4];
+  float hit_pos[3];
+};
+
+#include <rsys/dynamic_array.h>
+#define DARRAY_DATA struct segment
+#define DARRAY_NAME segment
+#include <rsys/dynamic_array.h>
+
+struct realisation {
+  enum realization_termination end;
+  enum realization_mode mode;
+  struct darray_segment segments;
+  struct segment sun_segment;
+  double freq, final_weight;
+  size_t s_idx;
+};
 
 /*******************************************************************************
  * Helper functions
@@ -79,35 +124,6 @@ mat_3x4_to_4x4(const double* from, double* to)
   }
 }
 
-static void
-mat_4x4_mul(const double* a, const double* b, double* to)
-{
-  int r, c, k;
-  ASSERT(a && b && to);
-
-  for (c = 0; c < 4; c++) {
-    for (r = 0; r < 4; r++) {
-      to[r * 4 + c] = 0;
-      for (k = 0; k < 4; k++) {
-        to[r * 4 + c] += a[r * 4 + k] * b[k * 4 + c];
-      }
-    }
-  }
-}
-
-static void
-mat_4x4_transp(const double* from, double* to)
-{
-  int r, c, idx_f = 0, idx_t = 0;
-  ASSERT(from && to);
-
-  for (c = 0; c < 4; c++) {
-    for (r = 0; r < 4; r++) {
-      to[15 - idx_t++] = from[idx_f++];
-    }
-  }
-}
-
 static INLINE int
 is_instance_punched
   (const struct ssol_object_instance* instance)
@@ -116,8 +132,6 @@ is_instance_punched
   return instance->object->shape->type == SHAPE_PUNCHED;
 }
 
-/* FIXME Dead code. Remove it? */
-#if 0
 static const struct ssol_quadric*
 get_quadric (const struct ssol_object_instance* instance)
 {
@@ -129,7 +143,7 @@ static struct s3d_scene*
 get_3dscene(const struct ssol_object_instance* instance)
 {
   ASSERT(instance);
-  return instance->object->shape->scene;
+  return instance->object->s3d_scn;
 }
 
 static const double*
@@ -138,28 +152,6 @@ get_transform(const struct ssol_object_instance* instance)
   ASSERT(instance);
   return instance->transform;
 }
-
-static res_T
-init_solver_data
-  (struct solver_data* data,
-   struct ssol_device* dev)
-{
-  res_T res = RES_OK;
-  if (!data || !dev) return RES_BAD_ARG;
-
-  data->dev = dev;
-  darray_quadric_init(dev->allocator, &data->quadrics);
-  darray_3dshape_init(dev->allocator, &data->shapes);
-  res = ssp_ranst_piecewise_linear_create(dev->allocator, &data->sun_spectrum_ran);
-  if (res != RES_OK) return res;
-  res = ssol_ranst_sun_dir_create(dev->allocator, &data->sun_dir_ran);
-  if (res != RES_OK) {
-    SSP(ranst_piecewise_linear_ref_put(data->sun_spectrum_ran));
-    return res;
-  }
-  return res;
-}
-#endif
 
 /*******************************************************************************
  * Local functions
@@ -170,22 +162,29 @@ set_sun_distributions
    struct solver_data* data)
 {
   struct ssol_spectrum* spectrum;
+  struct ssol_device* dev;
   const double* frequencies;
   const double* intensities;
   res_T res = RES_OK;
   size_t sz;
   if (!sun || !data) return RES_BAD_ARG;
 
-  ASSERT(data->dev && data->dev->allocator);
+  ASSERT(data->scene);
+  dev = scene_get_device(data->scene);
+  ASSERT(dev && dev->allocator);
   /* first set the spectrum distribution */
+  res = ssp_ranst_piecewise_linear_create(dev->allocator, &data->sun_spectrum_ran);
+  if (res != RES_OK) goto error;
   spectrum = sun->spectrum;
   frequencies = darray_double_cdata_get(&spectrum->frequencies);
   intensities = darray_double_cdata_get(&spectrum->intensities);
   sz = darray_double_size_get(&spectrum->frequencies);
   res = ssp_ranst_piecewise_linear_setup
     (data->sun_spectrum_ran, frequencies, intensities, sz);
-  if (res != RES_OK) return res;
+  if (res != RES_OK) goto error;
   /* then the direction distribution */
+  res = ranst_sun_dir_create(dev->allocator, &data->sun_dir_ran);
+  if (res != RES_OK) goto error;
   switch (sun->type) {
   case SUN_DIRECTIONAL:
     res = ranst_sun_dir_dirac_setup(data->sun_dir_ran, sun->direction);
@@ -203,7 +202,18 @@ set_sun_distributions
     FATAL("Unreachable code \n");
   }
 
+exit:
   return res;
+error:
+  if (data->sun_spectrum_ran) {
+    SSP(ranst_piecewise_linear_ref_put(data->sun_spectrum_ran));
+    data->sun_spectrum_ran = NULL;
+  }
+  if (data->sun_dir_ran) {
+    ASSERT(ranst_sun_dir_ref_put(data->sun_dir_ran) == RES_OK);
+    data->sun_dir_ran = NULL;
+  }
+  goto exit;
 }
 
 /* Implementation notes:
@@ -281,34 +291,48 @@ quadric_transform
   /* transform */
   quadric_to_mat4x4(tr, quadric44);
   mat_3x4_to_4x4(transform, transform44);
-  mat_4x4_transp(transform44, transp);
-  mat_4x4_mul(transp, quadric44, tmp);
-  mat_4x4_mul(tmp, transform44, quadric44);
+  d44_transpose(transp, transform44);
+  d44_muld44(tmp, transp, quadric44);
+  d44_muld44(quadric44, tmp, transform44);
   mat4x4_to_quadric(quadric44, tr);
   return RES_OK;
 }
 
 #if 0
 res_T
-process_instances
-  (const struct ssol_scene* scene,
-   struct solver_data* data)
+process_instances(struct solver_data* data)
 {
-  struct list_node* node;
+  struct ssol_scene* scene;
+  struct ssol_device* dev;
+  struct htable_instance* instances;
+  size_t i_count;
+  struct htable_instance_iterator it, end;
   int i;
   float tr[12];
   res_T res = RES_OK;
 
-  if (!scene || !data)
-    return RES_BAD_ARG;
-  darray_3dshape_reserve(&data->shapes, scene->instances_count);
+  if (!data) return RES_BAD_ARG;
+  scene = data->scene;
+  ASSERT(scene);
+  dev = scene_get_device(scene);
+  ASSERT(dev && dev->allocator);
+  darray_quadric_init(dev->allocator, &data->quadrics);
+  darray_3dshape_init(dev->allocator, &data->shapes);
+  instances = scene_get_instances(scene);
+  i_count = htable_instance_size_get(instances);
+  res = darray_3dshape_reserve(&data->shapes, i_count);
+  if (res != RES_OK) goto error;
 
   /* create the main scene */
-  res = s3d_scene_create(0, &data->scene);
+  res = s3d_scene_create(0, &data->scene3d);
   if (res != RES_OK) goto error;
-  LIST_FOR_EACH(node, &scene->instances) {
-    struct ssol_object_instance* instance = CONTAINER_OF
-      (node, struct ssol_object_instance, scene_attachment);
+  htable_instance_end(instances, &end);
+  for (htable_instance_begin(instances, &it); 
+    htable_instance_iterator_eq(&it, &end); 
+    htable_instance_iterator_next(&it))
+  {
+    struct ssol_object_instance* instance
+      = *htable_instance_iterator_data_get(&it);
     struct s3d_scene* scene3D;
     struct s3d_shape* shape3D;
     const double* transform = get_transform(instance);
@@ -316,20 +340,22 @@ process_instances
       const struct ssol_quadric* quadric = get_quadric(instance);
       struct ssol_quadric transformed;
       quadric_transform(quadric, transform, &transformed);
-      darray_quadric_push_back(&data->quadrics, &transformed);
+      res = darray_quadric_push_back(&data->quadrics, &transformed);
+      if (res != RES_OK) goto error;
     }
     /* instantiate each s3d_scene as a s3d_shape */
     scene3D = get_3dscene(instance);
     res = s3d_scene_instantiate(scene3D, &shape3D);
     if (res != RES_OK) goto error;
     /* apply transform */
-    FOR_EACH(i, 0, 12) tr[i] = (float)transform[i];
+    FOR_EACH(i, 0, 12) tr[i] = (float) transform[i];
     res = s3d_instance_set_transform(shape3D, tr);
     if (res != RES_OK) goto error;
 
-    darray_3dshape_push_back(&data->shapes, &shape3D);
+    res = darray_3dshape_push_back(&data->shapes, &shape3D);
+    if (res != RES_OK) goto error;
     /* and attach it to the main scene */
-    res = s3d_scene_attach_shape(data->scene, shape3D);
+    res = s3d_scene_attach_shape(data->scene3d, shape3D);
     if (res != RES_OK) goto error;
   }
 
@@ -338,8 +364,261 @@ exit:
 error:
   darray_quadric_release(&data->quadrics);
   darray_3dshape_release(&data->shapes);
-  S3D(scene_clear(data->scene));
-  S3D(scene_ref_put(data->scene));
+  if (data->scene3d) {
+    S3D(scene_clear(data->scene3d));
+    S3D(scene_ref_put(data->scene3d));
+    data->scene3d = NULL;
+  }
   goto exit;
 }
 #endif
+
+static res_T
+init_solver_data
+  (struct ssol_scene* scene,
+   struct solver_data* data)
+{
+  res_T res = RES_OK;
+  const struct ssol_sun* sun;
+  struct s3d_scene* scene3d;
+  if (!data || !scene) return RES_BAD_ARG;
+
+  sun = scene_get_sun(scene);
+  ASSERT(sun);
+  data->scene = scene;
+  /* create geometry-related data */
+  /* res = process_instances(data); */
+  if (res != RES_OK) goto error;
+  /* create sun distributions */
+  res = set_sun_distributions(sun, data);
+  if (res != RES_OK) goto error;
+  scene3d = scene_get_s3d_scene(scene);
+  S3D(scene_begin_session(scene3d, S3D_TRACE));
+
+exit:
+  return res;
+error:
+  goto exit;
+}
+
+struct segment*
+current_segment(struct realisation* rz)
+{
+  ASSERT(rz);
+  ASSERT(rz->s_idx < darray_segment_size_get(&rz->segments));
+  return darray_segment_data_get(&rz->segments) + rz->s_idx;
+}
+
+res_T
+next_segment(struct realisation* rz)
+{
+  ASSERT(rz);
+  ++rz->s_idx;
+  if (rz->s_idx >= darray_segment_size_get(&rz->segments))
+    return darray_segment_resize(&rz->segments, rz->s_idx + 1);
+  return RES_OK;
+}
+
+void 
+reset_realization(struct realisation* rz)
+{
+  ASSERT(rz);
+  rz->s_idx = 0;
+  rz->s_idx = 0;
+  rz->end = TERM_NONE;
+  rz->mode = MODE_STD;
+}
+
+res_T
+init_realization(struct mem_allocator* allocator, struct realisation* rz)
+{
+  ASSERT(rz);
+  darray_segment_init(allocator, &rz->segments);
+  /* set a first size; will grow up with time if needed */
+  return darray_segment_resize(&rz->segments, 16);
+}
+
+void
+clear_realization(struct realisation* rz)
+{
+  ASSERT(rz);
+  darray_segment_clear(&rz->segments);
+}
+
+/* TODO: move to Star3D */
+INLINE void s3d_invalidate_hit(struct s3d_hit* hit) {
+  ASSERT(hit);
+  hit->distance = FLT_MAX;
+}
+
+void
+reset_segment(struct segment* seg)
+{
+  ASSERT(seg);
+  seg->range[0] = 0;
+  seg->range[1] = FLT_MAX;
+  s3d_invalidate_hit(&seg->hit);
+}
+
+struct ssol_material*
+get_material_from_hit(struct ssol_scene* scene,  struct s3d_hit* hit) {
+  struct ssol_object_instance* instance;
+  struct ssol_object* object;
+  struct ssol_material* material;
+  ASSERT(scene && hit);
+  instance = scene_get_object_instance_from_s3d_hit(scene, hit);
+  ASSERT(instance);
+  object = object_instance_get_object(instance);
+  ASSERT(object);
+  material = object_get_material(object);
+  ASSERT(material);
+  return material;
+}
+
+res_T
+ssol_solve
+  (struct ssol_scene* scene,
+   struct ssp_rng* rng,
+   const size_t realisations_count,
+   FILE* output)
+{
+  struct solver_data data;
+  struct s3d_scene* s3d_scn = NULL;
+  struct s3d_scene* s3d_sampling_scn = NULL;
+  struct brdf_composite* brdfs = NULL;
+  struct s3d_primitive primitive;
+  struct s3d_attrib attrib;
+  float uv[2];
+  const struct ssol_sun* sun = NULL;
+  struct realisation rz;
+  size_t r;
+  double _dir[3];
+  res_T res = RES_OK;
+
+  struct ssol_device* device = NULL;
+
+  if (!scene || !rng || !output || !realisations_count)
+    return RES_BAD_ARG;
+
+  /* init realization */
+  device = scene_get_device(scene);
+  ASSERT(device && device->allocator);
+  res = init_realization(device->allocator, &rz);
+  if (res != RES_OK) goto error;
+
+  res = brdf_composite_create(device, &brdfs);
+  if (res != RES_OK) goto error;
+
+  /* init scene representation data */
+  res = init_solver_data(scene, &data);
+  if (res != RES_OK) goto error;
+
+  s3d_scn = scene_get_s3d_scene(scene);
+  s3d_sampling_scn = scene_get_s3d_sampling_scn(scene);
+  sun = scene_get_sun(scene);
+  rz.sun_segment.weight = ssol_sun_get_dni(sun);
+  for (r = 0; r < realisations_count; r++) {
+    struct segment* prev = NULL;
+    struct segment* seg = &rz.sun_segment;
+    struct surface_fragment fragment;
+    float r1, r2, r3;
+    float sundir[3];
+    float normal[3];
+    /* reset realization */
+    reset_realization(&rz);
+
+    /* sample a point on the reflectors */
+    r1 = ssp_rng_canonical_float(rng);
+    r2 = ssp_rng_canonical_float(rng);
+    r3 = ssp_rng_canonical_float(rng);
+    S3D(scene_sample(s3d_sampling_scn, r1, r2, r3, &primitive, uv));
+    S3D(primitive_get_attrib(&primitive, S3D_POSITION, uv, &attrib));
+    CHECK(attrib.type, S3D_FLOAT3);
+
+    /* sample an input dir from the sun */
+    ranst_sun_dir_get(data.sun_dir_ran, rng, _dir);
+
+    /* setup sun segment in the reverse direction to detect shadows */
+    reset_segment(seg);
+    f3_set(seg->org, attrib.value);
+    f3_set_d3(sundir, _dir);
+    f3_mulf(seg->dir, sundir, -1);
+    CHECK(f3_is_normalized(seg->dir), 1);
+
+    /* sample a frequency */
+    rz.freq = ssp_ranst_piecewise_linear_get(data.sun_spectrum_ran, rng);
+
+    /* check if the point receives sunlight */
+    /* TODO: need only an occlusion test */
+    S3D(scene_trace_ray(s3d_scn, seg->org, seg->dir, seg->range, NULL, &seg->hit));
+    if (!S3D_HIT_NONE(&seg->hit)) {
+      rz.final_weight = 0;
+      rz.end = TERM_SHADOW;
+    }
+
+    /* fill fragment from starting point */
+    S3D(primitive_get_attrib(&primitive, S3D_GEOMETRY_NORMAL, uv, &attrib));
+    CHECK(attrib.type, S3D_FLOAT3);
+    f3_set(normal, attrib.value);
+    surface_fragment_setup(&fragment, seg->org, sundir, normal, &primitive, uv);
+
+    /* start propagating from rz.sun_segment.hit_pos */
+    while (rz.end == TERM_NONE) {
+      struct ssol_material* material;
+      float tmp[3];
+
+      prev = seg;
+      seg = current_segment(&rz);
+      reset_segment(seg);
+
+      /* the current segment starts at prev->hit_pos */
+      f3_set(seg->org, prev->hit_pos);
+
+      /* compute the output direction from the material */
+      material = get_material_from_hit(scene, &prev->hit);
+      CHECK(material_get_type(material), MATERIAL_MIRROR);
+      res = material_shade(material, &fragment, rz.freq, brdfs);
+      if (res != RES_OK) {
+        rz.end = TERM_ERR;
+        goto error;
+      }
+      f3_set_d3(tmp, fragment.Ns);
+      seg->weight = prev->weight *
+        brdf_composite_sample(brdfs, rng, prev->dir, tmp, seg->dir);
+
+      /* then check if the ray hits something */
+      S3D(scene_trace_ray(s3d_scn, seg->org, seg->dir, seg->range, NULL, &seg->hit));
+      if (S3D_HIT_NONE(&seg->hit)) {
+        rz.final_weight = 0;
+        rz.end = TERM_MISSING;
+        continue;
+      }
+      /* should not stop on a virtual surface */
+      ASSERT(material_get_type(get_material_from_hit(scene, &seg->hit))
+        != MATERIAL_VIRTUAL);
+
+      /* fill fragment from hit and loop */
+      f3_set(tmp, f3_add(tmp, seg->org, f3_mulf(tmp, seg->dir, seg->hit.distance)));
+      surface_fragment_setup(&fragment, tmp, seg->dir, seg->hit.normal, &seg->hit.prim, seg->hit.uv);
+
+      /* continue propagation with next segment */
+      res = next_segment(&rz);
+      if (res != RES_OK) {
+        rz.end = TERM_ERR;
+        goto error;
+      }
+    }
+    rz.final_weight = seg->weight;
+
+    fprintf(output, "%d %g %g\n", rz.end, rz.final_weight, rz.freq);
+    continue;
+  }
+
+  exit:
+  /* TODO: release data */
+  S3D(scene_end_session(s3d_scn));
+  clear_realization(&rz);
+  return res;
+error:
+  goto exit;
+}

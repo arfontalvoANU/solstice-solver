@@ -22,15 +22,33 @@ struct s3d_hit;
 struct s3d_scene;
 struct ssol_object_instance;
 struct ssol_scene;
+struct ssol_sun;
+struct ssol_device;
 
 extern LOCAL_SYM struct s3d_scene*
 scene_get_s3d_scene
   (const struct ssol_scene* scn);
 
+extern LOCAL_SYM struct s3d_scene*
+scene_get_s3d_sampling_scn
+(const struct ssol_scene* scn);
+
 extern LOCAL_SYM struct ssol_object_instance*
 scene_get_object_instance_from_s3d_hit
   (struct ssol_scene* scn,
    const struct s3d_hit* hit);
+
+extern LOCAL_SYM struct ssol_sun*
+scene_get_sun
+  (struct ssol_scene* scn);
+
+extern LOCAL_SYM struct ssol_device*
+scene_get_device
+  (struct ssol_scene* scn);
+
+extern LOCAL_SYM struct htable_instance*
+scene_get_instances
+  (struct ssol_scene* scn);
 
 #endif /* SSOL_SCENE_C_H */
 

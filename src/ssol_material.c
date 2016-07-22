@@ -21,6 +21,7 @@
 #include "ssol_device_c.h"
 
 #include <rsys/double3.h>
+#include <rsys/double2.h>
 #include <rsys/float3.h>
 #include <rsys/float33.h>
 #include <rsys/ref_count.h>
@@ -190,72 +191,64 @@ ssol_material_create_virtual
  ******************************************************************************/
 void
 surface_fragment_setup
-  (struct surface_fragment* fragment,
-   const float ray_org[3],
-   const float ray_dir[3],
-   const struct s3d_hit* hit)
+(struct surface_fragment* fragment,
+  const float pos[3],
+  const float dir[3],
+  const float normal[3],
+  const struct s3d_primitive* primitive,
+  const float uv[2])
 {
   struct s3d_attrib attr;
-  double len;
   char has_texcoord, has_normal;
-  ASSERT(fragment && ray_org && ray_dir && hit);
+  ASSERT(fragment && pos && dir && primitive && uv);
 
   /* Setup the incoming direction */
-  fragment->dir[0] = ray_dir[0];
-  fragment->dir[1] = ray_dir[1];
-  fragment->dir[2] = ray_dir[2];
+  d3_set_f3(fragment->dir, dir);
 
   /* Setup the surface position */
-  fragment->pos[0] = ray_org[0] + ray_dir[0] * hit->distance;
-  fragment->pos[1] = ray_org[1] + ray_dir[1] * hit->distance;
-  fragment->pos[2] = ray_org[2] + ray_dir[2] * hit->distance;
+  d3_set_f3(fragment->pos, pos);
 
   /* Normalize the geometry normal */
-  len = sqrt(f3_len(hit->normal));
-  fragment->Ng[0] = hit->normal[0] / len;
-  fragment->Ng[1] = hit->normal[1] / len;
-  fragment->Ng[2] = hit->normal[2] / len;
+  d3_set_f3(fragment->Ng, normal);
+  d3_normalize(fragment->Ng, fragment->Ng);
 
   /* Retrieve the tex coord */
-  S3D(primitive_has_attrib(&hit->prim, SSOL_TO_S3D_TEXCOORD, &has_texcoord));
-  if(!has_texcoord) {
-    fragment->uv[0] = hit->uv[0];
-    fragment->uv[1] = hit->uv[1];
-  } else {
-    S3D(primitive_get_attrib(&hit->prim, SSOL_TO_S3D_TEXCOORD, hit->uv, &attr));
+  S3D(primitive_has_attrib(primitive, SSOL_TO_S3D_TEXCOORD, &has_texcoord));
+  if (!has_texcoord) {
+    d2_set_f2(fragment->uv, uv);
+  }
+  else {
+    S3D(primitive_get_attrib(primitive, SSOL_TO_S3D_TEXCOORD, uv, &attr));
     ASSERT(attr.type == S3D_FLOAT2);
-    fragment->uv[0] = attr.value[0];
-    fragment->uv[1] = attr.value[1];
+    d2_set_f2(fragment->uv, attr.value);
   }
 
   /* Retrieve and normalize the shading normal in world space */
-  S3D(primitive_has_attrib(&hit->prim, SSOL_TO_S3D_NORMAL, &has_normal));
-  if(!has_normal) {
+  S3D(primitive_has_attrib(primitive, SSOL_TO_S3D_NORMAL, &has_normal));
+  if (!has_normal) {
     d3_set(fragment->Ns, fragment->Ng);
-  } else {
+  }
+  else {
     float transform[12];
     float vec[3];
 
-    S3D(primitive_get_attrib(&hit->prim, SSOL_TO_S3D_NORMAL, hit->uv, &attr));
+    S3D(primitive_get_attrib(primitive, SSOL_TO_S3D_NORMAL, uv, &attr));
     ASSERT(attr.type == S3D_FLOAT3);
 
-    S3D(primitive_get_transform(&hit->prim, transform));
+    S3D(primitive_get_transform(primitive, transform));
     /* Check that transform is not "identity" */
-    if(!f3_eq(transform + 0, f3(vec, 1.f, 0.f, 0.f))
-    && !f3_eq(transform + 3, f3(vec, 0.f, 1.f, 0.f))
-    && !f3_eq(transform + 6, f3(vec, 0.f, 0.f, 1.f))) {
+    if (!f3_eq(transform + 0, f3(vec, 1.f, 0.f, 0.f))
+      && !f3_eq(transform + 3, f3(vec, 0.f, 1.f, 0.f))
+      && !f3_eq(transform + 6, f3(vec, 0.f, 0.f, 1.f))) {
       /* Transform the normal in world space, i.e. multiply it by the inverse
-       * transpose of the "object to world" primitive matrix. Since the affine
-       * part of the 3x4 transformation matrix does not influence the normal
-       * transformation, use the linear part only. */
+      * transpose of the "object to world" primitive matrix. Since the affine
+      * part of the 3x4 transformation matrix does not influence the normal
+      * transformation, use the linear part only. */
       f33_invtrans(transform, transform);
       f33_mulf3(attr.value, transform, attr.value);
     }
-
-    len = sqrt(f3_len(attr.value));
-    fragment->Ns[0] = attr.value[0] / len;
-    fragment->Ns[1] = attr.value[1] / len;
-    fragment->Ns[2] = attr.value[2] / len;
+    d3_set_f3(fragment->Ns, attr.value);
+    d3_normalize(fragment->Ns, fragment->Ns);
   }
 }
 
