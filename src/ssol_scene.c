@@ -207,7 +207,9 @@ ssol_scene_clear(struct ssol_scene* scene)
 res_T
 ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
-  if (!scene || ! sun || sun->scene_attachment)
+  if (!scene || ! sun
+    || sun->scene_attachment /* should detach this sun first from its own scene */
+    || scene->sun) /* should detach previous sun first */
     return RES_BAD_ARG;
 
   SSOL(sun_ref_get(sun));
@@ -219,7 +221,7 @@ ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 res_T
 ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
-  if (!scene || !sun || sun->scene_attachment != scene)
+  if (!scene || !sun || !scene->sun || sun->scene_attachment != scene)
     return RES_BAD_ARG;
 
   ASSERT(sun == scene->sun);
