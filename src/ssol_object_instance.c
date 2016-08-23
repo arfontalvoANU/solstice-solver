@@ -148,8 +148,8 @@ res_T
 ssol_object_instance_is_attached
   (struct ssol_object_instance* instance, char* is_attached)
 {
+  FATAL("Not implemented yet.");
   if(!instance || !is_attached) return RES_BAD_ARG;
-  S3D(shape_is_attached(instance->s3d_shape, is_attached));
   return RES_OK;
 }
 

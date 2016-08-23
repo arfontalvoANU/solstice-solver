@@ -22,29 +22,10 @@
 #include "ssol_object_c.h"
 #include "ssol_object_instance_c.h"
 
-#include <rsys/hash_table.h>
 #include <rsys/list.h>
 #include <rsys/mem_allocator.h>
-#include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 #include <rsys/float3.h>
-
-/* Define the htable_instance data structure */
-#define HTABLE_NAME instance
-#define HTABLE_KEY unsigned /* S3D object instance identifier */
-#define HTABLE_DATA struct ssol_object_instance*
-#include <rsys/hash_table.h>
-
-struct ssol_scene
-{
-  struct htable_instance instances;
-  struct s3d_scene* s3d_scn;
-  struct s3d_scene* s3d_sampling_scn;
-  struct ssol_sun* sun;
-
-  struct ssol_device* dev;
-  ref_T ref;
-};
 
 /*******************************************************************************
  * Helper functions

@@ -157,19 +157,19 @@ get_transform(const struct ssol_object_instance* instance)
  * Local functions
  ******************************************************************************/
 res_T
-set_sun_distributions
-  (const struct ssol_sun* sun,
-   struct solver_data* data)
-{
+set_sun_distributions(struct solver_data* data) {
   struct ssol_spectrum* spectrum;
   struct ssol_device* dev;
+  const struct ssol_sun* sun;
   const double* frequencies;
   const double* intensities;
   res_T res = RES_OK;
   size_t sz;
-  if (!sun || !data) return RES_BAD_ARG;
+  if (!data) return RES_BAD_ARG;
 
   ASSERT(data->scene);
+  sun = scene_get_sun(data->scene);
+  ASSERT(sun);
   dev = scene_get_device(data->scene);
   ASSERT(dev && dev->allocator);
   /* first set the spectrum distribution */
@@ -298,31 +298,79 @@ quadric_transform
   return RES_OK;
 }
 
+res_T
+set_views(struct solver_data* data) {
+  res_T res = RES_OK;
+  struct ssol_scene* scene;
+  struct s3d_scene* raytrace_scene;
+  struct s3d_scene* sampling_scene;
+  struct htable_instance_iterator it, it_end;
+  int mirror_found = 0;
+
+  if (!data) return RES_BAD_ARG;
+
+  scene = data->scene;
+  ASSERT(scene);
+  raytrace_scene = scene_get_s3d_scene(scene);
+  ASSERT(raytrace_scene);
+  sampling_scene = scene_get_s3d_sampling_scn(scene);
+  ASSERT(sampling_scene);
+  /* feed sampling s3d_scene */
+  S3D(scene_clear(sampling_scene));
+  htable_instance_begin(&scene->instances, &it);
+  htable_instance_end(&scene->instances, &it_end);
+  while (!htable_instance_iterator_eq(&it, &it_end)) {
+    struct ssol_object_instance* inst;
+    struct ssol_material* mat;
+    inst = *htable_instance_iterator_data_get(&it);
+    /* keep only primary mirrors */
+    mat = inst->object->material;
+    if (material_get_type(mat) != MATERIAL_MIRROR)
+      continue;
+    mirror_found = 1;
+    res = s3d_scene_attach_shape(sampling_scene, inst->s3d_shape);
+    if (res != RES_OK) goto error;
+    htable_instance_iterator_next(&it);
+  }
+  if (!mirror_found) {
+    res = RES_BAD_ARG;
+    log_error(scene->dev, "%s: no mirror geometry defined.\n", FUNC_NAME);
+    goto error;
+  }
+  /* create views from scenes */
+  res = s3d_scene_view_create(raytrace_scene, S3D_TRACE, &data->trace_view);
+  if (res != RES_OK) goto error;
+  res = s3d_scene_view_create(sampling_scene, S3D_SAMPLE, &data->sample_view);
+  if (res != RES_OK) goto error;
+
+exit:
+  return res;
+error:
+  /* TODO: clear data */
+  goto exit;
+}
+
 static res_T
 init_solver_data
   (struct ssol_scene* scene,
    struct solver_data* data)
 {
   res_T res = RES_OK;
-  const struct ssol_sun* sun;
-  struct s3d_scene* scene3d;
+
   if (!data || !scene) return RES_BAD_ARG;
 
-  sun = scene_get_sun(scene);
-  ASSERT(sun);
   data->scene = scene;
-  /* create geometry-related data */
-  /* res = process_instances(data); */
+  /* create 2 s3d_scene_view for raytracing and sampling */
+  res = set_views(data);
   if (res != RES_OK) goto error;
   /* create sun distributions */
-  res = set_sun_distributions(sun, data);
+  res = set_sun_distributions(data);
   if (res != RES_OK) goto error;
-  scene3d = scene_get_s3d_scene(scene);
-  S3D(scene_begin_session(scene3d, S3D_TRACE));
 
 exit:
   return res;
 error:
+  /* TODO: clear data */
   goto exit;
 }
 
@@ -408,8 +456,6 @@ ssol_solve
    FILE* output)
 {
   struct solver_data data;
-  struct s3d_scene* s3d_scn = NULL;
-  struct s3d_scene* s3d_sampling_scn = NULL;
   struct brdf_composite* brdfs = NULL;
   struct s3d_primitive primitive;
   struct s3d_attrib attrib;
@@ -438,8 +484,6 @@ ssol_solve
   res = init_solver_data(scene, &data);
   if (res != RES_OK) goto error;
 
-  s3d_scn = scene_get_s3d_scene(scene);
-  s3d_sampling_scn = scene_get_s3d_sampling_scn(scene);
   sun = scene_get_sun(scene);
   rz.sun_segment.weight = ssol_sun_get_dni(sun);
   for (r = 0; r < realisations_count; r++) {
@@ -456,7 +500,7 @@ ssol_solve
     r1 = ssp_rng_canonical_float(rng);
     r2 = ssp_rng_canonical_float(rng);
     r3 = ssp_rng_canonical_float(rng);
-    S3D(scene_sample(s3d_sampling_scn, r1, r2, r3, &primitive, uv));
+    S3D(scene_view_sample(data.sample_view, r1, r2, r3, &primitive, uv));
     S3D(primitive_get_attrib(&primitive, S3D_POSITION, uv, &attrib));
     CHECK(attrib.type, S3D_FLOAT3);
 
@@ -475,7 +519,7 @@ ssol_solve
 
     /* check if the point receives sunlight */
     /* TODO: need only an occlusion test */
-    S3D(scene_trace_ray(s3d_scn, seg->org, seg->dir, seg->range, NULL, &seg->hit));
+    S3D(scene_view_trace_ray(data.trace_view, seg->org, seg->dir, seg->range, NULL, &seg->hit));
     if (!S3D_HIT_NONE(&seg->hit)) {
       rz.final_weight = 0;
       rz.end = TERM_SHADOW;
@@ -512,7 +556,7 @@ ssol_solve
         brdf_composite_sample(brdfs, rng, prev->dir, tmp, seg->dir);
 
       /* then check if the ray hits something */
-      S3D(scene_trace_ray(s3d_scn, seg->org, seg->dir, seg->range, NULL, &seg->hit));
+      S3D(scene_view_trace_ray(data.trace_view, seg->org, seg->dir, seg->range, NULL, &seg->hit));
       if (S3D_HIT_NONE(&seg->hit)) {
         rz.final_weight = 0;
         rz.end = TERM_MISSING;
@@ -541,7 +585,6 @@ ssol_solve
 
   exit:
   /* TODO: release data */
-  S3D(scene_end_session(s3d_scn));
   clear_realization(&rz);
   return res;
 error:

@@ -34,11 +34,10 @@
 
 struct solver_data {
   struct ssol_scene* scene;
-  /* data comming from instances of the scene */
-  struct darray_quadric quadrics;
-  struct darray_3dshape shapes;
-  /* the 3D scene used for raytracing */
-  struct s3d_scene* scene3d;
+  /* the s3d_scene_view used for raytracing  */
+  struct s3d_scene_view* trace_view;
+  /* the s3d_scene_view used for sampling */
+  struct s3d_scene_view* sample_view;
   /* the random distributions for sun sampling */
   struct ranst_sun_dir* sun_dir_ran;
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
@@ -47,15 +46,10 @@ struct solver_data {
 /* TODO: refcount management for data */
 
 extern LOCAL_SYM res_T
-set_sun_distributions
-  (const struct ssol_sun* sun,
-   struct solver_data* data);
+set_sun_distributions(struct solver_data* data);
 
-#if 0
 extern LOCAL_SYM res_T
-process_instances
-  (struct solver_data* data);
-#endif
+set_views(struct solver_data* data);
 
 /* transform a single quadric in world space */
 extern LOCAL_SYM res_T
