@@ -29,6 +29,7 @@ main(int argc, char** argv)
   struct ssol_object* object;
   struct ssol_object_instance* instance;
   struct ssol_sun* sun;
+  struct ssol_sun* sun2;
   struct ssol_scene* scene;
   double transform[12];
   (void) argc, (void) argv;
@@ -79,6 +80,10 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_sun(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_BAD_ARG);
+
+  CHECK(ssol_sun_create_directional(dev, &sun2), RES_OK);
+  CHECK(ssol_scene_detach_sun(scene, sun2), RES_BAD_ARG);
+  CHECK(ssol_sun_ref_put(sun2), RES_OK);
 
   CHECK(ssol_scene_ref_put(scene), RES_OK);
 
