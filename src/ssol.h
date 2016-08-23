@@ -288,7 +288,8 @@ ssol_scene_detach_object_instance
    struct ssol_object_instance* instance);
 
 /* Detach all the instances from the scene and release the reference that the
- * scene takes onto them. */
+ * scene takes onto them.
+ * Also detach the attached sun if any. */
 SSOL_API res_T
 ssol_scene_clear
   (struct ssol_scene* scn);

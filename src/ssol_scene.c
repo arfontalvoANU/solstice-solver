@@ -201,6 +201,8 @@ ssol_scene_clear(struct ssol_scene* scene)
   }
   htable_instance_clear(&scene->instances);
   S3D(scene_clear(scene->s3d_scn));
+  if(scene->sun)
+    ssol_scene_detach_sun(scene, scene->sun);
   return RES_OK;
 }
 
