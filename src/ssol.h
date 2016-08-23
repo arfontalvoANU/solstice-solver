@@ -261,7 +261,7 @@ ssol_image_unmap
 
 /*******************************************************************************
  * Scene API - Opaque abstraction of the virtual environment. It contains a
- * list of instantiated objects, handle a collection of light sources and
+ * list of instantiated objects, handles a light source and
  * describes the environment medium properties.
  ******************************************************************************/
 SSOL_API res_T
@@ -288,7 +288,7 @@ ssol_scene_detach_object_instance
    struct ssol_object_instance* instance);
 
 /* Detach all the instances from the scene and release the reference that the
-* scene takes onto them */
+ * scene takes onto them. */
 SSOL_API res_T
 ssol_scene_clear
   (struct ssol_scene* scn);
