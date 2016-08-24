@@ -15,54 +15,9 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
+#include "test_ssol_materials.h"
 
 #include <rsys/logger.h>
-
-static void
-get_normal
-  (struct ssol_device* dev,
-   const double wavelength,
-   const double P[3],
-   const double Ng[3],
-   const double Ns[3],
-   const double uv[2],
-   const double w[3],
-   double* val)
-{
-  int i;
-  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)uv, (void)w;
-  FOR_EACH(i, 0, 3) val[i] = Ns[i];
-}
-
-static void
-get_reflectivity
-  (struct ssol_device* dev,
-   const double wavelength,
-   const double P[3],
-   const double Ng[3],
-   const double Ns[3],
-   const double uv[2],
-   const double w[3],
-   double* val)
-{
-  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv, (void)w;
-  *val = 1;
-}
-
-static void
-get_roughness
-  (struct ssol_device* dev,
-   const double wavelength,
-   const double P[3],
-   const double Ng[3],
-   const double Ns[3],
-   const double uv[2],
-   const double w[3],
-   double* val)
-{
-  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv, (void)w;
-  *val = 0;
-}
 
 /*******************************************************************************
  * Test main program
@@ -96,9 +51,9 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_material_ref_put(material), RES_OK);
 
-  shader.normal = get_normal;
-  shader.reflectivity = get_reflectivity;
-  shader.roughness = get_roughness;
+  shader.normal = get_shader_normal;
+  shader.reflectivity = get_shader_reflectivity;
+  shader.roughness = get_shader_roughness;
 
   CHECK(ssol_mirror_set_shader(NULL, &shader), RES_BAD_ARG);
   CHECK(ssol_mirror_set_shader(material, NULL), RES_BAD_ARG);
@@ -106,15 +61,15 @@ main(int argc, char** argv)
 
   shader.normal = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.normal = get_normal;
+  shader.normal = get_shader_normal;
 
   shader.reflectivity = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.reflectivity = get_reflectivity;
+  shader.reflectivity = get_shader_reflectivity;
 
   shader.roughness = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.roughness = get_roughness;
+  shader.roughness = get_shader_roughness;
 
   CHECK(ssol_material_ref_put(material), RES_OK);
 

@@ -119,6 +119,7 @@ if(NOT NO_TEST)
     add_executable(${_name}
       ${SSOL_SOURCE_DIR}/test_ssol_utils.h
       ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
+      ${SSOL_SOURCE_DIR}/test_ssol_materials.h
       ${SSOL_SOURCE_DIR}/${_name}.c)
     target_link_libraries(${_name} solstice-solver RSys Star3D StarSP)
     set(_libraries  ${ARGN})
