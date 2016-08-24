@@ -42,7 +42,7 @@ brdf_create
   (struct ssol_device* dev, const size_t sizeof_data, struct brdf** out_brdf)
 {
   struct brdf* brdf = NULL;
-  res_T res = RES_MEM_ERR;
+  res_T res = RES_OK;
   ASSERT(dev && out_brdf);
 
   brdf = MEM_CALLOC(dev->allocator, 1, sizeof(struct brdf));
