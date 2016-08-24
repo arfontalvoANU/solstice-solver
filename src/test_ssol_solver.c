@@ -15,6 +15,7 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
+#include "test_ssol_geometries.h"
 
 #include "ssol_solver_c.h"
 
@@ -34,6 +35,12 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssp_rng* rng;
   struct ssol_scene* scene;
+  struct ssol_shape* shape;
+  struct ssol_vertex_data attribs[3];
+  struct ssol_material* material;
+  struct ssol_mirror_shader shader;
+  struct ssol_object* object;
+  struct ssol_object_instance* instance;
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
   double dir[3];
@@ -59,15 +66,37 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  
-  /* TODO: create a scene */
 
   CHECK(ssol_solve(NULL, rng, 10, stdout), RES_BAD_ARG);
   CHECK(ssol_solve(scene, NULL, 10, stdout), RES_BAD_ARG);
   CHECK(ssol_solve(scene, rng, 0, stdout), RES_BAD_ARG);
   CHECK(ssol_solve(scene, rng, 10, NULL), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no geometry */
+
+  /* create scene content */
+  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
+  attribs[0].usage = SSOL_POSITION;
+  attribs[0].get = get_position;
+  attribs[1].usage = SSOL_NORMAL;
+  attribs[1].get = get_normal;
+  attribs[2].usage = SSOL_TEXCOORD;
+  attribs[2].get = get_uv;
+  CHECK(ssol_mesh_setup
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 3, &box_walls_desc), RES_OK);
+  CHECK(ssol_material_create_mirror(dev, &material), RES_OK);
+  CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
+  CHECK(ssol_object_create(dev, shape, material, &object), RES_OK);
+  CHECK(ssol_object_instantiate(object, &instance), RES_OK);
+  CHECK(ssol_scene_attach_object_instance(scene, instance), RES_OK);
+
   CHECK(ssol_solve(scene, rng, 10, stdout), RES_OK);
 
+  CHECK(ssol_scene_detach_object_instance(scene, instance), RES_OK);
+
+  CHECK(ssol_object_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_object_ref_put(object), RES_OK);
+  CHECK(ssol_shape_ref_put(shape), RES_OK);
+  CHECK(ssol_material_ref_put(material), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_scene_clear(scene), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);

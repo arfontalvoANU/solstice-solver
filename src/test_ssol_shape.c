@@ -15,7 +15,7 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
-#include "test_ssol_box.h"
+#include "test_ssol_geometries.h"
 
 #include <rsys/logger.h>
 
@@ -30,7 +30,6 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_shape* shape;
   struct ssol_vertex_data attribs[3];
-  void* data = (void*) &walls_desc;
   struct ssol_punched_surface punched_surface;
   struct ssol_carving carving;
   struct ssol_quadric quadric;
@@ -64,19 +63,19 @@ main(int argc, char** argv)
   attribs[2].get = get_uv;
 
   CHECK(ssol_mesh_setup
-    (NULL, walls_ntris, get_ids, walls_nverts, attribs, 1, data), RES_BAD_ARG);
+    (NULL, box_walls_ntris, get_ids, box_walls_nverts, attribs, 1, &box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, 0, get_ids, walls_nverts, attribs, 1, data), RES_BAD_ARG);
+    (shape, 0, get_ids, box_walls_nverts, attribs, 1, &box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, walls_ntris, NULL, walls_nverts, attribs, 1, data), RES_BAD_ARG);
+    (shape, box_walls_ntris, NULL, box_walls_nverts, attribs, 1, &box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, walls_ntris, get_ids, 0, attribs, 1, data), RES_BAD_ARG);
+    (shape, box_walls_ntris, get_ids, 0, attribs, 1, &box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, walls_ntris, get_ids, walls_nverts, NULL, 1, data), RES_BAD_ARG);
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, NULL, 1, &box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, walls_ntris, get_ids, walls_nverts, attribs, 0, data), RES_BAD_ARG);
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 0, &box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, walls_ntris, get_ids, walls_nverts, attribs, 3, data), RES_OK);
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 3, &box_walls_desc), RES_OK);
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 

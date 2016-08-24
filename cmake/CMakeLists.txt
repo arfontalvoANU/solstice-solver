@@ -118,7 +118,7 @@ if(NOT NO_TEST)
   function(build_test _name)
     add_executable(${_name}
       ${SSOL_SOURCE_DIR}/test_ssol_utils.h
-      ${SSOL_SOURCE_DIR}/test_ssol_box.h
+      ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
       ${SSOL_SOURCE_DIR}/${_name}.c)
     target_link_libraries(${_name} solstice-solver RSys Star3D StarSP)
     set(_libraries  ${ARGN})
