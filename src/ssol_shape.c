@@ -81,15 +81,7 @@ quadric_ok(const struct ssol_quadric* quadric)
 }
 
 static INLINE res_T
-check_circle_ok(const struct ssol_carving_circle* circle)
-{
-  if (!circle || circle->radius <= 0)
-    return RES_BAD_ARG;
-  return RES_OK;
-}
-
-static INLINE res_T
-check_polygon_ok(const struct ssol_carving_polygon* polygon)
+check_carving_ok(const struct ssol_carving* polygon)
 {
   if(!polygon
   || !polygon->get
@@ -98,21 +90,6 @@ check_polygon_ok(const struct ssol_carving_polygon* polygon)
   /* we don't check that the polygon defines a not empty area
    * in such case, the quadric is valid but can have zero surface */
   return RES_OK;
-}
-
-static INLINE res_T
-check_carving_ok(const struct ssol_carving* carving)
-{
-  if (!carving)
-    return RES_BAD_ARG;
-
-  switch (carving->type) {
-    case SSOL_CARVING_CIRCLE:
-      return check_circle_ok(&carving->data.circle);
-    case SSOL_CARVING_POLYGON:
-      return check_polygon_ok(&carving->data.polygon);
-    default: return RES_BAD_ARG;
-  }
 }
 
 static INLINE res_T

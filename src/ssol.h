@@ -136,25 +136,11 @@ struct ssol_quadric {
   } data;
 };
 
-struct ssol_carving_circle {
-  double center[2];
-  double radius;
-};
-
-struct ssol_carving_polygon {
+struct ssol_carving {
   void (*get) /* Retrieve the 2D coordinates of the vertex `ivert' */
     (const size_t ivert, double position[2], void* ctx);
   size_t nb_vertices; /* #vertices */
   void* context; /* User defined data */
-};
-
-struct ssol_carving {
-  enum ssol_carving_type type;
-  union {
-    struct ssol_carving_circle circle;
-    struct ssol_carving_polygon polygon;
-  } data;
-  char internal; /* TODO comment/rename (?) this */
 };
 
 struct ssol_punched_surface {
@@ -162,7 +148,6 @@ struct ssol_punched_surface {
   struct ssol_carving* carvings;
   size_t nb_carvings;
 };
-
 
 typedef void
 (*ssol_shader_getter_T)

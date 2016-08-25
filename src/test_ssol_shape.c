@@ -90,11 +90,9 @@ main(int argc, char** argv)
   CHECK(ssol_shape_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 
-  carving.type = SSOL_CARVING_CIRCLE;
-  carving.internal = 0;
-  carving.data.circle.center[0] = 0;
-  carving.data.circle.center[1] = 0;
-  carving.data.circle.radius = 1;
+  carving.get = get_polygon_vertices;
+  carving.nb_vertices = 1;
+  carving.context = NULL;
   quadric.type = SSOL_QUADRIC_PLANE;
   punched_surface.nb_carvings = 1;
   punched_surface.quadric = &quadric;
@@ -117,27 +115,13 @@ main(int argc, char** argv)
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.type = SSOL_QUADRIC_PLANE;
 
-  carving.type = (enum ssol_carving_type)999;
+  carving.nb_vertices = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
-  carving.type = SSOL_CARVING_CIRCLE;
+  carving.nb_vertices = 1;
 
-  carving.data.circle.radius = 0;
+  carving.get = NULL;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
-  carving.data.circle.radius = 1;
-
-  carving.type = SSOL_CARVING_POLYGON;
-  carving.data.polygon.get = get_polygon_vertices;
-  carving.data.polygon.nb_vertices = 1;
-  carving.data.polygon.context = NULL;
-  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
-
-  carving.data.polygon.nb_vertices = 0;
-  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
-  carving.data.polygon.nb_vertices = 1;
-
-  carving.data.polygon.get = NULL;
-  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
-  carving.data.polygon.get = get_polygon_vertices;
+  carving.get = get_polygon_vertices;
 
   quadric.type = SSOL_QUADRIC_PARABOL;
   quadric.data.parabol.focal = 1;
