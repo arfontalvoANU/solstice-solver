@@ -60,7 +60,6 @@ mirror_shade
   if(RES_OK != (res = brdf_reflection_create(mtl->dev, &reflect))) goto error;
   if(RES_OK != (res = brdf_reflection_setup(reflect, R))) goto error;
   if(RES_OK != (res = brdf_composite_add(brdfs, reflect))) goto error;
-  brdf_ref_put(reflect);
 
 exit:
   if(reflect) brdf_ref_put(reflect);
