@@ -51,12 +51,5 @@ set_sun_distributions(struct solver_data* data);
 extern LOCAL_SYM res_T
 set_views(struct solver_data* data);
 
-/* transform a single quadric in world space */
-extern LOCAL_SYM res_T
-quadric_transform
-  (const struct ssol_quadric* quadric,
-   const double transform[],
-   struct ssol_quadric* transformed);
-
 #endif /* SSOL_SOLVER_C_H */
 

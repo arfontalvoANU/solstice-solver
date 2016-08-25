@@ -71,10 +71,7 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
-  SSOL_GENERAL_QUADRIC,
-
-  SSOL_QUADRIC_FIRST_TYPE = SSOL_QUADRIC_PLANE,
-  SSOL_QUADRIC_LAST_TYPE = SSOL_GENERAL_QUADRIC
+  SSOL_QUADRIC_TYPE_COUNT__
 };
 
 enum ssol_carving_type {
@@ -130,18 +127,12 @@ struct ssol_quadric_parabolic_cylinder {
   double focal; /* Define y^2 - 4 focal z = 0 */
 };
 
-struct ssol_general_quadric {
-  /* Define ax^2 + 2bxy + 2cxz + 2dx + ey^2 + 2fyz + 2gy + hz^2 + 2iz + j = 0 */
-  double a, b, c, d, e, f, g, h, i, j;
-};
-
 struct ssol_quadric {
   enum ssol_quadric_type type;
   union {
     struct ssol_quadric_plane plane;
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
-    struct ssol_general_quadric general_quadric;
   } data;
 };
 

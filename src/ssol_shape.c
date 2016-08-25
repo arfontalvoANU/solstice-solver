@@ -65,16 +65,6 @@ check_parabolic_cylinder_ok
 }
 
 static INLINE res_T
-check_general_quadric_ok(const struct ssol_general_quadric* quadric)
-{
-  if (!quadric)
-    return RES_BAD_ARG;
-  /* we don't check that the quadric equation has solutions
-   * in such case, the quadric is valid but has zero surface */
-  return RES_OK;
-}
-
-static INLINE res_T
 quadric_ok(const struct ssol_quadric* quadric)
 {
   if (!quadric)
@@ -86,8 +76,6 @@ quadric_ok(const struct ssol_quadric* quadric)
       return check_parabol_ok(&quadric->data.parabol);
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
       return check_parabolic_cylinder_ok(&quadric->data.parabolic_cylinder);
-    case SSOL_GENERAL_QUADRIC:
-      return check_general_quadric_ok(&quadric->data.general_quadric);
     default: return RES_BAD_ARG;
   }
 }

@@ -155,9 +155,6 @@ main(int argc, char** argv)
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.data.parabolic_cylinder.focal = 1;
 
-  quadric.type = SSOL_GENERAL_QUADRIC;
-  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
-
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);
