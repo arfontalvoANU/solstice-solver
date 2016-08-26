@@ -56,7 +56,6 @@ ssol_object_instantiate
 {
   struct ssol_object_instance* instance = NULL;
   struct ssol_device* dev;
-  struct s3d_scene* scn = NULL;
 
   res_T res = RES_OK;
   if (!object || !out_instance) {
@@ -85,7 +84,6 @@ ssol_object_instantiate
   if(res != RES_OK) goto error;
 
 exit:
-  if(scn) S3D(scene_ref_put(scn));
   if(out_instance) *out_instance = instance;
   return res;
 error:
