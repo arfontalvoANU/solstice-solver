@@ -117,11 +117,13 @@ res_T
 ssol_object_instance_set_transform
   (struct ssol_object_instance* instance, const double transform[12])
 {
+  float t[12];
+  int i;
   if (!instance || !transform)
     return RES_BAD_ARG;
 
-  /* Keep transform for later use */
-  memcpy(instance->transform, transform, sizeof(instance->transform));
+  for (i = 0; i < 12; i++) t[i] = (float) transform[i];
+  s3d_instance_set_transform(instance->s3d_shape, t);
 
   return RES_OK;
 }

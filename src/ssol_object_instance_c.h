@@ -23,7 +23,6 @@
 struct ssol_object_instance
 {
   struct ssol_object* object; /* Instantiated object */
-  double transform[12]; /* Object to world 3x4 column major affine transform */
   struct s3d_shape* s3d_shape; /* Instantiated Star-3D shape */
   struct str receiver_name; /* Empty if not a receiver */
 

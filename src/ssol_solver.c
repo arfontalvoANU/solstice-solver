@@ -96,13 +96,6 @@ get_3dscene(const struct ssol_object_instance* instance)
   return instance->object->s3d_scn;
 }
 
-static const double*
-get_transform(const struct ssol_object_instance* instance)
-{
-  ASSERT(instance);
-  return instance->transform;
-}
-
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
