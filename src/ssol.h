@@ -396,6 +396,11 @@ ssol_object_instance_set_receiver
    const char* name); /* May be NULL <=> it is no more a receiver */
 
 SSOL_API res_T
+ssol_object_instance_set_target_mask
+  (struct ssol_object_instance* instance,
+   const uint32_t mask);
+
+SSOL_API res_T
 ssol_object_instance_is_attached
   (struct ssol_object_instance* instance,
    char* is_attached);
