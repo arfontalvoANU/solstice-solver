@@ -21,7 +21,7 @@ struct desc {
   const unsigned* indices;
 };
 
- /*******************************************************************************
+/*******************************************************************************
  * Plane
  ******************************************************************************/
 
@@ -38,12 +38,9 @@ const unsigned plane_walls_ids [] = {
 };
 const unsigned plane_walls_ntris = sizeof(plane_walls_ids) / sizeof(unsigned[3]);
 
-static struct desc plane_walls_desc = { plane_walls, plane_walls_ids };
-
 /*******************************************************************************
-* Box
-******************************************************************************/
-
+ * Box
+ ******************************************************************************/
 static const float box_walls [] = {
   552.f, 0.f,   0.f,
   0.f,   0.f,   0.f,
@@ -68,8 +65,8 @@ const unsigned box_walls_ntris = sizeof(box_walls_ids) / sizeof(unsigned[3]);
 static struct desc box_walls_desc = { box_walls, box_walls_ids };
 
 /*******************************************************************************
-* Callbacks
-******************************************************************************/
+ * Callbacks
+ ******************************************************************************/
 static INLINE void
 get_ids(const unsigned itri, unsigned ids[3], void* data)
 {

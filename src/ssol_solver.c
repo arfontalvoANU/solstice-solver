@@ -74,33 +74,276 @@ struct realisation {
   size_t s_idx;
 };
 
+/*******************************************************************************
+ * Helper functions
+ ******************************************************************************/
 static INLINE int
-is_instance_punched
-  (const struct ssol_object_instance* instance)
+is_instance_punched(const struct ssol_object_instance* instance)
 {
   ASSERT(instance);
   return instance->object->shape->type == SHAPE_PUNCHED;
 }
 
-static const struct ssol_quadric*
-get_quadric (const struct ssol_object_instance* instance)
+static INLINE const struct ssol_quadric*
+get_quadric(const struct ssol_object_instance* instance)
 {
   ASSERT(instance && is_instance_punched(instance));
   return instance->object->shape->quadric;
 }
 
-static struct s3d_scene*
+static INLINE struct s3d_scene*
 get_3dscene(const struct ssol_object_instance* instance)
 {
   ASSERT(instance);
   return instance->object->s3d_scn;
 }
 
+static res_T
+init_solver_data(struct ssol_scene* scene, struct solver_data* data)
+{
+  res_T res = RES_OK;
+
+  if (!data || !scene) return RES_BAD_ARG;
+
+  data->scene = scene;
+  /* create 2 s3d_scene_view for raytracing and sampling */
+  res = set_views(data);
+  if (res != RES_OK) goto error;
+  /* create sun distributions */
+  res = set_sun_distributions(data);
+  if (res != RES_OK) goto error;
+
+exit:
+  return res;
+error:
+  /* TODO: clear data */
+  goto exit;
+}
+
+static struct segment*
+current_segment(struct realisation* rz)
+{
+  ASSERT(rz);
+  ASSERT(rz->s_idx < darray_segment_size_get(&rz->segments));
+  return darray_segment_data_get(&rz->segments) + rz->s_idx;
+}
+
+static res_T
+next_segment(struct realisation* rz)
+{
+  ASSERT(rz);
+  ++rz->s_idx;
+  if (rz->s_idx >= darray_segment_size_get(&rz->segments))
+    return darray_segment_resize(&rz->segments, rz->s_idx + 1);
+  return RES_OK;
+}
+
+static void
+reset_realization(struct realisation* rz)
+{
+  ASSERT(rz);
+  rz->s_idx = 0;
+  rz->s_idx = 0;
+  rz->end = TERM_NONE;
+  rz->mode = MODE_STD;
+}
+
+static res_T
+init_realization(struct mem_allocator* allocator, struct realisation* rz)
+{
+  ASSERT(rz);
+  darray_segment_init(allocator, &rz->segments);
+  /* set a first size; will grow up with time if needed */
+  return darray_segment_resize(&rz->segments, 16);
+}
+
+static void
+clear_realization(struct realisation* rz)
+{
+  ASSERT(rz);
+  darray_segment_clear(&rz->segments);
+}
+
+static void
+reset_segment(struct segment* seg)
+{
+  ASSERT(seg);
+  seg->range[0] = 0;
+  seg->range[1] = FLT_MAX;
+  seg->hit = S3D_HIT_NULL;
+}
+
+static struct ssol_material*
+get_material_from_hit(struct ssol_scene* scene,  struct s3d_hit* hit)
+{
+  struct ssol_object_instance* instance;
+  struct ssol_object* object;
+  struct ssol_material* material;
+  ASSERT(scene && hit);
+  instance = scene_get_object_instance_from_s3d_hit(scene, hit);
+  ASSERT(instance);
+  object = object_instance_get_object(instance);
+  ASSERT(object);
+  material = object_get_material(object);
+  ASSERT(material);
+  return material;
+}
+
+/*******************************************************************************
+ * Exported function
+ ******************************************************************************/
+res_T
+ssol_solve
+  (struct ssol_scene* scene,
+   struct ssp_rng* rng,
+   const size_t realisations_count,
+   FILE* output)
+{
+  struct solver_data data;
+  struct brdf_composite* brdfs = NULL;
+  struct s3d_primitive primitive;
+  struct s3d_attrib attrib;
+  float uv[2];
+  const struct ssol_sun* sun = NULL;
+  struct realisation rz;
+  size_t r;
+  double _dir[3];
+  res_T res = RES_OK;
+
+  struct ssol_device* device = NULL;
+
+  if (!scene || !rng || !output || !realisations_count)
+    return RES_BAD_ARG;
+
+  /* init realization */
+  device = scene_get_device(scene);
+  ASSERT(device && device->allocator);
+  res = init_realization(device->allocator, &rz);
+  if (res != RES_OK) goto error;
+
+  res = brdf_composite_create(device, &brdfs);
+  if (res != RES_OK) goto error;
+
+  /* init scene representation data */
+  res = init_solver_data(scene, &data);
+  if (res != RES_OK) goto error;
+
+  sun = scene_get_sun(scene);
+  rz.sun_segment.weight = sun_get_dni(sun);
+  for (r = 0; r < realisations_count; r++) {
+    struct segment* prev = NULL;
+    struct segment* seg = &rz.sun_segment;
+    struct surface_fragment fragment;
+    float r1, r2, r3;
+    float sundir[3];
+    float normal[3];
+    /* reset realization */
+    reset_realization(&rz);
+
+    /* sample a point on the reflectors */
+    r1 = ssp_rng_canonical_float(rng);
+    r2 = ssp_rng_canonical_float(rng);
+    r3 = ssp_rng_canonical_float(rng);
+    S3D(scene_view_sample(data.sample_view, r1, r2, r3, &primitive, uv));
+    S3D(primitive_get_attrib(&primitive, S3D_POSITION, uv, &attrib));
+    CHECK(attrib.type, S3D_FLOAT3);
+
+    /* sample an input dir from the sun */
+    ranst_sun_dir_get(data.sun_dir_ran, rng, _dir);
+
+    /* setup sun segment in the reverse direction to detect shadows */
+    reset_segment(seg);
+    f3_set(seg->org, attrib.value);
+    f3_set_d3(sundir, _dir);
+    f3_mulf(seg->dir, sundir, -1);
+    CHECK(f3_is_normalized(seg->dir), 1);
+
+    /* sample a frequency */
+    rz.freq = ssp_ranst_piecewise_linear_get(data.sun_spectrum_ran, rng);
+
+    /* check if the point receives sunlight */
+    /* TODO: need only an occlusion test */
+    S3D(scene_view_trace_ray
+      (data.trace_view, seg->org, seg->dir, seg->range, NULL, &seg->hit));
+    if (!S3D_HIT_NONE(&seg->hit)) {
+      rz.final_weight = 0;
+      rz.end = TERM_SHADOW;
+    }
+
+    /* fill fragment from starting point */
+    S3D(primitive_get_attrib(&primitive, S3D_GEOMETRY_NORMAL, uv, &attrib));
+    CHECK(attrib.type, S3D_FLOAT3);
+    f3_set(normal, attrib.value);
+    surface_fragment_setup(&fragment, seg->org, sundir, normal, &primitive, uv);
+
+    /* start propagating from rz.sun_segment.hit_pos */
+    while (rz.end == TERM_NONE) {
+      struct ssol_material* material;
+      float tmp[3];
+
+      prev = seg;
+      seg = current_segment(&rz);
+      reset_segment(seg);
+
+      /* the current segment starts at prev->hit_pos */
+      f3_set(seg->org, prev->hit_pos);
+
+      /* compute the output direction from the material */
+      material = get_material_from_hit(scene, &prev->hit);
+      CHECK(material_get_type(material), MATERIAL_MIRROR);
+      res = material_shade(material, &fragment, rz.freq, brdfs);
+      if (res != RES_OK) {
+        rz.end = TERM_ERR;
+        goto error;
+      }
+      f3_set_d3(tmp, fragment.Ns);
+      seg->weight = prev->weight *
+        brdf_composite_sample(brdfs, rng, prev->dir, tmp, seg->dir);
+
+      /* then check if the ray hits something */
+      S3D(scene_view_trace_ray
+        (data.trace_view, seg->org, seg->dir, seg->range, NULL, &seg->hit));
+      if (S3D_HIT_NONE(&seg->hit)) {
+        rz.final_weight = 0;
+        rz.end = TERM_MISSING;
+        continue;
+      }
+      /* should not stop on a virtual surface */
+      ASSERT(material_get_type(get_material_from_hit(scene, &seg->hit))
+        != MATERIAL_VIRTUAL);
+
+      /* fill fragment from hit and loop */
+      f3_add(tmp, seg->org, f3_mulf(tmp, seg->dir, seg->hit.distance));
+      surface_fragment_setup
+        (&fragment, tmp, seg->dir, seg->hit.normal, &seg->hit.prim, seg->hit.uv);
+
+      /* continue propagation with next segment */
+      res = next_segment(&rz);
+      if (res != RES_OK) {
+        rz.end = TERM_ERR;
+        goto error;
+      }
+    }
+    rz.final_weight = seg->weight;
+
+    fprintf(output, "%d %g %g\n", rz.end, rz.final_weight, rz.freq);
+    continue;
+  }
+
+exit:
+  /* TODO: release data */
+  clear_realization(&rz);
+  return res;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
 res_T
-set_sun_distributions(struct solver_data* data) {
+set_sun_distributions(struct solver_data* data)
+{
   struct ssol_spectrum* spectrum;
   struct ssol_device* dev;
   const struct ssol_sun* sun;
@@ -108,6 +351,7 @@ set_sun_distributions(struct solver_data* data) {
   const double* intensities;
   res_T res = RES_OK;
   size_t sz;
+
   if (!data) return RES_BAD_ARG;
 
   ASSERT(data->scene);
@@ -160,7 +404,8 @@ error:
 }
 
 res_T
-set_views(struct solver_data* data) {
+set_views(struct solver_data* data)
+{
   res_T res = RES_OK;
   struct ssol_scene* scene;
   struct s3d_scene* raytrace_scene;
@@ -211,243 +456,4 @@ error:
   goto exit;
 }
 
-static res_T
-init_solver_data
-  (struct ssol_scene* scene,
-   struct solver_data* data)
-{
-  res_T res = RES_OK;
 
-  if (!data || !scene) return RES_BAD_ARG;
-
-  data->scene = scene;
-  /* create 2 s3d_scene_view for raytracing and sampling */
-  res = set_views(data);
-  if (res != RES_OK) goto error;
-  /* create sun distributions */
-  res = set_sun_distributions(data);
-  if (res != RES_OK) goto error;
-
-exit:
-  return res;
-error:
-  /* TODO: clear data */
-  goto exit;
-}
-
-struct segment*
-current_segment(struct realisation* rz)
-{
-  ASSERT(rz);
-  ASSERT(rz->s_idx < darray_segment_size_get(&rz->segments));
-  return darray_segment_data_get(&rz->segments) + rz->s_idx;
-}
-
-res_T
-next_segment(struct realisation* rz)
-{
-  ASSERT(rz);
-  ++rz->s_idx;
-  if (rz->s_idx >= darray_segment_size_get(&rz->segments))
-    return darray_segment_resize(&rz->segments, rz->s_idx + 1);
-  return RES_OK;
-}
-
-void 
-reset_realization(struct realisation* rz)
-{
-  ASSERT(rz);
-  rz->s_idx = 0;
-  rz->s_idx = 0;
-  rz->end = TERM_NONE;
-  rz->mode = MODE_STD;
-}
-
-res_T
-init_realization(struct mem_allocator* allocator, struct realisation* rz)
-{
-  ASSERT(rz);
-  darray_segment_init(allocator, &rz->segments);
-  /* set a first size; will grow up with time if needed */
-  return darray_segment_resize(&rz->segments, 16);
-}
-
-void
-clear_realization(struct realisation* rz)
-{
-  ASSERT(rz);
-  darray_segment_clear(&rz->segments);
-}
-
-/* TODO: move to Star3D */
-INLINE void s3d_invalidate_hit(struct s3d_hit* hit) {
-  ASSERT(hit);
-  hit->distance = FLT_MAX;
-}
-
-void
-reset_segment(struct segment* seg)
-{
-  ASSERT(seg);
-  seg->range[0] = 0;
-  seg->range[1] = FLT_MAX;
-  s3d_invalidate_hit(&seg->hit);
-}
-
-struct ssol_material*
-get_material_from_hit(struct ssol_scene* scene,  struct s3d_hit* hit) {
-  struct ssol_object_instance* instance;
-  struct ssol_object* object;
-  struct ssol_material* material;
-  ASSERT(scene && hit);
-  instance = scene_get_object_instance_from_s3d_hit(scene, hit);
-  ASSERT(instance);
-  object = object_instance_get_object(instance);
-  ASSERT(object);
-  material = object_get_material(object);
-  ASSERT(material);
-  return material;
-}
-
-res_T
-ssol_solve
-  (struct ssol_scene* scene,
-   struct ssp_rng* rng,
-   const size_t realisations_count,
-   FILE* output)
-{
-  struct solver_data data;
-  struct brdf_composite* brdfs = NULL;
-  struct s3d_primitive primitive;
-  struct s3d_attrib attrib;
-  float uv[2];
-  const struct ssol_sun* sun = NULL;
-  struct realisation rz;
-  size_t r;
-  double _dir[3];
-  res_T res = RES_OK;
-
-  struct ssol_device* device = NULL;
-
-  if (!scene || !rng || !output || !realisations_count)
-    return RES_BAD_ARG;
-
-  /* init realization */
-  device = scene_get_device(scene);
-  ASSERT(device && device->allocator);
-  res = init_realization(device->allocator, &rz);
-  if (res != RES_OK) goto error;
-
-  res = brdf_composite_create(device, &brdfs);
-  if (res != RES_OK) goto error;
-
-  /* init scene representation data */
-  res = init_solver_data(scene, &data);
-  if (res != RES_OK) goto error;
-
-  sun = scene_get_sun(scene);
-  rz.sun_segment.weight = ssol_sun_get_dni(sun);
-  for (r = 0; r < realisations_count; r++) {
-    struct segment* prev = NULL;
-    struct segment* seg = &rz.sun_segment;
-    struct surface_fragment fragment;
-    float r1, r2, r3;
-    float sundir[3];
-    float normal[3];
-    /* reset realization */
-    reset_realization(&rz);
-
-    /* sample a point on the reflectors */
-    r1 = ssp_rng_canonical_float(rng);
-    r2 = ssp_rng_canonical_float(rng);
-    r3 = ssp_rng_canonical_float(rng);
-    S3D(scene_view_sample(data.sample_view, r1, r2, r3, &primitive, uv));
-    S3D(primitive_get_attrib(&primitive, S3D_POSITION, uv, &attrib));
-    CHECK(attrib.type, S3D_FLOAT3);
-
-    /* sample an input dir from the sun */
-    ranst_sun_dir_get(data.sun_dir_ran, rng, _dir);
-
-    /* setup sun segment in the reverse direction to detect shadows */
-    reset_segment(seg);
-    f3_set(seg->org, attrib.value);
-    f3_set_d3(sundir, _dir);
-    f3_mulf(seg->dir, sundir, -1);
-    CHECK(f3_is_normalized(seg->dir), 1);
-
-    /* sample a frequency */
-    rz.freq = ssp_ranst_piecewise_linear_get(data.sun_spectrum_ran, rng);
-
-    /* check if the point receives sunlight */
-    /* TODO: need only an occlusion test */
-    S3D(scene_view_trace_ray(data.trace_view, seg->org, seg->dir, seg->range, NULL, &seg->hit));
-    if (!S3D_HIT_NONE(&seg->hit)) {
-      rz.final_weight = 0;
-      rz.end = TERM_SHADOW;
-    }
-
-    /* fill fragment from starting point */
-    S3D(primitive_get_attrib(&primitive, S3D_GEOMETRY_NORMAL, uv, &attrib));
-    CHECK(attrib.type, S3D_FLOAT3);
-    f3_set(normal, attrib.value);
-    surface_fragment_setup(&fragment, seg->org, sundir, normal, &primitive, uv);
-
-    /* start propagating from rz.sun_segment.hit_pos */
-    while (rz.end == TERM_NONE) {
-      struct ssol_material* material;
-      float tmp[3];
-
-      prev = seg;
-      seg = current_segment(&rz);
-      reset_segment(seg);
-
-      /* the current segment starts at prev->hit_pos */
-      f3_set(seg->org, prev->hit_pos);
-
-      /* compute the output direction from the material */
-      material = get_material_from_hit(scene, &prev->hit);
-      CHECK(material_get_type(material), MATERIAL_MIRROR);
-      res = material_shade(material, &fragment, rz.freq, brdfs);
-      if (res != RES_OK) {
-        rz.end = TERM_ERR;
-        goto error;
-      }
-      f3_set_d3(tmp, fragment.Ns);
-      seg->weight = prev->weight *
-        brdf_composite_sample(brdfs, rng, prev->dir, tmp, seg->dir);
-
-      /* then check if the ray hits something */
-      S3D(scene_view_trace_ray(data.trace_view, seg->org, seg->dir, seg->range, NULL, &seg->hit));
-      if (S3D_HIT_NONE(&seg->hit)) {
-        rz.final_weight = 0;
-        rz.end = TERM_MISSING;
-        continue;
-      }
-      /* should not stop on a virtual surface */
-      ASSERT(material_get_type(get_material_from_hit(scene, &seg->hit))
-        != MATERIAL_VIRTUAL);
-
-      /* fill fragment from hit and loop */
-      f3_set(tmp, f3_add(tmp, seg->org, f3_mulf(tmp, seg->dir, seg->hit.distance)));
-      surface_fragment_setup(&fragment, tmp, seg->dir, seg->hit.normal, &seg->hit.prim, seg->hit.uv);
-
-      /* continue propagation with next segment */
-      res = next_segment(&rz);
-      if (res != RES_OK) {
-        rz.end = TERM_ERR;
-        goto error;
-      }
-    }
-    rz.final_weight = seg->weight;
-
-    fprintf(output, "%d %g %g\n", rz.end, rz.final_weight, rz.freq);
-    continue;
-  }
-
-  exit:
-  /* TODO: release data */
-  clear_realization(&rz);
-  return res;
-error:
-  goto exit;
-}

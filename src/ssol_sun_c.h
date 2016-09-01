@@ -48,8 +48,9 @@ struct ssol_sun {
   ref_T ref;
 };
 
-extern INLINE double
-ssol_sun_get_dni(const struct ssol_sun* sun) {
+static INLINE double
+sun_get_dni(const struct ssol_sun* sun)
+{
   ASSERT(sun);
   return sun->dni;
 }
