@@ -27,14 +27,14 @@ struct desc {
 
 static const float square_walls [] = {
   -1, -1, 0,
-   1, -1, 0,
-   1,  1, 0,
+  1, -1, 0,
+  1,  1, 0,
   -1,  1, 0
 };
 const unsigned square_walls_nverts = sizeof(square_walls) / sizeof(float[3]);
 
 const unsigned square_walls_ids [] = {
-  0, 1, 2, 2, 3, 0
+  0, 2, 1, 2, 0, 3
 };
 const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
 
