@@ -17,12 +17,16 @@
 #define SSOL_SOLVER_C_H
 
 #include "ssol_ranst_sun_dir.h"
+#include "ssol_material_c.h"
+#include "ssol_c.h"
 
 #include <rsys/ref_count.h>
 #include <rsys/list.h>
 #include <rsys/dynamic_array.h>
 
 #include <star/ssp.h>
+#include <star/s3d.h>
+
 
 #define DARRAY_NAME quadric
 #define DARRAY_DATA struct ssol_quadric
@@ -32,8 +36,45 @@
 #define DARRAY_DATA struct s3d_shape*
 #include <rsys/dynamic_array.h>
 
+enum realization_termination {
+  TERM_NONE,
+  TERM_SUCCESS,
+  TERM_SHADOW,
+  TERM_POINTING,
+  TERM_MISSING,
+  TERM_BLOCKED,
+  TERM_ERR,
+
+  TERM_COUNT__
+};
+
+struct segment {
+  double weight;
+  float range[2];
+  struct s3d_hit hit;
+  /* TODO: use double? */
+  float org[3], dir[4];
+  float hit_pos[3];
+};
+
+struct starting_point {
+  struct ssol_object_instance* instance;
+  struct ssol_material* material;
+  struct s3d_primitive primitive;
+  double sundir[3];
+  double cos_sun;
+  float uv[2];
+};
+
+#include <rsys/dynamic_array.h>
+#define DARRAY_DATA struct segment
+#define DARRAY_NAME segment
+#include <rsys/dynamic_array.h>
+
 struct solver_data {
   struct ssol_scene* scene;
+  struct ssp_rng* rng;
+  FILE* out_stream;
   /* the s3d_scene_view used for raytracing  */
   struct s3d_scene_view* trace_view;
   /* the s3d_scene_view used for sampling */
@@ -41,15 +82,48 @@ struct solver_data {
   /* the random distributions for sun sampling */
   struct ranst_sun_dir* sun_dir_ran;
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
+  /* tmp data used for propagation */
+  struct brdf_composite* brdfs;
+  struct ssol_object_instance* instance;
+  struct surface_fragment fragment;
 };
 
-/* TODO: refcount management for data */
+#define SOLVER_DATA_NULL__ { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+
+struct realisation {
+  enum realization_termination end;
+  enum realization_mode mode;
+  struct darray_segment segments;
+  struct starting_point start;
+  struct solver_data data;
+  double freq;
+  size_t s_idx;
+  size_t rz_id;
+  uint32_t success_mask;
+};
+
+static const struct solver_data SOLVER_DATA_NULL = SOLVER_DATA_NULL__;
 
 extern LOCAL_SYM res_T
 set_sun_distributions(struct solver_data* data);
 
 extern LOCAL_SYM res_T
 set_views(struct solver_data* data);
+
+extern LOCAL_SYM struct segment*
+previous_segment(struct realisation* rz);
+
+extern LOCAL_SYM struct segment*
+sun_segment(struct realisation* rz);
+
+extern LOCAL_SYM struct segment*
+current_segment(struct realisation* rz);
+
+extern LOCAL_SYM res_T
+next_segment(struct realisation* rz);
+
+extern LOCAL_SYM void
+reset_segment(struct segment* seg);
 
 #endif /* SSOL_SOLVER_C_H */
 

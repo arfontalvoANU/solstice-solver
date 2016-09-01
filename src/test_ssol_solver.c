@@ -16,13 +16,18 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 #include "test_ssol_geometries.h"
+#include "test_ssol_materials.h"
 
 #include "ssol_solver_c.h"
 
 #include <rsys/logger.h>
-#include <rsys/double3.h>
+#include <rsys/double33.h>
 
 #include <star/ssp.h>
+
+
+
+#include <star/s3d.h>
 
 /*******************************************************************************
 * test main program
@@ -35,18 +40,35 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssp_rng* rng;
   struct ssol_scene* scene;
-  struct ssol_shape* shape;
-  struct ssol_vertex_data attribs[3];
-  struct ssol_material* material;
+  struct ssol_shape* square;
+  struct ssol_vertex_data attribs[1];
+  struct ssol_material* m_material;
+  struct ssol_material* v_material;
   struct ssol_mirror_shader shader;
-  struct ssol_object* object;
-  struct ssol_object_instance* instance;
+  struct ssol_object* m_object;
+  struct ssol_object* t_object;
+  struct ssol_object_instance* heliostat;
+  struct ssol_object_instance* secondary;
+  struct ssol_object_instance* target;
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
   double dir[3];
   double frequencies[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
+  double transform1[12]; /* 3x4 column major matrix */
+  double transform2[12]; /* 3x4 column major matrix */
+
   (void) argc, (void) argv;
+
+  d33_splat(transform1, 0);
+  d3_splat(transform1 + 9, 0);
+  d33_rotation_pitch(transform1, PI); /* flip faces: invert normal */
+  transform1[9] = 2; /* +2 offset along X axis */
+  transform1[11] = 2; /* +2 offset along Z axis */
+
+  d33_set_identity(transform2);
+  d3_splat(transform2 + 9, 0);
+  transform2[9] = 4; /* +4 offset along X axis */
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
@@ -61,7 +83,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, frequencies, intensities, 3), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
-  CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -10)), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
@@ -74,34 +96,55 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no geometry */
 
   /* create scene content */
-  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
+
+  CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  attribs[1].usage = SSOL_NORMAL;
-  attribs[1].get = get_normal;
-  attribs[2].usage = SSOL_TEXCOORD;
-  attribs[2].get = get_uv;
   CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 3, &box_walls_desc), RES_OK);
-  CHECK(ssol_material_create_mirror(dev, &material), RES_OK);
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
-  CHECK(ssol_object_create(dev, shape, material, &object), RES_OK);
-  CHECK(ssol_object_instantiate(object, &instance), RES_OK);
-  CHECK(ssol_scene_attach_object_instance(scene, instance), RES_OK);
+    (square, square_walls_ntris, get_ids, square_walls_nverts, attribs, 1, &square_walls_desc), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_OK);
+  CHECK(ssol_material_create_mirror(dev, &m_material), RES_OK);
+  shader.normal = get_shader_normal;
+  shader.reflectivity = get_shader_reflectivity;
+  shader.roughness = get_shader_roughness;
+  CHECK(ssol_mirror_set_shader(m_material, &shader), RES_OK);
+  CHECK(ssol_material_create_virtual(dev, &v_material), RES_OK);
 
-  CHECK(ssol_scene_detach_object_instance(scene, instance), RES_OK);
+  CHECK(ssol_object_create(dev, square, m_material, &m_object), RES_OK);
+  CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
+  CHECK(ssol_object_instance_set_receiver(heliostat, "miroir"), RES_OK);
+  CHECK(ssol_object_instance_set_target_mask(heliostat, 0x1), RES_OK);
+  CHECK(ssol_scene_attach_object_instance(scene, heliostat), RES_OK);
 
-  CHECK(ssol_object_instance_ref_put(instance), RES_OK);
-  CHECK(ssol_object_ref_put(object), RES_OK);
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-  CHECK(ssol_material_ref_put(material), RES_OK);
+  CHECK(ssol_object_instantiate(m_object, &secondary), RES_OK);
+  CHECK(ssol_object_instance_set_receiver(secondary, "secondaire"), RES_OK);
+  CHECK(ssol_object_instance_set_transform(secondary, transform1), RES_OK);
+  CHECK(ssol_object_instance_set_target_mask(secondary, 0x2), RES_OK);
+  CHECK(ssol_scene_attach_object_instance(scene, secondary), RES_OK);
+
+  CHECK(ssol_object_create(dev, square, v_material, &t_object), RES_OK);
+  CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
+  CHECK(ssol_object_instance_set_transform(target, transform2), RES_OK);
+  CHECK(ssol_object_instance_set_receiver(target, "cible"), RES_OK);
+  CHECK(ssol_object_instance_set_target_mask(target, 0x4), RES_OK);
+  CHECK(ssol_scene_attach_object_instance(scene, target), RES_OK);
+
+  CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
+
+  /* free data */
+
+  CHECK(ssol_object_instance_ref_put(heliostat), RES_OK);
+  CHECK(ssol_object_instance_ref_put(secondary), RES_OK);
+  CHECK(ssol_object_instance_ref_put(target), RES_OK);
+  CHECK(ssol_object_ref_put(m_object), RES_OK);
+  CHECK(ssol_object_ref_put(t_object), RES_OK);
+  CHECK(ssol_shape_ref_put(square), RES_OK);
+  CHECK(ssol_material_ref_put(m_material), RES_OK);
+  CHECK(ssol_material_ref_put(v_material), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
-  CHECK(ssol_scene_clear(scene), RES_OK);
+  CHECK(ssol_scene_ref_put(scene), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
-  CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   logger_release(&logger);

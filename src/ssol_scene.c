@@ -16,6 +16,7 @@
 #include "ssol.h"
 #include "ssol_c.h"
 #include "ssol_scene_c.h"
+#include "ssol_solver_c.h"
 #include "ssol_sun_c.h"
 #include "ssol_device_c.h"
 #include "ssol_material_c.h"
@@ -116,7 +117,7 @@ ssol_scene_attach_object_instance
   if(!scene || !instance) return RES_BAD_ARG;
   shape = object_instance_get_s3d_shape(instance);
 
-  /* Try to attach the instantiated s3d shape to s3d scene */
+  /* attach the instantiated s3d shape to s3d scene */
   res = s3d_scene_attach_shape(scene->s3d_raytracing_scn, shape);
   if(res != RES_OK) return res;
 
@@ -251,45 +252,65 @@ hit_filter_function
   (const struct s3d_hit* hit,
    const float org[3],
    const float dir[3],
-   void* ray_data,
+   void* realization,
    void* filter_data)
 {
-  struct ray_data* rdata = ray_data;
   struct ssol_object_instance* instance;
   struct ssol_material* material;
   const char* receiver_name;
-  (void)org, (void)dir, (void)filter_data;
-  ASSERT(rdata);
+  struct realisation* rz = realization;
+  struct segment* seg;
+  struct segment* prev;
+  int front_face = 0;
 
-  if(!ray_data) return 0;
-
-  if(S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from))
+  (void) filter_data;
+  ASSERT(rz);
+  prev = previous_segment(rz);
+  seg = current_segment(rz);
+  ASSERT(seg);
+  
+  /* TODO: need to detect self intersect at the instance level, 
+     using front/back face to avoid false self intersect events */
+  if(prev && S3D_PRIMITIVE_EQ(&hit->prim, &prev->hit.prim))
     return 1; /* Discard self intersection */
 
-  instance = scene_get_object_instance_from_s3d_hit(rdata->scene, hit);
+  instance = scene_get_object_instance_from_s3d_hit(rz->data.scene, hit);
 
   /* Check if the hit surface is a receiver that registers hit data */
   receiver_name = object_instance_get_receiver_name(instance);
   if(receiver_name) {
-    struct surface_fragment frag;
-    float tmp[3];
-    f3_set(tmp, f3_add(tmp, org, f3_mulf(tmp, dir, hit->distance)));
-    surface_fragment_setup(&frag, tmp, dir, hit->normal, &hit->prim, hit->uv);
-    fprintf(rdata->stream, "%s %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      receiver_name,
-      rdata->path_id,
-      rdata->ray_id,
-      rdata->wavelength,
-      rdata->radiance,
-      SPLIT3(frag.pos),
-      SPLIT3(frag.dir),
-      SPLIT2(frag.uv));
+    float cos_in;
+    /* check normal orientation */
+    cos_in = f3_dot(hit->normal, dir);
+    if (cos_in < 0) {
+      float pos[3];
+
+      f3_set(pos, f3_add(pos, org, f3_mulf(pos, dir, hit->distance)));
+      front_face = 1;
+      fprintf(rz->data.out_stream,
+        "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
+        receiver_name,
+        (unsigned)rz->rz_id,
+        (unsigned)rz->s_idx,
+        rz->freq,
+        seg->weight,
+        SPLIT3(pos),
+        SPLIT3(dir),
+        SPLIT2(hit->uv));
+    }
   }
 
+  /* register success mask */
+  if (front_face)
+    rz->success_mask |=  object_instance_get_target_mask(instance);
+
   material = object_get_material(object_instance_get_object(instance));
+
   if(material_get_type(material) == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }
+
+  rz->data.instance = instance;
 
   return 0;
 }

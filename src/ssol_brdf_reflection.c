@@ -41,8 +41,8 @@ reflection_sample
   /* Simply reflect the incoming direction w[3] with respect to the normal */
   f3_minus(vec, w);
   cosi = f3_dot(vec, N);
-  f3_mulf(dir, N, cosi);
-  f3_sub(dir, vec, dir);
+  f3_mulf(dir, N, cosi * 2);
+  f3_sub(dir, dir, vec);
   dir[3] = 1.f; /* pdf */
   return reflection->reflectivity;
 }
