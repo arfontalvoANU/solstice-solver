@@ -172,7 +172,7 @@ set_views(struct solver_data* data) {
 
   scene = data->scene;
   ASSERT(scene);
-  raytrace_scene = scene_get_s3d_scene(scene);
+  raytrace_scene = scene_get_s3d_raytracing_scn(scene);
   ASSERT(raytrace_scene);
   sampling_scene = scene_get_s3d_sampling_scn(scene);
   ASSERT(sampling_scene);

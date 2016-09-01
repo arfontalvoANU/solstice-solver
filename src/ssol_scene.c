@@ -39,7 +39,7 @@ scene_release(ref_T* ref)
   dev = scene->dev;
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
-  if (scene->s3d_scn) S3D(scene_ref_put(scene->s3d_scn));
+  if (scene->s3d_raytracing_scn) S3D(scene_ref_put(scene->s3d_raytracing_scn));
   if (scene->s3d_sampling_scn) S3D(scene_ref_put(scene->s3d_sampling_scn));
   if(scene->sun) SSOL(sun_ref_put(scene->sun));
   htable_instance_release(&scene->instances);
@@ -72,7 +72,7 @@ ssol_scene_create
   scene->dev = dev;
   ref_init(&scene->ref);
 
-  res = s3d_scene_create(dev->s3d, &scene->s3d_scn);
+  res = s3d_scene_create(dev->s3d, &scene->s3d_raytracing_scn);
   if (res != RES_OK) goto error;
 
   res = s3d_scene_create(dev->s3d, &scene->s3d_sampling_scn);
@@ -117,7 +117,7 @@ ssol_scene_attach_object_instance
   shape = object_instance_get_s3d_shape(instance);
 
   /* Try to attach the instantiated s3d shape to s3d scene */
-  res = s3d_scene_attach_shape(scene->s3d_scn, shape);
+  res = s3d_scene_attach_shape(scene->s3d_raytracing_scn, shape);
   if(res != RES_OK) return res;
 
   /* Register the instance against the scene */
@@ -125,7 +125,7 @@ ssol_scene_attach_object_instance
   ASSERT(!htable_instance_find(&scene->instances, &id));
   res = htable_instance_set(&scene->instances, &id, &instance);
   if(res != RES_OK) {
-    S3D(scene_detach_shape(scene->s3d_scn, shape));
+    S3D(scene_detach_shape(scene->s3d_raytracing_scn, shape));
     return res;
   }
   SSOL(object_instance_ref_get(instance));
@@ -159,7 +159,7 @@ ssol_scene_detach_object_instance
   /* Detach the object instance */
   n = htable_instance_erase(&scene->instances, &id);
   ASSERT(n == 1);
-  S3D(scene_detach_shape(scene->s3d_scn, shape));
+  S3D(scene_detach_shape(scene->s3d_raytracing_scn, shape));
   SSOL(object_instance_ref_put(instance));
 
   return RES_OK;
@@ -176,12 +176,12 @@ ssol_scene_clear(struct ssol_scene* scene)
   while(!htable_instance_iterator_eq(&it, &it_end)) {
     struct ssol_object_instance* inst;
     inst = *htable_instance_iterator_data_get(&it);
-    S3D(scene_detach_shape(scene->s3d_scn, object_instance_get_s3d_shape(inst)));
+    S3D(scene_detach_shape(scene->s3d_raytracing_scn, object_instance_get_s3d_shape(inst)));
     SSOL(object_instance_ref_put(inst));
     htable_instance_iterator_next(&it);
   }
   htable_instance_clear(&scene->instances);
-  S3D(scene_clear(scene->s3d_scn));
+  S3D(scene_clear(scene->s3d_raytracing_scn));
   if(scene->sun)
     ssol_scene_detach_sun(scene, scene->sun);
   return RES_OK;
@@ -218,10 +218,10 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
  * Local functions
  ******************************************************************************/
 struct s3d_scene*
-scene_get_s3d_scene(const struct ssol_scene* scn)
+scene_get_s3d_raytracing_scn(const struct ssol_scene* scn)
 {
   ASSERT(scn);
-  return scn->s3d_scn;
+  return scn->s3d_raytracing_scn;
 }
 
 struct s3d_scene*
