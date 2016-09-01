@@ -44,22 +44,24 @@ enum realization_mode {
   MODE_COUNT__
 };
 
+/*******************************************************************************
+* Helper functions
+******************************************************************************/
 static INLINE int
-is_instance_punched
-  (const struct ssol_object_instance* instance)
+is_instance_punched(const struct ssol_object_instance* instance)
 {
   ASSERT(instance);
   return instance->object->shape->type == SHAPE_PUNCHED;
 }
 
-static const struct ssol_quadric*
-get_quadric (const struct ssol_object_instance* instance)
+static INLINE const struct ssol_quadric*
+get_quadric(const struct ssol_object_instance* instance)
 {
   ASSERT(instance && is_instance_punched(instance));
   return instance->object->shape->quadric;
 }
 
-static struct s3d_scene*
+static INLINE struct s3d_scene*
 get_3dscene(const struct ssol_object_instance* instance)
 {
   ASSERT(instance);
@@ -255,7 +257,7 @@ next_segment(struct realisation* rz)
 }
 
 /* TODO: move to Star3D */
-INLINE void s3d_invalidate_hit(struct s3d_hit* hit) {
+static INLINE void s3d_invalidate_hit(struct s3d_hit* hit) {
   ASSERT(hit);
   hit->distance = FLT_MAX;
 }
@@ -503,7 +505,7 @@ set_output_pos_and_dir(struct realisation* rz) {
     const struct ssol_sun* sun = scene_get_sun(rz->data.scene);
     ASSERT(-1 <= rz->start.cos_sun && rz->start.cos_sun <= 0);
     f3_set_d3(sundir_f, rz->start.sundir);
-    seg->weight = ssol_sun_get_dni(sun)
+    seg->weight = sun_get_dni(sun)
       * brdf_composite_sample(rz->data.brdfs, rz->data.rng, sundir_f, tmp, seg->dir)
       * -rz->start.cos_sun;
   }
@@ -549,6 +551,9 @@ propagate(struct realisation* rz)
   surface_fragment_setup(&rz->data.fragment, seg->hit_pos, seg->dir, seg->hit.normal, &seg->hit.prim, seg->hit.uv);
 }
 
+/*******************************************************************************
+ * Exported function
+ ******************************************************************************/
 res_T
 ssol_solve
   (struct ssol_scene* scene,

@@ -102,7 +102,7 @@ ssol_image_setup
   || width <= 0
   || height <= 0
   || format < 0
-  || format >= SSOL_PIXEL_FORMAT_COUNT__)
+  || (unsigned)format >= SSOL_PIXEL_FORMATS_COUNT__)
     return RES_BAD_ARG;
 
   image->width = width;

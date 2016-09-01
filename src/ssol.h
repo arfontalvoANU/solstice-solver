@@ -57,9 +57,15 @@ struct ssol_shape;
 struct ssol_spectrum;
 struct ssol_sun;
 
+enum ssol_clipping_op {
+  SSOL_AND,
+  SSOL_SUB,
+  SSOL_CLIPPING_OPS_COUNT__
+};
+
 enum ssol_pixel_format {
   SSOL_PIXEL_DOUBLE3,
-  SSOL_PIXEL_FORMAT_COUNT__
+  SSOL_PIXEL_FORMATS_COUNT__
 };
 
 enum ssol_parametrization_type {
@@ -72,14 +78,6 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_PARABOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
   SSOL_QUADRIC_TYPE_COUNT__
-};
-
-enum ssol_carving_type {
-  SSOL_CARVING_CIRCLE,
-  SSOL_CARVING_POLYGON,
-
-  SSOL_CARVING_FIRST_TYPE = SSOL_CARVING_CIRCLE,
-  SSOL_CARVING_LAST_TYPE = SSOL_CARVING_POLYGON
 };
 
 /* Attribute of a shape */
@@ -101,6 +99,11 @@ struct ssol_vertex_data {
      void* ctx); /* Pointer toward user data */
 };
 
+/* Invalid vertex data */
+#define SSOL_VERTEX_DATA_NULL__ { SSOL_ATTRIBS_COUNT__, NULL }
+static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
+  SSOL_VERTEX_DATA_NULL__;
+
 struct ssol_image_layout {
   size_t row_pitch; /* #bytes between 2 consecutive row */
   size_t offset; /* Byte offset where the image begins */
@@ -109,23 +112,34 @@ struct ssol_image_layout {
   enum ssol_pixel_format pixel_format; /* Format of a pixel */
 };
 
-/* Invalid vertex data */
-#define SSOL_VERTEX_DATA_NULL__ { SSOL_ATTRIBS_COUNT__, NULL }
-static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
-  SSOL_VERTEX_DATA_NULL__;
+/* Invalid image layout */
+#define SSOL_IMAGE_LAYOUT_NULL__ { 0, 0, 0, 0, 0, SSOL_PIXEL_FORMATS_COUNT__ }
+static const struct ssol_image_layout SSOL_IMAGE_LAYOUT_NULL =
+  SSOL_IMAGE_LAYOUT_NULL__;
 
 /* The following quadric definitions are in local coordinate system. */
 struct ssol_quadric_plane {
-  char unused; /* Define z = 0 */
+  char dummy; /* Define z = 0 */
 };
+#define SSOL_QUADRIC_PLANE_DEFAULT__ { 0 }
+static const struct ssol_quadric_plane SSOL_QUADRIC_PLANE_DEFAULT =
+  SSOL_QUADRIC_PLANE_DEFAULT__;
 
+/* Define x^2 + y^2 - 4 focal z = 0 */
 struct ssol_quadric_parabol {
-  double focal; /* Define x^2 + y^2 - 4 focal z = 0 */
+  double focal;
 };
+#define SSOL_QUADRIC_PARABOL_DEFAULT__ { 0.0 }
+static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_DEFAULT =
+  SSOL_QUADRIC_PARABOL_DEFAULT__;
 
 struct ssol_quadric_parabolic_cylinder {
   double focal; /* Define y^2 - 4 focal z = 0 */
 };
+#define SSOL_QUADRIC_PARABOLIC_CYLINDER_DEFAULT__ { 0.0 }
+static const struct ssol_quadric_parabolic_cylinder
+SSOL_QUADRIC_PARABOLIC_CYLINDER_DEFAULT =
+  SSOL_QUADRIC_PARABOLIC_CYLINDER_DEFAULT__;
 
 struct ssol_quadric {
   enum ssol_quadric_type type;
@@ -136,18 +150,30 @@ struct ssol_quadric {
   } data;
 };
 
+#define SSOL_QUADRIC_DEFAULT__ \
+  {SSOL_QUADRIC_PLANE, {SSOL_QUADRIC_PLANE_DEFAULT__}}
+static const struct ssol_quadric SSOL_QUADRIC_DEFAULT = SSOL_QUADRIC_DEFAULT__;
+
+/* Define the contour of a 2D polygon as well as the clipping operation to
+ * apply against it */
 struct ssol_carving {
   void (*get) /* Retrieve the 2D coordinates of the vertex `ivert' */
     (const size_t ivert, double position[2], void* ctx);
   size_t nb_vertices; /* #vertices */
+  enum ssol_clipping_op operation; /* Clipping operation */
   void* context; /* User defined data */
 };
+#define SSOL_CARVING_NULL__ { NULL, 0, SSOL_CLIPPING_OPS_COUNT__, NULL }
+static const struct ssol_carving SSOL_CARVING_NULL = SSOL_CARVING_NULL__;
 
 struct ssol_punched_surface {
   struct ssol_quadric* quadric;
   struct ssol_carving* carvings;
   size_t nb_carvings;
 };
+#define SSOL_PUNCHED_SURFACE_NULL__ { NULL, NULL, 0 }
+static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
+  SSOL_PUNCHED_SURFACE_NULL__;
 
 typedef void
 (*ssol_shader_getter_T)
@@ -166,6 +192,9 @@ struct ssol_mirror_shader {
   ssol_shader_getter_T reflectivity;
   ssol_shader_getter_T roughness;
 };
+#define SSOL_MIRROR_SHADER_NULL__ { NULL, NULL, NULL }
+static const struct ssol_mirror_shader SSOL_MIRROR_SHADER_NULL =
+  SSOL_MIRROR_SHADER_NULL__;
 
 /*
  * All the ssol structures are ref counted. Once created with the appropriated
