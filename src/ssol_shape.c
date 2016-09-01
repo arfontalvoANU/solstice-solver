@@ -148,7 +148,7 @@ shape_create
     goto error;
   }
 
-  /* create a s3d_scene to hold a mesh */
+  /* create a s3d_shape to hold a mesh */
   res = s3d_shape_create_mesh(dev->s3d, &shape->s3d_shape);
   if(res != RES_OK) goto error;
   res = s3d_mesh_set_hit_filter_function
