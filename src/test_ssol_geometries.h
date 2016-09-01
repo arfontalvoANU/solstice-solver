@@ -25,20 +25,20 @@ struct desc {
  * Plane
  ******************************************************************************/
 
-static const float plane_walls [] = {
+static const float square_walls [] = {
   -1, -1, 0,
    1, -1, 0,
    1,  1, 0,
   -1,  1, 0
 };
-const unsigned plane_walls_nverts = sizeof(plane_walls) / sizeof(float[3]);
+const unsigned square_walls_nverts = sizeof(square_walls) / sizeof(float[3]);
 
-const unsigned plane_walls_ids [] = {
+const unsigned square_walls_ids [] = {
   0, 1, 2, 2, 3, 0
 };
-const unsigned plane_walls_ntris = sizeof(plane_walls_ids) / sizeof(unsigned[3]);
+const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
 
-static struct desc plane_walls_desc = { plane_walls, plane_walls_ids };
+static struct desc square_walls_desc = { square_walls, square_walls_ids };
 
 /*******************************************************************************
 * Box
