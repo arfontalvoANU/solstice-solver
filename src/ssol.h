@@ -57,6 +57,12 @@ struct ssol_shape;
 struct ssol_spectrum;
 struct ssol_sun;
 
+enum ssol_clipping_op {
+  SSOL_AND,
+  SSOL_SUB,
+  SSOL_CLIPPING_OPS_COUNT__
+};
+
 enum ssol_pixel_format {
   SSOL_PIXEL_DOUBLE3,
   SSOL_PIXEL_FORMAT_COUNT__
@@ -136,10 +142,13 @@ struct ssol_quadric {
   } data;
 };
 
+/* Define the contour of a 2D polygon as well as the clipping operation to
+ * apply against it */
 struct ssol_carving {
   void (*get) /* Retrieve the 2D coordinates of the vertex `ivert' */
     (const size_t ivert, double position[2], void* ctx);
   size_t nb_vertices; /* #vertices */
+  enum ssol_clipping_op operation; /* Clipping operation */
   void* context; /* User defined data */
 };
 
