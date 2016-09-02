@@ -25,16 +25,14 @@ struct desc {
  * Plane
  ******************************************************************************/
 static const float square_walls [] = {
-  -1, -1, 0,
-  1, -1, 0,
-  1,  1, 0,
-  -1,  1, 0
+  -1.f, -1.f, 0.f,
+   1.f, -1.f, 0.f,
+   1.f,  1.f, 0.f,
+  -1.f,  1.f, 0.f
 };
 const unsigned square_walls_nverts = sizeof(square_walls) / sizeof(float[3]);
 
-const unsigned square_walls_ids [] = {
-  0, 2, 1, 2, 0, 3
-};
+const unsigned square_walls_ids [] = { 0, 2, 1, 2, 0, 3 };
 const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
 
 static const struct desc square_walls_desc = { square_walls, square_walls_ids };
@@ -74,6 +72,7 @@ get_ids(const unsigned itri, unsigned ids[3], void* data)
   const unsigned id = itri * 3;
   struct desc* desc = data;
   NCHECK(desc, NULL);
+  NCHECK(ids, NULL);
   ids[0] = desc->indices[id + 0];
   ids[1] = desc->indices[id + 1];
   ids[2] = desc->indices[id + 2];
@@ -84,6 +83,7 @@ get_position(const unsigned ivert, float position[3], void* data)
 {
   struct desc* desc = data;
   NCHECK(desc, NULL);
+  NCHECK(position, NULL);
   position[0] = desc->vertices[ivert * 3 + 0];
   position[1] = desc->vertices[ivert * 3 + 1];
   position[2] = desc->vertices[ivert * 3 + 2];
@@ -92,7 +92,8 @@ get_position(const unsigned ivert, float position[3], void* data)
 static INLINE void
 get_normal(const unsigned ivert, float normal[3], void* data)
 {
-  (void) ivert, (void) data;
+  (void)ivert, (void)data;
+  NCHECK(normal, NULL);
   normal[0] = 1.f;
   normal[1] = 0.f;
   normal[2] = 0.f;
@@ -101,7 +102,8 @@ get_normal(const unsigned ivert, float normal[3], void* data)
 static INLINE void
 get_uv(const unsigned ivert, float uv[2], void* data)
 {
-  (void) ivert, (void) data;
+  (void)ivert, (void)data;
+  NCHECK(uv, NULL);
   uv[0] = -1.f;
   uv[1] = 1.f;
 }
@@ -109,9 +111,11 @@ get_uv(const unsigned ivert, float uv[2], void* data)
 static INLINE void
 get_polygon_vertices(const size_t ivert, double position[2], void* ctx)
 {
-  (void) ivert, (void) ctx;
-  position[0] = -1.f;
-  position[1] = 1.f;
+  const double* verts = ctx;
+  NCHECK(position, NULL);
+  NCHECK(ctx, NULL);
+  position[0] = verts[ivert*2+0];
+  position[1] = verts[ivert*2+1];
 }
 
 #endif /* TEST_SSOL_GEOMETRIES_H */

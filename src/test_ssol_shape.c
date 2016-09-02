@@ -33,6 +33,8 @@ main(int argc, char** argv)
   struct ssol_punched_surface punched_surface;
   struct ssol_carving carving;
   struct ssol_quadric quadric;
+  const double polygon[] = { -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0 };
+  const size_t npolygon_verts = sizeof(polygon)/sizeof(double[2]);
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -43,7 +45,7 @@ main(int argc, char** argv)
   logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
 
   CHECK(ssol_device_create
-    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 1, &dev), RES_OK);
 
   CHECK(ssol_shape_create_mesh(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_shape_create_mesh(dev, NULL), RES_BAD_ARG);
@@ -93,8 +95,8 @@ main(int argc, char** argv)
 
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
-  carving.nb_vertices = 1;
-  carving.context = NULL;
+  carving.nb_vertices = npolygon_verts;
+  carving.context = &polygon;
   quadric.type = SSOL_QUADRIC_PLANE;
   punched_surface.nb_carvings = 1;
   punched_surface.quadric = &quadric;
@@ -119,7 +121,7 @@ main(int argc, char** argv)
 
   carving.nb_vertices = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
-  carving.nb_vertices = 1;
+  carving.nb_vertices = npolygon_verts;
 
   carving.get = NULL;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);

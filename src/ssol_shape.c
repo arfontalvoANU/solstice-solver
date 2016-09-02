@@ -27,9 +27,17 @@
 
 #include <star/scpr.h>
 
+#include <limits.h> /* UINT_MAX constant */
+
 struct mesh_context {
   const double* coords;
   const size_t* ids;
+};
+
+struct quadric_mesh_context {
+  const double* coords;
+  const size_t* ids;
+  double focal; /* Use by parabol and parabolic cylinder quadrics */
 };
 
 /*******************************************************************************
@@ -119,7 +127,7 @@ ssol_to_scpr_clip_op(const enum ssol_clipping_op clip_op)
   switch(clip_op) {
     case SSOL_AND: op = SCPR_AND; break;
     case SSOL_SUB: op = SCPR_SUB; break;
-    default: FATAL("Unreachable code \n"); break;
+    default: FATAL("Unreachable code.\n"); break;
   }
   return op;
 }
@@ -145,11 +153,62 @@ mesh_get_pos(const size_t ivert, double pos[2], void* ctx)
   pos[1] = msh->coords[i+1];
 }
 
+static void
+quadric_mesh_get_ids(const unsigned itri, unsigned ids[3], void* ctx)
+{
+  const size_t i = itri*3/*#ids per triangle*/;
+  const struct quadric_mesh_context* msh = ctx;
+  ASSERT(ids && ctx);
+  ids[0] = (unsigned)msh->ids[i+0];
+  ids[1] = (unsigned)msh->ids[i+1];
+  ids[2] = (unsigned)msh->ids[i+2];
+}
+
+static void
+quadric_mesh_plane_get_pos(const unsigned ivert, float pos[3], void* ctx)
+{
+  const size_t i = ivert*2/*#coords per vertex*/;
+  const struct quadric_mesh_context* msh = ctx;
+  ASSERT(pos && ctx);
+  pos[0] = (float)msh->coords[i+0];
+  pos[1] = (float)msh->coords[i+1];
+  pos[2] = 0.f;
+}
+
+static void
+quadric_mesh_parabol_get_pos(const unsigned ivert, float pos[3], void* ctx)
+{
+  const size_t i = ivert*2/*#coords per vertex*/;
+  const struct quadric_mesh_context* msh = ctx;
+  double x, y;
+  ASSERT(pos && ctx);
+  x = msh->coords[i+0];
+  y = msh->coords[i+1];
+  pos[0] = (float)x;
+  pos[1] = (float)y;
+  pos[2] = (float)((x*x + y*y) / (4.0*msh->focal));
+}
+
+static void
+quadric_mesh_parabolic_cylinder_get_pos
+  (const unsigned ivert, float pos[3], void* ctx)
+{
+  const size_t i = ivert*2/*#coords per vertex*/;
+  const struct quadric_mesh_context* msh = ctx;
+  double x, y;
+  ASSERT(pos && ctx);
+  x = msh->coords[i+0];
+  y = msh->coords[i+1];
+  pos[0] = (float)x;
+  pos[1] = (float)y;
+  pos[2] = (float)((y*y) / (4.0*msh->focal));
+}
+
 static FINLINE int
 aabb_is_degenerated(const double lower[2], const double upper[2])
 {
   ASSERT(lower && upper);
-  return lower[0] > upper[0] || lower[1] > upper[1];
+  return lower[0] >= upper[0] || lower[1] >= upper[1];
 }
 
 static void
@@ -203,7 +262,10 @@ build_triangulated_plane
   d2_sub(size, upper, lower);
   size_max = MMAX(size[0], size[1]);
 
-  if(eq_eps(size_max, 0, 1.e-6)) goto exit;
+  if(eq_eps(size_max, 0, 1.e-6)) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
 
   delta = size_max / (double)nsteps;
   nsteps2[0] = (size_t)ceil(size[0] / delta);
@@ -335,6 +397,48 @@ error:
   goto exit;
 }
 
+static res_T
+quadric_setup_s3d_shape
+  (const struct ssol_quadric* quadric,
+   const struct darray_double* coords,
+   const struct darray_size_t* ids,
+   struct s3d_shape* shape)
+{
+  struct quadric_mesh_context ctx;
+  struct s3d_vertex_data vdata;
+  unsigned nverts;
+  unsigned ntris;
+  ASSERT(quadric && coords && ids && shape);
+  ASSERT(darray_double_size_get(coords)%2 == 0);
+  ASSERT(darray_size_t_size_get(ids)%3 == 0);
+  ASSERT(darray_double_size_get(coords)/2 <= UINT_MAX);
+  ASSERT(darray_size_t_size_get(ids)/3 <= UINT_MAX);
+
+  nverts = (unsigned)darray_double_size_get(coords) / 2/*#coords per vertex*/;
+  ntris = (unsigned)darray_size_t_size_get(ids) / 3/*#ids per triangle*/;
+  ctx.coords = darray_double_cdata_get(coords);
+  ctx.ids = darray_size_t_cdata_get(ids);
+
+  vdata.usage = S3D_POSITION;
+  vdata.type = S3D_FLOAT3;
+  switch(quadric->type) {
+    case SSOL_QUADRIC_PARABOL:
+      ctx.focal = quadric->data.parabol.focal;
+      vdata.get = quadric_mesh_parabol_get_pos;
+      break;
+    case SSOL_QUADRIC_PARABOLIC_CYLINDER:
+      ctx.focal = quadric->data.parabolic_cylinder.focal;
+      vdata.get = quadric_mesh_parabolic_cylinder_get_pos;
+      break;
+    case SSOL_QUADRIC_PLANE:
+      vdata.get = quadric_mesh_plane_get_pos;
+      break;
+    default: FATAL("Unreachable code.\n"); break;
+  }
+
+  return s3d_mesh_setup_indexed_vertices
+    (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
+}
 
 static res_T
 shape_create
@@ -454,7 +558,7 @@ ssol_punched_surface_setup
   carvings_compute_aabb(psurf->carvings, psurf->nb_carvings, lower, upper);
   if(aabb_is_degenerated(lower, upper)) {
     log_error(shape->dev,
-      "%s: infinite punched surface; no `and' carving polygon is defined.\n",
+      "%s: infinite or null punched surface.\n",
       FUNC_NAME);
     res = RES_BAD_ARG;
     goto error;
@@ -470,8 +574,9 @@ ssol_punched_surface_setup
     (&coords, &ids, shape->dev->scpr_mesh, psurf->carvings, psurf->nb_carvings);
   if(res != RES_OK) goto error;
 
-  /* TODO displace the triangulated plane vertices */
-  /* TODO register the displaced triangulated plane in the s3d_shape */
+  res = quadric_setup_s3d_shape
+    (psurf->quadric, &coords, &ids, shape->s3d_shape);
+  if(res != RES_OK) goto error;
 
 exit:
   darray_double_release(&coords);
@@ -528,7 +633,7 @@ ssol_mesh_setup
         attrs[i].usage = SSOL_TO_S3D_TEXCOORD;
         attrs[i].type = S3D_FLOAT2;
         break;
-      default: FATAL("Unreachable code \n"); break;
+      default: FATAL("Unreachable code.\n"); break;
     }
   }
   res = s3d_mesh_setup_indexed_vertices
