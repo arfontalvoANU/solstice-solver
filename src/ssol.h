@@ -200,8 +200,8 @@ static const struct ssol_mirror_shader SSOL_MIRROR_SHADER_NULL =
  * `ssol_<TYPE>_create' function, the caller implicitly owns the created data,
  * i.e. its reference counter is set to 1. The ssol_<TYPE>_ref_<get|put>
  * functions get or release a reference on the data, i.e. they increment or
- * decrement the reference counter, respectively. When this counter reach 0 the
- * data structure is silently destroyed and cannot be used anymore.
+ * decrement the reference counter, respectively. When this counter reaches 0,
+ * the data structure is silently destroyed and cannot be used anymore.
  */
 
 BEGIN_DECLS
