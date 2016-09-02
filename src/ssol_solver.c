@@ -515,7 +515,6 @@ static void
 propagate(struct realisation* rs)
 {
   struct segment* seg = current_segment(rs);
-  struct ssol_scene* scene = rs->data.scene;
 
   /* check if the ray hits something */
   S3D(scene_view_trace_ray
@@ -525,7 +524,7 @@ propagate(struct realisation* rs)
     return;
   }
   /* should not stop on a virtual surface */
-  ASSERT(material_get_type(get_material_from_hit(scene, &seg->hit))
+  ASSERT(material_get_type(get_material_from_hit(rs->data.scene, &seg->hit))
     != MATERIAL_VIRTUAL);
 
   /* offset the impact point and recompute normal if needed */
@@ -563,13 +562,8 @@ ssol_solve
   size_t r;
   res_T res = RES_OK;
 
-  struct ssol_device* device = NULL;
-
   if (!scene || !rng || !output || !realisations_count)
     return RES_BAD_ARG;
-
-  device = scene_get_device(scene);
-  ASSERT(device && device->allocator);
 
   /* init realisation */
   res = init_realisation(scene, rng, output, &rs);
