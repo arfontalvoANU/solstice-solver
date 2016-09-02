@@ -129,17 +129,16 @@ static const struct ssol_quadric_plane SSOL_QUADRIC_PLANE_DEFAULT =
 struct ssol_quadric_parabol {
   double focal;
 };
-#define SSOL_QUADRIC_PARABOL_DEFAULT__ { 0.0 }
-static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_DEFAULT =
-  SSOL_QUADRIC_PARABOL_DEFAULT__;
+#define SSOL_QUADRIC_PARABOL_NULL__ { -1.0 }
+static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
+  SSOL_QUADRIC_PARABOL_NULL__;
 
 struct ssol_quadric_parabolic_cylinder {
   double focal; /* Define y^2 - 4 focal z = 0 */
 };
-#define SSOL_QUADRIC_PARABOLIC_CYLINDER_DEFAULT__ { 0.0 }
+#define SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL__ { -1.0 }
 static const struct ssol_quadric_parabolic_cylinder
-SSOL_QUADRIC_PARABOLIC_CYLINDER_DEFAULT =
-  SSOL_QUADRIC_PARABOLIC_CYLINDER_DEFAULT__;
+SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL = SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL__;
 
 struct ssol_quadric {
   enum ssol_quadric_type type;
