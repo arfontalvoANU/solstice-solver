@@ -250,7 +250,7 @@ build_triangulated_plane
   size_t nverts[2];
   size_t ix, iy;
   double size[2];
-  double size_max;
+  double size_min;
   double delta;
   res_T res = RES_OK;
   ASSERT(coords && lower && upper && nsteps);
@@ -260,14 +260,14 @@ build_triangulated_plane
   darray_size_t_clear(ids);
 
   d2_sub(size, upper, lower);
-  size_max = MMAX(size[0], size[1]);
+  size_min = MMIN(size[0], size[1]);
 
-  if(eq_eps(size_max, 0, 1.e-6)) {
+  if(eq_eps(size_min, 0, 1.e-6)) {
     res = RES_BAD_ARG;
     goto error;
   }
 
-  delta = size_max / (double)nsteps;
+  delta = size_min / (double)nsteps;
   nsteps2[0] = (size_t)ceil(size[0] / delta);
   nsteps2[1] = (size_t)ceil(size[1] / delta);
   nverts[0] = nsteps2[0] + 1;
@@ -285,9 +285,11 @@ build_triangulated_plane
 
   /* Setup the plane vertices */
   FOR_EACH(ix, 0, nverts[0]) {
-    const double x = MMIN((double)ix*delta, upper[0]);
+    double x = lower[0] + (double)ix*delta;
+    x = MMIN(x, upper[0]);
     FOR_EACH(iy, 0, nverts[1]) {
-      const double y = MMIN((double)iy*delta, upper[1]);
+      double y = lower[1] + (double)iy*delta;
+      y = MMIN(y, upper[1]);
       darray_double_push_back(coords, &x);
       darray_double_push_back(coords, &y);
     }
@@ -565,7 +567,7 @@ ssol_punched_surface_setup
   }
 
   /* Define the #slices of the discretized quadric */
-  nslices = psurf->quadric->type == SSOL_QUADRIC_PLANE ? 1 : 100;
+  nslices = psurf->quadric->type == SSOL_QUADRIC_PLANE ? 1 : 50;
 
   res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);
   if(res != RES_OK) goto error;

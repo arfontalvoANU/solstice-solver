@@ -33,7 +33,9 @@ main(int argc, char** argv)
   struct ssol_punched_surface punched_surface;
   struct ssol_carving carving;
   struct ssol_quadric quadric;
-  const double polygon[] = { -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0 };
+  const double polygon[] = {
+    -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
+  };
   const size_t npolygon_verts = sizeof(polygon)/sizeof(double[2]);
   (void) argc, (void) argv;
 
@@ -45,7 +47,7 @@ main(int argc, char** argv)
   logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
 
   CHECK(ssol_device_create
-    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 1, &dev), RES_OK);
+    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_shape_create_mesh(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_shape_create_mesh(dev, NULL), RES_BAD_ARG);
@@ -130,6 +132,7 @@ main(int argc, char** argv)
   quadric.type = SSOL_QUADRIC_PARABOL;
   quadric.data.parabol.focal = 1;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+  return 0;
 
   quadric.data.parabol.focal = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
