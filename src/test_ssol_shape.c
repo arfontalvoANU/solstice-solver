@@ -42,7 +42,8 @@ main(int argc, char** argv)
   logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
   logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
 
-  CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create
+    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_shape_create_mesh(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_shape_create_mesh(dev, NULL), RES_BAD_ARG);
@@ -62,20 +63,20 @@ main(int argc, char** argv)
   attribs[2].usage = SSOL_TEXCOORD;
   attribs[2].get = get_uv;
 
-  CHECK(ssol_mesh_setup
-    (NULL, box_walls_ntris, get_ids, box_walls_nverts, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup
-    (shape, 0, get_ids, box_walls_nverts, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, NULL, box_walls_nverts, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, 0, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, NULL, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 0, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 3, (void*)&box_walls_desc), RES_OK);
+  CHECK(ssol_mesh_setup(NULL, box_walls_ntris, get_ids, box_walls_nverts,
+    attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, 0, get_ids, box_walls_nverts, attribs, 1,
+    (void*)&box_walls_desc), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, box_walls_ntris, NULL, box_walls_nverts,
+    attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, 0, attribs, 1,
+    (void*)&box_walls_desc), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, box_walls_nverts,
+    NULL, 1, (void*)&box_walls_desc), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, box_walls_nverts,
+    attribs, 0, (void*)&box_walls_desc), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, box_walls_nverts,
+    attribs, 3, (void*)&box_walls_desc), RES_OK);
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 

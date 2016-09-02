@@ -24,7 +24,6 @@ struct desc {
 /*******************************************************************************
  * Plane
  ******************************************************************************/
-
 static const float square_walls [] = {
   -1, -1, 0,
   1, -1, 0,
@@ -37,6 +36,7 @@ const unsigned square_walls_ids [] = {
   0, 2, 1, 2, 0, 3
 };
 const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
+
 static const struct desc square_walls_desc = { square_walls, square_walls_ids };
 
 /*******************************************************************************

@@ -28,7 +28,7 @@ get_shader_normal
   double* val)
 {
   int i;
-  (void) dev, (void) wavelength, (void) P, (void) Ng, (void) uv, (void) w;
+  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)uv, (void)w;
   FOR_EACH(i, 0, 3) val[i] = Ns[i];
 }
 
@@ -43,7 +43,7 @@ get_shader_reflectivity
   const double w[3],
   double* val)
 {
-  (void) dev, (void) wavelength, (void) P, (void) Ng, (void) Ns, (void) uv, (void) w;
+  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
   *val = 1;
 }
 
@@ -58,7 +58,7 @@ get_shader_roughness
   const double w[3],
   double* val)
 {
-  (void) dev, (void) wavelength, (void) P, (void) Ng, (void) Ns, (void) uv, (void) w;
+  (void)dev, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
   *val = 0;
 }
 

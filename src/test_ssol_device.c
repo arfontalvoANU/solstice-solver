@@ -39,7 +39,8 @@ main(int argc, char** argv)
 
   CHECK(MEM_ALLOCATED_SIZE(&allocator), 0);
   CHECK(ssol_device_create(NULL, &allocator, 2, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_device_create(NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(MEM_ALLOCATED_SIZE(&allocator), 0);
 
@@ -49,15 +50,18 @@ main(int argc, char** argv)
   logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
 
   CHECK(ssol_device_create(&logger, NULL, 4, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_device_create(&logger, NULL, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create
+    (&logger, NULL, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   CHECK(ssol_device_create(&logger, &allocator, 2, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create
+    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   CHECK(ssol_device_create(&logger, &allocator, 0, 0, &dev), RES_BAD_ARG);
-  CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create
+    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   logger_release(&logger);

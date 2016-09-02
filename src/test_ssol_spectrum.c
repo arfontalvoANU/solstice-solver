@@ -36,7 +36,8 @@ main(int argc, char** argv)
   logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
   logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
 
-  CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create
+    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_spectrum_create(NULL, &spectrum), RES_BAD_ARG);
   CHECK(ssol_spectrum_create(dev, NULL), RES_BAD_ARG);
