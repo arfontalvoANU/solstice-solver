@@ -104,7 +104,7 @@ struct realisation {
   struct solver_data data;
   double freq;
   size_t s_idx;
-  size_t rz_id;
+  size_t rs_id;
   uint32_t success_mask;
 };
 

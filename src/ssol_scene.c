@@ -290,7 +290,7 @@ hit_filter_function
       fprintf(rs->data.out_stream,
         "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
         receiver_name,
-        (unsigned)rs->rz_id,
+        (unsigned)rs->rs_id,
         (unsigned)rs->s_idx,
         rs->freq,
         seg->weight,
