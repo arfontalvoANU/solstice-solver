@@ -252,21 +252,21 @@ hit_filter_function
   (const struct s3d_hit* hit,
    const float org[3],
    const float dir[3],
-   void* realization,
+   void* realisation,
    void* filter_data)
 {
   struct ssol_object_instance* instance;
   struct ssol_material* material;
   const char* receiver_name;
-  struct realisation* rz = realization;
+  struct realisation* rs = realisation;
   struct segment* seg;
   struct segment* prev;
   int front_face = 0;
 
   (void) filter_data;
-  ASSERT(rz);
-  prev = previous_segment(rz);
-  seg = current_segment(rz);
+  ASSERT(rs);
+  prev = previous_segment(rs);
+  seg = current_segment(rs);
   ASSERT(seg);
 
   /* TODO: need to detect self intersect at the instance level,
@@ -274,7 +274,7 @@ hit_filter_function
   if(prev && S3D_PRIMITIVE_EQ(&hit->prim, &prev->hit.prim))
     return 1; /* Discard self intersection */
 
-  instance = scene_get_object_instance_from_s3d_hit(rz->data.scene, hit);
+  instance = scene_get_object_instance_from_s3d_hit(rs->data.scene, hit);
 
   /* Check if the hit surface is a receiver that registers hit data */
   receiver_name = object_instance_get_receiver_name(instance);
@@ -287,12 +287,12 @@ hit_filter_function
 
       f3_set(pos, f3_add(pos, org, f3_mulf(pos, dir, hit->distance)));
       front_face = 1;
-      fprintf(rz->data.out_stream,
+      fprintf(rs->data.out_stream,
         "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
         receiver_name,
-        (unsigned)rz->rz_id,
-        (unsigned)rz->s_idx,
-        rz->freq,
+        (unsigned)rs->rz_id,
+        (unsigned)rs->s_idx,
+        rs->freq,
         seg->weight,
         SPLIT3(pos),
         SPLIT3(dir),
@@ -302,7 +302,7 @@ hit_filter_function
 
   /* register success mask */
   if (front_face)
-    rz->success_mask |=  object_instance_get_target_mask(instance);
+    rs->success_mask |=  object_instance_get_target_mask(instance);
 
   material = object_get_material(object_instance_get_object(instance));
 
@@ -310,7 +310,7 @@ hit_filter_function
     return 1; /* Discard virtual material */
   }
 
-  rz->data.instance = instance;
+  rs->data.instance = instance;
 
   return 0;
 }

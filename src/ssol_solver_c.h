@@ -36,7 +36,7 @@
 #define DARRAY_DATA struct s3d_shape*
 #include <rsys/dynamic_array.h>
 
-enum realization_termination {
+enum realisation_termination {
   TERM_NONE,
   TERM_SUCCESS,
   TERM_SHADOW,
@@ -48,7 +48,7 @@ enum realization_termination {
   TERM_COUNT__
 };
 
-enum realization_mode {
+enum realisation_mode {
   MODE_NONE,
   MODE_STD,
   MODE_ROULETTE,
@@ -97,8 +97,8 @@ struct solver_data {
 };
 
 struct realisation {
-  enum realization_termination end;
-  enum realization_mode mode;
+  enum realisation_termination end;
+  enum realisation_mode mode;
   struct darray_segment segments;
   struct starting_point start;
   struct solver_data data;
@@ -119,16 +119,16 @@ extern LOCAL_SYM res_T
 set_views(struct solver_data* data);
 
 extern LOCAL_SYM struct segment*
-previous_segment(struct realisation* rz);
+previous_segment(struct realisation* rs);
 
 extern LOCAL_SYM struct segment*
-sun_segment(struct realisation* rz);
+sun_segment(struct realisation* rs);
 
 extern LOCAL_SYM struct segment*
-current_segment(struct realisation* rz);
+current_segment(struct realisation* rs);
 
 extern LOCAL_SYM res_T
-next_segment(struct realisation* rz);
+next_segment(struct realisation* rs);
 
 extern LOCAL_SYM void
 reset_segment(struct segment* seg);

@@ -39,7 +39,7 @@ hit_filter_function
   (const struct s3d_hit* hit,
    const float org[3],
    const float dir[3],
-   void* realization,
+   void* realisation,
    void* filter_data);
 
 #endif /* SSOL_C_H */

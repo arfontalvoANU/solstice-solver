@@ -204,48 +204,48 @@ error:
 }
 
 struct segment*
-previous_segment(struct realisation* rz)
+previous_segment(struct realisation* rs)
 {
   size_t idx;
-  ASSERT(rz);
-  if (!rz->s_idx) return NULL;
-  idx = rz->s_idx - 1;
-  ASSERT(idx < darray_segment_size_get(&rz->segments));
-  return darray_segment_data_get(&rz->segments) + idx;
+  ASSERT(rs);
+  if (!rs->s_idx) return NULL;
+  idx = rs->s_idx - 1;
+  ASSERT(idx < darray_segment_size_get(&rs->segments));
+  return darray_segment_data_get(&rs->segments) + idx;
 }
 
 struct segment*
-sun_segment(struct realisation* rz)
+sun_segment(struct realisation* rs)
 {
   struct segment* seg;
-  ASSERT(rz);
-  seg = darray_segment_data_get(&rz->segments);
+  ASSERT(rs);
+  seg = darray_segment_data_get(&rs->segments);
   ASSERT(seg);
   return seg;
 }
 
 struct segment*
-current_segment(struct realisation* rz)
+current_segment(struct realisation* rs)
 {
   struct segment* seg;
-  ASSERT(rz);
-  ASSERT(rz->s_idx < darray_segment_size_get(&rz->segments));
-  seg = darray_segment_data_get(&rz->segments) + rz->s_idx;
+  ASSERT(rs);
+  ASSERT(rs->s_idx < darray_segment_size_get(&rs->segments));
+  seg = darray_segment_data_get(&rs->segments) + rs->s_idx;
   ASSERT(seg);
   return seg;
 }
 
 res_T
-next_segment(struct realisation* rz)
+next_segment(struct realisation* rs)
 {
   res_T res = RES_OK;
-  ASSERT(rz);
-  ++rz->s_idx;
-  if (rz->s_idx >= darray_segment_size_get(&rz->segments)) {
-    res = darray_segment_resize(&rz->segments, rz->s_idx + 1);
+  ASSERT(rs);
+  ++rs->s_idx;
+  if (rs->s_idx >= darray_segment_size_get(&rs->segments)) {
+    res = darray_segment_resize(&rs->segments, rs->s_idx + 1);
     if (res != RES_OK) return res;
   }
-  reset_segment(current_segment(rz));
+  reset_segment(current_segment(rs));
   return RES_OK;
 }
 
@@ -272,67 +272,67 @@ reset_starting_point(struct starting_point* start)
 }
 
 static void
-reset_realization(size_t cpt, struct realisation* rz)
+reset_realisation(size_t cpt, struct realisation* rs)
 {
-  rz->s_idx = 0;
-  rz->s_idx = 0;
-  rz->end = TERM_NONE;
-  rz->mode = MODE_STD;
-  rz->rz_id = cpt;
-  rz->success_mask = 0;
-  reset_starting_point(&rz->start);
-  brdf_composite_clear(rz->data.brdfs);
-  rz->data.instance = NULL;
+  rs->s_idx = 0;
+  rs->s_idx = 0;
+  rs->end = TERM_NONE;
+  rs->mode = MODE_STD;
+  rs->rz_id = cpt;
+  rs->success_mask = 0;
+  reset_starting_point(&rs->start);
+  brdf_composite_clear(rs->data.brdfs);
+  rs->data.instance = NULL;
   /* reset sun segment (always used) */
-  reset_segment(sun_segment(rz));
+  reset_segment(sun_segment(rs));
 }
 
 static res_T
-init_realization
+init_realisation
   (struct ssol_scene* scene,
    struct ssp_rng* rng,
    FILE* out,
-   struct realisation* rz)
+   struct realisation* rs)
 {
   res_T res = RES_OK;
   struct ssol_device* device;
 
-  if (!scene || !rng || !rz) return RES_BAD_ARG;
+  if (!scene || !rng || !rs) return RES_BAD_ARG;
 
   device = scene_get_device(scene);
   ASSERT(device && device->allocator);
 
-  darray_segment_init(device->allocator, &rz->segments);
+  darray_segment_init(device->allocator, &rs->segments);
   /* set a first size; will grow up with time if needed */
-  res = darray_segment_resize(&rz->segments, 16);
+  res = darray_segment_resize(&rs->segments, 16);
   if (res != RES_OK) goto error;
 
-  rz->data = SOLVER_DATA_NULL;
-  rz->data.scene = scene;
-  rz->data.rng = rng;
-  rz->data.out_stream = out;
+  rs->data = SOLVER_DATA_NULL;
+  rs->data.scene = scene;
+  rs->data.rng = rng;
+  rs->data.out_stream = out;
   /* create 2 s3d_scene_view for raytracing and sampling */
-  res = set_views(&rz->data);
+  res = set_views(&rs->data);
   if (res != RES_OK) goto error;
   /* create sun distributions */
-  res = set_sun_distributions(&rz->data);
+  res = set_sun_distributions(&rs->data);
   if (res != RES_OK) goto error;
-  res = brdf_composite_create(device, &rz->data.brdfs);
+  res = brdf_composite_create(device, &rs->data.brdfs);
   if (res != RES_OK) goto error;
 
 exit:
   return res;
 error:
-  release_solver_data(&rz->data);
+  release_solver_data(&rs->data);
   goto exit;
 }
 
 static void
-release_realization(struct realisation* rz)
+release_realisation(struct realisation* rs)
 {
-  ASSERT(rz);
-  release_solver_data(&rz->data);
-  darray_segment_release(&rz->segments);
+  ASSERT(rs);
+  release_solver_data(&rs->data);
+  darray_segment_release(&rs->segments);
 }
 
 static struct ssol_material*
@@ -351,123 +351,123 @@ get_material_from_hit(struct ssol_scene* scene,  struct s3d_hit* hit) {
 }
 
 static void
-sample_point_on_primary_mirror(struct realisation* rz)
+sample_point_on_primary_mirror(struct realisation* rs)
 {
   struct s3d_attrib attrib;
   struct ssol_object* object;
   float r1, r2, r3;
   struct solver_data* data;
-  struct segment* seg = sun_segment(rz);
+  struct segment* seg = sun_segment(rs);
   struct s3d_primitive tmp_prim;
 
-  data = &rz->data;
+  data = &rs->data;
   ASSERT(data->rng && data->sample_view && data->scene);
   /* sample a point on a primary mirror's carving */
   r1 = ssp_rng_canonical_float(data->rng);
   r2 = ssp_rng_canonical_float(data->rng);
   r3 = ssp_rng_canonical_float(data->rng);
-  S3D(scene_view_sample(data->sample_view, r1, r2, r3, &tmp_prim, rz->start.uv));
-  S3D(primitive_get_attrib(&tmp_prim, S3D_POSITION, rz->start.uv, &attrib));
+  S3D(scene_view_sample(data->sample_view, r1, r2, r3, &tmp_prim, rs->start.uv));
+  S3D(primitive_get_attrib(&tmp_prim, S3D_POSITION, rs->start.uv, &attrib));
   CHECK(attrib.type, S3D_FLOAT3);
   /* find the solstice shape and project the sampled point on the mirror */
-  rz->start.instance =
+  rs->start.instance =
     *htable_instance_find(&data->scene->instances, &tmp_prim.inst_id);
-  ASSERT(rz->start.instance);
-  object = object_instance_get_object(rz->start.instance);
+  ASSERT(rs->start.instance);
+  object = object_instance_get_object(rs->start.instance);
   ASSERT(object && object->shape);
-  rz->start.material = object_get_material(object);
-  ASSERT(rz->start.material);
+  rs->start.material = object_get_material(object);
+  ASSERT(rs->start.material);
   switch (object->shape->type) {
   case SHAPE_MESH:
     /* no projection needed */
     f3_set(seg->org, attrib.value);
     /* to avoid self intersect */
-    rz->start.primitive = tmp_prim;
+    rs->start.primitive = tmp_prim;
     break;
   case SHAPE_PUNCHED:
     /* project the sampled point on the quadric */
     FATAL("TODO\n");
     /* cannot self intersect as the sampled mesh is not raytraced */
-    rz->start.primitive = S3D_PRIMITIVE_NULL;
+    rs->start.primitive = S3D_PRIMITIVE_NULL;
     break;
   default: FATAL("Unreachable code\n"); break;
   }
 }
 
 static void
-sample_input_sundir(struct realisation* rz)
+sample_input_sundir(struct realisation* rs)
 {
-  ASSERT(rz);
-  ranst_sun_dir_get(rz->data.sun_dir_ran, rz->data.rng, rz->start.sundir);
+  ASSERT(rs);
+  ranst_sun_dir_get(rs->data.sun_dir_ran, rs->data.rng, rs->start.sundir);
 }
 
 static void
-sample_wavelength(struct realisation* rz)
+sample_wavelength(struct realisation* rs)
 {
-  ASSERT(rz);
-  rz->freq = ssp_ranst_piecewise_linear_get(rz->data.sun_spectrum_ran, rz->data.rng);
+  ASSERT(rs);
+  rs->freq = ssp_ranst_piecewise_linear_get(rs->data.sun_spectrum_ran, rs->data.rng);
 }
 
 static int
-receive_sunlight(struct realisation* rz)
+receive_sunlight(struct realisation* rs)
 {
   float sundir_f[3];
   struct s3d_attrib attrib;
-  struct segment* seg = sun_segment(rz);
+  struct segment* seg = sun_segment(rs);
   int receives;
   const char* receiver_name;
 
-  f3_set_d3(sundir_f, rz->start.sundir);
+  f3_set_d3(sundir_f, rs->start.sundir);
   f3_mulf(seg->dir, sundir_f, -1);
   CHECK(f3_is_normalized(seg->dir), 1);
   /* check normal orientation */
-  S3D(primitive_get_attrib(&rz->start.primitive, S3D_GEOMETRY_NORMAL, rz->start.uv, &attrib));
+  S3D(primitive_get_attrib(&rs->start.primitive, S3D_GEOMETRY_NORMAL, rs->start.uv, &attrib));
   CHECK(attrib.type, S3D_FLOAT3);
   /* fill fragment from starting point; must use sundir_f, not seg->dir */
-  surface_fragment_setup(&rz->data.fragment, seg->org, sundir_f, attrib.value, &rz->start.primitive, rz->start.uv);
+  surface_fragment_setup(&rs->data.fragment, seg->org, sundir_f, attrib.value, &rs->start.primitive, rs->start.uv);
   /* check normal orientation */
-  rz->start.cos_sun = d3_dot(rz->data.fragment.Ng, rz->start.sundir);
-  if (rz->start.cos_sun >= 0)
+  rs->start.cos_sun = d3_dot(rs->data.fragment.Ng, rs->start.sundir);
+  if (rs->start.cos_sun >= 0)
     return 0;
   /* check occlusion, avoiding self intersect */
-  seg->hit.prim = rz->start.primitive;
+  seg->hit.prim = rs->start.primitive;
   /* TODO (in s3d): need an occlusion test */
-  S3D(scene_view_trace_ray(rz->data.trace_view, seg->org, seg->dir, seg->range, rz, &seg->hit));
+  S3D(scene_view_trace_ray(rs->data.trace_view, seg->org, seg->dir, seg->range, rs, &seg->hit));
   receives = S3D_HIT_NONE(&seg->hit);
   if (!receives) return receives;
 
   /* if the sampled instance is a receiver, register the sampled point */
-  receiver_name = object_instance_get_receiver_name(rz->start.instance);
+  receiver_name = object_instance_get_receiver_name(rs->start.instance);
   if (receiver_name) {
     /* normal orientation has already been checked */
-    fprintf(rz->data.out_stream,
+    fprintf(rs->data.out_stream,
       "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
       receiver_name,
-      (unsigned) rz->rz_id,
-      (unsigned) rz->s_idx,
-      rz->freq,
+      (unsigned) rs->rz_id,
+      (unsigned) rs->s_idx,
+      rs->freq,
       seg->weight,
       SPLIT3(seg->org),
       SPLIT3(sundir_f),
-      SPLIT2(rz->start.uv));
+      SPLIT2(rs->start.uv));
   }
 
   /* register success mask (normal orientation has already been checked) */
-  rz->success_mask |= object_instance_get_target_mask(rz->start.instance);
+  rs->success_mask |= object_instance_get_target_mask(rs->start.instance);
 
   /* restaure self intersect information for further visibility test
      (previous call to trace_ray overwrote prim) */
-  seg->hit.prim = rz->start.primitive;
+  seg->hit.prim = rs->start.primitive;
 
   return receives;
 }
 
 static res_T
-set_output_pos_and_dir(struct realisation* rz) {
+set_output_pos_and_dir(struct realisation* rs) {
   struct ssol_material* material;
-  struct segment* seg = current_segment(rz);
-  struct segment* prev = previous_segment(rz);
-  struct ssol_scene* scene = rz->data.scene;
+  struct segment* seg = current_segment(rs);
+  struct segment* prev = previous_segment(rs);
+  struct ssol_scene* scene = rs->data.scene;
   float tmp[3];
   int fst_segment;
   res_T res = RES_OK;
@@ -475,50 +475,50 @@ set_output_pos_and_dir(struct realisation* rz) {
   /* next_segment should have been called */
   ASSERT(prev);
 
-  fst_segment = (prev == sun_segment(rz));
+  fst_segment = (prev == sun_segment(rs));
 
   if (fst_segment) {
     f3_set(seg->org, prev->org);
-    material = rz->start.material;
+    material = rs->start.material;
   }
   else {
     f3_set(seg->org, prev->hit_pos);
     material = get_material_from_hit(scene, &prev->hit);
   }
   CHECK(material_get_type(material), MATERIAL_MIRROR);
-  res = material_shade(material, &rz->data.fragment, rz->freq, rz->data.brdfs);
+  res = material_shade(material, &rs->data.fragment, rs->freq, rs->data.brdfs);
   if (res != RES_OK) {
-    rz->end = TERM_ERR;
+    rs->end = TERM_ERR;
     return res;
   }
-  f3_set_d3(tmp, rz->data.fragment.Ns);
+  f3_set_d3(tmp, rs->data.fragment.Ns);
 
   if (fst_segment) {
     float sundir_f[3];
-    const struct ssol_sun* sun = scene_get_sun(rz->data.scene);
-    ASSERT(-1 <= rz->start.cos_sun && rz->start.cos_sun <= 0);
-    f3_set_d3(sundir_f, rz->start.sundir);
+    const struct ssol_sun* sun = scene_get_sun(rs->data.scene);
+    ASSERT(-1 <= rs->start.cos_sun && rs->start.cos_sun <= 0);
+    f3_set_d3(sundir_f, rs->start.sundir);
     seg->weight = sun_get_dni(sun)
-      * brdf_composite_sample(rz->data.brdfs, rz->data.rng, sundir_f, tmp, seg->dir)
-      * -rz->start.cos_sun;
+      * brdf_composite_sample(rs->data.brdfs, rs->data.rng, sundir_f, tmp, seg->dir)
+      * -rs->start.cos_sun;
   }
   else {
     seg->weight = prev->weight *
-      brdf_composite_sample(rz->data.brdfs, rz->data.rng, prev->dir, tmp, seg->dir);
+      brdf_composite_sample(rs->data.brdfs, rs->data.rng, prev->dir, tmp, seg->dir);
   }
   return res;
 }
 
 static void
-propagate(struct realisation* rz)
+propagate(struct realisation* rs)
 {
-  struct segment* seg = current_segment(rz);
-  struct ssol_scene* scene = rz->data.scene;
+  struct segment* seg = current_segment(rs);
+  struct ssol_scene* scene = rs->data.scene;
 
   /* check if the ray hits something */
-  S3D(scene_view_trace_ray(rz->data.trace_view, seg->org, seg->dir, seg->range, rz, &seg->hit));
+  S3D(scene_view_trace_ray(rs->data.trace_view, seg->org, seg->dir, seg->range, rs, &seg->hit));
   if (S3D_HIT_NONE(&seg->hit)) {
-    rz->end = TERM_MISSING;
+    rs->end = TERM_MISSING;
     return;
   }
   /* should not stop on a virtual surface */
@@ -526,8 +526,8 @@ propagate(struct realisation* rz)
     != MATERIAL_VIRTUAL);
 
   /* offset the impact point and recompute normal if needed */
-  ASSERT(rz->data.instance);
-  switch (rz->data.instance->object->shape->type) {
+  ASSERT(rs->data.instance);
+  switch (rs->data.instance->object->shape->type) {
   case SHAPE_MESH:
     /* no postprocess needed */
     break;
@@ -541,7 +541,7 @@ propagate(struct realisation* rz)
 
   /* fill fragment from hit and loop */
   f3_set(seg->hit_pos, f3_add(seg->hit_pos, seg->org, f3_mulf(seg->hit_pos, seg->dir, seg->hit.distance)));
-  surface_fragment_setup(&rz->data.fragment, seg->hit_pos, seg->dir, seg->hit.normal, &seg->hit.prim, seg->hit.uv);
+  surface_fragment_setup(&rs->data.fragment, seg->hit_pos, seg->dir, seg->hit.normal, &seg->hit.prim, seg->hit.uv);
 }
 
 /*******************************************************************************
@@ -554,7 +554,7 @@ ssol_solve
    const size_t realisations_count,
    FILE* output)
 {
-  struct realisation rz;
+  struct realisation rs;
   size_t r;
   res_T res = RES_OK;
 
@@ -566,53 +566,53 @@ ssol_solve
   device = scene_get_device(scene);
   ASSERT(device && device->allocator);
 
-  /* init realization */
-  res = init_realization(scene, rng, output, &rz);
+  /* init realisation */
+  res = init_realisation(scene, rng, output, &rs);
   if (res != RES_OK) goto error;
 
   for (r = 0; r < realisations_count; r++) {
-    /* reset realization */
-    reset_realization(r, &rz);
+    /* reset realisation */
+    reset_realisation(r, &rs);
 
     /* sample a point on a primary mirror */
-    sample_point_on_primary_mirror(&rz);
+    sample_point_on_primary_mirror(&rs);
 
     /* sample an input dir from the sun */
-    sample_input_sundir(&rz);
+    sample_input_sundir(&rs);
 
     /* sample a frequency */
-    sample_wavelength(&rz);
+    sample_wavelength(&rs);
 
     /* check if the point receives sun light */
-    if (!receive_sunlight(&rz)) {
-      rz.end = rz.start.cos_sun >= 0 ? TERM_POINTING : TERM_SHADOW;
+    if (!receive_sunlight(&rs)) {
+      rs.end = rs.start.cos_sun >= 0 ? TERM_POINTING : TERM_SHADOW;
     }
     else {
       /* start propagating from mirror */
       do {
-        if (RES_OK != next_segment(&rz)) {
-          rz.end = TERM_ERR;
+        if (RES_OK != next_segment(&rs)) {
+          rs.end = TERM_ERR;
         }
         else {
           /* set next segment and propagate */
-          set_output_pos_and_dir(&rz);
-          propagate(&rz);
+          set_output_pos_and_dir(&rs);
+          propagate(&rs);
         }
-      } while (rz.end == TERM_NONE);
+      } while (rs.end == TERM_NONE);
     }
 
     /* propagation ended */
-    if (rz.success_mask)
-      fprintf(output, "Realization %u succeeded: 0x%0x\n", (unsigned)r, rz.success_mask);
+    if (rs.success_mask)
+      fprintf(output, "Realization %u succeeded: 0x%0x\n", (unsigned)r, rs.success_mask);
     else
-      fprintf(output, "Realization %u failed: %s\n", (unsigned)r, END_TEXT[rz.end]);
+      fprintf(output, "Realization %u failed: %s\n", (unsigned)r, END_TEXT[rs.end]);
 
-    /* next realization */
+    /* next realisation */
     continue;
   }
 
 exit:
-  release_realization(&rz);
+  release_realisation(&rs);
   return res;
 error:
   /* TODO: release data */
