@@ -51,7 +51,7 @@ static INLINE const struct ssol_quadric*
 get_quadric(const struct ssol_object_instance* instance)
 {
   ASSERT(instance && is_instance_punched(instance));
-  return instance->object->shape->quadric;
+  return &instance->object->shape->quadric;
 }
 
 static INLINE struct s3d_scene*

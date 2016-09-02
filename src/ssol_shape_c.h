@@ -21,16 +21,14 @@
 enum shape_type {
   SHAPE_MESH,
   SHAPE_PUNCHED,
-
-  SHAPE_FIRST_TYPE = SHAPE_MESH,
-  SHAPE_LAST_TYPE = SHAPE_PUNCHED
+  SHAPE_TYPES_COUNT__
 };
 
 struct ssol_shape {
   enum shape_type type;
 
   struct s3d_shape* s3d_shape; /* 3D shape for the mesh */
-  struct ssol_quadric* quadric; /* NULL if type != SHAPE_PUNCHED */
+  struct ssol_quadric quadric;
 
   struct ssol_device* dev;
   ref_T ref;
