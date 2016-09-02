@@ -231,6 +231,7 @@ surface_fragment_setup
     float transform[12];
     float vec[3];
 
+    /* TODO: review this code */
     S3D(primitive_get_attrib(primitive, SSOL_TO_S3D_NORMAL, uv, &attr));
     ASSERT(attr.type == S3D_FLOAT3);
 

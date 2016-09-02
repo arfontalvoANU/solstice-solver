@@ -29,7 +29,7 @@
 struct ssol_scene
 {
   struct htable_instance instances;
-  struct s3d_scene* s3d_scn;
+  struct s3d_scene* s3d_raytracing_scn;
   struct s3d_scene* s3d_sampling_scn;
   struct ssol_sun* sun;
 
@@ -45,7 +45,7 @@ struct ssol_sun;
 struct ssol_device;
 
 extern LOCAL_SYM struct s3d_scene*
-scene_get_s3d_scene
+scene_get_s3d_raytracing_scn
   (const struct ssol_scene* scn);
 
 extern LOCAL_SYM struct s3d_scene*

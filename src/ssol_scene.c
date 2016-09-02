@@ -16,6 +16,7 @@
 #include "ssol.h"
 #include "ssol_c.h"
 #include "ssol_scene_c.h"
+#include "ssol_solver_c.h"
 #include "ssol_sun_c.h"
 #include "ssol_device_c.h"
 #include "ssol_material_c.h"
@@ -39,7 +40,7 @@ scene_release(ref_T* ref)
   dev = scene->dev;
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
-  if (scene->s3d_scn) S3D(scene_ref_put(scene->s3d_scn));
+  if (scene->s3d_raytracing_scn) S3D(scene_ref_put(scene->s3d_raytracing_scn));
   if (scene->s3d_sampling_scn) S3D(scene_ref_put(scene->s3d_sampling_scn));
   if(scene->sun) SSOL(sun_ref_put(scene->sun));
   htable_instance_release(&scene->instances);
@@ -72,7 +73,7 @@ ssol_scene_create
   scene->dev = dev;
   ref_init(&scene->ref);
 
-  res = s3d_scene_create(dev->s3d, &scene->s3d_scn);
+  res = s3d_scene_create(dev->s3d, &scene->s3d_raytracing_scn);
   if (res != RES_OK) goto error;
 
   res = s3d_scene_create(dev->s3d, &scene->s3d_sampling_scn);
@@ -116,8 +117,8 @@ ssol_scene_attach_object_instance
   if(!scene || !instance) return RES_BAD_ARG;
   shape = object_instance_get_s3d_shape(instance);
 
-  /* Try to attach the instantiated s3d shape to s3d scene */
-  res = s3d_scene_attach_shape(scene->s3d_scn, shape);
+  /* attach the instantiated s3d shape to s3d scene */
+  res = s3d_scene_attach_shape(scene->s3d_raytracing_scn, shape);
   if(res != RES_OK) return res;
 
   /* Register the instance against the scene */
@@ -125,7 +126,7 @@ ssol_scene_attach_object_instance
   ASSERT(!htable_instance_find(&scene->instances, &id));
   res = htable_instance_set(&scene->instances, &id, &instance);
   if(res != RES_OK) {
-    S3D(scene_detach_shape(scene->s3d_scn, shape));
+    S3D(scene_detach_shape(scene->s3d_raytracing_scn, shape));
     return res;
   }
   SSOL(object_instance_ref_get(instance));
@@ -159,7 +160,7 @@ ssol_scene_detach_object_instance
   /* Detach the object instance */
   n = htable_instance_erase(&scene->instances, &id);
   ASSERT(n == 1);
-  S3D(scene_detach_shape(scene->s3d_scn, shape));
+  S3D(scene_detach_shape(scene->s3d_raytracing_scn, shape));
   SSOL(object_instance_ref_put(instance));
 
   return RES_OK;
@@ -176,12 +177,12 @@ ssol_scene_clear(struct ssol_scene* scene)
   while(!htable_instance_iterator_eq(&it, &it_end)) {
     struct ssol_object_instance* inst;
     inst = *htable_instance_iterator_data_get(&it);
-    S3D(scene_detach_shape(scene->s3d_scn, object_instance_get_s3d_shape(inst)));
+    S3D(scene_detach_shape(scene->s3d_raytracing_scn, object_instance_get_s3d_shape(inst)));
     SSOL(object_instance_ref_put(inst));
     htable_instance_iterator_next(&it);
   }
   htable_instance_clear(&scene->instances);
-  S3D(scene_clear(scene->s3d_scn));
+  S3D(scene_clear(scene->s3d_raytracing_scn));
   if(scene->sun)
     ssol_scene_detach_sun(scene, scene->sun);
   return RES_OK;
@@ -218,10 +219,10 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
  * Local functions
  ******************************************************************************/
 struct s3d_scene*
-scene_get_s3d_scene(const struct ssol_scene* scn)
+scene_get_s3d_raytracing_scn(const struct ssol_scene* scn)
 {
   ASSERT(scn);
-  return scn->s3d_scn;
+  return scn->s3d_raytracing_scn;
 }
 
 struct s3d_scene*
@@ -251,45 +252,65 @@ hit_filter_function
   (const struct s3d_hit* hit,
    const float org[3],
    const float dir[3],
-   void* ray_data,
+   void* realization,
    void* filter_data)
 {
-  struct ray_data* rdata = ray_data;
   struct ssol_object_instance* instance;
   struct ssol_material* material;
   const char* receiver_name;
-  (void)org, (void)dir, (void)filter_data;
-  ASSERT(rdata);
+  struct realisation* rz = realization;
+  struct segment* seg;
+  struct segment* prev;
+  int front_face = 0;
 
-  if(!ray_data) return 0;
-
-  if(S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from))
+  (void) filter_data;
+  ASSERT(rz);
+  prev = previous_segment(rz);
+  seg = current_segment(rz);
+  ASSERT(seg);
+  
+  /* TODO: need to detect self intersect at the instance level, 
+     using front/back face to avoid false self intersect events */
+  if(prev && S3D_PRIMITIVE_EQ(&hit->prim, &prev->hit.prim))
     return 1; /* Discard self intersection */
 
-  instance = scene_get_object_instance_from_s3d_hit(rdata->scene, hit);
+  instance = scene_get_object_instance_from_s3d_hit(rz->data.scene, hit);
 
   /* Check if the hit surface is a receiver that registers hit data */
   receiver_name = object_instance_get_receiver_name(instance);
   if(receiver_name) {
-    struct surface_fragment frag;
-    float tmp[3];
-    f3_set(tmp, f3_add(tmp, org, f3_mulf(tmp, dir, hit->distance)));
-    surface_fragment_setup(&frag, tmp, dir, hit->normal, &hit->prim, hit->uv);
-    fprintf(rdata->stream, "%s %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      receiver_name,
-      rdata->path_id,
-      rdata->ray_id,
-      rdata->wavelength,
-      rdata->radiance,
-      SPLIT3(frag.pos),
-      SPLIT3(frag.dir),
-      SPLIT2(frag.uv));
+    float cos_in;
+    /* check normal orientation */
+    cos_in = f3_dot(hit->normal, dir);
+    if (cos_in < 0) {
+      float pos[3];
+
+      f3_set(pos, f3_add(pos, org, f3_mulf(pos, dir, hit->distance)));
+      front_face = 1;
+      fprintf(rz->data.out_stream,
+        "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
+        receiver_name,
+        (unsigned)rz->rz_id,
+        (unsigned)rz->s_idx,
+        rz->freq,
+        seg->weight,
+        SPLIT3(pos),
+        SPLIT3(dir),
+        SPLIT2(hit->uv));
+    }
   }
 
+  /* register success mask */
+  if (front_face)
+    rz->success_mask |=  object_instance_get_target_mask(instance);
+
   material = object_get_material(object_instance_get_object(instance));
+
   if(material_get_type(material) == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }
+
+  rz->data.instance = instance;
 
   return 0;
 }

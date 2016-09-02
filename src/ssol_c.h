@@ -23,16 +23,6 @@
 #define SSOL_TO_S3D_NORMAL S3D_ATTRIB_0
 #define SSOL_TO_S3D_TEXCOORD S3D_ATTRIB_1
 
-struct ray_data {
-  struct ssol_scene* scene; /* Scene in which the ray is traced */
-  struct s3d_primitive prim_from; /* Primitive from which the ray starts */
-  unsigned path_id; /* Identifier of the path to which the ray belongs to */
-  unsigned ray_id; /* Identifier of the ray into the path */
-  double radiance; /* Current path radiance in W.sr^-1.m^-2 */
-  double wavelength; /* Wavelength of the current path in nanometer */
-  FILE* stream;
-};
-
 static FINLINE enum s3d_attrib_usage
 ssol_to_s3d_attrib_usage(const enum ssol_attrib_usage usage)
 {
@@ -49,7 +39,7 @@ hit_filter_function
   (const struct s3d_hit* hit,
    const float org[3],
    const float dir[3],
-   void* ray_data,
+   void* realization,
    void* filter_data);
 
 #endif /* SSOL_C_H */

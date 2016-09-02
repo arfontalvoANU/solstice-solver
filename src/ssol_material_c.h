@@ -20,6 +20,8 @@
 
 struct brdf_composite;
 struct s3d_hit;
+struct s3d_primitive;
+struct ssol_device;
 
 struct surface_fragment {
   double dir[3]; /* World space incoming direction */

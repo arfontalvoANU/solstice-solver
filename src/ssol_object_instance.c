@@ -74,6 +74,7 @@ ssol_object_instantiate
 
   instance->dev = dev;
   instance->object = object;
+  instance->target_mask = 0;
   str_init(dev->allocator, &instance->receiver_name);
   SSOL(object_ref_get(object));
   SSOL(device_ref_get(dev));
@@ -142,6 +143,18 @@ ssol_object_instance_set_receiver
     str_clear(&instance->receiver_name);
     return RES_OK;
   }
+}
+
+res_T
+ssol_object_instance_set_target_mask
+  (struct ssol_object_instance* instance,
+   const uint32_t mask)
+{
+  if (!instance)
+    return RES_BAD_ARG;
+
+  instance->target_mask = mask;
+  return RES_OK;
 }
 
 res_T
