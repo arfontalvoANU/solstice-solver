@@ -34,15 +34,14 @@ reflection_sample
    float dir[4])
 {
   struct brdf_reflection* reflection = data;
-  float vec[3], cosi;
+  float cosi;
   (void)rng;
   ASSERT(w && N && dir && f3_is_normalized(N) && f3_is_normalized(w) && data);
 
   /* Simply reflect the incoming direction w[3] with respect to the normal */
-  f3_minus(vec, w);
-  cosi = f3_dot(vec, N);
-  f3_mulf(dir, N, cosi);
-  f3_sub(dir, vec, dir);
+  cosi = -f3_dot(w, N);
+  f3_mulf(dir, N, 2.f*cosi);
+  f3_add(dir, dir, w);
   dir[3] = 1.f; /* pdf */
   return reflection->reflectivity;
 }
