@@ -48,6 +48,14 @@ enum realization_termination {
   TERM_COUNT__
 };
 
+enum realization_mode {
+  MODE_NONE,
+  MODE_STD,
+  MODE_ROULETTE,
+
+  MODE_COUNT__
+};
+
 struct segment {
   double weight;
   float range[2];
@@ -88,8 +96,6 @@ struct solver_data {
   struct surface_fragment fragment;
 };
 
-#define SOLVER_DATA_NULL__ { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
-
 struct realisation {
   enum realization_termination end;
   enum realization_mode mode;
@@ -102,6 +108,8 @@ struct realisation {
   uint32_t success_mask;
 };
 
+#define SOLVER_DATA_NULL__ \
+ {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SURFACE_FRAGMENT_NULL__}
 static const struct solver_data SOLVER_DATA_NULL = SOLVER_DATA_NULL__;
 
 extern LOCAL_SYM res_T

@@ -102,7 +102,7 @@ main(int argc, char** argv)
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
   CHECK(ssol_mesh_setup
-    (square, square_walls_ntris, get_ids, square_walls_nverts, attribs, 1, &square_walls_desc), RES_OK);
+    (square, square_walls_ntris, get_ids, square_walls_nverts, attribs, 1, (void*)&square_walls_desc), RES_OK);
 
   CHECK(ssol_material_create_mirror(dev, &m_material), RES_OK);
   shader.normal = get_shader_normal;

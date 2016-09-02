@@ -32,17 +32,10 @@
 #include <rsys/double3.h>
 #include <rsys/double44.h>
 
-#define END_TEXT__ { "NONE", "SUCCESS", "SHADOW", "POINTING", "MISSING", "BLOCKED", "ERROR" };
+#define END_TEXT__ \
+  { "NONE", "SUCCESS", "SHADOW", "POINTING", "MISSING", "BLOCKED", "ERROR" }
 
 static const char* END_TEXT[] = END_TEXT__;
-
-enum realization_mode {
-  MODE_NONE,
-  MODE_STD,
-  MODE_ROULETTE,
-
-  MODE_COUNT__
-};
 
 /*******************************************************************************
 * Helper functions
@@ -171,7 +164,7 @@ set_views(struct solver_data* data) {
     struct ssol_material* mat;
     struct ssol_object* object;
     inst = *htable_instance_iterator_data_get(&it);
-    
+
     /* TODO: keep only primary mirrors */
     mat = inst->object->material;
     if (material_get_type(mat) != MATERIAL_MIRROR)
@@ -297,7 +290,7 @@ reset_realization(size_t cpt, struct realisation* rz)
 static res_T
 init_realization
   (struct ssol_scene* scene,
-   struct ssp_rng* rng, 
+   struct ssp_rng* rng,
    FILE* out,
    struct realisation* rz)
 {
@@ -377,7 +370,7 @@ sample_point_on_primary_mirror(struct realisation* rz)
   S3D(primitive_get_attrib(&tmp_prim, S3D_POSITION, rz->start.uv, &attrib));
   CHECK(attrib.type, S3D_FLOAT3);
   /* find the solstice shape and project the sampled point on the mirror */
-  rz->start.instance = 
+  rz->start.instance =
     *htable_instance_find(&data->scene->instances, &tmp_prim.inst_id);
   ASSERT(rz->start.instance);
   object = object_instance_get_object(rz->start.instance);
@@ -589,7 +582,7 @@ ssol_solve
 
     /* sample a frequency */
     sample_wavelength(&rz);
-    
+
     /* check if the point receives sun light */
     if (!receive_sunlight(&rz)) {
       rz.end = rz.start.cos_sun >= 0 ? TERM_POINTING : TERM_SHADOW;

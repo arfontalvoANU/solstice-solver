@@ -37,8 +37,7 @@ const unsigned square_walls_ids [] = {
   0, 2, 1, 2, 0, 3
 };
 const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
-
-static struct desc square_walls_desc = { square_walls, square_walls_ids };
+static const struct desc square_walls_desc = { square_walls, square_walls_ids };
 
 /*******************************************************************************
  * Box
@@ -64,7 +63,7 @@ const unsigned box_walls_ids [] = {
 };
 const unsigned box_walls_ntris = sizeof(box_walls_ids) / sizeof(unsigned[3]);
 
-static struct desc box_walls_desc = { box_walls, box_walls_ids };
+static const struct desc box_walls_desc = { box_walls, box_walls_ids };
 
 /*******************************************************************************
  * Callbacks

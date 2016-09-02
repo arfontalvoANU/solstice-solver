@@ -63,19 +63,19 @@ main(int argc, char** argv)
   attribs[2].get = get_uv;
 
   CHECK(ssol_mesh_setup
-    (NULL, box_walls_ntris, get_ids, box_walls_nverts, attribs, 1, &box_walls_desc), RES_BAD_ARG);
+    (NULL, box_walls_ntris, get_ids, box_walls_nverts, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, 0, get_ids, box_walls_nverts, attribs, 1, &box_walls_desc), RES_BAD_ARG);
+    (shape, 0, get_ids, box_walls_nverts, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, NULL, box_walls_nverts, attribs, 1, &box_walls_desc), RES_BAD_ARG);
+    (shape, box_walls_ntris, NULL, box_walls_nverts, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, 0, attribs, 1, &box_walls_desc), RES_BAD_ARG);
+    (shape, box_walls_ntris, get_ids, 0, attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, NULL, 1, &box_walls_desc), RES_BAD_ARG);
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, NULL, 1, (void*)&box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 0, &box_walls_desc), RES_BAD_ARG);
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 0, (void*)&box_walls_desc), RES_BAD_ARG);
   CHECK(ssol_mesh_setup
-    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 3, &box_walls_desc), RES_OK);
+    (shape, box_walls_ntris, get_ids, box_walls_nverts, attribs, 3, (void*)&box_walls_desc), RES_OK);
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 

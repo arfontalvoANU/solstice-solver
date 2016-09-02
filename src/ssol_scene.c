@@ -268,9 +268,9 @@ hit_filter_function
   prev = previous_segment(rz);
   seg = current_segment(rz);
   ASSERT(seg);
-  
-  /* TODO: need to detect self intersect at the instance level, 
-     using front/back face to avoid false self intersect events */
+
+  /* TODO: need to detect self intersect at the instance level,
+   * using front/back face to avoid false self intersect events */
   if(prev && S3D_PRIMITIVE_EQ(&hit->prim, &prev->hit.prim))
     return 1; /* Discard self intersection */
 

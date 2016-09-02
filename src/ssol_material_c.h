@@ -30,6 +30,9 @@ struct surface_fragment {
   double Ns[3]; /* Normalized world space shading normal */
   double uv[2]; /* Texture coordinates */
 };
+#define SURFACE_FRAGMENT_NULL__ {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}}
+static const struct surface_fragment SURFACE_FRAGMENT_NULL = 
+  SURFACE_FRAGMENT_NULL__;
 
 enum material_type {
   MATERIAL_VIRTUAL,
