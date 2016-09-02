@@ -190,12 +190,12 @@ ssol_material_create_virtual
  ******************************************************************************/
 void
 surface_fragment_setup
-(struct surface_fragment* fragment,
-  const float pos[3],
-  const float dir[3],
-  const float normal[3],
-  const struct s3d_primitive* primitive,
-  const float uv[2])
+  (struct surface_fragment* fragment,
+   const float pos[3],
+   const float dir[3],
+   const float normal[3],
+   const struct s3d_primitive* primitive,
+   const float uv[2])
 {
   struct s3d_attrib attr;
   char has_texcoord, has_normal;
@@ -215,8 +215,7 @@ surface_fragment_setup
   S3D(primitive_has_attrib(primitive, SSOL_TO_S3D_TEXCOORD, &has_texcoord));
   if (!has_texcoord) {
     d2_set_f2(fragment->uv, uv);
-  }
-  else {
+  } else {
     S3D(primitive_get_attrib(primitive, SSOL_TO_S3D_TEXCOORD, uv, &attr));
     ASSERT(attr.type == S3D_FLOAT2);
     d2_set_f2(fragment->uv, attr.value);
@@ -226,24 +225,22 @@ surface_fragment_setup
   S3D(primitive_has_attrib(primitive, SSOL_TO_S3D_NORMAL, &has_normal));
   if (!has_normal) {
     d3_set(fragment->Ns, fragment->Ng);
-  }
-  else {
+  } else {
     float transform[12];
     float vec[3];
 
-    /* TODO: review this code */
     S3D(primitive_get_attrib(primitive, SSOL_TO_S3D_NORMAL, uv, &attr));
     ASSERT(attr.type == S3D_FLOAT3);
 
     S3D(primitive_get_transform(primitive, transform));
     /* Check that transform is not "identity" */
-    if (!f3_eq(transform + 0, f3(vec, 1.f, 0.f, 0.f))
-      && !f3_eq(transform + 3, f3(vec, 0.f, 1.f, 0.f))
-      && !f3_eq(transform + 6, f3(vec, 0.f, 0.f, 1.f))) {
+    if(!f3_eq(transform + 0, f3(vec, 1.f, 0.f, 0.f))
+    && !f3_eq(transform + 3, f3(vec, 0.f, 1.f, 0.f))
+    && !f3_eq(transform + 6, f3(vec, 0.f, 0.f, 1.f))) {
       /* Transform the normal in world space, i.e. multiply it by the inverse
-      * transpose of the "object to world" primitive matrix. Since the affine
-      * part of the 3x4 transformation matrix does not influence the normal
-      * transformation, use the linear part only. */
+       * transpose of the "object to world" primitive matrix. Since the affine
+       * part of the 3x4 transformation matrix does not influence the normal
+       * transformation, use the linear part only. */
       f33_invtrans(transform, transform);
       f33_mulf3(attr.value, transform, attr.value);
     }
