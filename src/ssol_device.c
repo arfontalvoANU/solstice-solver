@@ -19,6 +19,8 @@
 #include <rsys/logger.h>
 #include <rsys/mem_allocator.h>
 
+#include <star/scpr.h>
+
 #include <omp.h>
 
 /*******************************************************************************
@@ -47,6 +49,7 @@ device_release(ref_T* ref)
   ASSERT(ref);
   dev = CONTAINER_OF(ref, struct ssol_device, ref);
   if(dev->s3d) S3D(device_ref_put(dev->s3d));
+  if(dev->scpr_mesh) SCPR(mesh_ref_put(dev->scpr_mesh));
   MEM_RM(dev->allocator, dev);
 }
 
@@ -71,11 +74,12 @@ ssol_device_create
   }
 
   allocator = mem_allocator ? mem_allocator : &mem_default_allocator;
-  dev = (struct ssol_device*)MEM_CALLOC(allocator, 1, sizeof(struct ssol_device));
+  dev = MEM_CALLOC(allocator, 1, sizeof(struct ssol_device));
   if(!dev) {
     res = RES_MEM_ERR;
     goto error;
   }
+  ref_init(&dev->ref);
   dev->logger = logger ? logger : LOGGER_DEFAULT;
   dev->allocator = allocator;
   dev->verbose = verbose;
@@ -83,10 +87,10 @@ ssol_device_create
   omp_set_num_threads((int)dev->nthreads);
 
   res = s3d_device_create(logger, mem_allocator, verbose, &dev->s3d);
-  if (res != RES_OK)
-    goto error;
+  if(res != RES_OK) goto error;
 
-  ref_init(&dev->ref);
+  res = scpr_mesh_create(mem_allocator, &dev->scpr_mesh);
+  if(res != RES_OK) goto error;
 
 exit:
   if(out_dev) *out_dev = dev;

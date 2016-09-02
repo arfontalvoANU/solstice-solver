@@ -15,29 +15,26 @@
 
 #include "ssol.h"
 #include "ssol_c.h"
-#include "ssol_shape_c.h"
 #include "ssol_device_c.h"
+#include "ssol_shape_c.h"
 
-#include <rsys/rsys.h>
+#include <rsys/double2.h>
+#include <rsys/dynamic_array_double.h>
+#include <rsys/dynamic_array_size_t.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/rsys.h>
+
+#include <star/scpr.h>
+
+struct mesh_context {
+  const double* coords;
+  const size_t* ids;
+};
 
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
-static void
-shape_release(ref_T* ref)
-{
-  struct ssol_device* dev;
-  struct ssol_shape* shape = CONTAINER_OF(ref, struct ssol_shape, ref);
-  ASSERT(ref);
-  dev = shape->dev;
-  ASSERT(dev && dev->allocator);
-  if(shape->s3d_shape) S3D(shape_ref_put(shape->s3d_shape));
-  MEM_RM(dev->allocator, shape);
-  SSOL(device_ref_put(dev));
-}
-
 static INLINE res_T
 check_plane(const struct ssol_quadric_plane* plane)
 {
@@ -115,9 +112,230 @@ check_shape(const struct ssol_shape* shape)
     ? RES_BAD_ARG : RES_OK;
 }
 
-/*******************************************************************************
- * Local functions
- ******************************************************************************/
+static INLINE enum scpr_operation
+ssol_to_scpr_clip_op(const enum ssol_clipping_op clip_op)
+{
+  enum scpr_operation op;
+  switch(clip_op) {
+    case SSOL_AND: op = SCPR_AND; break;
+    case SSOL_SUB: op = SCPR_SUB; break;
+    default: FATAL("Unreachable code \n"); break;
+  }
+  return op;
+}
+
+static void
+mesh_get_ids(const size_t itri, size_t ids[3], void* ctx)
+{
+  const size_t i = itri*3/*#ids per triangle*/;
+  const struct mesh_context* msh = ctx;
+  ASSERT(ids && ctx);
+  ids[0] = msh->ids[i+0];
+  ids[1] = msh->ids[i+1];
+  ids[2] = msh->ids[i+2];
+}
+
+static void
+mesh_get_pos(const size_t ivert, double pos[2], void* ctx)
+{
+  const size_t i = ivert*2/*#coords per vertex*/;
+  const struct mesh_context* msh = ctx;
+  ASSERT(pos && ctx);
+  pos[0] = msh->coords[i+0];
+  pos[1] = msh->coords[i+1];
+}
+
+static FINLINE int
+aabb_is_degenerated(const double lower[2], const double upper[2])
+{
+  ASSERT(lower && upper);
+  return lower[0] > upper[0] || lower[1] > upper[1];
+}
+
+static void
+carvings_compute_aabb
+  (const struct ssol_carving* carvings,
+   const size_t ncarvings,
+   double lower[2],
+   double upper[2])
+{
+  size_t icarving;
+  ASSERT(carvings && ncarvings && lower && upper);
+
+  d2_splat(lower, DBL_MAX);
+  d2_splat(upper,-DBL_MAX);
+
+  FOR_EACH(icarving, 0, ncarvings) {
+    size_t ivert;
+    FOR_EACH(ivert, 0, carvings[icarving].nb_vertices) {
+      double pos[2];
+      /* Discard the polygons to subtract */
+      if(carvings[icarving].operation == SSOL_SUB) continue;
+
+      carvings[icarving].get(ivert, pos, carvings[icarving].context);
+      d2_min(lower, lower, pos);
+      d2_max(upper, upper, pos);
+    }
+  }
+}
+
+static res_T
+build_triangulated_plane
+  (struct darray_double* coords,
+   struct darray_size_t* ids,
+   const double lower[2],
+   const double upper[2],
+   const size_t nsteps)
+{
+  size_t nsteps2[2];
+  size_t nverts[2];
+  size_t ix, iy;
+  double size[2];
+  double size_max;
+  double delta;
+  res_T res = RES_OK;
+  ASSERT(coords && lower && upper && nsteps);
+  ASSERT(!aabb_is_degenerated(lower, upper));
+
+  darray_double_clear(coords);
+  darray_size_t_clear(ids);
+
+  d2_sub(size, upper, lower);
+  size_max = MMAX(size[0], size[1]);
+
+  if(eq_eps(size_max, 0, 1.e-6)) goto exit;
+
+  delta = size_max / (double)nsteps;
+  nsteps2[0] = (size_t)ceil(size[0] / delta);
+  nsteps2[1] = (size_t)ceil(size[1] / delta);
+  nverts[0] = nsteps2[0] + 1;
+  nverts[1] = nsteps2[1] + 1;
+
+  /* Reserve the memory space for the plane vertices */
+  res = darray_double_reserve(coords,
+    nverts[0]*nverts[1]*2/*#coords per vertex*/);
+  if(res != RES_OK) goto error;
+
+  /* Reserve the memory space for the plane indices */
+  res = darray_size_t_reserve(ids,
+    nsteps2[0] * nsteps2[1] * 2/*#triangle per step*/*3/*#ids per triangle*/);
+  if(res != RES_OK) goto error;
+
+  /* Setup the plane vertices */
+  FOR_EACH(ix, 0, nverts[0]) {
+    const double x = MMIN((double)ix*delta, upper[0]);
+    FOR_EACH(iy, 0, nverts[1]) {
+      const double y = MMIN((double)iy*delta, upper[1]);
+      darray_double_push_back(coords, &x);
+      darray_double_push_back(coords, &y);
+    }
+  }
+
+  /* Setup the plane indices */
+  FOR_EACH(ix, 0, nsteps2[0]) {
+    const size_t offset0 = ix*nverts[1];
+    const size_t offset1 = (ix+1)*nverts[1];
+
+    FOR_EACH(iy, 0, nsteps2[1]) {
+      const size_t id0 = offset0 + iy;
+      const size_t id1 = offset1 + iy;
+      const size_t id2 = offset0 + iy + 1;
+      const size_t id3 = offset1 + iy + 1;
+
+      darray_size_t_push_back(ids, &id0);
+      darray_size_t_push_back(ids, &id3);
+      darray_size_t_push_back(ids, &id1);
+
+      darray_size_t_push_back(ids, &id0);
+      darray_size_t_push_back(ids, &id2);
+      darray_size_t_push_back(ids, &id3);
+    }
+  }
+
+exit:
+  return res;
+error:
+  darray_double_clear(coords);
+  darray_size_t_clear(ids);
+  goto exit;
+}
+
+static res_T
+clip_triangulated_plane
+  (struct darray_double* coords,
+   struct darray_size_t* ids,
+   struct scpr_mesh* mesh,
+   const struct ssol_carving* carvings,
+   const size_t ncarvings)
+{
+  struct mesh_context msh;
+  size_t nverts;
+  size_t ntris;
+  size_t icarving;
+  size_t i;
+  res_T res = RES_OK;
+  ASSERT(coords && ids && carvings && ncarvings);
+  ASSERT(darray_double_size_get(coords) % 2 == 0);
+  ASSERT(darray_size_t_size_get(ids) % 3 == 0);
+
+  nverts = darray_double_size_get(coords)/2;
+  ntris = darray_size_t_size_get(ids)/3;
+  if(!nverts || !ntris) goto exit;
+
+  /* Setup the Star-CliPpeR mesh */
+  msh.coords = darray_double_cdata_get(coords);
+  msh.ids = darray_size_t_cdata_get(ids);
+  res  = scpr_mesh_setup_indexed_vertices
+    (mesh, ntris, mesh_get_ids, nverts, mesh_get_pos, &msh);
+  if(res != RES_OK) goto error;
+
+  /* Apply each carving operation to the Star-CliPpeR mesh */
+  FOR_EACH(icarving, 0, ncarvings) {
+    struct scpr_polygon polygon;
+    enum scpr_operation op = ssol_to_scpr_clip_op(carvings[icarving].operation);
+
+    polygon.get_position = carvings[icarving].get;
+    polygon.nvertices = carvings[icarving].nb_vertices;
+    polygon.context = carvings[icarving].context;
+
+    res = scpr_mesh_clip(mesh, op, &polygon);
+    if(res != RES_OK) goto error;
+  }
+
+  /* Reserve the output index/vertex buffer memory space */
+  SCPR(mesh_get_vertices_count(mesh, &nverts));
+  SCPR(mesh_get_triangles_count(mesh, &ntris));
+  darray_double_clear(coords);
+  darray_size_t_clear(ids);
+  res = darray_double_reserve(coords, nverts*2/*#coords per vertex*/);
+  if(res != RES_OK) goto error;
+  res = darray_size_t_reserve(ids, ntris*3/*#ids per triangle*/);
+  if(res != RES_OK) goto error;
+
+  /* Save the coordinates of the clipped mesh */
+  FOR_EACH(i, 0, nverts) {
+    double pos[2];
+    SCPR(mesh_get_position(mesh, i, pos));
+    darray_double_push_back(coords, pos+0);
+    darray_double_push_back(coords, pos+1);
+  }
+
+  /* Save the indices of the clipped mesh */
+  FOR_EACH(i, 0, ntris) {
+    size_t tri[3];
+    SCPR(mesh_get_indices(mesh, i, tri));
+    darray_size_t_push_back(ids, tri+0);
+    darray_size_t_push_back(ids, tri+1);
+    darray_size_t_push_back(ids, tri+2);
+  }
+
+exit:
+  return res;
+error:
+  goto exit;
+}
+
+
 static res_T
 shape_create
   (struct ssol_device* dev,
@@ -161,6 +379,19 @@ error:
   goto exit;
 }
 
+static void
+shape_release(ref_T* ref)
+{
+  struct ssol_device* dev;
+  struct ssol_shape* shape = CONTAINER_OF(ref, struct ssol_shape, ref);
+  ASSERT(ref);
+  dev = shape->dev;
+  ASSERT(dev && dev->allocator);
+  if(shape->s3d_shape) S3D(shape_ref_put(shape->s3d_shape));
+  MEM_RM(dev->allocator, shape);
+  SSOL(device_ref_put(dev));
+}
+
 /*******************************************************************************
  * Exported ssol_shape functions
  ******************************************************************************/
@@ -199,25 +430,55 @@ ssol_shape_ref_put(struct ssol_shape* shape)
 res_T
 ssol_punched_surface_setup
   (struct ssol_shape* shape,
-   const struct ssol_punched_surface* punched_surface)
+   const struct ssol_punched_surface* psurf)
 {
+  double lower[2], upper[2]; /* Carvings AABB */
+  struct darray_double coords;
+  struct darray_size_t ids;
+  size_t nslices;
   res_T res = RES_OK;
-  struct mem_allocator * allocator;
 
-  if((res = check_shape(shape)) != RES_OK) return res;
-  if((res = check_punched_surface(punched_surface)) != RES_OK) return res;
-  if(shape->type != SHAPE_PUNCHED) return RES_BAD_ARG;
+  darray_double_init(shape->dev->allocator, &coords);
+  darray_size_t_init(shape->dev->allocator, &ids);
 
-  ASSERT(shape->ref);
-  ASSERT(shape->dev && shape->dev->allocator);
+  if((res = check_shape(shape)) != RES_OK) goto error;
+  if((res = check_punched_surface(psurf)) != RES_OK) goto error;
+  if(shape->type != SHAPE_PUNCHED) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
 
-  /* save quadric for further object instancing */
-  shape->quadric = *punched_surface->quadric;
+  /* Save quadric for further object instancing */
+  shape->quadric = *psurf->quadric;
 
-  /* mesh the surface: TODO */
-  (void) allocator; /* will be used later */
+  carvings_compute_aabb(psurf->carvings, psurf->nb_carvings, lower, upper);
+  if(aabb_is_degenerated(lower, upper)) {
+    log_error(shape->dev,
+      "%s: infinite punched surface; no `and' carving polygon is defined.\n",
+      FUNC_NAME);
+    res = RES_BAD_ARG;
+    goto error;
+  }
 
+  /* Define the #slices of the discretized quadric */
+  nslices = psurf->quadric->type == SSOL_QUADRIC_PLANE ? 1 : 100;
+
+  res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);
+  if(res != RES_OK) goto error;
+
+  res = clip_triangulated_plane
+    (&coords, &ids, shape->dev->scpr_mesh, psurf->carvings, psurf->nb_carvings);
+  if(res != RES_OK) goto error;
+
+  /* TODO displace the triangulated plane vertices */
+  /* TODO register the displaced triangulated plane in the s3d_shape */
+
+exit:
+  darray_double_release(&coords);
+  darray_size_t_release(&ids);
   return res;
+error:
+  goto exit;
 }
 
 res_T

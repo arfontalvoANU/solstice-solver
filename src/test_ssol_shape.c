@@ -92,6 +92,7 @@ main(int argc, char** argv)
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 
   carving.get = get_polygon_vertices;
+  carving.operation = SSOL_AND;
   carving.nb_vertices = 1;
   carving.context = NULL;
   quadric.type = SSOL_QUADRIC_PLANE;

@@ -19,6 +19,8 @@
 #include <rsys/ref_count.h>
 #include <star/s3d.h>
 
+struct scpr_mesh;
+
 struct ssol_device {
   struct logger* logger;
   struct mem_allocator* allocator;
@@ -26,6 +28,7 @@ struct ssol_device {
   int verbose;
 
   struct s3d_device* s3d;
+  struct scpr_mesh* scpr_mesh; /* Use to clip quadric mesh */
 
   ref_T ref;
 };
