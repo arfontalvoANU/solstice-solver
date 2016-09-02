@@ -132,7 +132,6 @@ main(int argc, char** argv)
   quadric.type = SSOL_QUADRIC_PARABOL;
   quadric.data.parabol.focal = 1;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
-  return 0;
 
   quadric.data.parabol.focal = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
