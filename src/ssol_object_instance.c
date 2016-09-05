@@ -22,6 +22,7 @@
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/double33.h>
 
 #include <string.h>
 
@@ -74,6 +75,8 @@ ssol_object_instantiate
 
   instance->dev = dev;
   instance->object = object;
+  d33_set_identity(instance->transform);
+  d3_splat(instance->transform + 9, 0);
   instance->target_mask = 0;
   str_init(dev->allocator, &instance->receiver_name);
   SSOL(object_ref_get(object));

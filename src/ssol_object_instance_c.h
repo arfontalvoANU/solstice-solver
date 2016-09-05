@@ -25,6 +25,7 @@ struct ssol_object_instance
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* s3d_shape; /* Instantiated Star-3D shape */
   struct str receiver_name; /* Empty if not a receiver */
+  double transform[12];
   uint32_t target_mask;
 
   struct ssol_device* dev;
@@ -52,6 +53,13 @@ object_instance_get_receiver_name(const struct ssol_object_instance* instance)
   ASSERT(instance);
   return str_is_empty(&instance->receiver_name)
     ? NULL : str_cget(&instance->receiver_name);
+}
+
+static INLINE const double*
+object_instance_get_transform(const struct ssol_object_instance* instance)
+{
+  ASSERT(instance);
+  return instance->transform;
 }
 
 static INLINE uint32_t
