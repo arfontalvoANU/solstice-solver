@@ -33,7 +33,7 @@ main(int argc, char** argv)
   struct ssol_punched_surface punched_surface;
   struct ssol_carving carving;
   struct ssol_quadric quadric;
-  const double polygon[] = {
+  double polygon[] = {
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
   };
   const size_t npolygon_verts = sizeof(polygon)/sizeof(double[2]);
