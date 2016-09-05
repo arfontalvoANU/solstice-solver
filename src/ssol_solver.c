@@ -61,6 +61,15 @@ get_3dscene(const struct ssol_object_instance* instance)
   return instance->object->s3d_scn;
 }
 
+static INLINE void
+solstice_trace_ray(struct realisation* rs) {
+  float org[3], dir[3];
+  struct segment* seg = current_segment(rs);
+  f3_set_d3(org, seg->org);
+  f3_set_d3(dir, seg->dir);
+  S3D(scene_view_trace_ray(rs->data.trace_view, org, dir, seg->range, rs, &seg->hit));
+}
+
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
@@ -381,7 +390,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
   switch (object->shape->type) {
   case SHAPE_MESH:
     /* no projection needed */
-    f3_set(seg->org, attrib.value);
+    d3_set_f3(seg->org, attrib.value);
     /* to avoid self intersect */
     rs->start.primitive = tmp_prim;
     break;
@@ -413,21 +422,19 @@ sample_wavelength(struct realisation* rs)
 static int
 receive_sunlight(struct realisation* rs)
 {
-  float sundir_f[3];
   struct s3d_attrib attrib;
   struct segment* seg = sun_segment(rs);
   int receives;
   const char* receiver_name;
 
-  f3_set_d3(sundir_f, rs->start.sundir);
-  f3_mulf(seg->dir, sundir_f, -1);
-  CHECK(f3_is_normalized(seg->dir), 1);
+  d3_muld(seg->dir, rs->start.sundir, -1);
+  CHECK(d3_is_normalized(seg->dir), 1);
   S3D(primitive_get_attrib
     (&rs->start.primitive, S3D_GEOMETRY_NORMAL, rs->start.uv, &attrib));
   CHECK(attrib.type, S3D_FLOAT3);
   /* fill fragment from starting point; must use sundir_f, not seg->dir */
-  surface_fragment_setup(&rs->data.fragment, seg->org, sundir_f, attrib.value,
-    &rs->start.primitive, rs->start.uv);
+  surface_fragment_setup(&rs->data.fragment, seg->org, rs->start.sundir,
+    attrib.value, &rs->start.primitive, rs->start.uv);
   /* check normal orientation */
   rs->start.cos_sun = d3_dot(rs->data.fragment.Ng, rs->start.sundir);
   if (rs->start.cos_sun >= 0)
@@ -435,8 +442,8 @@ receive_sunlight(struct realisation* rs)
   /* check occlusion, avoiding self intersect */
   seg->hit.prim = rs->start.primitive;
   /* TODO (in s3d): need an occlusion test */
-  S3D(scene_view_trace_ray
-    (rs->data.trace_view, seg->org, seg->dir, seg->range, rs, &seg->hit));
+  ASSERT(current_segment(rs) == sun_segment(rs));
+  solstice_trace_ray(rs);
   receives = S3D_HIT_NONE(&seg->hit);
   if (!receives) return receives;
 
@@ -452,7 +459,7 @@ receive_sunlight(struct realisation* rs)
       rs->freq,
       seg->weight,
       SPLIT3(seg->org),
-      SPLIT3(sundir_f),
+      SPLIT3(seg->dir),
       SPLIT2(rs->start.uv));
   }
 
@@ -472,7 +479,6 @@ set_output_pos_and_dir(struct realisation* rs) {
   struct segment* seg = current_segment(rs);
   struct segment* prev = previous_segment(rs);
   struct ssol_scene* scene = rs->data.scene;
-  float tmp[3];
   int fst_segment;
   res_T res = RES_OK;
 
@@ -482,10 +488,10 @@ set_output_pos_and_dir(struct realisation* rs) {
   fst_segment = (prev == sun_segment(rs));
 
   if (fst_segment) {
-    f3_set(seg->org, prev->org);
+    d3_set(seg->org, prev->org);
     material = rs->start.material;
   } else {
-    f3_set(seg->org, prev->hit_pos);
+    d3_set(seg->org, prev->hit_pos);
     material = get_material_from_hit(scene, &prev->hit);
   }
   CHECK(material_get_type(material), MATERIAL_MIRROR);
@@ -494,19 +500,18 @@ set_output_pos_and_dir(struct realisation* rs) {
     rs->end = TERM_ERR;
     return res;
   }
-  f3_set_d3(tmp, rs->data.fragment.Ns);
 
   if (fst_segment) {
-    float sundir_f[3];
     const struct ssol_sun* sun = scene_get_sun(rs->data.scene);
     ASSERT(-1 <= rs->start.cos_sun && rs->start.cos_sun <= 0);
-    f3_set_d3(sundir_f, rs->start.sundir);
     seg->weight = sun_get_dni(sun)
-      * brdf_composite_sample(rs->data.brdfs, rs->data.rng, sundir_f, tmp, seg->dir)
+      * brdf_composite_sample
+          (rs->data.brdfs, rs->data.rng, rs->start.sundir, rs->data.fragment.Ns, seg->dir)
       * -rs->start.cos_sun;
   } else {
     seg->weight = prev->weight *
-      brdf_composite_sample(rs->data.brdfs, rs->data.rng, prev->dir, tmp, seg->dir);
+      brdf_composite_sample
+        (rs->data.brdfs, rs->data.rng, prev->dir, rs->data.fragment.Ns, seg->dir);
   }
   return res;
 }
@@ -517,8 +522,8 @@ propagate(struct realisation* rs)
   struct segment* seg = current_segment(rs);
 
   /* check if the ray hits something */
-  S3D(scene_view_trace_ray
-    (rs->data.trace_view, seg->org, seg->dir, seg->range, rs, &seg->hit));
+
+  solstice_trace_ray(rs);
   if (S3D_HIT_NONE(&seg->hit)) {
     rs->end = TERM_MISSING;
     return;
@@ -542,8 +547,8 @@ propagate(struct realisation* rs)
   }
 
   /* fill fragment from hit and loop */
-  f3_mulf(seg->hit_pos, seg->dir, seg->hit.distance);
-  f3_add(seg->hit_pos, seg->org, seg->hit_pos);
+  d3_muld(seg->hit_pos, seg->dir, (double)seg->hit.distance);
+  d3_add(seg->hit_pos, seg->org, seg->hit_pos);
   surface_fragment_setup(&rs->data.fragment, seg->hit_pos, seg->dir,
     seg->hit.normal, &seg->hit.prim, seg->hit.uv);
 }

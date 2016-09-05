@@ -24,9 +24,9 @@ typedef double /* Sampled radiance */
 (*brdf_sample_func_T)
   (void* data, /* BRDF internal data */
    struct ssp_rng* rng, /* Random Number Generator */
-   const float w[3], /* Incoming direction. Point toward the surface */
-   const float N[3], /* Normalized normal */
-   float dir[4]); /* Sampled direction. The PDF is stored in dir[3] */
+   const double w[3], /* Incoming direction. Point toward the surface */
+   const double N[3], /* Normalized normal */
+    double dir[4]); /* Sampled direction. The PDF is stored in dir[3] */
 
 /* Generic Bidirectional Reflectance Distribution Function */
 struct brdf {

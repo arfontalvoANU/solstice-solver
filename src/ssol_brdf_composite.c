@@ -19,7 +19,7 @@
 #include "ssol_device_c.h"
 
 #include <rsys/dynamic_array.h>
-#include <rsys/float4.h>
+#include <rsys/double4.h>
 #include <rsys/ref_count.h>
 
 #include <star/ssp.h>
@@ -122,13 +122,13 @@ double
 brdf_composite_sample
   (struct brdf_composite* brdfs,
    struct ssp_rng* rng,
-   const float w[3],
-   const float N[3],
-   float dir[4])
+   const double w[3],
+   const double N[3],
+   double dir[4])
 {
   const size_t PDF = 3;
   double radiances[MAX_COMPONENTS];
-  float dirs[MAX_COMPONENTS][4];
+  double dirs[MAX_COMPONENTS][4];
   double probas[MAX_COMPONENTS];
   double cumul[MAX_COMPONENTS];
   double probas_sum;
@@ -152,7 +152,7 @@ brdf_composite_sample
   }
 
   if(!n) { /* No valid component to sample */
-    f4_splat(dir, 0.f);
+    d4_splat(dir, 0);
     return 0;
   }
 
@@ -167,7 +167,7 @@ brdf_composite_sample
   /* Finally sample the distribution */
   r = ssp_rng_canonical(rng);
   FOR_EACH(i, 0, n-1) if(r <= cumul[i]) break;
-  f4_set(dir, dirs[i]);
+  d4_set(dir, dirs[i]);
   return radiances[i];
 }
 
