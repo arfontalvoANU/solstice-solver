@@ -125,9 +125,8 @@ struct ssol_quadric_plane {
 static const struct ssol_quadric_plane SSOL_QUADRIC_PLANE_DEFAULT =
   SSOL_QUADRIC_PLANE_DEFAULT__;
 
-/* Define x^2 + y^2 - 4 focal z = 0 */
 struct ssol_quadric_parabol {
-  double focal;
+  double focal; /* Define x^2 + y^2 - 4 focal z = 0 */
 };
 #define SSOL_QUADRIC_PARABOL_NULL__ { -1.0 }
 static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
