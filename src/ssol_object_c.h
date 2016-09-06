@@ -22,18 +22,11 @@ struct ssol_object {
   struct ssol_shape* shape;
   struct ssol_material* material;
 
-  struct s3d_scene* s3d_scn; /* Scene to instantiate */
+  struct s3d_scene* scn_rt; /* RT scene to instantiate */
+  struct s3d_scene* scn_samp; /* Sampling scene to instantiate */
 
   struct ssol_device* dev;
   ref_T ref;
 };
-
-static FINLINE struct ssol_material*
-object_get_material(const struct ssol_object* object)
-{
-  ASSERT(object);
-  return object->material;
-}
-
 
 #endif /* SSOL_OBJECT_C_H */

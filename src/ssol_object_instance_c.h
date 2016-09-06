@@ -23,7 +23,8 @@
 struct ssol_object_instance
 {
   struct ssol_object* object; /* Instantiated object */
-  struct s3d_shape* s3d_shape; /* Instantiated Star-3D shape */
+  struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
+  struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
   struct str receiver_name; /* Empty if not a receiver */
   uint32_t target_mask;
 
@@ -31,34 +32,12 @@ struct ssol_object_instance
   ref_T ref;
 };
 
-/* Return the Star-3D shape of the object instance */
-static INLINE struct s3d_shape*
-object_instance_get_s3d_shape(const struct ssol_object_instance* instance)
-{
-  ASSERT(instance);
-  return instance->s3d_shape;
-}
-
-static INLINE struct ssol_object*
-object_instance_get_object(const struct ssol_object_instance* instance)
-{
-  ASSERT(instance);
-  return instance->object;
-}
-
 static INLINE const char*
 object_instance_get_receiver_name(const struct ssol_object_instance* instance)
 {
   ASSERT(instance);
   return str_is_empty(&instance->receiver_name)
     ? NULL : str_cget(&instance->receiver_name);
-}
-
-static INLINE uint32_t
-object_instance_get_target_mask(const struct ssol_object_instance* instance)
-{
-  ASSERT(instance);
-  return instance->target_mask;
 }
 
 #endif /* SSOL_OBJECT_INSTANCE_C_H */

@@ -40,10 +40,11 @@ scene_release(ref_T* ref)
   dev = scene->dev;
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
-  if (scene->s3d_raytracing_scn) S3D(scene_ref_put(scene->s3d_raytracing_scn));
-  if (scene->s3d_sampling_scn) S3D(scene_ref_put(scene->s3d_sampling_scn));
+  if(scene->scn_rt) S3D(scene_ref_put(scene->scn_rt));
+  if(scene->scn_samp) S3D(scene_ref_put(scene->scn_samp));
   if(scene->sun) SSOL(sun_ref_put(scene->sun));
-  htable_instance_release(&scene->instances);
+  htable_instance_release(&scene->instances_rt);
+  htable_instance_release(&scene->instances_samp);
   MEM_RM(dev->allocator, scene);
   SSOL(device_ref_put(dev));
 }
@@ -58,32 +59,32 @@ ssol_scene_create
 {
   struct ssol_scene* scene = NULL;
   res_T res = RES_OK;
-  if (!dev || !out_scene) {
+  if(!dev || !out_scene) {
     return RES_BAD_ARG;
   }
 
   scene = (struct ssol_scene*)MEM_CALLOC
   (dev->allocator, 1, sizeof(struct ssol_scene));
-  if (!scene) {
+  if(!scene) {
     res = RES_MEM_ERR;
     goto error;
   }
-  htable_instance_init(dev->allocator, &scene->instances);
+  htable_instance_init(dev->allocator, &scene->instances_rt);
+  htable_instance_init(dev->allocator, &scene->instances_samp);
   SSOL(device_ref_get(dev));
   scene->dev = dev;
   ref_init(&scene->ref);
 
-  res = s3d_scene_create(dev->s3d, &scene->s3d_raytracing_scn);
-  if (res != RES_OK) goto error;
-
-  res = s3d_scene_create(dev->s3d, &scene->s3d_sampling_scn);
-  if (res != RES_OK) goto error;
+  res = s3d_scene_create(dev->s3d, &scene->scn_rt);
+  if(res != RES_OK) goto error;
+  res = s3d_scene_create(dev->s3d, &scene->scn_samp);
+  if(res != RES_OK) goto error;
 
 exit:
-  if (out_scene) *out_scene = scene;
+  if(out_scene) *out_scene = scene;
   return res;
 error:
-  if (scene) {
+  if(scene) {
     SSOL(scene_ref_put(scene));
     scene = NULL;
   }
@@ -110,23 +111,21 @@ res_T
 ssol_scene_attach_object_instance
   (struct ssol_scene* scene, struct ssol_object_instance* instance)
 {
-  struct s3d_shape* shape;
   unsigned id;
   res_T res;
 
   if(!scene || !instance) return RES_BAD_ARG;
-  shape = object_instance_get_s3d_shape(instance);
 
-  /* attach the instantiated s3d shape to s3d scene */
-  res = s3d_scene_attach_shape(scene->s3d_raytracing_scn, shape);
+  /* Attach the instantiated s3d shape to ray-trace to the RT scene */
+  res = s3d_scene_attach_shape(scene->scn_rt, instance->shape_rt);
   if(res != RES_OK) return res;
 
   /* Register the instance against the scene */
-  S3D(shape_get_id(shape, &id));
-  ASSERT(!htable_instance_find(&scene->instances, &id));
-  res = htable_instance_set(&scene->instances, &id, &instance);
+  S3D(shape_get_id(instance->shape_rt, &id));
+  ASSERT(!htable_instance_find(&scene->instances_rt, &id));
+  res = htable_instance_set(&scene->instances_rt, &id, &instance);
   if(res != RES_OK) {
-    S3D(scene_detach_shape(scene->s3d_raytracing_scn, shape));
+    S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
     return res;
   }
   SSOL(object_instance_ref_get(instance));
@@ -140,7 +139,6 @@ ssol_scene_detach_object_instance
 {
   struct ssol_object_instance** pinst;
   struct ssol_object_instance* inst;
-  struct s3d_shape* shape;
   unsigned id;
   size_t n;
   (void)n, (void)inst;
@@ -148,19 +146,18 @@ ssol_scene_detach_object_instance
   if(!scene || !instance) return RES_BAD_ARG;
 
   /* Retrieve the object instance identifier */
-  shape = object_instance_get_s3d_shape(instance);
-  S3D(shape_get_id(shape, &id));
+  S3D(shape_get_id(instance->shape_rt, &id));
 
   /* Check that the instance is effectively registered into the scene */
-  pinst = htable_instance_find(&scene->instances, &id);
+  pinst = htable_instance_find(&scene->instances_rt, &id);
   if(!pinst) return RES_BAD_ARG;
   inst = *pinst;
   ASSERT(inst == instance);
 
   /* Detach the object instance */
-  n = htable_instance_erase(&scene->instances, &id);
+  n = htable_instance_erase(&scene->instances_rt, &id);
   ASSERT(n == 1);
-  S3D(scene_detach_shape(scene->s3d_raytracing_scn, shape));
+  S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
   SSOL(object_instance_ref_put(instance));
 
   return RES_OK;
@@ -172,28 +169,29 @@ ssol_scene_clear(struct ssol_scene* scene)
   struct htable_instance_iterator it, it_end;
   if(!scene) return RES_BAD_ARG;
 
-  htable_instance_begin(&scene->instances, &it);
-  htable_instance_end(&scene->instances, &it_end);
+  htable_instance_begin(&scene->instances_rt, &it);
+  htable_instance_end(&scene->instances_rt, &it_end);
   while(!htable_instance_iterator_eq(&it, &it_end)) {
     struct ssol_object_instance* inst;
     inst = *htable_instance_iterator_data_get(&it);
-    S3D(scene_detach_shape(scene->s3d_raytracing_scn, object_instance_get_s3d_shape(inst)));
+    S3D(scene_detach_shape(scene->scn_rt, inst->shape_rt));
     SSOL(object_instance_ref_put(inst));
     htable_instance_iterator_next(&it);
   }
-  htable_instance_clear(&scene->instances);
-  S3D(scene_clear(scene->s3d_raytracing_scn));
-  if(scene->sun)
-    ssol_scene_detach_sun(scene, scene->sun);
+  htable_instance_clear(&scene->instances_rt);
+  htable_instance_clear(&scene->instances_samp);
+  S3D(scene_clear(scene->scn_rt));
+  S3D(scene_clear(scene->scn_samp));
+  if(scene->sun) ssol_scene_detach_sun(scene, scene->sun);
   return RES_OK;
 }
 
 res_T
 ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
-  if (!scene || ! sun
-    || sun->scene_attachment /* should detach this sun first from its own scene */
-    || scene->sun) /* should detach previous sun first */
+  if(!scene || ! sun
+  || sun->scene_attachment /* Should detach this sun first from its own scene */
+  || scene->sun) /* Should detach previous sun first */
     return RES_BAD_ARG;
 
   SSOL(sun_ref_get(sun));
@@ -205,7 +203,7 @@ ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 res_T
 ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
-  if (!scene || !sun || !scene->sun || sun->scene_attachment != scene)
+  if(!scene || !sun || !scene->sun || sun->scene_attachment != scene)
     return RES_BAD_ARG;
 
   ASSERT(sun == scene->sun);
@@ -218,30 +216,48 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
-struct s3d_scene*
-scene_get_s3d_raytracing_scn(const struct ssol_scene* scn)
+res_T
+scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
 {
+  struct htable_instance_iterator it, end;
+  res_T res = RES_OK;
   ASSERT(scn);
-  return scn->s3d_raytracing_scn;
-}
 
-struct s3d_scene*
-scene_get_s3d_sampling_scn(const struct ssol_scene* scn)
-{
-  ASSERT(scn);
-  return scn->s3d_sampling_scn;
-}
+  S3D(scene_clear(scn->scn_samp));
+  htable_instance_clear(&scn->instances_samp);
 
-struct ssol_object_instance*
-scene_get_object_instance_from_s3d_hit
-  (struct ssol_scene* scn,
-   const struct s3d_hit* hit)
-{
-  struct ssol_object_instance** pinst;
-  ASSERT(scn && hit);
-  pinst = htable_instance_find(&scn->instances, &hit->prim.inst_id);
-  ASSERT(pinst);
-  return *pinst;
+  htable_instance_begin(&scn->instances_rt, &it);
+  htable_instance_end(&scn->instances_rt, &end);
+
+  while(!htable_instance_iterator_eq(&it, &end)) {
+    struct ssol_object_instance* inst = *htable_instance_iterator_data_get(&it);
+    unsigned id;
+    htable_instance_iterator_next(&it);
+
+    /* TODO: keep only primary mirrors */
+    if(inst->object->material->type != MATERIAL_MIRROR)
+      continue;
+
+    /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
+    res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
+    if(res != RES_OK) goto error;
+
+    /* Register the instantiated s3d sampling shape */
+    S3D(shape_get_id(inst->shape_samp, &id));
+    ASSERT(!htable_instance_find(&scn->instances_samp, &id));
+    res = htable_instance_set(&scn->instances_samp, &id, &inst);
+    if(res != RES_OK) goto error;
+
+    /* Do not get a reference onto the instance since it was already referenced
+     * by the scene on its attachment */
+  }
+
+exit:
+  return res;
+error:
+  S3D(scene_clear(scn->scn_samp));
+  htable_instance_clear(&scn->instances_samp);
+  goto exit;
 }
 
 /*******************************************************************************
@@ -255,8 +271,7 @@ hit_filter_function
    void* realisation,
    void* filter_data)
 {
-  struct ssol_object_instance* instance;
-  struct ssol_material* material;
+  struct ssol_object_instance* inst;
   const char* receiver_name;
   struct realisation* rs = realisation;
   struct segment* seg;
@@ -274,10 +289,10 @@ hit_filter_function
   if(prev && S3D_PRIMITIVE_EQ(&hit->prim, &prev->hit.prim))
     return 1; /* Discard self intersection */
 
-  instance = scene_get_object_instance_from_s3d_hit(rs->data.scene, hit);
+  inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
 
   /* Check if the hit surface is a receiver that registers hit data */
-  receiver_name = object_instance_get_receiver_name(instance);
+  receiver_name = object_instance_get_receiver_name(inst);
   if(receiver_name) {
     float cos_in;
     /* check normal orientation */
@@ -301,40 +316,15 @@ hit_filter_function
   }
 
   /* register success mask */
-  if (front_face)
-    rs->success_mask |=  object_instance_get_target_mask(instance);
+  if(front_face) {
+    rs->success_mask |= inst->target_mask;
+  }
 
-  material = object_get_material(object_instance_get_object(instance));
-
-  if(material_get_type(material) == MATERIAL_VIRTUAL) {
+  if(inst->object->material->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }
 
-  rs->data.instance = instance;
-
+  rs->data.instance = inst;
   return 0;
 }
 
-struct ssol_sun*
-scene_get_sun
-  (struct ssol_scene* scn)
-{
-  ASSERT(scn);
-  return scn->sun;
-}
-
-struct ssol_device*
-  scene_get_device
-  (struct ssol_scene* scn)
-{
-  ASSERT(scn);
-  return scn->dev;
-}
-
-struct htable_instance*
-  scene_get_instances
-  (struct ssol_scene* scn)
-{
-  ASSERT(scn);
-  return &scn->instances;
-}

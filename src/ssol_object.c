@@ -25,6 +25,16 @@
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static INLINE res_T
+object_ok(const struct ssol_object* object)
+{
+  if(!object
+  || !object->shape
+  || !object->material)
+    return RES_BAD_ARG;
+  return RES_OK;
+}
+
 static void
 object_release(ref_T* ref)
 {
@@ -35,19 +45,10 @@ object_release(ref_T* ref)
   ASSERT(dev && dev->allocator);
   SSOL(shape_ref_put(object->shape));
   SSOL(material_ref_put(object->material));
-  if(object->s3d_scn) S3D(scene_ref_put(object->s3d_scn));
+  if(object->scn_rt) S3D(scene_ref_put(object->scn_rt));
+  if(object->scn_samp) S3D(scene_ref_put(object->scn_samp));
   MEM_RM(dev->allocator, object);
   SSOL(device_ref_put(dev));
-}
-
-static INLINE res_T
-object_ok(const struct ssol_object* object)
-{
-  if(!object
-  || !object->shape
-  || !object->material)
-    return RES_BAD_ARG;
-  return RES_OK;
 }
 
 /*******************************************************************************
@@ -81,11 +82,16 @@ ssol_object_create
   object->material = material;
   ref_init(&object->ref);
 
-  /* Create the Star-3D scene to instantiate through the object instance */
-  res = s3d_scene_create(dev->s3d, &object->s3d_scn);
+  /* Create the Star-3D RT scene to instantiate through the instance */
+  res = s3d_scene_create(dev->s3d, &object->scn_rt);
   if(res != RES_OK) goto error;
-  res = s3d_scene_attach_shape
-    (object->s3d_scn, shape_get_s3d_shape(object->shape));
+  res = s3d_scene_attach_shape(object->scn_rt, object->shape->shape_rt);
+  if(res != RES_OK) goto error;
+
+  /* Create the Star-3D sampling scene to instantiated through the instance */
+  res = s3d_scene_create(dev->s3d, &object->scn_samp);
+  if(res != RES_OK) goto error;
+  res = s3d_scene_attach_shape(object->scn_samp, object->shape->shape_samp);
   if(res != RES_OK) goto error;
 
 exit:

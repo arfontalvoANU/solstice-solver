@@ -399,8 +399,11 @@ error:
   goto exit;
 }
 
+/* Setup the Star-3D shape of the quadric to ray-trace, i.e. the clipped 2D
+ * profile of the quadric whose vertices are displaced with respect to the
+ * quadric equation */
 static res_T
-quadric_setup_s3d_shape
+quadric_setup_s3d_shape_rt
   (const struct ssol_quadric* quadric,
    const struct darray_double* coords,
    const struct darray_size_t* ids,
@@ -442,6 +445,36 @@ quadric_setup_s3d_shape
     (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
 }
 
+/* Setup the Star-3D shape of the quadric to sample, i.e. the clipped 2D
+ * profile of the quadric */
+static res_T
+quadric_setup_s3d_shape_samp
+  (const struct darray_double* coords,
+   const struct darray_size_t* ids,
+   struct s3d_shape* shape)
+{
+  struct quadric_mesh_context ctx;
+  struct s3d_vertex_data vdata;
+  unsigned nverts;
+  unsigned ntris;
+  ASSERT(coords && ids && shape);
+  ASSERT(darray_double_size_get(coords)%2 == 0);
+  ASSERT(darray_size_t_size_get(ids)%3 == 0);
+  ASSERT(darray_double_size_get(coords)/2 <= UINT_MAX);
+  ASSERT(darray_size_t_size_get(ids)/3 <= UINT_MAX);
+
+  nverts = (unsigned)darray_double_size_get(coords) / 2/*#coords per vertex*/;
+  ntris = (unsigned)darray_size_t_size_get(ids) / 3/*#ids per triangle*/;
+  ctx.coords = darray_double_cdata_get(coords);
+  ctx.ids = darray_size_t_cdata_get(ids);
+
+  vdata.usage = S3D_POSITION;
+  vdata.type = S3D_FLOAT3;
+  vdata.get = quadric_mesh_plane_get_pos;
+  return s3d_mesh_setup_indexed_vertices
+    (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
+}
+
 static res_T
 shape_create
   (struct ssol_device* dev,
@@ -462,11 +495,15 @@ shape_create
     goto error;
   }
 
-  /* create a s3d_shape to hold a mesh */
-  res = s3d_shape_create_mesh(dev->s3d, &shape->s3d_shape);
+  /* Create the s3d_shape to ray-trace */
+  res = s3d_shape_create_mesh(dev->s3d, &shape->shape_rt);
   if(res != RES_OK) goto error;
   res = s3d_mesh_set_hit_filter_function
-    (shape->s3d_shape, hit_filter_function, NULL);
+    (shape->shape_rt, hit_filter_function, NULL);
+  if(res != RES_OK) goto error;
+
+  /* Create the s3d_shape to sample */
+  res = s3d_shape_create_mesh(dev->s3d, &shape->shape_samp);
   if(res != RES_OK) goto error;
 
   SSOL(device_ref_get(dev));
@@ -493,7 +530,8 @@ shape_release(ref_T* ref)
   ASSERT(ref);
   dev = shape->dev;
   ASSERT(dev && dev->allocator);
-  if(shape->s3d_shape) S3D(shape_ref_put(shape->s3d_shape));
+  if(shape->shape_rt) S3D(shape_ref_put(shape->shape_rt));
+  if(shape->shape_samp) S3D(shape_ref_put(shape->shape_samp));
   MEM_RM(dev->allocator, shape);
   SSOL(device_ref_put(dev));
 }
@@ -576,8 +614,13 @@ ssol_punched_surface_setup
     (&coords, &ids, shape->dev->scpr_mesh, psurf->carvings, psurf->nb_carvings);
   if(res != RES_OK) goto error;
 
-  res = quadric_setup_s3d_shape
-    (psurf->quadric, &coords, &ids, shape->s3d_shape);
+  /* Setup the Star-3D shape to ray-trace */
+  res = quadric_setup_s3d_shape_rt
+    (psurf->quadric, &coords, &ids, shape->shape_rt);
+  if(res != RES_OK) goto error;
+
+  /* Setup the Star-3D shape to sample */
+  res = quadric_setup_s3d_shape_samp(&coords, &ids, shape->shape_samp);
   if(res != RES_OK) goto error;
 
 exit:
@@ -639,7 +682,11 @@ ssol_mesh_setup
     }
   }
   res = s3d_mesh_setup_indexed_vertices
-    (shape->s3d_shape, ntris, get_indices, nverts, attrs, nattribs, data);
+    (shape->shape_rt, ntris, get_indices, nverts, attrs, nattribs, data);
+  if(res != RES_OK) goto error;
+
+  /* The Star-3D shape to sample is the same of the one to ray-traced */
+  res = s3d_mesh_copy(shape->shape_rt, shape->shape_samp);
   if(res != RES_OK) goto error;
 
 exit:

@@ -53,13 +53,6 @@ struct ssol_material {
   ref_T ref;
 };
 
-static INLINE enum material_type
-material_get_type(const struct ssol_material* mtl)
-{
-  ASSERT(mtl);
-  return mtl->type;
-}
-
 extern LOCAL_SYM void
 surface_fragment_setup
   (struct surface_fragment* fragment,

@@ -40,7 +40,8 @@ object_instance_release(ref_T* ref)
   ASSERT(dev && dev->allocator);
 
   SSOL(object_ref_put(instance->object));
-  if(instance->s3d_shape) S3D(shape_ref_put(instance->s3d_shape));
+  if(instance->shape_rt) S3D(shape_ref_put(instance->shape_rt));
+  if(instance->shape_samp) S3D(shape_ref_put(instance->shape_samp));
   str_release(&instance->receiver_name);
   MEM_RM(dev->allocator, instance);
   SSOL(device_ref_put(dev));
@@ -80,8 +81,12 @@ ssol_object_instantiate
   SSOL(device_ref_get(dev));
   ref_init(&instance->ref);
 
-  /* Create the Star-3D instance */
-  res = s3d_scene_instantiate(object->s3d_scn, &instance->s3d_shape);
+  /* Create the Star-3D instance to ray-trace */
+  res = s3d_scene_instantiate(object->scn_rt, &instance->shape_rt);
+  if(res != RES_OK) goto error;
+
+  /* Create the Star-3D instance to sample */
+  res = s3d_scene_instantiate(object->scn_samp, &instance->shape_samp);
   if(res != RES_OK) goto error;
 
 exit:
@@ -98,7 +103,7 @@ error:
 res_T
 ssol_object_instance_ref_get(struct ssol_object_instance* instance)
 {
-  if (!instance)
+  if(!instance)
     return RES_BAD_ARG;
   ref_get(&instance->ref);
   return RES_OK;
@@ -120,13 +125,27 @@ ssol_object_instance_set_transform
 {
   float t[12];
   int i;
-  if (!instance || !transform)
-    return RES_BAD_ARG;
+  res_T res = RES_OK;
 
-  for (i = 0; i < 12; i++) t[i] = (float) transform[i];
-  s3d_instance_set_transform(instance->s3d_shape, t);
+  if(!instance || !transform) {
+    res =  RES_BAD_ARG;
+    goto error;
+  }
 
-  return RES_OK;
+  FOR_EACH(i, 0, 12) t[i] = (float)transform[i];
+
+  res = s3d_instance_set_transform(instance->shape_rt, t);
+  if(res != RES_OK) goto error;
+
+  if(instance->shape_rt != instance->shape_samp) {
+    res = s3d_instance_set_transform(instance->shape_samp, t);
+    if(res != RES_OK) goto error;
+  }
+
+exit:
+  return res;
+error:
+  goto exit;
 }
 
 res_T

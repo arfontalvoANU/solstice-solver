@@ -83,14 +83,14 @@ struct solver_data {
   struct ssol_scene* scene;
   struct ssp_rng* rng;
   FILE* out_stream;
-  /* the s3d_scene_view used for raytracing  */
-  struct s3d_scene_view* trace_view;
-  /* the s3d_scene_view used for sampling */
-  struct s3d_scene_view* sample_view;
-  /* the random distributions for sun sampling */
+  /* The s3d_scene_view used for raytracing  */
+  struct s3d_scene_view* view_rt;
+  /* The s3d_scene_view used for sampling */
+  struct s3d_scene_view* view_samp;
+  /* The random distributions for sun sampling */
   struct ranst_sun_dir* sun_dir_ran;
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
-  /* tmp data used for propagation */
+  /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
   struct ssol_object_instance* instance;
   struct surface_fragment fragment;
