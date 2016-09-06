@@ -26,6 +26,7 @@ struct ssol_object_instance
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
   struct str receiver_name; /* Empty if not a receiver */
+  double transform[12];
   uint32_t target_mask;
 
   struct ssol_device* dev;

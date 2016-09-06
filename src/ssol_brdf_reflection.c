@@ -16,7 +16,7 @@
 #include "ssol_device_c.h"
 #include "ssol_brdf_reflection.h"
 
-#include <rsys/float3.h>
+#include <rsys/double3.h>
 
 struct brdf_reflection {
   double reflectivity;
@@ -29,20 +29,20 @@ static double
 reflection_sample
   (void* data,
    struct ssp_rng* rng,
-   const float w[3],
-   const float N[3],
-   float dir[4])
+   const double w[3],
+   const double N[3],
+    double dir[4])
 {
   struct brdf_reflection* reflection = data;
-  float cosi;
+  double cosi;
   (void)rng;
-  ASSERT(w && N && dir && f3_is_normalized(N) && f3_is_normalized(w) && data);
+  ASSERT(w && N && dir && d3_is_normalized(N) && d3_is_normalized(w) && data);
 
   /* Simply reflect the incoming direction w[3] with respect to the normal */
-  cosi = -f3_dot(w, N);
-  f3_mulf(dir, N, 2.f*cosi);
-  f3_add(dir, dir, w);
-  dir[3] = 1.f; /* pdf */
+  cosi = -d3_dot(w, N);
+  d3_muld(dir, N, 2*cosi);
+  d3_add(dir, dir, w);
+  dir[3] = 1; /* pdf */
   return reflection->reflectivity;
 }
 

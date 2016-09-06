@@ -51,9 +51,9 @@ extern LOCAL_SYM double
 brdf_composite_sample
   (struct brdf_composite* brdfs,
    struct ssp_rng* rng,
-   const float w[3], /* Incoming direction */
-   const float N[3], /* Normalized normal */
-   float dir[4]); /* Sampled direction. The PDF is stored in dir[3] */
+   const double w[3], /* Incoming direction */
+   const double N[3], /* Normalized normal */
+   double dir[4]); /* Sampled direction. The PDF is stored in dir[3] */
 
 #endif /* SSOL_BRDF_COMPOSITE_H */
 

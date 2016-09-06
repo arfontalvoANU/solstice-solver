@@ -191,8 +191,8 @@ ssol_material_create_virtual
 void
 surface_fragment_setup
   (struct surface_fragment* fragment,
-   const float pos[3],
-   const float dir[3],
+   const double pos[3],
+   const double dir[3],
    const float normal[3],
    const struct s3d_primitive* primitive,
    const float uv[2])
@@ -202,10 +202,10 @@ surface_fragment_setup
   ASSERT(fragment && pos && dir && primitive && uv);
 
   /* Setup the incoming direction */
-  d3_set_f3(fragment->dir, dir);
+  d3_set(fragment->dir, dir);
 
   /* Setup the surface position */
-  d3_set_f3(fragment->pos, pos);
+  d3_set(fragment->pos, pos);
 
   /* Normalize the geometry normal */
   d3_set_f3(fragment->Ng, normal);

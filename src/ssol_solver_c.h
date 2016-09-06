@@ -60,9 +60,8 @@ struct segment {
   double weight;
   float range[2];
   struct s3d_hit hit;
-  /* TODO: use double? */
-  float org[3], dir[4];
-  float hit_pos[3];
+  double org[3], dir[4];
+  double hit_pos[3];
 };
 
 struct starting_point {
