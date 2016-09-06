@@ -391,8 +391,8 @@ receive_sunlight(struct realisation* rs)
 {
   struct s3d_attrib attrib;
   struct segment* seg = sun_segment(rs);
+  const struct str* receiver_name = NULL;
   int receives;
-  const char* receiver_name;
 
   d3_muld(seg->dir, rs->start.sundir, -1);
   CHECK(d3_is_normalized(seg->dir), 1);
@@ -415,12 +415,16 @@ receive_sunlight(struct realisation* rs)
   if (!receives) return receives;
 
   /* if the sampled instance is a receiver, register the sampled point */
-  receiver_name = object_instance_get_receiver_name(rs->start.instance);
-  if (receiver_name) {
+  if(rs->start.material == rs->start.instance->object->mtl_front) {
+    receiver_name = &rs->start.instance->receiver_front;
+  } else {
+    receiver_name = &rs->start.instance->receiver_back;
+  }
+  if(str_is_empty(receiver_name)) {
     /* normal orientation has already been checked */
     fprintf(rs->data.out_stream,
       "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      receiver_name,
+      str_cget(receiver_name),
       (unsigned) rs->rs_id,
       (unsigned) rs->s_idx,
       rs->freq,

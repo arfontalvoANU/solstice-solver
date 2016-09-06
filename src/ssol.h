@@ -422,7 +422,8 @@ ssol_object_instance_set_transform
 SSOL_API res_T
 ssol_object_instance_set_receiver
   (struct ssol_object_instance* instance,
-   const char* name); /* May be NULL <=> it is no more a receiver */
+   const char* name_front, /* May be NULL <=> Front faces are no more receivers */
+   const char* name_back); /* May be NULL <=> back faces are no more receivers */
 
 SSOL_API res_T
 ssol_object_instance_set_target_mask

@@ -273,7 +273,7 @@ hit_filter_function
    void* filter_data)
 {
   struct ssol_object_instance* inst;
-  const char* receiver_name;
+  const struct str* receiver_name;
   struct realisation* rs = realisation;
   struct ssol_material* mtl;
   struct segment* seg;
@@ -293,19 +293,24 @@ hit_filter_function
 
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
 
+  front_face = f3_dot(hit->normal, dir) < 0;
+
+  if(front_face) {
+    mtl = inst->object->mtl_front;
+    receiver_name = &inst->receiver_front;
+  } else {
+    mtl = inst->object->mtl_back;
+    receiver_name = &inst->receiver_back;
+  }
+
   /* Check if the hit surface is a receiver that registers hit data */
-  receiver_name = object_instance_get_receiver_name(inst);
-
-  front_face = f3_dot(hit->normal, dir) > 0;
-  mtl = front_face ? inst->object->mtl_front : inst->object->mtl_back;
-
-  if(receiver_name && front_face) {
+  if(str_is_empty(receiver_name)) {
     float pos[3];
     f3_add(pos, org, f3_mulf(pos, dir, hit->distance));
     front_face = 1;
     fprintf(rs->data.out_stream,
       "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      receiver_name,
+      str_cget(receiver_name),
       (unsigned)rs->rs_id,
       (unsigned)rs->s_idx,
       rs->freq,
@@ -318,8 +323,6 @@ hit_filter_function
   /* register success mask */
   if(front_face) {
     rs->success_mask |= inst->target_mask;
-  }
-  if(front_face) {
   }
   if(mtl->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
