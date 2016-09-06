@@ -55,7 +55,7 @@ get_quadric(const struct ssol_object_instance* instance)
 }
 
 static FINLINE void
-solstice_trace_ray(struct realisation* rs) 
+solstice_trace_ray(struct realisation* rs)
 {
   float org[3], dir[3];
   struct segment* seg = current_segment(rs);
@@ -296,12 +296,19 @@ release_realisation(struct realisation* rs)
 }
 
 static INLINE struct ssol_material*
-get_material_from_hit(struct ssol_scene* scene,  struct s3d_hit* hit)
+get_material_from_hit
+  (struct ssol_scene* scene,
+   const double dir[3],
+   const struct s3d_hit* hit)
 {
   struct ssol_object_instance* inst;
+  float dirf[3];
+  int front_face;
   ASSERT(scene && hit);
   inst = *htable_instance_find(&scene->instances_rt, &hit->prim.inst_id);
-  return inst->object->material;
+  f3_set_d3(dirf, dir);
+  front_face = f3_dot(dirf, hit->normal) < 0.f;
+  return front_face ? inst->object->mtl_front : inst->object->mtl_back;
 }
 
 static void
@@ -327,8 +334,26 @@ sample_point_on_primary_mirror(struct realisation* rs)
   rs->start.instance = *htable_instance_find
     (&data->scene->instances_samp, &tmp_prim.inst_id);
   object = rs->start.instance->object;
-  rs->start.material = object->material;
+
+  /* Define which side of the primitive is actually sampled */
+  if(object->mtl_front->type == MATERIAL_MIRROR) {
+    /* If both sides are mirrors, uniformly sample between them */
+    if(object->mtl_back->type == MATERIAL_MIRROR) {
+      if(ssp_rng_canonical_float(data->rng) > 0.5) {
+        rs->start.material = object->mtl_front;
+      } else {
+        rs->start.material = object->mtl_back;
+      }
+    } else {
+      rs->start.material = object->mtl_front;
+    }
+  } else if(object->mtl_back->type == MATERIAL_MIRROR) {
+    rs->start.material = object->mtl_back;
+  } else {
+    FATAL("Unreachable code.\n");
+  }
   ASSERT(rs->start.material);
+
   switch (object->shape->type) {
     case SHAPE_MESH:
       /* no projection needed */
@@ -342,7 +367,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
       /* cannot self intersect as the sampled mesh is not raytraced */
       rs->start.primitive = S3D_PRIMITIVE_NULL;
       break;
-    default: FATAL("Unreachable code\n"); break;
+    default: FATAL("Unreachable code.\n"); break;
   }
 }
 
@@ -416,7 +441,8 @@ receive_sunlight(struct realisation* rs)
 }
 
 static res_T
-set_output_pos_and_dir(struct realisation* rs) {
+set_output_pos_and_dir(struct realisation* rs)
+{
   struct ssol_material* material;
   struct segment* seg = current_segment(rs);
   struct segment* prev = previous_segment(rs);
@@ -434,7 +460,7 @@ set_output_pos_and_dir(struct realisation* rs) {
     material = rs->start.material;
   } else {
     d3_set(seg->org, prev->hit_pos);
-    material = get_material_from_hit(scene, &prev->hit);
+    material = get_material_from_hit(scene, prev->dir, &prev->hit);
   }
   CHECK(material->type, MATERIAL_MIRROR);
   res = material_shade(material, &rs->data.fragment, rs->freq, rs->data.brdfs);
@@ -470,7 +496,7 @@ propagate(struct realisation* rs)
     return;
   }
   /* should not stop on a virtual surface */
-  ASSERT(get_material_from_hit(rs->data.scene, &seg->hit)->type
+  ASSERT(get_material_from_hit(rs->data.scene, seg->dir, &seg->hit)->type
     != MATERIAL_VIRTUAL);
 
   /* offset the impact point and recompute normal if needed */

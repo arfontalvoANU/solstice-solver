@@ -39,8 +39,8 @@ main(int argc, char** argv)
   struct ssol_scene* scene;
   struct ssol_shape* square;
   struct ssol_vertex_data attribs[1];
-  struct ssol_material* m_material;
-  struct ssol_material* v_material;
+  struct ssol_material* m_mtl;
+  struct ssol_material* v_mtl;
   struct ssol_mirror_shader shader;
   struct ssol_object* m_object;
   struct ssol_object* t_object;
@@ -101,14 +101,14 @@ main(int argc, char** argv)
   CHECK(ssol_mesh_setup(square, square_walls_ntris, get_ids,
     square_walls_nverts, attribs, 1, (void*)&square_walls_desc), RES_OK);
 
-  CHECK(ssol_material_create_mirror(dev, &m_material), RES_OK);
+  CHECK(ssol_material_create_mirror(dev, &m_mtl), RES_OK);
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
   shader.roughness = get_shader_roughness;
-  CHECK(ssol_mirror_set_shader(m_material, &shader), RES_OK);
-  CHECK(ssol_material_create_virtual(dev, &v_material), RES_OK);
+  CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
+  CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
-  CHECK(ssol_object_create(dev, square, m_material, &m_object), RES_OK);
+  CHECK(ssol_object_create(dev, square, m_mtl, m_mtl, &m_object), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_object_instance_set_receiver(heliostat, "miroir"), RES_OK);
   CHECK(ssol_object_instance_set_target_mask(heliostat, 0x1), RES_OK);
@@ -120,7 +120,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_instance_set_target_mask(secondary, 0x2), RES_OK);
   CHECK(ssol_scene_attach_object_instance(scene, secondary), RES_OK);
 
-  CHECK(ssol_object_create(dev, square, v_material, &t_object), RES_OK);
+  CHECK(ssol_object_create(dev, square, v_mtl, v_mtl, &t_object), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_object_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_object_instance_set_receiver(target, "cible"), RES_OK);
@@ -137,8 +137,8 @@ main(int argc, char** argv)
   CHECK(ssol_object_ref_put(m_object), RES_OK);
   CHECK(ssol_object_ref_put(t_object), RES_OK);
   CHECK(ssol_shape_ref_put(square), RES_OK);
-  CHECK(ssol_material_ref_put(m_material), RES_OK);
-  CHECK(ssol_material_ref_put(v_material), RES_OK);
+  CHECK(ssol_material_ref_put(m_mtl), RES_OK);
+  CHECK(ssol_material_ref_put(v_mtl), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);

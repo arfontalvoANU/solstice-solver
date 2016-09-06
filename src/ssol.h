@@ -383,7 +383,8 @@ SSOL_API res_T
 ssol_object_create
   (struct ssol_device* dev,
    struct ssol_shape* shape,
-   struct ssol_material* mtl,
+   struct ssol_material* mtl_front, /* Material to apply to front faces */
+   struct ssol_material* mtl_back, /* Material to apply to back faces */
    struct ssol_object** obj);
 
 SSOL_API res_T
