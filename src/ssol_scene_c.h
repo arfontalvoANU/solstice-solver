@@ -20,12 +20,12 @@
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 
-struct ssol_object_instance;
+struct ssol_instance;
 
  /* Define the htable_instance data structure */
 #define HTABLE_NAME instance
 #define HTABLE_KEY unsigned /* S3D object instance identifier */
-#define HTABLE_DATA struct ssol_object_instance*
+#define HTABLE_DATA struct ssol_instance*
 #include <rsys/hash_table.h>
 
 /* Forward declarations */

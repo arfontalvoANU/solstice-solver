@@ -21,7 +21,7 @@
 #include "ssol_device_c.h"
 #include "ssol_material_c.h"
 #include "ssol_object_c.h"
-#include "ssol_object_instance_c.h"
+#include "ssol_instance_c.h"
 
 #include <rsys/list.h>
 #include <rsys/mem_allocator.h>
@@ -108,8 +108,8 @@ ssol_scene_ref_put(struct ssol_scene* scene)
 }
 
 res_T
-ssol_scene_attach_object_instance
-  (struct ssol_scene* scene, struct ssol_object_instance* instance)
+ssol_scene_attach_instance
+  (struct ssol_scene* scene, struct ssol_instance* instance)
 {
   unsigned id;
   res_T res;
@@ -128,17 +128,17 @@ ssol_scene_attach_object_instance
     S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
     return res;
   }
-  SSOL(object_instance_ref_get(instance));
+  SSOL(instance_ref_get(instance));
   return RES_OK;
 }
 
 res_T
-ssol_scene_detach_object_instance
+ssol_scene_detach_instance
   (struct ssol_scene* scene,
-   struct ssol_object_instance* instance)
+   struct ssol_instance* instance)
 {
-  struct ssol_object_instance** pinst;
-  struct ssol_object_instance* inst;
+  struct ssol_instance** pinst;
+  struct ssol_instance* inst;
   unsigned id;
   size_t n;
   (void)n, (void)inst;
@@ -158,7 +158,7 @@ ssol_scene_detach_object_instance
   n = htable_instance_erase(&scene->instances_rt, &id);
   ASSERT(n == 1);
   S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
-  SSOL(object_instance_ref_put(instance));
+  SSOL(instance_ref_put(instance));
 
   return RES_OK;
 }
@@ -172,10 +172,10 @@ ssol_scene_clear(struct ssol_scene* scene)
   htable_instance_begin(&scene->instances_rt, &it);
   htable_instance_end(&scene->instances_rt, &it_end);
   while(!htable_instance_iterator_eq(&it, &it_end)) {
-    struct ssol_object_instance* inst;
+    struct ssol_instance* inst;
     inst = *htable_instance_iterator_data_get(&it);
     S3D(scene_detach_shape(scene->scn_rt, inst->shape_rt));
-    SSOL(object_instance_ref_put(inst));
+    SSOL(instance_ref_put(inst));
     htable_instance_iterator_next(&it);
   }
   htable_instance_clear(&scene->instances_rt);
@@ -230,7 +230,7 @@ scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
   htable_instance_end(&scn->instances_rt, &end);
 
   while(!htable_instance_iterator_eq(&it, &end)) {
-    struct ssol_object_instance* inst = *htable_instance_iterator_data_get(&it);
+    struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     unsigned id;
     htable_instance_iterator_next(&it);
 
@@ -271,7 +271,7 @@ hit_filter_function
    void* realisation,
    void* filter_data)
 {
-  struct ssol_object_instance* inst;
+  struct ssol_instance* inst;
   const char* receiver_name;
   struct realisation* rs = realisation;
   struct segment* seg;
@@ -292,7 +292,7 @@ hit_filter_function
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
 
   /* Check if the hit surface is a receiver that registers hit data */
-  receiver_name = object_instance_get_receiver_name(inst);
+  receiver_name = instance_get_receiver_name(inst);
   if(receiver_name) {
     float cos_in;
     /* check normal orientation */

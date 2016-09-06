@@ -50,7 +50,7 @@ struct ssol_device;
 struct ssol_image;
 struct ssol_material;
 struct ssol_object;
-struct ssol_object_instance;
+struct ssol_instance;
 struct ssol_scene;
 struct ssol_quadric;
 struct ssol_shape;
@@ -281,14 +281,14 @@ ssol_scene_ref_put
   (struct ssol_scene* scn);
 
 SSOL_API res_T
-ssol_scene_attach_object_instance
+ssol_scene_attach_instance
   (struct ssol_scene* scn,
-   struct ssol_object_instance* instance);
+   struct ssol_instance* instance);
 
 SSOL_API res_T
-ssol_scene_detach_object_instance
+ssol_scene_detach_instance
   (struct ssol_scene* scn,
-   struct ssol_object_instance* instance);
+   struct ssol_instance* instance);
 
 /* Detach all the instances from the scene and release the reference that the
  * scene takes onto them.
@@ -402,34 +402,34 @@ ssol_object_ref_put
 SSOL_API res_T
 ssol_object_instantiate
   (struct ssol_object* object,
-   struct ssol_object_instance** instance);
+   struct ssol_instance** instance);
 
 SSOL_API res_T
-ssol_object_instance_ref_get
-  (struct ssol_object_instance* instance);
+ssol_instance_ref_get
+  (struct ssol_instance* instance);
 
 SSOL_API res_T
-ssol_object_instance_ref_put
-  (struct ssol_object_instance* intance);
+ssol_instance_ref_put
+  (struct ssol_instance* intance);
 
 SSOL_API res_T
-ssol_object_instance_set_transform
-  (struct ssol_object_instance* instance,
+ssol_instance_set_transform
+  (struct ssol_instance* instance,
    const double transform[12]); /* 3x4 column major matrix */
 
 SSOL_API res_T
-ssol_object_instance_set_receiver
-  (struct ssol_object_instance* instance,
+ssol_instance_set_receiver
+  (struct ssol_instance* instance,
    const char* name); /* May be NULL <=> it is no more a receiver */
 
 SSOL_API res_T
-ssol_object_instance_set_target_mask
-  (struct ssol_object_instance* instance,
+ssol_instance_set_target_mask
+  (struct ssol_instance* instance,
    const uint32_t mask);
 
 SSOL_API res_T
-ssol_object_instance_is_attached
-  (struct ssol_object_instance* instance,
+ssol_instance_is_attached
+  (struct ssol_instance* instance,
    char* is_attached);
 
 /*******************************************************************************

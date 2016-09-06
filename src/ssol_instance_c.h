@@ -13,14 +13,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef SSOL_OBJECT_INSTANCE_C_H
-#define SSOL_OBJECT_INSTANCE_C_H
+#ifndef SSOL_INSTANCE_C_H
+#define SSOL_INSTANCE_C_H
 
 #include <rsys/list.h>
 #include <rsys/ref_count.h>
 #include <rsys/str.h>
 
-struct ssol_object_instance
+struct ssol_instance
 {
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
@@ -34,11 +34,11 @@ struct ssol_object_instance
 };
 
 static INLINE const char*
-object_instance_get_receiver_name(const struct ssol_object_instance* instance)
+instance_get_receiver_name(const struct ssol_instance* instance)
 {
   ASSERT(instance);
   return str_is_empty(&instance->receiver_name)
     ? NULL : str_cget(&instance->receiver_name);
 }
 
-#endif /* SSOL_OBJECT_INSTANCE_C_H */
+#endif /* SSOL_INSTANCE_C_H */

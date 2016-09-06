@@ -27,7 +27,7 @@ main(int argc, char** argv)
   struct ssol_shape* shape;
   struct ssol_material* material;
   struct ssol_object* object;
-  struct ssol_object_instance* instance;
+  struct ssol_instance* instance;
   double transform[12];
   (void) argc, (void) argv;
 
@@ -48,28 +48,28 @@ main(int argc, char** argv)
 
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
 
-  CHECK(ssol_object_instance_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_object_instance_ref_get(instance), RES_OK);
+  CHECK(ssol_instance_ref_get(NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_ref_get(instance), RES_OK);
 
-  CHECK(ssol_object_instance_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_object_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_ref_put(instance), RES_OK);
 
-  CHECK(ssol_object_instance_set_transform(NULL, transform), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_transform(instance, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_transform(instance, transform), RES_OK);
+  CHECK(ssol_instance_set_transform(NULL, transform), RES_BAD_ARG);
+  CHECK(ssol_instance_set_transform(instance, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
 
-  CHECK(ssol_object_instance_set_receiver(NULL, "receiver 1"), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_receiver(instance, NULL), RES_OK);
-  CHECK(ssol_object_instance_set_receiver(instance, "receiver 1"), RES_OK);
-  CHECK(ssol_object_instance_set_receiver(instance, "receiver 0"), RES_OK);
-  CHECK(ssol_object_instance_set_receiver(instance, NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(NULL, "receiver 1"), RES_BAD_ARG);
+  CHECK(ssol_instance_set_receiver(instance, NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(instance, "receiver 1"), RES_OK);
+  CHECK(ssol_instance_set_receiver(instance, "receiver 0"), RES_OK);
+  CHECK(ssol_instance_set_receiver(instance, NULL), RES_OK);
 
-  CHECK(ssol_object_instance_set_target_mask(NULL, 1), RES_BAD_ARG);
-  CHECK(ssol_object_instance_set_target_mask(instance, 1), RES_OK);
-  CHECK(ssol_object_instance_set_target_mask(instance, 0), RES_OK);
-  CHECK(ssol_object_instance_set_target_mask(instance, 0x10), RES_OK);
+  CHECK(ssol_instance_set_target_mask(NULL, 1), RES_BAD_ARG);
+  CHECK(ssol_instance_set_target_mask(instance, 1), RES_OK);
+  CHECK(ssol_instance_set_target_mask(instance, 0), RES_OK);
+  CHECK(ssol_instance_set_target_mask(instance, 0x10), RES_OK);
 
-  CHECK(ssol_object_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(instance), RES_OK);
 
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);

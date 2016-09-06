@@ -23,7 +23,7 @@
 #include "ssol_sun_c.h"
 #include "ssol_material_c.h"
 #include "ssol_spectrum_c.h"
-#include "ssol_object_instance_c.h"
+#include "ssol_instance_c.h"
 #include "ssol_brdf_composite.h"
 
 #include <rsys/mem_allocator.h>
@@ -41,14 +41,14 @@ static const char* END_TEXT[] = END_TEXT__;
  * Helper functions
  ******************************************************************************/
 static INLINE int
-is_instance_punched(const struct ssol_object_instance* instance)
+is_instance_punched(const struct ssol_instance* instance)
 {
   ASSERT(instance);
   return instance->object->shape->type == SHAPE_PUNCHED;
 }
 
 static INLINE const struct ssol_quadric*
-get_quadric(const struct ssol_object_instance* instance)
+get_quadric(const struct ssol_instance* instance)
 {
   ASSERT(instance && is_instance_punched(instance));
   return &instance->object->shape->quadric;
@@ -298,7 +298,7 @@ release_realisation(struct realisation* rs)
 static INLINE struct ssol_material*
 get_material_from_hit(struct ssol_scene* scene,  struct s3d_hit* hit)
 {
-  struct ssol_object_instance* inst;
+  struct ssol_instance* inst;
   ASSERT(scene && hit);
   inst = *htable_instance_find(&scene->instances_rt, &hit->prim.inst_id);
   return inst->object->material;
@@ -390,7 +390,7 @@ receive_sunlight(struct realisation* rs)
   if (!receives) return receives;
 
   /* if the sampled instance is a receiver, register the sampled point */
-  receiver_name = object_instance_get_receiver_name(rs->start.instance);
+  receiver_name = instance_get_receiver_name(rs->start.instance);
   if (receiver_name) {
     /* normal orientation has already been checked */
     fprintf(rs->data.out_stream,

@@ -27,7 +27,7 @@ main(int argc, char** argv)
   struct ssol_shape* shape;
   struct ssol_material* material;
   struct ssol_object* object;
-  struct ssol_object_instance* instance;
+  struct ssol_instance* instance;
   struct ssol_sun* sun;
   struct ssol_sun* sun2;
   struct ssol_scene* scene;
@@ -49,7 +49,7 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
   CHECK(ssol_object_create(dev, shape, material, &object), RES_OK);
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
-  CHECK(ssol_object_instance_set_transform(instance, transform), RES_OK);
+  CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
 
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
@@ -60,15 +60,15 @@ main(int argc, char** argv)
   CHECK(ssol_scene_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
 
-  CHECK(ssol_scene_attach_object_instance(NULL, instance), RES_BAD_ARG);
-  CHECK(ssol_scene_attach_object_instance(scene, NULL), RES_BAD_ARG);
-  CHECK(ssol_scene_attach_object_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_attach_instance(NULL, instance), RES_BAD_ARG);
+  CHECK(ssol_scene_attach_instance(scene, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
 
-  CHECK(ssol_scene_detach_object_instance(NULL, instance), RES_BAD_ARG);
-  CHECK(ssol_scene_detach_object_instance(scene, NULL), RES_BAD_ARG);
-  CHECK(ssol_scene_detach_object_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_detach_instance(NULL, instance), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_instance(scene, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_instance(scene, instance), RES_OK);
 
-  CHECK(ssol_scene_attach_object_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_clear(NULL), RES_BAD_ARG);
   CHECK(ssol_scene_clear(scene), RES_OK);
 
@@ -88,7 +88,7 @@ main(int argc, char** argv)
 
   CHECK(ssol_scene_ref_put(scene), RES_OK);
 
-  CHECK(ssol_object_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(instance), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);

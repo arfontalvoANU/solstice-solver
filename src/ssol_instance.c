@@ -16,7 +16,7 @@
 #include "ssol.h"
 #include "ssol_object_c.h"
 #include "ssol_shape_c.h"
-#include "ssol_object_instance_c.h"
+#include "ssol_instance_c.h"
 #include "ssol_device_c.h"
 
 #include <rsys/rsys.h>
@@ -30,13 +30,13 @@
  * Helper functions
  ******************************************************************************/
 static void
-object_instance_release(ref_T* ref)
+instance_release(ref_T* ref)
 {
   struct ssol_device* dev;
-  struct ssol_object_instance* instance;
+  struct ssol_instance* instance;
   ASSERT(ref);
 
-  instance = CONTAINER_OF(ref, struct ssol_object_instance, ref);
+  instance = CONTAINER_OF(ref, struct ssol_instance, ref);
   dev = instance->dev;
   ASSERT(dev && dev->allocator);
 
@@ -49,14 +49,14 @@ object_instance_release(ref_T* ref)
 }
 
 /*******************************************************************************
- * Exported ssol_object_instance functions
+ * Exported ssol_instance functions
  ******************************************************************************/
 res_T
 ssol_object_instantiate
   (struct ssol_object* object,
-   struct ssol_object_instance** out_instance)
+   struct ssol_instance** out_instance)
 {
-  struct ssol_object_instance* instance = NULL;
+  struct ssol_instance* instance = NULL;
   struct ssol_device* dev;
 
   res_T res = RES_OK;
@@ -67,8 +67,8 @@ ssol_object_instantiate
 
   dev = object->dev;
   ASSERT(dev && dev->allocator);
-  instance = (struct ssol_object_instance*)MEM_CALLOC
-    (dev->allocator, 1, sizeof(struct ssol_object_instance));
+  instance = (struct ssol_instance*)MEM_CALLOC
+    (dev->allocator, 1, sizeof(struct ssol_instance));
   if (!instance) {
     res = RES_MEM_ERR;
     goto error;
@@ -97,14 +97,14 @@ exit:
   return res;
 error:
   if (instance) {
-    SSOL(object_instance_ref_put(instance));
+    SSOL(instance_ref_put(instance));
     instance = NULL;
   }
   goto exit;
 }
 
 res_T
-ssol_object_instance_ref_get(struct ssol_object_instance* instance)
+ssol_instance_ref_get(struct ssol_instance* instance)
 {
   if(!instance)
     return RES_BAD_ARG;
@@ -113,18 +113,18 @@ ssol_object_instance_ref_get(struct ssol_object_instance* instance)
 }
 
 res_T
-ssol_object_instance_ref_put
-  (struct ssol_object_instance* instance)
+ssol_instance_ref_put
+  (struct ssol_instance* instance)
 {
   if (!instance)
     return RES_BAD_ARG;
-  ref_put(&instance->ref, object_instance_release);
+  ref_put(&instance->ref, instance_release);
   return RES_OK;
 }
 
 res_T
-ssol_object_instance_set_transform
-  (struct ssol_object_instance* instance, const double transform[12])
+ssol_instance_set_transform
+  (struct ssol_instance* instance, const double transform[12])
 {
   float t[12];
   int i;
@@ -152,8 +152,8 @@ error:
 }
 
 res_T
-ssol_object_instance_set_receiver
-  (struct ssol_object_instance* instance,
+ssol_instance_set_receiver
+  (struct ssol_instance* instance,
    const char* name)
 {
   if(!instance)
@@ -168,8 +168,8 @@ ssol_object_instance_set_receiver
 }
 
 res_T
-ssol_object_instance_set_target_mask
-  (struct ssol_object_instance* instance,
+ssol_instance_set_target_mask
+  (struct ssol_instance* instance,
    const uint32_t mask)
 {
   if (!instance)
@@ -180,8 +180,8 @@ ssol_object_instance_set_target_mask
 }
 
 res_T
-ssol_object_instance_is_attached
-  (struct ssol_object_instance* instance, char* is_attached)
+ssol_instance_is_attached
+  (struct ssol_instance* instance, char* is_attached)
 {
   FATAL("Not implemented yet.");
   if(!instance || !is_attached) return RES_BAD_ARG;

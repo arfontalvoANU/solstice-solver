@@ -65,7 +65,7 @@ struct segment {
 };
 
 struct starting_point {
-  struct ssol_object_instance* instance;
+  struct ssol_instance* instance;
   struct ssol_material* material;
   struct s3d_primitive primitive;
   double sundir[3];
@@ -91,7 +91,7 @@ struct solver_data {
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
   /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
-  struct ssol_object_instance* instance;
+  struct ssol_instance* instance;
   struct surface_fragment fragment;
 };
 
