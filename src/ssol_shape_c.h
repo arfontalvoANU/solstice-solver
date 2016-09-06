@@ -35,4 +35,45 @@ struct ssol_shape {
   ref_T ref;
 };
 
+void
+quadric_plane_gradient_local(double grad[3]);
+
+void
+quadric_parabol_gradient_local
+  (double grad[3],
+   const double pt[3],
+   const struct ssol_quadric_parabol* quad);
+
+void
+quadric_parabolic_cylinder_gradient_local
+  (double grad[3],
+   const double pt[3],
+   const struct ssol_quadric_parabolic_cylinder* quad);
+
+int
+quadric_plane_intersect_local
+  (const double org[3],
+   const double dir[3],
+   double pt[3],
+   double grad[3],
+   double* dist);
+
+int
+quadric_parabol_intersect_local
+  (const double org[3],
+   const double dir[3],
+   const struct ssol_quadric_parabol* quad,
+   double pt[3],
+   double grad[3],
+   double* dist);
+
+int
+quadric_parabolic_cylinder_intersect_local
+  (const double org[3],
+   const double dir[3],
+   const struct ssol_quadric_parabolic_cylinder* quad,
+   double pt[3],
+   double grad[3],
+   double* dist);
+
 #endif /* SSOL_SHAPE_C_H */

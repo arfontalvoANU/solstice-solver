@@ -40,25 +40,13 @@ static const char* END_TEXT[] = END_TEXT__;
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
-static INLINE int
-is_instance_punched(const struct ssol_instance* instance)
-{
-  ASSERT(instance);
-  return instance->object->shape->type == SHAPE_PUNCHED;
-}
-
-static INLINE const struct ssol_quadric*
-get_quadric(const struct ssol_instance* instance)
-{
-  ASSERT(instance && is_instance_punched(instance));
-  return &instance->object->shape->quadric;
-}
 
 static FINLINE void
 solstice_trace_ray(struct realisation* rs) 
 {
   float org[3], dir[3];
   struct segment* seg = current_segment(rs);
+
   f3_set_d3(org, seg->org);
   f3_set_d3(dir, seg->dir);
   S3D(scene_view_trace_ray
@@ -113,7 +101,7 @@ set_sun_distributions(struct solver_data* data)
     break;
   default:
     res = RES_OK;
-    FATAL("Unreachable code \n");
+    FATAL("Unreachable code\n");
   }
 
 exit:
@@ -446,7 +434,7 @@ set_output_pos_and_dir(struct realisation* rs) {
   if (fst_segment) {
     const struct ssol_sun* sun = rs->data.scene->sun;
     ASSERT(-1 <= rs->start.cos_sun && rs->start.cos_sun <= 0);
-    seg->weight = sun_get_dni(sun)
+    seg->weight = sun->dni
       * brdf_composite_sample
           (rs->data.brdfs, rs->data.rng, rs->start.sundir, rs->data.fragment.Ns, seg->dir)
       * -rs->start.cos_sun;
@@ -472,20 +460,6 @@ propagate(struct realisation* rs)
   /* should not stop on a virtual surface */
   ASSERT(get_material_from_hit(rs->data.scene, &seg->hit)->type
     != MATERIAL_VIRTUAL);
-
-  /* offset the impact point and recompute normal if needed */
-  ASSERT(rs->data.instance);
-  switch (rs->data.instance->object->shape->type) {
-    case SHAPE_MESH:
-      /* no postprocess needed */
-      break;
-    case SHAPE_PUNCHED:
-      /* project the impact point on the quadric */
-      FATAL("TODO\n");
-      /* compute normal to quadric */
-      break;
-    default: FATAL("Unreachable code\n"); break;
-  }
 
   /* fill fragment from hit and loop */
   d3_muld(seg->hit_pos, seg->dir, (double)seg->hit.distance);

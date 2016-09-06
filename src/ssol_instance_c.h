@@ -41,4 +41,11 @@ instance_get_receiver_name(const struct ssol_instance* instance)
     ? NULL : str_cget(&instance->receiver_name);
 }
 
+static INLINE int
+is_instance_punched(const struct ssol_instance* instance)
+{
+  ASSERT(instance);
+  return instance->object->shape->type == SHAPE_PUNCHED;
+}
+
 #endif /* SSOL_INSTANCE_C_H */

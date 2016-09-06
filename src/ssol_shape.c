@@ -18,6 +18,7 @@
 #include "ssol_device_c.h"
 #include "ssol_shape_c.h"
 
+#include <rsys/double3.h>
 #include <rsys/double2.h>
 #include <rsys/dynamic_array_double.h>
 #include <rsys/dynamic_array_size_t.h>
@@ -534,6 +535,150 @@ shape_release(ref_T* ref)
   if(shape->shape_samp) S3D(shape_ref_put(shape->shape_samp));
   MEM_RM(dev->allocator, shape);
   SSOL(device_ref_put(dev));
+}
+
+/*******************************************************************************
+* Local functions
+******************************************************************************/
+void
+quadric_plane_gradient_local(double grad[3])
+{
+  grad[0] = 0;
+  grad[1] = 0;
+  grad[2] = 1;
+}
+
+void
+quadric_parabol_gradient_local
+  (double grad[3],
+   const double pt[3],
+   const struct ssol_quadric_parabol* quad)
+{
+  grad[0] = -pt[0];
+  grad[1] = -pt[1];
+  grad[2] = 2 * quad->focal;
+}
+
+void
+quadric_parabolic_cylinder_gradient_local
+  (double grad[3],
+   const double pt[3],
+   const struct ssol_quadric_parabolic_cylinder* quad)
+{
+  grad[0] = 0;
+  grad[1] = -pt[1];
+  grad[2] = 2 * quad->focal;
+}
+
+static INLINE double inject_same_sign(double x, double src) {
+  const int64_t sign = (*(int64_t *) (&src)) & 0x8000000000000000;
+  const int64_t value = (*(int64_t *) (&x)) & 0x7FFFFFFFFFFFFFFF;
+  const int64_t result = sign | value;
+  return *(double *) (&result);
+}
+
+int
+solve_second
+  (const double a,
+   const double b,
+   const double c,
+   double* dist)
+{
+  ASSERT(dist);
+  if (a != 0) {
+    /* standard case: 2nd degree */
+    const double delta = b * b - 4 * a * c;
+    if (delta > 0) {
+      const double sqrt_delta = sqrt(delta);
+      /* precise formula */
+      const double t1 = (-b - inject_same_sign(sqrt_delta, b)) / (2 * b);
+      const double t2 = c / (a * t1);
+      if (t1 >= 0) {
+        *dist = t1 < t2 ? t1: t2;
+        return 1;
+      }
+      else if (t2 >= 0) {
+        *dist = t2;
+      }
+      return (t2 >= 0);
+    }
+    else if (delta == 0) {
+      const double t = -b / (2 * a);
+      if (t >= 0) *dist = t;
+      return (t >= 0);
+    }
+    else {
+      return 0;
+    }
+  }
+  else if (b != 0) {
+    /* degenerated case: 1st degree only */
+    const double t = -c / b;
+    if (t >= 0) *dist = t;
+    return (t >= 0);
+  }
+  /* fully degenerated case: cannot determine dist */
+  return 0;
+}
+
+int
+quadric_plane_intersect_local
+  (const double org[3],
+   const double dir[3],
+   double pt[3],
+   double grad[3],
+   double* dist)
+{
+  /* Define z = 0 */
+  const double a = 0;
+  const double b = dir[2];
+  const double c = org[2];
+  int sol = solve_second(a, b, c, dist);
+  if (!sol) return 0;
+  d3_add(pt, org, d3_muld(pt, dir, *dist));
+  quadric_plane_gradient_local(grad);
+  return 1;
+}
+
+int
+quadric_parabol_intersect_local
+  (const double org[3],
+   const double dir[3],
+   const struct ssol_quadric_parabol* quad,
+   double pt[3],
+   double grad[3],
+   double* dist)
+{
+  /* Define x^2 + y^2 - 4 focal z = 0 */
+  const double a = dir[0] * dir[0] + dir[1] * dir[1];
+  const double b = 
+    2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
+  const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
+  int sol = solve_second(a, b, c, dist);
+  if (!sol) return 0;
+  d3_add(pt, org, d3_muld(pt, dir, *dist));
+  quadric_parabol_gradient_local(grad, pt, quad);
+  return 1;
+}
+
+int
+quadric_parabolic_cylinder_intersect_local
+  (const double org[3],
+   const double dir[3],
+   const struct ssol_quadric_parabolic_cylinder* quad,
+   double pt[3],
+   double grad[3],
+   double* dist)
+{
+  /* Define y^2 - 4 focal z = 0 */
+  const double a = dir[1] * dir[1];
+  const double b = 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
+  const double c = org[1] * org[1] - 4 * quad->focal * org[2];
+  int sol = solve_second(a, b, c, dist);
+  if (!sol) return 0;
+  d3_add(pt, org, d3_muld(pt, dir, *dist));
+  quadric_parabolic_cylinder_gradient_local(grad, pt, quad);
+  return 1;
 }
 
 /*******************************************************************************

@@ -20,13 +20,14 @@
 #include "ssol_sun_c.h"
 #include "ssol_device_c.h"
 #include "ssol_material_c.h"
+#include "ssol_shape_c.h"
 #include "ssol_object_c.h"
 #include "ssol_instance_c.h"
 
 #include <rsys/list.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/rsys.h>
-#include <rsys/float3.h>
+#include <rsys/double3.h>
 
 /*******************************************************************************
  * Helper functions
@@ -115,7 +116,7 @@ ssol_scene_attach_instance
   res_T res;
 
   if(!scene || !instance) return RES_BAD_ARG;
-
+  
   /* Attach the instantiated s3d shape to ray-trace to the RT scene */
   res = s3d_scene_attach_shape(scene->scn_rt, instance->shape_rt);
   if(res != RES_OK) return res;
@@ -229,24 +230,24 @@ scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
   htable_instance_begin(&scn->instances_rt, &it);
   htable_instance_end(&scn->instances_rt, &end);
 
-  while(!htable_instance_iterator_eq(&it, &end)) {
+  while (!htable_instance_iterator_eq(&it, &end)) {
     struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     unsigned id;
     htable_instance_iterator_next(&it);
 
     /* TODO: keep only primary mirrors */
-    if(inst->object->material->type != MATERIAL_MIRROR)
+    if (inst->object->material->type != MATERIAL_MIRROR)
       continue;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
-    if(res != RES_OK) goto error;
+    if (res != RES_OK) goto error;
 
     /* Register the instantiated s3d sampling shape */
     S3D(shape_get_id(inst->shape_samp, &id));
     ASSERT(!htable_instance_find(&scn->instances_samp, &id));
     res = htable_instance_set(&scn->instances_samp, &id, &inst);
-    if(res != RES_OK) goto error;
+    if (res != RES_OK) goto error;
 
     /* Do not get a reference onto the instance since it was already referenced
      * by the scene on its attachment */
@@ -278,7 +279,7 @@ hit_filter_function
   struct segment* prev;
   int front_face = 0;
 
-  (void) filter_data;
+  (void) filter_data, (void) org, (void) dir;
   ASSERT(rs);
   prev = previous_segment(rs);
   seg = current_segment(rs);
@@ -290,17 +291,44 @@ hit_filter_function
     return 1; /* Discard self intersection */
 
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
+  
+  if (is_instance_punched(inst)) {
+    /* hits on quadrics must be recomputed more accurately */
+    double dist;
+    switch (inst->object->shape->quadric.type) {
+    case SSOL_QUADRIC_PLANE: {
+      int ok = quadric_plane_intersect_local(
+        seg->org, seg->dir, seg->hit_pos, seg->hit_normal, &dist);
+      if (!ok) return 1; /* invalid impact */
+      break;
+    }
+    case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+      const struct ssol_quadric_parabolic_cylinder* quad
+        = (struct ssol_quadric_parabolic_cylinder*)&inst->object->shape->quadric;
+      int ok = quadric_parabolic_cylinder_intersect_local(
+        seg->org, seg->dir, quad, seg->hit_pos, seg->hit_normal, &dist);
+      if (!ok) return 1; /* invalid impact */
+      break;
+    }
+    case SSOL_QUADRIC_PARABOL: {
+      const struct ssol_quadric_parabol* quad
+        = (struct ssol_quadric_parabol*)&inst->object->shape->quadric;
+      int ok = quadric_parabol_intersect_local(
+        seg->org, seg->dir, quad, seg->hit_pos, seg->hit_normal, &dist);
+      if (!ok) return 1; /* invalid impact */
+      break;
+    }
+    default: FATAL("Unreachable code\n"); break;
+    }
+  }
 
   /* Check if the hit surface is a receiver that registers hit data */
   receiver_name = instance_get_receiver_name(inst);
   if(receiver_name) {
-    float cos_in;
+    double cos_in;
     /* check normal orientation */
-    cos_in = f3_dot(hit->normal, dir);
+    cos_in = d3_dot(seg->hit_normal, seg->dir);
     if (cos_in < 0) {
-      float pos[3];
-
-      f3_set(pos, f3_add(pos, org, f3_mulf(pos, dir, hit->distance)));
       front_face = 1;
       fprintf(rs->data.out_stream,
         "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
@@ -309,8 +337,8 @@ hit_filter_function
         (unsigned)rs->s_idx,
         rs->freq,
         seg->weight,
-        SPLIT3(pos),
-        SPLIT3(dir),
+        SPLIT3(seg->hit_pos),
+        SPLIT3(seg->dir),
         SPLIT2(hit->uv));
     }
   }

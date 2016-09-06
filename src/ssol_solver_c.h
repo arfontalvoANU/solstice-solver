@@ -62,6 +62,7 @@ struct segment {
   struct s3d_hit hit;
   double org[3], dir[4];
   double hit_pos[3];
+  double hit_normal[3];
 };
 
 struct starting_point {
