@@ -37,9 +37,7 @@ static const struct surface_fragment SURFACE_FRAGMENT_NULL =
 enum material_type {
   MATERIAL_VIRTUAL,
   MATERIAL_MIRROR,
-
-  MATERIAL_FIRST_TYPE = MATERIAL_VIRTUAL,
-  MATERIAL_LAST_TYPE = MATERIAL_MIRROR
+  MATERIAL_TYPES_COUNT__
 };
 
 struct ssol_material {

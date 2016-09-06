@@ -22,7 +22,8 @@
 enum sun_type {
   SUN_DIRECTIONAL,
   SUN_PILLBOX,
-  SUN_BUIE
+  SUN_BUIE,
+  SUN_TYPES_COUNT__
 };
 
 struct pillbox {

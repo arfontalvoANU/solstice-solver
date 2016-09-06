@@ -47,7 +47,7 @@ sun_create
 {
   struct ssol_sun* sun = NULL;
   res_T res = RES_OK;
-  if (!dev || !out_sun) {
+  if (!dev || !out_sun || type >= SUN_TYPES_COUNT__) {
     return RES_BAD_ARG;
   }
 

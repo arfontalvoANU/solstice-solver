@@ -104,8 +104,7 @@ ssol_material_create
   res_T res = RES_OK;
   if(!dev
   || !out_material
-  || type < MATERIAL_FIRST_TYPE
-  || type > MATERIAL_LAST_TYPE) {
+  || type >= MATERIAL_TYPES_COUNT__) {
     return RES_BAD_ARG;
   }
 
@@ -140,8 +139,7 @@ ssol_material_ref_get(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(material->type >= MATERIAL_FIRST_TYPE);
-  ASSERT(material->type <= MATERIAL_LAST_TYPE);
+  ASSERT(material->type < MATERIAL_TYPES_COUNT__);
   ref_get(&material->ref);
   return RES_OK;
 }
@@ -151,8 +149,7 @@ ssol_material_ref_put(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(material->type >= MATERIAL_FIRST_TYPE);
-  ASSERT(material->type <= MATERIAL_LAST_TYPE);
+  ASSERT(material->type < MATERIAL_TYPES_COUNT__);
   ref_put(&material->ref, material_release);
   return RES_OK;
 }
