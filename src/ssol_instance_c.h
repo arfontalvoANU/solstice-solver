@@ -19,27 +19,18 @@
 #include <rsys/list.h>
 #include <rsys/ref_count.h>
 #include <rsys/str.h>
-
-struct ssol_instance
-{
+struct ssol_instance {
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
-  struct str receiver_name; /* Empty if not a receiver */
-  double transform[12];
+  struct str receiver_front; /* Empty if front faces are not receivers */
+  struct str receiver_back; /* Empty if back faces are not receivers */
+  double transform[12]; /* Column major 4x3 affine transformation */
   uint32_t target_mask;
 
   struct ssol_device* dev;
   ref_T ref;
 };
-
-static INLINE const char*
-instance_get_receiver_name(const struct ssol_instance* instance)
-{
-  ASSERT(instance);
-  return str_is_empty(&instance->receiver_name)
-    ? NULL : str_cget(&instance->receiver_name);
-}
 
 static INLINE int
 is_instance_punched(const struct ssol_instance* instance)

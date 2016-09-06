@@ -25,7 +25,8 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_shape* shape;
-  struct ssol_material* material;
+  struct ssol_material* mtl;
+  struct ssol_material* mtl2;
   struct ssol_object* object;
   (void) argc, (void) argv;
 
@@ -38,29 +39,31 @@ main(int argc, char** argv)
 
   CHECK(ssol_device_create
     (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
-  CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
+  CHECK(ssol_material_create_virtual(dev, &mtl), RES_OK);
+  CHECK(ssol_material_create_virtual(dev, &mtl2), RES_OK);
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
 
-  CHECK(ssol_object_create(NULL, shape, material, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, NULL, material, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, shape, NULL, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, shape, material, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, shape, material, &object), RES_OK);
+  CHECK(ssol_object_create(NULL, shape, mtl, NULL, &object), RES_BAD_ARG);
+  CHECK(ssol_object_create(dev, NULL, mtl, NULL, &object), RES_BAD_ARG);
+  CHECK(ssol_object_create(dev, shape, NULL, mtl, &object), RES_BAD_ARG);
+  CHECK(ssol_object_create(dev, shape, mtl, mtl, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_create(dev, shape, mtl, mtl, &object), RES_OK);
 
   CHECK(ssol_object_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_object_ref_get(object), RES_OK);
-
   CHECK(ssol_object_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_object_ref_put(object), RES_OK);
+  CHECK(ssol_object_ref_put(object), RES_OK);
+
+  CHECK(ssol_object_create(dev, shape, mtl, mtl2, &object), RES_OK);
 
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
-  CHECK(ssol_material_ref_put(material), RES_OK);
-
+  CHECK(ssol_material_ref_put(mtl), RES_OK);
+  CHECK(ssol_material_ref_put(mtl2), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   logger_release(&logger);
-
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
   CHECK(mem_allocated_size(), 0);

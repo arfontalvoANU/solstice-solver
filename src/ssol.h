@@ -382,7 +382,8 @@ SSOL_API res_T
 ssol_object_create
   (struct ssol_device* dev,
    struct ssol_shape* shape,
-   struct ssol_material* mtl,
+   struct ssol_material* mtl_front, /* Material to apply to front faces */
+   struct ssol_material* mtl_back, /* Material to apply to back faces */
    struct ssol_object** obj);
 
 SSOL_API res_T
@@ -420,7 +421,8 @@ ssol_instance_set_transform
 SSOL_API res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const char* name); /* May be NULL <=> it is no more a receiver */
+   const char* name_front, /* May be NULL <=> Front faces are no more receivers */
+   const char* name_back); /* May be NULL <=> back faces are no more receivers */
 
 SSOL_API res_T
 ssol_instance_set_target_mask

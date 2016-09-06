@@ -20,7 +20,8 @@
 
 struct ssol_object {
   struct ssol_shape* shape;
-  struct ssol_material* material;
+  struct ssol_material* mtl_front; /* Front faces material */
+  struct ssol_material* mtl_back; /* Back faces material */
 
   struct s3d_scene* scn_rt; /* RT scene to instantiate */
   struct s3d_scene* scn_samp; /* Sampling scene to instantiate */

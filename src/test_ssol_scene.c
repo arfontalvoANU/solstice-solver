@@ -47,7 +47,7 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
 
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
-  CHECK(ssol_object_create(dev, shape, material, &object), RES_OK);
+  CHECK(ssol_object_create(dev, shape, material, material, &object), RES_OK);
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
   CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);

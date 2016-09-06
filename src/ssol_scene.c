@@ -236,7 +236,8 @@ scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
     htable_instance_iterator_next(&it);
 
     /* TODO: keep only primary mirrors */
-    if (inst->object->material->type != MATERIAL_MIRROR)
+    if(inst->object->mtl_front->type != MATERIAL_MIRROR
+    && inst->object->mtl_back->type != MATERIAL_MIRROR)
       continue;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
@@ -273,8 +274,9 @@ hit_filter_function
    void* filter_data)
 {
   struct ssol_instance* inst;
-  const char* receiver_name;
+  const struct str* receiver_name;
   struct realisation* rs = realisation;
+  struct ssol_material* mtl;
   struct segment* seg;
   struct segment* prev;
   int front_face = 0;
@@ -322,36 +324,37 @@ hit_filter_function
     }
   }
 
+  front_face = d3_dot(seg->hit_normal, seg->dir) < 0;
+
+  if(front_face) {
+    mtl = inst->object->mtl_front;
+    receiver_name = &inst->receiver_front;
+  } else {
+    mtl = inst->object->mtl_back;
+    receiver_name = &inst->receiver_back;
+  }
+
   /* Check if the hit surface is a receiver that registers hit data */
-  receiver_name = instance_get_receiver_name(inst);
-  if(receiver_name) {
-    double cos_in;
-    /* check normal orientation */
-    cos_in = d3_dot(seg->hit_normal, seg->dir);
-    if (cos_in < 0) {
-      front_face = 1;
-      fprintf(rs->data.out_stream,
-        "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-        receiver_name,
-        (unsigned)rs->rs_id,
-        (unsigned)rs->s_idx,
-        rs->freq,
-        seg->weight,
-        SPLIT3(seg->hit_pos),
-        SPLIT3(seg->dir),
-        SPLIT2(hit->uv));
-    }
+  if (str_is_empty(receiver_name)) {
+    fprintf(rs->data.out_stream,
+      "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
+      str_cget(receiver_name),
+      (unsigned) rs->rs_id,
+      (unsigned) rs->s_idx,
+      rs->freq,
+      seg->weight,
+      SPLIT3(seg->hit_pos),
+      SPLIT3(seg->dir),
+      SPLIT2(hit->uv));
   }
 
   /* register success mask */
   if(front_face) {
     rs->success_mask |= inst->target_mask;
   }
-
-  if(inst->object->material->type == MATERIAL_VIRTUAL) {
+  if(mtl->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }
-
   rs->data.instance = inst;
   return 0;
 }

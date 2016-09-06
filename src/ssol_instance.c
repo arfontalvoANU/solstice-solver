@@ -43,7 +43,8 @@ instance_release(ref_T* ref)
   SSOL(object_ref_put(instance->object));
   if(instance->shape_rt) S3D(shape_ref_put(instance->shape_rt));
   if(instance->shape_samp) S3D(shape_ref_put(instance->shape_samp));
-  str_release(&instance->receiver_name);
+  str_release(&instance->receiver_front);
+  str_release(&instance->receiver_back);
   MEM_RM(dev->allocator, instance);
   SSOL(device_ref_put(dev));
 }
@@ -79,7 +80,8 @@ ssol_object_instantiate
   d33_set_identity(instance->transform);
   d3_splat(instance->transform + 9, 0);
   instance->target_mask = 0;
-  str_init(dev->allocator, &instance->receiver_name);
+  str_init(dev->allocator, &instance->receiver_front);
+  str_init(dev->allocator, &instance->receiver_back);
   SSOL(object_ref_get(object));
   SSOL(device_ref_get(dev));
   ref_init(&instance->ref);
@@ -154,17 +156,38 @@ error:
 res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const char* name)
+   const char* name_front,
+   const char* name_back)
 {
-  if(!instance)
-    return RES_BAD_ARG;
+  struct str front;
+  struct str back;
+  res_T res = RES_OK;
 
-  if(name) {
-    return str_set(&instance->receiver_name, name);
-  } else {
-    str_clear(&instance->receiver_name);
-    return RES_OK;
+  if(!instance) return RES_BAD_ARG;
+
+  str_init(instance->dev->allocator, &front);
+  str_init(instance->dev->allocator, &back);
+
+  if(name_front) {
+    res = str_set(&front, name_front);
+    if(res != RES_OK) goto error;
   }
+  if(name_back) {
+    res = str_set(&back, name_back);
+    if(res != RES_OK) goto error;
+  }
+
+  res = str_copy_and_release(&instance->receiver_front, &front);
+  ASSERT(res == RES_OK);
+  res = str_copy_and_release(&instance->receiver_back, &back);
+  ASSERT(res == RES_OK);
+
+exit:
+  return res;
+error:
+  str_release(&front);
+  str_release(&back);
+  goto exit;
 }
 
 res_T

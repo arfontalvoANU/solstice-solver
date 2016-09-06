@@ -18,23 +18,13 @@
 #include "ssol_object_c.h"
 #include "ssol_shape_c.h"
 
+#include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
-#include <rsys/ref_count.h>
 
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
-static INLINE res_T
-object_ok(const struct ssol_object* object)
-{
-  if(!object
-  || !object->shape
-  || !object->material)
-    return RES_BAD_ARG;
-  return RES_OK;
-}
-
 static void
 object_release(ref_T* ref)
 {
@@ -44,7 +34,8 @@ object_release(ref_T* ref)
   dev = object->dev;
   ASSERT(dev && dev->allocator);
   SSOL(shape_ref_put(object->shape));
-  SSOL(material_ref_put(object->material));
+  SSOL(material_ref_put(object->mtl_front));
+  SSOL(material_ref_put(object->mtl_back));
   if(object->scn_rt) S3D(scene_ref_put(object->scn_rt));
   if(object->scn_samp) S3D(scene_ref_put(object->scn_samp));
   MEM_RM(dev->allocator, object);
@@ -58,28 +49,32 @@ res_T
 ssol_object_create
   (struct ssol_device* dev,
    struct ssol_shape* shape,
-   struct ssol_material* material,
+   struct ssol_material* mtl_front,
+   struct ssol_material* mtl_back,
    struct ssol_object** out_object)
 {
   struct ssol_object* object = NULL;
   res_T res = RES_OK;
-  if (!dev || !shape || !material || !out_object) {
-    return RES_BAD_ARG;
+
+  if(!dev || !shape || !mtl_front || !mtl_back || !out_object) {
+    res = RES_BAD_ARG;
+    goto error;
   }
 
-  object = (struct ssol_object*)MEM_CALLOC
-    (dev->allocator, 1, sizeof(struct ssol_object));
-  if (!object) {
+  object = MEM_CALLOC(dev->allocator, 1, sizeof(struct ssol_object));
+  if(!object) {
     res = RES_MEM_ERR;
     goto error;
   }
   /* Check if material/shape association is legit: TODO */
   SSOL(shape_ref_get(shape));
-  SSOL(material_ref_get(material));
+  SSOL(material_ref_get(mtl_front));
+  SSOL(material_ref_get(mtl_back));
   SSOL(device_ref_get(dev));
   object->dev = dev;
   object->shape = shape;
-  object->material = material;
+  object->mtl_front = mtl_front;
+  object->mtl_back = mtl_back;
   ref_init(&object->ref);
 
   /* Create the Star-3D RT scene to instantiate through the instance */
@@ -95,10 +90,10 @@ ssol_object_create
   if(res != RES_OK) goto error;
 
 exit:
-  if (out_object) *out_object = object;
+  if(out_object) *out_object = object;
   return res;
 error:
-  if (object) {
+  if(object) {
     SSOL(object_ref_put(object));
     object = NULL;
   }
@@ -108,8 +103,7 @@ error:
 res_T
 ssol_object_ref_get(struct ssol_object* object)
 {
-  if (!object)
-    return RES_BAD_ARG;
+  if(!object) return RES_BAD_ARG;
   ref_get(&object->ref);
   return RES_OK;
 }
@@ -117,8 +111,7 @@ ssol_object_ref_get(struct ssol_object* object)
 res_T
 ssol_object_ref_put(struct ssol_object* object)
 {
-  if (!object)
-    return RES_BAD_ARG;
+  if(!object) return RES_BAD_ARG;
   ref_put(&object->ref, object_release);
   return RES_OK;
 }
