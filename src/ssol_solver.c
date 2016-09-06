@@ -219,19 +219,13 @@ next_segment(struct realisation* rs)
   return RES_OK;
 }
 
-/* TODO: move to Star3D */
-static INLINE void s3d_invalidate_hit(struct s3d_hit* hit) {
-  ASSERT(hit);
-  hit->distance = FLT_MAX;
-}
-
 void
 reset_segment(struct segment* seg)
 {
   ASSERT(seg);
   seg->range[0] = 0;
   seg->range[1] = FLT_MAX;
-  s3d_invalidate_hit(&seg->hit);
+  seg->hit = S3D_HIT_NULL;
 }
 
 static void
