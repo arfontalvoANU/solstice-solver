@@ -538,8 +538,8 @@ shape_release(ref_T* ref)
 }
 
 /*******************************************************************************
-* Local functions
-******************************************************************************/
+ * Local functions
+ ******************************************************************************/
 void
 quadric_plane_gradient_local(double grad[3])
 {
@@ -570,19 +570,22 @@ quadric_parabolic_cylinder_gradient_local
   grad[2] = 2 * quad->focal;
 }
 
-static INLINE double inject_same_sign(double x, double src) {
-  const int64_t sign = (*(int64_t *) (&src)) & 0x8000000000000000;
-  const int64_t value = (*(int64_t *) (&x)) & 0x7FFFFFFFFFFFFFFF;
-  const int64_t result = sign | value;
-  return *(double *) (&result);
+static INLINE double
+inject_same_sign(const double x, const double src)
+{
+  union { uint64_t i64; double d; } ucast;
+  uint64_t sign, value;
+
+  ucast.d = src;
+  sign = ucast.i64 & 0x8000000000000000;
+  ucast.d = x;
+  value = ucast.i64 & 0x7FFFFFFFFFFFFFFF;
+  ucast.i64 = sign | value;
+  return ucast.d;
 }
 
-int
-solve_second
-  (const double a,
-   const double b,
-   const double c,
-   double* dist)
+static int
+solve_second(const double a, const double b, const double c, double* dist)
 {
   ASSERT(dist);
   if (a != 0) {
@@ -651,7 +654,7 @@ quadric_parabol_intersect_local
 {
   /* Define x^2 + y^2 - 4 focal z = 0 */
   const double a = dir[0] * dir[0] + dir[1] * dir[1];
-  const double b = 
+  const double b =
     2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
   int sol = solve_second(a, b, c, dist);
