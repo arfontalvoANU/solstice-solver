@@ -343,7 +343,7 @@ hit_filter_function
   }
 
   /* Check if the hit surface is a receiver that registers hit data */
-  if (str_is_empty(receiver_name)) {
+  if (!str_is_empty(receiver_name)) {
     fprintf(rs->data.out_stream,
       "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
       str_cget(receiver_name),

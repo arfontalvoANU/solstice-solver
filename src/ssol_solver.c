@@ -408,7 +408,7 @@ receive_sunlight(struct realisation* rs)
   } else {
     receiver_name = &rs->start.instance->receiver_back;
   }
-  if(str_is_empty(receiver_name)) {
+  if(!str_is_empty(receiver_name)) {
     /* normal orientation has already been checked */
     fprintf(rs->data.out_stream,
       "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
