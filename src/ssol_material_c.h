@@ -56,7 +56,7 @@ surface_fragment_setup
   (struct surface_fragment* fragment,
    const double pos[3],
    const double dir[3],
-   const float normal[3],
+   const double normal[3],
    const struct s3d_primitive* primitive,
    const float uv[2]);
 

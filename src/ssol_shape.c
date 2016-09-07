@@ -697,6 +697,94 @@ quadric_parabolic_cylinder_intersect_local
   return 1;
 }
 
+void
+punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3]) {
+  ASSERT(shape && pt);
+  ASSERT(shape->type == SHAPE_PUNCHED);
+  switch (shape->quadric.type) {
+  case SSOL_QUADRIC_PLANE: {
+    pt[2] = 0;
+    break;
+  }
+  case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+    const struct ssol_quadric_parabolic_cylinder* quad
+      = (struct ssol_quadric_parabolic_cylinder*)&shape->quadric;
+    pt[2] = (pt[1] * pt[1]) / (4.0 * quad->focal);
+    break;
+  }
+  case SSOL_QUADRIC_PARABOL: {
+    const struct ssol_quadric_parabol* quad
+      = (struct ssol_quadric_parabol*)&shape->quadric;
+    pt[2] = (pt[0] * pt[0] + pt[1] * pt[1]) / (4.0 * quad->focal);
+    break;
+  }
+  default: FATAL("Unreachable code\n"); break;
+  }
+}
+
+void
+punched_shape_set_normal_local
+  (const struct ssol_shape* shape,
+   const double pt[3],
+   double normal[3])
+{
+  ASSERT(shape && pt);
+  ASSERT(shape->type == SHAPE_PUNCHED);
+  switch (shape->quadric.type) {
+  case SSOL_QUADRIC_PLANE: {
+    quadric_plane_gradient_local(normal);
+    break;
+  }
+  case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+    const struct ssol_quadric_parabolic_cylinder* quad
+      = (struct ssol_quadric_parabolic_cylinder*)&shape->quadric;
+    quadric_parabolic_cylinder_gradient_local(quad, pt, normal);
+    break;
+  }
+  case SSOL_QUADRIC_PARABOL: {
+    const struct ssol_quadric_parabol* quad
+      = (struct ssol_quadric_parabol*)&shape->quadric;
+    quadric_parabol_gradient_local(quad, pt, normal);
+    break;
+  }
+  default: FATAL("Unreachable code\n"); break;
+  }
+}
+
+int
+punched_shape_intersect_local
+  (const struct ssol_shape* shape,
+   const double org[3],
+   const double dir[3],
+   const double hint,
+   double pt[3],
+   double normal[3],
+   double* dist)
+{
+  ASSERT(shape && org && dir && hint >= 0 && pt && normal && dist);
+  ASSERT(shape->type == SHAPE_PUNCHED);
+  /* hits on quadrics must be recomputed more accurately */
+  switch (shape->quadric.type) {
+  case SSOL_QUADRIC_PLANE: {
+    return quadric_plane_intersect_local(org, dir, pt, normal, dist);
+  }
+  case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+    const struct ssol_quadric_parabolic_cylinder* quad
+      = (struct ssol_quadric_parabolic_cylinder*)&shape->quadric;
+    return quadric_parabolic_cylinder_intersect_local(
+      quad, org, dir, hint, pt, normal, dist);
+  }
+  case SSOL_QUADRIC_PARABOL: {
+    const struct ssol_quadric_parabol* quad
+      = (struct ssol_quadric_parabol*)&shape->quadric;
+    return quadric_parabol_intersect_local(
+      quad, org, dir, hint, pt, normal, dist);
+  }
+  default: FATAL("Unreachable code\n"); break;
+  }
+  return 0;
+}
+
 /*******************************************************************************
  * Exported ssol_shape functions
  ******************************************************************************/

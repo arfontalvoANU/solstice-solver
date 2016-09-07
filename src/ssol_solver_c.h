@@ -71,8 +71,11 @@ struct starting_point {
   struct ssol_material* material;
   struct s3d_primitive primitive;
   double sundir[3];
+  double pos[3];
+  double normal[3];
   double cos_sun;
   float uv[2];
+  int front_exposed;
 };
 
 #include <rsys/dynamic_array.h>

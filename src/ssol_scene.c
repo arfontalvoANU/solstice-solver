@@ -296,40 +296,18 @@ hit_filter_function
   
   if (inst->object->shape->type == SHAPE_PUNCHED) {
     /* hits on quadrics must be recomputed more accurately */
-    switch (inst->object->shape->quadric.type) {
-    case SSOL_QUADRIC_PLANE: {
-      int ok = quadric_plane_intersect_local(
-        seg->org, seg->dir, seg->hit_pos, seg->hit_normal, &seg->dist);
-      if (!ok) return 1; /* invalid impact */
-      break;
-    }
-    case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
-      const struct ssol_quadric_parabolic_cylinder* quad
-        = (struct ssol_quadric_parabolic_cylinder*)&inst->object->shape->quadric;
-      int ok = quadric_parabolic_cylinder_intersect_local(
-        quad, seg->org, seg->dir, hit->distance, seg->hit_pos, seg->hit_normal, &seg->dist);
-      if (!ok) return 1; /* invalid impact */
-      break;
-    }
-    case SSOL_QUADRIC_PARABOL: {
-      const struct ssol_quadric_parabol* quad
-        = (struct ssol_quadric_parabol*)&inst->object->shape->quadric;
-      int ok = quadric_parabol_intersect_local(
-        quad, seg->org, seg->dir, hit->distance, seg->hit_pos, seg->hit_normal, &seg->dist);
-      if (!ok) return 1; /* invalid impact */
-      break;
-    }
-    default: FATAL("Unreachable code\n"); break;
-    }
+    /* FIXME: use world2local and local2world transform */
+    int valid = punched_shape_intersect_local(inst->object->shape, seg->org, 
+      seg->dir, hit->distance, seg->hit_pos, seg->hit_normal, &seg->dist);
+    if (!valid) return 1;
   }
   else {
+    double* from = prev ? prev->hit_pos : rs->start.pos;
     ASSERT(inst->object->shape->type == SHAPE_MESH);
-    /* just copy raytracing results to segment */
-    float pos[3];
-    f3_add(pos, org, f3_mulf(pos, dir, hit->distance));
-    d3_set_f3(seg->hit_pos, pos);
     d3_set_f3(seg->hit_normal, hit->normal);
     seg->dist = hit->distance;
+    /* use raytraced distance to fill hit_pos */
+    d3_add(seg->hit_pos, from, d3_muld(seg->hit_pos, seg->dir, hit->distance));
   }
 
   front_face = d3_dot(seg->hit_normal, seg->dir) < 0;

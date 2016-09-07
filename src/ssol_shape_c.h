@@ -16,6 +16,8 @@
 #ifndef SSOL_SHAPE_C_H
 #define SSOL_SHAPE_C_H
 
+#include "ssol.h"
+
 #include <rsys/ref_count.h>
 
 enum shape_type {
@@ -35,48 +37,36 @@ struct ssol_shape {
   ref_T ref;
 };
 
+/*
+ * Compute the z value from x,y according to the punched face quadric's equation
+ */
 extern LOCAL_SYM void
-quadric_plane_gradient_local
-  (double grad[3]);
+punched_shape_set_z_local
+  (const struct ssol_shape* shape,
+   double pt[3]);
 
+/*
+* set the normal to a punched shape at pt
+*/
 extern LOCAL_SYM void
-quadric_parabol_gradient_local
-  (const struct ssol_quadric_parabol* quad,
+punched_shape_set_normal_local
+  (const struct ssol_shape* shape,
    const double pt[3],
-   double grad[3]);
+   double normal[3]);
 
-extern LOCAL_SYM void
-quadric_parabolic_cylinder_gradient_local
-  (const struct ssol_quadric_parabolic_cylinder* quad,
-   const double pt[3],
-   double grad[3]);
-
+/* 
+ * Search for an exact ray intersection on a punched shape
+ * hint is an estimate of the distance (can be from raytracing)
+ * Return 1 on success
+ */
 extern LOCAL_SYM int
-quadric_plane_intersect_local
-  (const double org[3],
-   const double dir[3],
-   double pt[3],
-   double grad[3],
-   double* dist);
-
-extern LOCAL_SYM int
-quadric_parabol_intersect_local
-  (const struct ssol_quadric_parabol* quad,
+punched_shape_intersect_local
+  (const struct ssol_shape* shape,
    const double org[3],
    const double dir[3],
    const double hint,
    double pt[3],
-   double grad[3],
-   double* dist);
-
-extern LOCAL_SYM int
-quadric_parabolic_cylinder_intersect_local
-  (const struct ssol_quadric_parabolic_cylinder* quad,
-   const double org[3],
-   const double dir[3],
-   const double hint,
-   double pt[3],
-   double grad[3],
+   double normal[3],
    double* dist);
 
 #endif /* SSOL_SHAPE_C_H */

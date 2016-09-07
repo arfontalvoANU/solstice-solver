@@ -190,7 +190,7 @@ surface_fragment_setup
   (struct surface_fragment* fragment,
    const double pos[3],
    const double dir[3],
-   const float normal[3],
+   const double normal[3],
    const struct s3d_primitive* primitive,
    const float uv[2])
 {
@@ -205,7 +205,7 @@ surface_fragment_setup
   d3_set(fragment->pos, pos);
 
   /* Normalize the geometry normal */
-  d3_set_f3(fragment->Ng, normal);
+  d3_set(fragment->Ng, normal);
   d3_normalize(fragment->Ng, fragment->Ng);
 
   /* Retrieve the tex coord */
@@ -243,6 +243,7 @@ surface_fragment_setup
     }
     d3_set_f3(fragment->Ns, attr.value);
     d3_normalize(fragment->Ns, fragment->Ns);
+    /* FIXME: flip normal if backface??? */
   }
 }
 
