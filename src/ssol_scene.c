@@ -294,13 +294,12 @@ hit_filter_function
 
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
   
-  if (is_instance_punched(inst)) {
+  if (inst->object->shape->type == SHAPE_PUNCHED) {
     /* hits on quadrics must be recomputed more accurately */
-    double dist;
     switch (inst->object->shape->quadric.type) {
     case SSOL_QUADRIC_PLANE: {
       int ok = quadric_plane_intersect_local(
-        seg->org, seg->dir, seg->hit_pos, seg->hit_normal, &dist);
+        seg->org, seg->dir, seg->hit_pos, seg->hit_normal, &seg->dist);
       if (!ok) return 1; /* invalid impact */
       break;
     }
@@ -308,7 +307,7 @@ hit_filter_function
       const struct ssol_quadric_parabolic_cylinder* quad
         = (struct ssol_quadric_parabolic_cylinder*)&inst->object->shape->quadric;
       int ok = quadric_parabolic_cylinder_intersect_local(
-        seg->org, seg->dir, quad, seg->hit_pos, seg->hit_normal, &dist);
+        quad, seg->org, seg->dir, hit->distance, seg->hit_pos, seg->hit_normal, &seg->dist);
       if (!ok) return 1; /* invalid impact */
       break;
     }
@@ -316,12 +315,21 @@ hit_filter_function
       const struct ssol_quadric_parabol* quad
         = (struct ssol_quadric_parabol*)&inst->object->shape->quadric;
       int ok = quadric_parabol_intersect_local(
-        seg->org, seg->dir, quad, seg->hit_pos, seg->hit_normal, &dist);
+        quad, seg->org, seg->dir, hit->distance, seg->hit_pos, seg->hit_normal, &seg->dist);
       if (!ok) return 1; /* invalid impact */
       break;
     }
     default: FATAL("Unreachable code\n"); break;
     }
+  }
+  else {
+    ASSERT(inst->object->shape->type == SHAPE_MESH);
+    /* just copy raytracing results to segment */
+    float pos[3];
+    f3_add(pos, org, f3_mulf(pos, dir, hit->distance));
+    d3_set_f3(seg->hit_pos, pos);
+    d3_set_f3(seg->hit_normal, hit->normal);
+    seg->dist = hit->distance;
   }
 
   front_face = d3_dot(seg->hit_normal, seg->dir) < 0;

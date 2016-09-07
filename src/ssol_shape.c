@@ -537,8 +537,16 @@ inject_same_sign(const double x, const double src)
   return ucast.d;
 }
 
+/* solve a 2nd degree equation
+   hint is used to select among the 2 solutions (if applies)
+   the selected solution is then the closest to hint positive value */
 static int
-quadric_solve_second(const double a, const double b, const double c, double* dist)
+quadric_solve_second
+  (const double a,
+   const double b,
+   const double c,
+   const double hint,
+   double* dist)
 {
   ASSERT(dist);
   if (a != 0) {
@@ -549,25 +557,32 @@ quadric_solve_second(const double a, const double b, const double c, double* dis
       /* precise formula */
       const double t1 = (-b - inject_same_sign(sqrt_delta, b)) / (2 * b);
       const double t2 = c / (a * t1);
-      if (t1 >= 0) {
-        *dist = t1 < t2 ? t1: t2;
+      if (t1 < 0 && t2 < 0) return 0; /* no positive solution */
+      if (t1 < 0) {
+        *dist = t2; /* t2 is the only positive solution */
         return 1;
-      } else if (t2 >= 0) {
-        *dist = t2;
       }
-      return (t2 >= 0);
+      if (t2 < 0) {
+        *dist = t1; /* t1 is the only positive solution */
+        return 1;
+      }
+      /* both t1 and t2 are positive: choose the closest value to hint */
+      *dist = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
+      return 1;
     } else if (delta == 0) {
       const double t = -b / (2 * a);
-      if (t >= 0) *dist = t;
-      return (t >= 0);
+      if (t < 0) return 0; /* no positive solution */
+      *dist = t;
+      return 1;
     } else {
       return 0;
     }
   } else if (b != 0) {
     /* degenerated case: 1st degree only */
     const double t = -c / b;
-    if (t >= 0) *dist = t;
-    return (t >= 0);
+    if (t < 0) return 0; /* no positive solution */
+    *dist = t;
+    return 1;
   }
   /* fully degenerated case: cannot determine dist */
   return 0;
@@ -600,9 +615,9 @@ quadric_plane_gradient_local(double grad[3])
 
 void
 quadric_parabol_gradient_local
-  (double grad[3],
+  (const struct ssol_quadric_parabol* quad,
    const double pt[3],
-   const struct ssol_quadric_parabol* quad)
+   double grad[3])
 {
   grad[0] = -pt[0];
   grad[1] = -pt[1];
@@ -611,9 +626,9 @@ quadric_parabol_gradient_local
 
 void
 quadric_parabolic_cylinder_gradient_local
-  (double grad[3],
+  (const struct ssol_quadric_parabolic_cylinder* quad,
    const double pt[3],
-   const struct ssol_quadric_parabolic_cylinder* quad)
+   double grad[3])
 {
   grad[0] = 0;
   grad[1] = -pt[1];
@@ -628,11 +643,11 @@ quadric_plane_intersect_local
    double grad[3],
    double* dist)
 {
-  /* Define z = 0 */
+  /* Define 0 z^2 + z + 0 = 0 */
   const double a = 0;
   const double b = dir[2];
   const double c = org[2];
-  int sol = quadric_solve_second(a, b, c, dist);
+  int sol = quadric_solve_second(a, b, c, 0, dist);
   if (!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_plane_gradient_local(grad);
@@ -641,30 +656,32 @@ quadric_plane_intersect_local
 
 int
 quadric_parabol_intersect_local
-  (const double org[3],
+  (const struct ssol_quadric_parabol* quad,
+   const double org[3],
    const double dir[3],
-   const struct ssol_quadric_parabol* quad,
+   const double hint,
    double pt[3],
    double grad[3],
-   double* dist)
+   double* dist) /* in/out: */
 {
   /* Define x^2 + y^2 - 4 focal z = 0 */
   const double a = dir[0] * dir[0] + dir[1] * dir[1];
   const double b =
     2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
-  const int sol = quadric_solve_second(a, b, c, dist);
+  const int sol = quadric_solve_second(a, b, c, hint, dist);
   if (!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
-  quadric_parabol_gradient_local(grad, pt, quad);
+  quadric_parabol_gradient_local(quad, pt, grad);
   return 1;
 }
 
 int
 quadric_parabolic_cylinder_intersect_local
-  (const double org[3],
+  (const struct ssol_quadric_parabolic_cylinder* quad,
+   const double org[3],
    const double dir[3],
-   const struct ssol_quadric_parabolic_cylinder* quad,
+   const double hint,
    double pt[3],
    double grad[3],
    double* dist)
@@ -673,10 +690,10 @@ quadric_parabolic_cylinder_intersect_local
   const double a = dir[1] * dir[1];
   const double b = 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[1] * org[1] - 4 * quad->focal * org[2];
-  const int sol = quadric_solve_second(a, b, c, dist);
+  const int sol = quadric_solve_second(a, b, c, hint, dist);
   if (!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
-  quadric_parabolic_cylinder_gradient_local(grad, pt, quad);
+  quadric_parabolic_cylinder_gradient_local(quad, pt, grad);
   return 1;
 }
 

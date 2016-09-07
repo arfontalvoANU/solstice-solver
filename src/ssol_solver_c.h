@@ -63,6 +63,7 @@ struct segment {
   double org[3], dir[4];
   double hit_pos[3];
   double hit_normal[3];
+  double dist;
 };
 
 struct starting_point {

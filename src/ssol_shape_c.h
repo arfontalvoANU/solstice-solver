@@ -35,26 +35,21 @@ struct ssol_shape {
   ref_T ref;
 };
 
-/*
- * FIXME: functions whose prefix is "quadric" should have the quadric data as
- * first argument.
- */
-
 extern LOCAL_SYM void
 quadric_plane_gradient_local
   (double grad[3]);
 
 extern LOCAL_SYM void
 quadric_parabol_gradient_local
-  (double grad[3],
+  (const struct ssol_quadric_parabol* quad,
    const double pt[3],
-   const struct ssol_quadric_parabol* quad);
+   double grad[3]);
 
 extern LOCAL_SYM void
 quadric_parabolic_cylinder_gradient_local
-  (double grad[3],
+  (const struct ssol_quadric_parabolic_cylinder* quad,
    const double pt[3],
-   const struct ssol_quadric_parabolic_cylinder* quad);
+   double grad[3]);
 
 extern LOCAL_SYM int
 quadric_plane_intersect_local
@@ -66,18 +61,20 @@ quadric_plane_intersect_local
 
 extern LOCAL_SYM int
 quadric_parabol_intersect_local
-  (const double org[3],
+  (const struct ssol_quadric_parabol* quad,
+   const double org[3],
    const double dir[3],
-   const struct ssol_quadric_parabol* quad,
+   const double hint,
    double pt[3],
    double grad[3],
    double* dist);
 
 extern LOCAL_SYM int
 quadric_parabolic_cylinder_intersect_local
-  (const double org[3],
+  (const struct ssol_quadric_parabolic_cylinder* quad,
+   const double org[3],
    const double dir[3],
-   const struct ssol_quadric_parabolic_cylinder* quad,
+   const double hint,
    double pt[3],
    double grad[3],
    double* dist);

@@ -19,6 +19,7 @@
 #include <rsys/list.h>
 #include <rsys/ref_count.h>
 #include <rsys/str.h>
+
 struct ssol_instance {
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
@@ -31,12 +32,5 @@ struct ssol_instance {
   struct ssol_device* dev;
   ref_T ref;
 };
-
-static INLINE int
-is_instance_punched(const struct ssol_instance* instance)
-{
-  ASSERT(instance);
-  return instance->object->shape->type == SHAPE_PUNCHED;
-}
 
 #endif /* SSOL_INSTANCE_C_H */
