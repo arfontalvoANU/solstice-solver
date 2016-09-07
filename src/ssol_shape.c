@@ -523,6 +523,56 @@ error:
   goto exit;
 }
 
+static INLINE double
+inject_same_sign(const double x, const double src)
+{
+  union { uint64_t i64; double d; } ucast;
+  uint64_t sign, value;
+
+  ucast.d = src;
+  sign = ucast.i64 & 0x8000000000000000;
+  ucast.d = x;
+  value = ucast.i64 & 0x7FFFFFFFFFFFFFFF;
+  ucast.i64 = sign | value;
+  return ucast.d;
+}
+
+static int
+quadric_solve_second(const double a, const double b, const double c, double* dist)
+{
+  ASSERT(dist);
+  if (a != 0) {
+    /* standard case: 2nd degree */
+    const double delta = b * b - 4 * a * c;
+    if (delta > 0) {
+      const double sqrt_delta = sqrt(delta);
+      /* precise formula */
+      const double t1 = (-b - inject_same_sign(sqrt_delta, b)) / (2 * b);
+      const double t2 = c / (a * t1);
+      if (t1 >= 0) {
+        *dist = t1 < t2 ? t1: t2;
+        return 1;
+      } else if (t2 >= 0) {
+        *dist = t2;
+      }
+      return (t2 >= 0);
+    } else if (delta == 0) {
+      const double t = -b / (2 * a);
+      if (t >= 0) *dist = t;
+      return (t >= 0);
+    } else {
+      return 0;
+    }
+  } else if (b != 0) {
+    /* degenerated case: 1st degree only */
+    const double t = -c / b;
+    if (t >= 0) *dist = t;
+    return (t >= 0);
+  }
+  /* fully degenerated case: cannot determine dist */
+  return 0;
+}
+
 static void
 shape_release(ref_T* ref)
 {
@@ -570,60 +620,6 @@ quadric_parabolic_cylinder_gradient_local
   grad[2] = 2 * quad->focal;
 }
 
-static INLINE double
-inject_same_sign(const double x, const double src)
-{
-  union { uint64_t i64; double d; } ucast;
-  uint64_t sign, value;
-
-  ucast.d = src;
-  sign = ucast.i64 & 0x8000000000000000;
-  ucast.d = x;
-  value = ucast.i64 & 0x7FFFFFFFFFFFFFFF;
-  ucast.i64 = sign | value;
-  return ucast.d;
-}
-
-static int
-solve_second(const double a, const double b, const double c, double* dist)
-{
-  ASSERT(dist);
-  if (a != 0) {
-    /* standard case: 2nd degree */
-    const double delta = b * b - 4 * a * c;
-    if (delta > 0) {
-      const double sqrt_delta = sqrt(delta);
-      /* precise formula */
-      const double t1 = (-b - inject_same_sign(sqrt_delta, b)) / (2 * b);
-      const double t2 = c / (a * t1);
-      if (t1 >= 0) {
-        *dist = t1 < t2 ? t1: t2;
-        return 1;
-      }
-      else if (t2 >= 0) {
-        *dist = t2;
-      }
-      return (t2 >= 0);
-    }
-    else if (delta == 0) {
-      const double t = -b / (2 * a);
-      if (t >= 0) *dist = t;
-      return (t >= 0);
-    }
-    else {
-      return 0;
-    }
-  }
-  else if (b != 0) {
-    /* degenerated case: 1st degree only */
-    const double t = -c / b;
-    if (t >= 0) *dist = t;
-    return (t >= 0);
-  }
-  /* fully degenerated case: cannot determine dist */
-  return 0;
-}
-
 int
 quadric_plane_intersect_local
   (const double org[3],
@@ -636,7 +632,7 @@ quadric_plane_intersect_local
   const double a = 0;
   const double b = dir[2];
   const double c = org[2];
-  int sol = solve_second(a, b, c, dist);
+  int sol = quadric_solve_second(a, b, c, dist);
   if (!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_plane_gradient_local(grad);
@@ -657,7 +653,7 @@ quadric_parabol_intersect_local
   const double b =
     2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
-  int sol = solve_second(a, b, c, dist);
+  const int sol = quadric_solve_second(a, b, c, dist);
   if (!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_parabol_gradient_local(grad, pt, quad);
@@ -677,7 +673,7 @@ quadric_parabolic_cylinder_intersect_local
   const double a = dir[1] * dir[1];
   const double b = 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[1] * org[1] - 4 * quad->focal * org[2];
-  int sol = solve_second(a, b, c, dist);
+  const int sol = quadric_solve_second(a, b, c, dist);
   if (!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_parabolic_cylinder_gradient_local(grad, pt, quad);
