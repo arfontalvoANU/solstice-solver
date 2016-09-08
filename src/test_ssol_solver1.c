@@ -17,6 +17,7 @@
 #include "test_ssol_utils.h"
 #include "test_ssol_geometries.h"
 #include "test_ssol_materials.h"
+#include "test_ssol_postprocess.h"
 
 #include "ssol_solver_c.h"
 
@@ -54,6 +55,8 @@ main(int argc, char** argv)
   double intensities[3] = { 1, 0.8, 1 };
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
+  FILE* tmp = NULL;
+  double m, std;
 
   (void) argc, (void) argv;
 
@@ -128,6 +131,13 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
+  
+  tmp = tmpfile();
+  CHECK(!tmp, 0);
+  CHECK(ssol_solve(scene, rng, 1000, tmp), RES_OK);
+  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(eq_eps(m, 1000 / sqrt(2), 1e-3), 1);
+  CHECK(eq_eps(std, 0, 1e-6), 1);
 
   /* free data */
 
