@@ -27,7 +27,7 @@
 #include <rsys/list.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/rsys.h>
-#include <rsys/double3.h>
+#include <rsys/double33.h>
 
 /*******************************************************************************
  * Helper functions
@@ -267,56 +267,92 @@ error:
  ******************************************************************************/
 int
 hit_filter_function
-  (const struct s3d_hit* hit,
-   const float org[3],
-   const float dir[3],
-   void* realisation,
-   void* filter_data)
+(const struct s3d_hit* hit,
+  const float org[3],
+  const float dir[3],
+  void* realisation,
+  void* filter_data)
 {
-  struct ssol_instance* inst;
+  const struct ssol_instance* inst;
+  const struct ssol_shape* shape;
   const struct str* receiver_name;
   struct realisation* rs = realisation;
-  struct ssol_material* mtl;
   struct segment* seg;
   struct segment* prev;
-  int front_face = 0;
+  double dist;
 
   (void) filter_data, (void) org, (void) dir;
   ASSERT(rs);
-  prev = previous_segment(rs);
   seg = current_segment(rs);
+  prev = previous_segment(rs);
   ASSERT(seg);
 
-  /* TODO: need to detect self intersect at the instance level,
-   * using front/back face to avoid false self intersect events */
-  if(prev && S3D_PRIMITIVE_EQ(&hit->prim, &prev->hit.prim))
-    return 1; /* Discard self intersection */
+  /* these components have been set */
+  ASSERT_NAN(seg->dir, 3);
+  ASSERT_NAN(seg->org, 3);
+  ASSERT(seg->self_instance);
+  NCHECK(seg->self_front, 99);
 
+  /* Discard self intersection; using raytracing normal */
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
-  
-  if (inst->object->shape->type == SHAPE_PUNCHED) {
+
+  int hit_front = f3_dot(hit->normal, dir) < 0;
+  if (seg->self_instance == inst && seg->self_front != hit_front) {
+      return 1;
+  }
+
+  shape = inst->object->shape;
+  seg->on_punched = (shape->type == SHAPE_PUNCHED);
+  switch (shape->type) {
+  case SHAPE_PUNCHED: {
     /* hits on quadrics must be recomputed more accurately */
-    /* FIXME: use world2local and local2world transform */
-    int valid = punched_shape_intersect_local(inst->object->shape, seg->org, 
-      seg->dir, hit->distance, seg->hit_pos, seg->hit_normal, &seg->dist);
+    double org_local[3], dir_local[3];
+    const double* transform = inst->transform;
+    double tr[9];
+    d33_inverse(tr, transform);
+   
+    /* get org in local coordinate */
+    if (prev && prev->on_punched) {
+        d3_set(org_local, prev->hit_pos_local);
+      }
+    else {
+      d3_set(org_local, seg->org);
+      d3_sub(org_local, org_local, transform + 9);
+      d33_muld3(org_local, tr, org_local);
+    }
+     
+    /* get dir in local */
+    d33_muld3(dir_local, tr, seg->dir);
+    /* recompute hit */
+    int valid = punched_shape_intersect_local(shape, org_local, dir_local,
+      hit->distance, seg->hit_pos_local, seg->hit_normal, &dist);
     if (!valid) return 1;
+    /* transform point to world */
+    d33_muld3(seg->hit_pos, transform, seg->hit_pos_local);
+    d3_add(seg->hit_pos, transform + 9, seg->hit_pos);
+    /* transform normal to world */
+    d33_invtrans(tr, transform);
+    d33_muld3(seg->hit_normal, tr, seg->hit_normal);
+    ASSERT(d3_dot(seg->hit_normal, d3_set_f3(tr, hit->normal)) > 0);
+    break;
   }
-  else {
-    double* from = prev ? prev->hit_pos : rs->start.pos;
-    ASSERT(inst->object->shape->type == SHAPE_MESH);
+  case SHAPE_MESH: {
     d3_set_f3(seg->hit_normal, hit->normal);
-    seg->dist = hit->distance;
     /* use raytraced distance to fill hit_pos */
-    d3_add(seg->hit_pos, from, d3_muld(seg->hit_pos, seg->dir, hit->distance));
+    d3_add(seg->hit_pos, seg->org, d3_muld(seg->hit_pos, seg->dir, hit->distance));
+    break;
+  }
+  default: FATAL("Unreachable code.\n"); break;
   }
 
-  front_face = d3_dot(seg->hit_normal, seg->dir) < 0;
+  seg->hit_front = d3_dot(seg->hit_normal, seg->dir) < 0;
+  ASSERT(hit_front == seg->hit_front);
 
-  if(front_face) {
-    mtl = inst->object->mtl_front;
+  if(seg->hit_front) {
+    seg->hit_material = inst->object->mtl_front;
     receiver_name = &inst->receiver_front;
   } else {
-    mtl = inst->object->mtl_back;
+    seg->hit_material = inst->object->mtl_back;
     receiver_name = &inst->receiver_back;
   }
 
@@ -335,13 +371,13 @@ hit_filter_function
   }
 
   /* register success mask */
-  if(front_face) {
+  if(seg->hit_front) {
     rs->success_mask |= inst->target_mask;
   }
-  if(mtl->type == MATERIAL_VIRTUAL) {
+  if(seg->hit_material->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }
-  rs->data.instance = inst;
+  seg->hit_instance = inst;
   return 0;
 }
 

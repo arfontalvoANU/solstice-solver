@@ -763,6 +763,7 @@ punched_shape_intersect_local
 {
   ASSERT(shape && org && dir && hint >= 0 && pt && normal && dist);
   ASSERT(shape->type == SHAPE_PUNCHED);
+  ASSERT(dir[0] || dir[1] || dir[2]);
   /* hits on quadrics must be recomputed more accurately */
   switch (shape->quadric.type) {
   case SSOL_QUADRIC_PLANE: {

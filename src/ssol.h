@@ -424,10 +424,13 @@ ssol_instance_set_receiver
    const char* name_front, /* May be NULL <=> Front faces are no more receivers */
    const char* name_back); /* May be NULL <=> back faces are no more receivers */
 
+/* TODO: per face mask */
 SSOL_API res_T
 ssol_instance_set_target_mask
   (struct ssol_instance* instance,
    const uint32_t mask);
+
+/* TODO: add a dont_sample flag */
 
 SSOL_API res_T
 ssol_instance_is_attached

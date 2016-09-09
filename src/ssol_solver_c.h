@@ -57,25 +57,32 @@ enum realisation_mode {
 };
 
 struct segment {
+  const struct ssol_instance* hit_instance;
+  const struct ssol_instance* self_instance;
+  const struct ssol_material* hit_material;
   double weight;
-  float range[2];
   struct s3d_hit hit;
   double org[3], dir[4];
   double hit_pos[3];
+  double hit_pos_local[3]; /* in local coordinate, only set on punched shapes */
   double hit_normal[3];
-  double dist;
+  char hit_front;
+  char self_front;
+  char on_punched; /* is the hit on a punched shape? */
 };
 
 struct starting_point {
-  struct ssol_instance* instance;
-  struct ssol_material* material;
-  struct s3d_primitive primitive;
+  const struct ssol_instance* instance;
+  const struct ssol_material* material;
+  struct s3d_primitive sampl_primitive;
   double sundir[3];
   double pos[3];
-  double normal[3];
+  double pos_local[3]; /* in local coordinate, only set on quadrics */
+  double normal[3]; /* oriented to face the sun*/
   double cos_sun;
   float uv[2];
-  int front_exposed;
+  char front_exposed;
+  char on_punched; /* is the point on a punched shape? */
 };
 
 #include <rsys/dynamic_array.h>
@@ -96,7 +103,6 @@ struct solver_data {
   struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
   /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
-  struct ssol_instance* instance;
   struct surface_fragment fragment;
 };
 
@@ -113,7 +119,7 @@ struct realisation {
 };
 
 #define SOLVER_DATA_NULL__ \
- {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SURFACE_FRAGMENT_NULL__}
+ {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
 static const struct solver_data SOLVER_DATA_NULL = SOLVER_DATA_NULL__;
 
 extern LOCAL_SYM res_T
@@ -126,13 +132,10 @@ extern LOCAL_SYM struct segment*
 previous_segment(struct realisation* rs);
 
 extern LOCAL_SYM struct segment*
-sun_segment(struct realisation* rs);
-
-extern LOCAL_SYM struct segment*
 current_segment(struct realisation* rs);
 
 extern LOCAL_SYM res_T
-next_segment(struct realisation* rs);
+setup_next_segment(struct realisation* rs);
 
 extern LOCAL_SYM void
 reset_segment(struct segment* seg);

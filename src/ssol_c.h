@@ -42,5 +42,17 @@ hit_filter_function
    void* realisation,
    void* filter_data);
 
+#include <math.h>
+
+#ifndef NAN
+#define NAN (INF * 0.0)
+#endif
+#define ISNAN(x) (!((x) == (x)))
+#ifndef NDEBUG
+#define ASSERT_NAN(x, sz) {int i; for (i = 0; i < (sz); i++)ASSERT(!ISNAN((x)[i]));}
+#else
+#define ASSERT_NAN(x, sz) 
+#endif
+
 #endif /* SSOL_C_H */
 
