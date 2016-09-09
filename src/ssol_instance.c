@@ -137,7 +137,10 @@ ssol_instance_set_transform
     goto error;
   }
 
-  FOR_EACH(i, 0, 12) t[i] = (float)transform[i];
+  FOR_EACH(i, 0, 12) {
+    t[i] = (float) transform[i];
+    instance->transform[i] = transform[i];
+  }
 
   res = s3d_instance_set_transform(instance->shape_rt, t);
   if(res != RES_OK) goto error;
