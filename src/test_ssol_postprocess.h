@@ -24,21 +24,24 @@ pp_sum(FILE* f, const char* target, double* mean, double* std)
 {
   double sum = 0, sum2 = 0, var;
   size_t cpt = 0;
-  char expect_tok2[256];
+  char expect_tok[256];
   ASSERT(f && target && mean && std);
-  snprintf(expect_tok2, 256, "'%s':", target);
+  snprintf(expect_tok, 256, "'%s':", target);
   rewind(f);
   while (!feof(f)) {
     char buf[256];
     if (fgets(buf, 256, f)) {
-      char tok1[256], tok2[256];
+      char tok[256];
       double w;
-      if(3 != sscanf(buf, "%s %s %*f %*f %*f %lf", tok1, tok2, &w)) continue;
-      if (strcmp(tok1, "Receiver")) continue;
-      if (strcmp(tok2, expect_tok2)) continue;
-      sum += w;
-      sum2 += w * w;
-      cpt++;
+      if(2 == sscanf(buf, "Receiver %s %*f %*f %*f %lf", tok, &w)) {
+        if (strcmp(tok, expect_tok)) continue;
+        sum += w;
+        sum2 += w * w;
+      }
+      else if (1 == sscanf(buf, "Realisation %*d %s:", tok)) {
+        if (strcmp(tok, "end:")) continue;
+        cpt++;
+      }
     }
   }
   if (cpt) {

@@ -104,6 +104,8 @@ struct solver_data {
   /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
   struct surface_fragment fragment;
+
+  float sampled_area;
 };
 
 struct realisation {

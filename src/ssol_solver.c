@@ -353,6 +353,7 @@ init_realisation
   /* create 2 s3d_scene_view for raytracing and sampling */
   res = set_views(&rs->data);
   if (res != RES_OK) goto error;
+  S3D(scene_view_compute_area(rs->data.view_samp, &rs->data.sampled_area));
   /* create sun distributions */
   res = set_sun_distributions(&rs->data);
   if (res != RES_OK) goto error;
@@ -522,7 +523,7 @@ receive_sunlight(struct realisation* rs)
   seg->self_instance = NULL;
   seg->hit_front = seg->self_front;
   seg->self_front = 99;
-  seg->weight = sun->dni * rs->start.cos_sun;
+  seg->weight = rs->data.sampled_area * sun->dni * start->cos_sun;
   ASSERT(seg->weight > 0);
 
   /* fill fragment from starting point */
@@ -615,9 +616,9 @@ ssol_solve
     }
 
     /* propagation ended */
-    fprintf(output, "Realization %u success mask: 0x%0x\n",
+    fprintf(output, "Realisation %u success mask: 0x%0x\n",
       (unsigned)r, rs.success_mask);
-    fprintf(output, "Realization %u end: %s\n\n",
+    fprintf(output, "Realisation %u end: %s\n\n",
       (unsigned)r, END_TEXT[rs.end]);
   }
 

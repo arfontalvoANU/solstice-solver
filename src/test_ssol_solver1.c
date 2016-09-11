@@ -131,13 +131,15 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
-  
   tmp = tmpfile();
   CHECK(!tmp, 0);
-  CHECK(ssol_solve(scene, rng, 1000, tmp), RES_OK);
+#define N 10000
+  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
-  CHECK(eq_eps(m, 1000 / sqrt(2), 1e-3), 1);
-  CHECK(eq_eps(std, 0, 1e-6), 1);
+#define DNI_cos (1000 * cos(PI / 4))
+  CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 2e-2), 1);
+#define SQR(x) ((x)*(x))
+  CHECK(eq_eps(std, sqrt((SQR(8 * DNI_cos) / 2 - SQR(4 * DNI_cos)) / N), 0.01), 1);
 
   /* free data */
 
