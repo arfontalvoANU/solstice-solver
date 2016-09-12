@@ -235,10 +235,7 @@ scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
     unsigned id;
     htable_instance_iterator_next(&it);
 
-    /* TODO: keep only primary mirrors */
-    if(inst->object->mtl_front->type != MATERIAL_MIRROR
-    && inst->object->mtl_back->type != MATERIAL_MIRROR)
-      continue;
+    if(inst->dont_sample) continue;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
@@ -372,7 +369,10 @@ hit_filter_function
 
   /* register success mask */
   if(seg->hit_front) {
-    rs->success_mask |= inst->target_mask;
+    rs->success_mask |= inst->target_front_mask;
+  }
+  else {
+    rs->success_mask |= inst->target_back_mask;
   }
   if(seg->hit_material->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */

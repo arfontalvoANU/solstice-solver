@@ -553,7 +553,12 @@ receive_sunlight(struct realisation* rs)
   }
 
   /* register success mask (normal orientation has already been checked) */
-  rs->success_mask |= start->instance->target_mask;
+  if (start->front_exposed) {
+    rs->success_mask |= start->instance->target_front_mask;
+  }
+  else {
+    rs->success_mask |= start->instance->target_back_mask;
+  }
   
   return 1;
 }

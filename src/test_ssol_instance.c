@@ -68,10 +68,13 @@ main(int argc, char** argv)
   CHECK(SET_RECEIVER(instance, NULL, "receiver back"), RES_OK);
   #undef SET_RECEIVER
 
-  CHECK(ssol_instance_set_target_mask(NULL, 1), RES_BAD_ARG);
-  CHECK(ssol_instance_set_target_mask(instance, 1), RES_OK);
-  CHECK(ssol_instance_set_target_mask(instance, 0), RES_OK);
-  CHECK(ssol_instance_set_target_mask(instance, 0x10), RES_OK);
+  CHECK(ssol_instance_set_target_mask(NULL, 1, 1), RES_BAD_ARG);
+  CHECK(ssol_instance_set_target_mask(instance, 0, 1), RES_OK);
+  CHECK(ssol_instance_set_target_mask(instance, 0x10, 0xF0), RES_OK);
+
+  CHECK(ssol_instance_dont_sample(NULL, 1), RES_BAD_ARG);
+  CHECK(ssol_instance_dont_sample(instance, 1), RES_OK);
+  CHECK(ssol_instance_dont_sample(instance, 0), RES_OK);
 
   CHECK(ssol_instance_ref_put(instance), RES_OK);
 

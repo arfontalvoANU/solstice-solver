@@ -130,21 +130,21 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, square, m_mtl, m_mtl, &m_object), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, "miroir", NULL), RES_OK);
-  CHECK(ssol_instance_set_target_mask(heliostat, 0x1), RES_OK);
+  CHECK(ssol_instance_set_target_mask(heliostat, 0x1, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
   CHECK(ssol_object_create(dev, quad_square, m_mtl, m_mtl, &s_object), RES_OK);
   CHECK(ssol_object_instantiate(s_object, &secondary), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, "secondaire", NULL), RES_OK);
   CHECK(ssol_instance_set_transform(secondary, transform1), RES_OK);
-  CHECK(ssol_instance_set_target_mask(secondary, 0x2), RES_OK);
+  CHECK(ssol_instance_set_target_mask(secondary, 0x2, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
 
   CHECK(ssol_object_create(dev, square, v_mtl, v_mtl, &t_object), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);
-  CHECK(ssol_instance_set_target_mask(target, 0x4), RES_OK);
+  CHECK(ssol_instance_set_target_mask(target, 0x4, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);

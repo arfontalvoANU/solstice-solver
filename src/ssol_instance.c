@@ -79,7 +79,7 @@ ssol_object_instantiate
   instance->object = object;
   d33_set_identity(instance->transform);
   d3_splat(instance->transform + 9, 0);
-  instance->target_mask = 0;
+  instance->target_front_mask = instance->target_back_mask = 0;
   str_init(dev->allocator, &instance->receiver_front);
   str_init(dev->allocator, &instance->receiver_back);
   SSOL(object_ref_get(object));
@@ -196,12 +196,26 @@ error:
 res_T
 ssol_instance_set_target_mask
   (struct ssol_instance* instance,
-   const uint32_t mask)
+   const uint32_t front_mask,
+   const uint32_t back_mask)
 {
   if (!instance)
     return RES_BAD_ARG;
 
-  instance->target_mask = mask;
+  instance->target_front_mask = front_mask;
+  instance->target_back_mask = back_mask;
+  return RES_OK;
+}
+
+res_T
+ssol_instance_dont_sample
+  (struct ssol_instance* instance,
+   const int dont_sample)
+{
+  if (!instance)
+    return RES_BAD_ARG;
+
+  instance->dont_sample = dont_sample;
   return RES_OK;
 }
 

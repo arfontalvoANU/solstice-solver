@@ -27,7 +27,8 @@ struct ssol_instance {
   struct str receiver_front; /* Empty if front faces are not receivers */
   struct str receiver_back; /* Empty if back faces are not receivers */
   double transform[12]; /* Column major 4x3 affine transformation */
-  uint32_t target_mask;
+  uint32_t target_front_mask, target_back_mask;
+  int dont_sample;
 
   struct ssol_device* dev;
   ref_T ref;
