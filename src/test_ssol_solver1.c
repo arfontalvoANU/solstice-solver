@@ -130,7 +130,6 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_target_mask(target, 0x4, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
   tmp = tmpfile();
   CHECK(!tmp, 0);
 #define N 10000
@@ -140,6 +139,7 @@ main(int argc, char** argv)
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-2), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / N), 1e-1), 1);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
@@ -147,11 +147,15 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_target_mask(heliostat, 0, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(secondary, 0, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
+
+  CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
+
   tmp = tmpfile();
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) - SQR(4 * DNI_cos)) / N), 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 
   /* free data */
 

@@ -62,6 +62,8 @@ main(int argc, char** argv)
   double transform2[12]; /* 3x4 column major matrix */
   double polygon[] = { -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0 };
   const size_t npolygon_verts = sizeof(polygon) / sizeof(double[2]);
+  FILE* tmp;
+  double m, std;
 
   (void) argc, (void) argv;
 
@@ -95,12 +97,6 @@ main(int argc, char** argv)
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
 
-  CHECK(ssol_solve(NULL, rng, 10, stdout), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, NULL, 10, stdout), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 0, stdout), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, NULL), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no geometry */
-
   /* create scene content */
 
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
@@ -130,25 +126,34 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, square, m_mtl, m_mtl, &m_object), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, "miroir", NULL), RES_OK);
-  CHECK(ssol_instance_set_target_mask(heliostat, 0x1, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
   CHECK(ssol_object_create(dev, quad_square, m_mtl, m_mtl, &s_object), RES_OK);
   CHECK(ssol_object_instantiate(s_object, &secondary), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, "secondaire", NULL), RES_OK);
   CHECK(ssol_instance_set_transform(secondary, transform1), RES_OK);
-  CHECK(ssol_instance_set_target_mask(secondary, 0x2, 0), RES_OK);
+  CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
 
   CHECK(ssol_object_create(dev, square, v_mtl, v_mtl, &t_object), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);
-  CHECK(ssol_instance_set_target_mask(target, 0x4, 0), RES_OK);
+  CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
+  CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
 
+  tmp = tmpfile();
+#define N 10000
+  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+#define DNI_cos (1000 * cos(PI / 4))
+  CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
+#define SQR(x) ((x)*(x))
+  CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) - SQR(4 * DNI_cos)) / N), 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   /* free data */
 
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

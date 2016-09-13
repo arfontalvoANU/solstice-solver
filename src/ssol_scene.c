@@ -290,11 +290,10 @@ hit_filter_function
   ASSERT(seg->self_instance);
   NCHECK(seg->self_front, 99);
 
-  /* Discard self intersection; using raytracing normal */
+  /* Discard self intersection */
+  seg->hit_front = f3_dot(hit->normal, dir) < 0;
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
-
-  int hit_front = f3_dot(hit->normal, dir) < 0;
-  if (seg->self_instance == inst && seg->self_front != hit_front) {
+  if (seg->self_instance == inst && seg->self_front != seg->hit_front) {
       return 1;
   }
 
@@ -330,7 +329,6 @@ hit_filter_function
     /* transform normal to world */
     d33_invtrans(tr, transform);
     d33_muld3(seg->hit_normal, tr, seg->hit_normal);
-    ASSERT(d3_dot(seg->hit_normal, d3_set_f3(tr, hit->normal)) > 0);
     break;
   }
   case SHAPE_MESH: {
@@ -342,13 +340,11 @@ hit_filter_function
   default: FATAL("Unreachable code.\n"); break;
   }
 
-  seg->hit_front = d3_dot(seg->hit_normal, seg->dir) < 0;
-  ASSERT(hit_front == seg->hit_front);
-
   if(seg->hit_front) {
     seg->hit_material = inst->object->mtl_front;
     receiver_name = &inst->receiver_front;
   } else {
+    d3_muld(seg->hit_normal, seg->hit_normal, -1);
     seg->hit_material = inst->object->mtl_back;
     receiver_name = &inst->receiver_back;
   }

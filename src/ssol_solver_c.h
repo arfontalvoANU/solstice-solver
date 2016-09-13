@@ -58,16 +58,16 @@ enum realisation_mode {
 
 struct segment {
   const struct ssol_instance* hit_instance;
-  const struct ssol_instance* self_instance;
+  const struct ssol_instance* self_instance; /* instance of the starting point */
   const struct ssol_material* hit_material;
   double weight;
   struct s3d_hit hit;
   double org[3], dir[4];
   double hit_pos[3];
   double hit_pos_local[3]; /* in local coordinate, only set on punched shapes */
-  double hit_normal[3];
-  char hit_front;
-  char self_front;
+  double hit_normal[3]; /* possibly reversed to face the incoming dir */
+  char hit_front; /* is the ending point of the segment on the front face? */
+  char self_front; /* was the starting point of the segment on the front face? */
   char on_punched; /* is the hit on a punched shape? */
 };
 
@@ -77,11 +77,11 @@ struct starting_point {
   struct s3d_primitive sampl_primitive;
   double sundir[3];
   double pos[3];
-  double pos_local[3]; /* in local coordinate, only set on quadrics */
-  double normal[3]; /* oriented to face the sun*/
-  double cos_sun;
+  double pos_local[3]; /* in local coordinate, only set on punched shapes */
+  double normal[3]; /* oriented towards the sun*/
+  double cos_sun; /* > 0 */
   float uv[2];
-  char front_exposed;
+  char front_exposed; /* if false, normal has been reversed */
   char on_punched; /* is the point on a punched shape? */
 };
 
@@ -104,7 +104,7 @@ struct solver_data {
   /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
   struct surface_fragment fragment;
-
+  /* total area of the surface sampled as starting point candidate */
   float sampled_area;
 };
 
