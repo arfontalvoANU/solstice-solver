@@ -49,10 +49,6 @@ solstice_trace_ray(struct realisation* rs)
 
   f3_set_d3(org, seg->org);
   f3_set_d3(dir, seg->dir);
-  fprintf(rs->data.out_stream,
-    "trace (%g:%g:%g) (%g:%g:%g)\n",
-    SPLIT3(seg->org),
-    SPLIT3(seg->dir));
   S3D(scene_view_trace_ray
     (rs->data.view_rt, org, dir, range, rs, &seg->hit));
   /* the filter function recomputes intersections on quadrics and sets seg */
