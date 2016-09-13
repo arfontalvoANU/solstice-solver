@@ -69,6 +69,7 @@ struct segment {
   char hit_front; /* is the ending point of the segment on the front face? */
   char self_front; /* was the starting point of the segment on the front face? */
   char on_punched; /* is the hit on a punched shape? */
+  char sun_segment;
 };
 
 struct starting_point {

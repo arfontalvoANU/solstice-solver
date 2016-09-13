@@ -237,6 +237,7 @@ setup_next_segment(struct realisation* rs)
   reset_segment(seg);
   seg->self_instance = prev->hit_instance;
   seg->self_front = prev->hit_front;
+  seg->sun_segment = 0;
   d3_set(seg->org, prev->hit_pos);
   
   res = material_shade(prev->hit_material, &data->fragment, rs->freq, data->brdfs);
@@ -495,6 +496,7 @@ receive_sunlight(struct realisation* rs)
   d3_set(seg->org, start->pos);
   seg->self_instance = start->instance;
   seg->self_front = start->front_exposed;
+  seg->sun_segment = 1;
 
   /* search for occlusions from starting point */
   ASSERT(rs->s_idx == 0); /* sun segment */
