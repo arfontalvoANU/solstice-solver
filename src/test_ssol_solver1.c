@@ -157,6 +157,9 @@ main(int argc, char** argv)
   CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) - SQR(4 * DNI_cos)) / N), 1e-4), 1);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 
+  CHECK(ssol_instance_dont_sample(heliostat, 1), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no sampled geometry */
+
   /* free data */
 
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
