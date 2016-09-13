@@ -150,6 +150,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_spectrum)
   new_test(test_ssol_solver1)
   new_test(test_ssol_solver2)
+  new_test(test_ssol_solver3)
   new_test(test_ssol_sun)
 endif(NOT NO_TEST)
 
