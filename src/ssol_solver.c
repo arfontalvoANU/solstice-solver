@@ -412,7 +412,6 @@ sample_point_on_primary_mirror(struct realisation* rs)
     S3D(primitive_get_attrib(&sampl_prim, S3D_GEOMETRY_NORMAL, start->uv, &attrib));
     CHECK(attrib.type, S3D_FLOAT3);
     d3_set_f3(start->normal, attrib.value);
-    d3_normalize(start->normal, start->normal);
     break;
   }
   case SHAPE_PUNCHED: {
@@ -438,6 +437,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
   }
   /* TODO: transform everything to world coordinate */
 
+  d3_normalize(start->normal, start->normal);
   /* will be defined later, depending on wich side sees the sun */
   start->material = NULL;
 }
