@@ -284,7 +284,8 @@ reset_starting_point(struct starting_point* start)
   start->front_exposed = 99;
   start->instance = NULL;
   start->material = NULL;
-  d3_splat(start->normal, NAN);
+  d3_splat(start->rt_normal, NAN);
+  d3_splat(start->sampl_normal, NAN);
   start->on_punched = 99;
   d3_splat(start->pos, NAN);
   d3_splat(start->pos_local, NAN);
@@ -304,7 +305,8 @@ check_starting_point(const struct starting_point* start)
   NCHECK(start->front_exposed, 99);
   ASSERT(start->instance);
   ASSERT(start->material);
-  ASSERT_NAN(start->normal, 3);
+  ASSERT_NAN(start->rt_normal, 3);
+  ASSERT_NAN(start->sampl_normal, 3);
   NCHECK(start->on_punched, 99);
   ASSERT_NAN(start->pos, 3);
   if(start->on_punched) ASSERT_NAN(start->pos_local, 3);
@@ -405,13 +407,15 @@ sample_point_on_primary_mirror(struct realisation* rs)
   start->sampl_primitive = sampl_prim;
   shape = start->instance->object->shape;
   start->on_punched = (shape->type == SHAPE_PUNCHED);
+  /* set sampling normal */
+  S3D(primitive_get_attrib(&sampl_prim, S3D_GEOMETRY_NORMAL, start->uv, &attrib));
+  CHECK(attrib.type, S3D_FLOAT3);
+  d3_set_f3(start->sampl_normal, attrib.value);
   switch (shape->type) {
   case SHAPE_MESH: {
     /* no projection needed */
-    /* set normal */
-    S3D(primitive_get_attrib(&sampl_prim, S3D_GEOMETRY_NORMAL, start->uv, &attrib));
-    CHECK(attrib.type, S3D_FLOAT3);
-    d3_set_f3(start->normal, attrib.value);
+    /* set geometry normal */
+    d3_set(start->rt_normal, start->sampl_normal);
     break;
   }
   case SHAPE_PUNCHED: {
@@ -426,18 +430,19 @@ sample_point_on_primary_mirror(struct realisation* rs)
     /* transform point to world */
     d33_muld3(start->pos, transform, start->pos_local);
     d3_add(start->pos, transform + 9, start->pos);
-    /* compute exact normal */
-    punched_shape_set_normal_local(shape, start->pos_local, start->normal);
+    /* compute exact normal on the instance */
+    punched_shape_set_normal_local(shape, start->pos_local, start->rt_normal);
     /* transform normal to world */
     d33_invtrans(tr, transform);
-    d33_muld3(start->normal, tr, start->normal);
+    d33_muld3(start->rt_normal, tr, start->rt_normal);
     break;
   }
   default: FATAL("Unreachable code.\n"); break;
   }
   /* TODO: transform everything to world coordinate */
 
-  d3_normalize(start->normal, start->normal);
+  d3_normalize(start->rt_normal, start->rt_normal);
+  d3_normalize(start->sampl_normal, start->sampl_normal);
   /* will be defined later, depending on wich side sees the sun */
   start->material = NULL;
 }
@@ -473,19 +478,27 @@ receive_sunlight(struct realisation* rs)
   sun = rs->data.scene->sun;
   start = &rs->start;
   ASSERT(d3_is_normalized(start->sundir));
-  ASSERT(d3_is_normalized(start->normal));
+  ASSERT(d3_is_normalized(start->rt_normal));
+  ASSERT(d3_is_normalized(start->sampl_normal));
 
   /* find which material/face is exposed to sun */
-  start->cos_sun = d3_dot(start->normal, start->sundir);
-  start->front_exposed = start->cos_sun < 0;
+  start->geom_cos = d3_dot(start->rt_normal, start->sundir);
+  start->front_exposed = start->geom_cos < 0;
   if (start->front_exposed) {
-    start->cos_sun *= -1;
     start->material = start->instance->object->mtl_front;
   }
   else {
     start->material = start->instance->object->mtl_back;
-    d3_muld(start->normal, start->normal, -1);
+    d3_muld(start->sampl_normal, start->sampl_normal, -1);
   }
+  if (start->geom_cos > 0) {
+    d3_muld(start->rt_normal, start->rt_normal, -1);
+  }
+  else {
+    start->geom_cos *= -1;
+  }
+  start->cos_sun = fabs(d3_dot(start->sampl_normal, start->sundir));
+
   /* start must now be complete */
   check_starting_point(start);
 
@@ -513,7 +526,7 @@ receive_sunlight(struct realisation* rs)
   /* hit_front will be set from the next impact (if any) */
   /* hit_instance will be set from the next impact (if any) */
   seg->hit_material = start->material;
-  d3_set(seg->hit_normal, start->normal);
+  d3_set(seg->hit_normal, start->rt_normal);
   d3_set(seg->hit_pos, start->pos);
   d3_set(seg->hit_pos_local, start->pos_local);
   seg->on_punched = start->on_punched;

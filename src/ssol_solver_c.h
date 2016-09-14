@@ -79,8 +79,10 @@ struct starting_point {
   double sundir[3];
   double pos[3];
   double pos_local[3]; /* in local coordinate, only set on punched shapes */
-  double normal[3]; /* oriented towards the sun*/
-  double cos_sun; /* > 0 */
+  double rt_normal[3]; /* relative to the actual geometry; towards the sun*/
+  double sampl_normal[3]; /* relative to the sampling plane; towards the sun*/
+  double cos_sun; /* relative to the sampling plane; > 0 */
+  double geom_cos; /* relative to the actual geometry; > 0 */
   float uv[2];
   char front_exposed; /* if false, normal has been reversed */
   char on_punched; /* is the point on a punched shape? */
