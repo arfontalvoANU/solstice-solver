@@ -115,8 +115,6 @@ main(int argc, char** argv)
   CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
-  CHECK(ssol_object_create(dev, square, m_mtl, m_mtl, &m_object), RES_OK);
-
   CHECK(ssol_object_create(dev, quad_square, m_mtl, m_mtl, &m_object), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, "heliostat", NULL), RES_OK);
