@@ -708,13 +708,12 @@ punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3]) {
   }
   case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
     const struct ssol_quadric_parabolic_cylinder* quad
-      = (struct ssol_quadric_parabolic_cylinder*)&shape->quadric.data;
+      = &shape->quadric.data.parabolic_cylinder;
     pt[2] = (pt[1] * pt[1]) / (4.0 * quad->focal);
     break;
   }
   case SSOL_QUADRIC_PARABOL: {
-    const struct ssol_quadric_parabol* quad
-      = (struct ssol_quadric_parabol*)&shape->quadric.data;
+    const struct ssol_quadric_parabol* quad = &shape->quadric.data.parabol;
     pt[2] = (pt[0] * pt[0] + pt[1] * pt[1]) / (4.0 * quad->focal);
     break;
   }
@@ -737,13 +736,12 @@ punched_shape_set_normal_local
   }
   case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
     const struct ssol_quadric_parabolic_cylinder* quad
-      = (struct ssol_quadric_parabolic_cylinder*)&shape->quadric.data;
+      = &shape->quadric.data.parabolic_cylinder;
     quadric_parabolic_cylinder_gradient_local(quad, pt, normal);
     break;
   }
   case SSOL_QUADRIC_PARABOL: {
-    const struct ssol_quadric_parabol* quad
-      = (struct ssol_quadric_parabol*)&shape->quadric.data;
+    const struct ssol_quadric_parabol* quad = &shape->quadric.data.parabol;
     quadric_parabol_gradient_local(quad, pt, normal);
     break;
   }
@@ -771,13 +769,12 @@ punched_shape_intersect_local
   }
   case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
     const struct ssol_quadric_parabolic_cylinder* quad
-      = (struct ssol_quadric_parabolic_cylinder*)&shape->quadric;
+      = &shape->quadric.data.parabolic_cylinder;
     return quadric_parabolic_cylinder_intersect_local(
       quad, org, dir, hint, pt, normal, dist);
   }
   case SSOL_QUADRIC_PARABOL: {
-    const struct ssol_quadric_parabol* quad
-      = (struct ssol_quadric_parabol*)&shape->quadric;
+    const struct ssol_quadric_parabol* quad = &shape->quadric.data.parabol;
     return quadric_parabol_intersect_local(
       quad, org, dir, hint, pt, normal, dist);
   }
