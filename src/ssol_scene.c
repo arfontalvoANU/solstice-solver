@@ -287,8 +287,16 @@ hit_filter_function
   /* these components have been set */
   ASSERT_NAN(seg->dir, 3);
   ASSERT_NAN(seg->org, 3);
+  ASSERT_NAN(&seg->tmin, 1);
   ASSERT(seg->self_instance);
   NCHECK(seg->self_front, 99);
+
+  /* need to reject identical hits on triangle's edges */
+  if (hit->distance <= seg->tmin) {
+    ASSERT(hit->distance == seg->tmin);
+    return 1;
+  }
+  seg->tmin = hit->distance;
 
   /* Discard self intersection */
   seg->hit_front = f3_dot(hit->normal, dir) < 0;
@@ -374,6 +382,7 @@ hit_filter_function
   if(seg->hit_material->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }
+
   seg->hit_instance = inst;
   return 0;
 }

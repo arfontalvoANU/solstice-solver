@@ -66,6 +66,7 @@ struct segment {
   double hit_pos[3];
   double hit_pos_local[3]; /* in local coordinate, only set on punched shapes */
   double hit_normal[3]; /* possibly reversed to face the incoming dir */
+  float tmin; /* used to reject duplicate hits in raytracing */
   char hit_front; /* is the ending point of the segment on the front face? */
   char self_front; /* was the starting point of the segment on the front face? */
   char on_punched; /* is the hit on a punched shape? */

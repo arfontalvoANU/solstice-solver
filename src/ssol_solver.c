@@ -199,6 +199,7 @@ check_fst_segment(const struct segment* seg)
   NCHECK(seg->on_punched, 99);
   ASSERT_NAN(seg->org, 3);
   ASSERT(seg->weight > 0);
+  ASSERT_NAN(&seg->tmin, 1);
 }
 
 static void
@@ -238,6 +239,8 @@ setup_next_segment(struct realisation* rs)
   seg->self_instance = prev->hit_instance;
   seg->self_front = prev->hit_front;
   seg->sun_segment = 0;
+  seg->tmin = -1; /* any valid tmin allowed */
+
   d3_set(seg->org, prev->hit_pos);
   
   res = material_shade(prev->hit_material, &data->fragment, rs->freq, data->brdfs);
@@ -270,6 +273,7 @@ reset_segment(struct segment* seg)
   seg->self_instance = NULL;
   seg->self_front = 99;
   seg->weight = NAN;
+  seg->tmin = NAN;
 #else
   seg->hit = S3D_HIT_NULL;
 #endif
@@ -510,6 +514,7 @@ receive_sunlight(struct realisation* rs)
   seg->self_instance = start->instance;
   seg->self_front = start->front_exposed;
   seg->sun_segment = 1;
+  seg->tmin = -1; /* any valid tmin allowed */
 
   /* search for occlusions from starting point */
   ASSERT(rs->s_idx == 0); /* sun segment */
