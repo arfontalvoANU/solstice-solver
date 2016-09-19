@@ -139,6 +139,10 @@ ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 {
   if (!sun || !spectrum)
     return RES_BAD_ARG;
+  if (spectrum == sun->spectrum) /* no change */
+    return RES_OK;
+  if (sun->spectrum)
+    SSOL(spectrum_ref_put(sun->spectrum));
   SSOL(spectrum_ref_get(spectrum));
   sun->spectrum = spectrum;
   return RES_OK;

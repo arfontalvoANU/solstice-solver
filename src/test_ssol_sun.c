@@ -25,6 +25,7 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_spectrum* spectrum;
+  struct ssol_spectrum* spectrum2;
   struct ssol_sun* sun;
   double dir0[3] = { 0, 0, 0 };
   double dir[3] = { 1, 0, 0 };
@@ -41,6 +42,7 @@ main(int argc, char** argv)
     (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
+  CHECK(ssol_spectrum_create(dev, &spectrum2), RES_OK);
 
   CHECK(ssol_sun_create_directional(NULL, &sun), RES_BAD_ARG);
   CHECK(ssol_sun_create_directional(dev, NULL), RES_BAD_ARG);
@@ -86,6 +88,8 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_spectrum(NULL, spectrum), RES_BAD_ARG);
   CHECK(ssol_sun_set_spectrum(sun, NULL), RES_BAD_ARG);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum2), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum2), RES_OK);
 
   CHECK(ssol_sun_set_direction(NULL, dir), RES_BAD_ARG);
   CHECK(ssol_sun_set_direction(sun, NULL), RES_BAD_ARG);
@@ -140,6 +144,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
+  CHECK(ssol_spectrum_ref_put(spectrum2), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   logger_release(&logger);
