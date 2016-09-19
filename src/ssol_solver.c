@@ -493,15 +493,21 @@ receive_sunlight(struct realisation* rs)
   }
   else {
     start->material = start->instance->object->mtl_back;
-    d3_muld(start->sampl_normal, start->sampl_normal, -1);
   }
+  /* normals must face the sun and cos must be positive */
   if (start->geom_cos > 0) {
     d3_muld(start->rt_normal, start->rt_normal, -1);
   }
   else {
     start->geom_cos *= -1;
   }
-  start->cos_sun = fabs(d3_dot(start->sampl_normal, start->sundir));
+  start->cos_sun = d3_dot(start->sampl_normal, start->sundir);
+  if (start->cos_sun > 0) {
+    d3_muld(start->sampl_normal, start->sampl_normal, -1);
+  }
+  else {
+    start->cos_sun *= -1;
+  }
 
   /* start must now be complete */
   check_starting_point(start);

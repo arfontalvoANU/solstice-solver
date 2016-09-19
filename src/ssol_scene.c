@@ -298,13 +298,7 @@ hit_filter_function
   }
   seg->tmin = hit->distance;
 
-  /* Discard self intersection */
-  seg->hit_front = f3_dot(hit->normal, dir) < 0;
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
-  if (seg->self_instance == inst && seg->self_front != seg->hit_front) {
-      return 1;
-  }
-
   shape = inst->object->shape;
   seg->on_punched = (shape->type == SHAPE_PUNCHED);
   switch (shape->type) {
@@ -346,6 +340,13 @@ hit_filter_function
     break;
   }
   default: FATAL("Unreachable code.\n"); break;
+  }
+  d3_normalize(seg->hit_normal, seg->hit_normal);
+
+  /* Discard self intersection */
+  seg->hit_front = d3_dot(seg->hit_normal, seg->dir) < 0;
+  if (seg->self_instance == inst && seg->self_front != seg->hit_front) {
+    return 1;
   }
 
   if(seg->hit_front) {
