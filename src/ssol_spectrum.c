@@ -40,7 +40,7 @@ spectrum_release(ref_T* ref)
 }
 
 /*******************************************************************************
-* Exported ssol_image functions
+* Exported ssol_spectrum functions
 ******************************************************************************/
 res_T
 ssol_spectrum_create
@@ -109,18 +109,18 @@ ssol_spectrum_setup
   || !data)
     return RES_BAD_ARG;
 
-  res = darray_double_reserve(&spectrum->frequencies, nwavelength);
+  res = darray_double_resize(&spectrum->frequencies, nwavelength);
   if (res != RES_OK) return res;
 
-  res = darray_double_reserve(&spectrum->intensities, nwavelength);
+  res = darray_double_resize(&spectrum->intensities, nwavelength);
   if (res != RES_OK) {
     darray_double_clear(&spectrum->frequencies);
     return res;
   }
 
   FOR_EACH(i, 0, nwavelength) {
-    darray_double_push_back(&spectrum->frequencies, wavelengths + i);
-    darray_double_push_back(&spectrum->intensities, data + i);
+    spectrum->frequencies.data[i] = wavelengths[i];
+    spectrum->intensities.data[i] = data[i];
   }
 
   return res;
