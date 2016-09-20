@@ -15,6 +15,7 @@
 
 #include "ssol.h"
 #include "ssol_c.h"
+#include "ssol_atmosphere_c.h"
 #include "ssol_scene_c.h"
 #include "ssol_solver_c.h"
 #include "ssol_sun_c.h"
@@ -43,7 +44,8 @@ scene_release(ref_T* ref)
   SSOL(scene_clear(scene));
   if(scene->scn_rt) S3D(scene_ref_put(scene->scn_rt));
   if(scene->scn_samp) S3D(scene_ref_put(scene->scn_samp));
-  if(scene->sun) SSOL(sun_ref_put(scene->sun));
+  if (scene->sun) SSOL(sun_ref_put(scene->sun));
+  if (scene->atmosphere) SSOL(atmosphere_ref_put(scene->atmosphere));
   htable_instance_release(&scene->instances_rt);
   htable_instance_release(&scene->instances_samp);
   MEM_RM(dev->allocator, scene);
@@ -51,7 +53,7 @@ scene_release(ref_T* ref)
 }
 
 /*******************************************************************************
- * Exported ssol_image functions
+ * Exported ssol_scene functions
  ******************************************************************************/
 res_T
 ssol_scene_create
@@ -214,6 +216,34 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
   return RES_OK;
 }
 
+
+res_T
+ssol_scene_attach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* atm)
+{
+  if (!scene || !atm
+    || atm->scene_attachment /* Should detach this atmosphere first from its own scene */
+    || scene->atmosphere) /* Should detach previous atm first */
+    return RES_BAD_ARG;
+
+  SSOL(atmosphere_ref_get(atm));
+  scene->atmosphere = atm;
+  atm->scene_attachment = scene;
+  return RES_OK;
+}
+
+res_T
+ssol_scene_detach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* atm)
+{
+  if (!scene || !atm || !scene->atmosphere || atm->scene_attachment != scene)
+    return RES_BAD_ARG;
+
+  ASSERT(atm == scene->atmosphere);
+  atm->scene_attachment = NULL;
+  scene->atmosphere = NULL;
+  SSOL(atmosphere_ref_put(atm));
+  return RES_OK;
+}
+
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
@@ -276,7 +306,6 @@ hit_filter_function
   struct realisation* rs = realisation;
   struct segment* seg;
   struct segment* prev;
-  double dist;
 
   (void) filter_data, (void) org, (void) dir;
   ASSERT(rs);
@@ -323,7 +352,7 @@ hit_filter_function
     d33_muld3(dir_local, tr, seg->dir);
     /* recompute hit */
     int valid = punched_shape_intersect_local(shape, org_local, dir_local,
-      hit->distance, seg->hit_pos_local, seg->hit_normal, &dist);
+      hit->distance, seg->hit_pos_local, seg->hit_normal, &seg->hit_distance);
     if (!valid) return 1;
     /* transform point to world */
     d33_muld3(seg->hit_pos, transform, seg->hit_pos_local);
@@ -337,6 +366,7 @@ hit_filter_function
     d3_set_f3(seg->hit_normal, hit->normal);
     /* use raytraced distance to fill hit_pos */
     d3_add(seg->hit_pos, seg->org, d3_muld(seg->hit_pos, seg->dir, hit->distance));
+    seg->hit_distance = hit->distance;
     break;
   }
   default: FATAL("Unreachable code.\n"); break;

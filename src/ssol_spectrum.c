@@ -21,6 +21,7 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/math.h>
+#include <rsys/algorithm.h>
 
 /*******************************************************************************
  * Helper functions
@@ -37,6 +38,91 @@ spectrum_release(ref_T* ref)
   darray_double_release(&spectrum->intensities);
   MEM_RM(dev->allocator, spectrum);
   SSOL(device_ref_put(dev));
+}
+
+static char
+spectrum_includes_point
+  (const struct ssol_spectrum* spectrum,
+   const double wavelenght)
+{
+  const double* data;
+  size_t sz;
+  ASSERT(spectrum && spectrum->frequencies.data && spectrum->intensities.data);
+  sz = spectrum->frequencies.size;
+  ASSERT(sz && sz == spectrum->intensities.size);
+  data = spectrum->frequencies.data;
+  return data[0] <= wavelenght && wavelenght <= data[sz - 1];
+}
+
+int
+eq_d(const void* key, const void* base)
+{
+  double k = *(double*) key;
+  double b = *(double*) base;
+  if (k > b) return +1;
+  if (k < b) return -1;
+  return 0;
+}
+
+/*******************************************************************************
+* Local ssol_spectrum functions
+******************************************************************************/
+res_T
+spectrum_includes
+  (const struct ssol_spectrum* reference,
+   const struct ssol_spectrum* tested,
+   char* include)
+{
+  const double* test_data;
+  size_t test_sz;
+  if(!reference || !tested || !include) {
+    return RES_BAD_ARG;
+  }
+
+  test_sz = tested->frequencies.size;
+  if(!reference->frequencies.size || !test_sz) {
+    return RES_BAD_ARG;
+  }
+
+  test_data = tested->frequencies.data;
+  *include = spectrum_includes_point(reference, test_data[0])
+    && spectrum_includes_point(reference, test_data[test_sz - 1]);
+
+   return RES_OK;
+}
+
+res_T
+spectrum_interpolate
+  (const struct ssol_spectrum* spectrum,
+   const double wavelenght,
+   double* intensity)
+{
+  double* next;
+  double* freqs;
+  double* ints;
+  double slope;
+  size_t idx_next, sz;
+  if (!spectrum
+    || !intensity
+    || !spectrum_includes_point(spectrum, wavelenght))
+  {
+    return RES_BAD_ARG;
+  }
+
+  sz = spectrum->frequencies.size;
+  freqs = spectrum->frequencies.data;
+  ints = spectrum->intensities.data;
+  next = search_lower_bound(&wavelenght, freqs, sz, sizeof(double), &eq_d);
+  ASSERT(next); /* cause spectrum_includes_point */
+  idx_next = next - freqs;
+  ASSERT(idx_next); /* cause spectrum_includes_point */
+  ASSERT(ints[idx_next] >= ints[idx_next - 1]);
+  ASSERT(freqs[idx_next] >= freqs[idx_next - 1]);
+
+  slope = (ints[idx_next] - ints[idx_next - 1]) / (freqs[idx_next] - freqs[idx_next - 1]);
+  *intensity = ints[idx_next - 1] + (wavelenght - freqs[idx_next - 1]) * slope;
+  ASSERT(*intensity > 0);
+  return RES_OK;
 }
 
 /*******************************************************************************

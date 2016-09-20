@@ -26,4 +26,16 @@ struct ssol_spectrum {
   ref_T ref;
 };
 
+extern LOCAL_SYM res_T
+spectrum_includes
+  (const struct ssol_spectrum* reference,
+   const struct ssol_spectrum* tested,
+   char* include);
+
+extern LOCAL_SYM res_T
+spectrum_interpolate
+  (const struct ssol_spectrum* spectrum,
+   const double wavelenght,
+   double* intensity);
+
 #endif /* SSOL_SPECTRUM_C_H */

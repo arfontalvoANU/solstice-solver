@@ -46,13 +46,13 @@ struct mem_allocator;
 struct ssp_rng;
 
 /* Opaque Solstice solver types */
+struct ssol_atmosphere;
 struct ssol_device;
 struct ssol_image;
 struct ssol_material;
 struct ssol_object;
 struct ssol_instance;
 struct ssol_scene;
-struct ssol_quadric;
 struct ssol_shape;
 struct ssol_spectrum;
 struct ssol_sun;
@@ -307,6 +307,16 @@ ssol_scene_detach_sun
   (struct ssol_scene* scn,
    struct ssol_sun* sun);
 
+SSOL_API res_T
+ssol_scene_attach_atmosphere
+  (struct ssol_scene* scn,
+   struct ssol_atmosphere* atm);
+
+SSOL_API res_T
+ssol_scene_detach_atmosphere
+  (struct ssol_scene* scn,
+   struct ssol_atmosphere* atm);
+
 /*******************************************************************************
  * Shape API - Define a geometry that can be generated from a quadric equation
  * or from a triangular mesh.
@@ -521,6 +531,29 @@ SSOL_API res_T
 ssol_sun_set_buie_param
   (struct ssol_sun* sun,
    const double param); /* In ]0, 1[ */
+
+/*******************************************************************************
+ * Atmosphere API - Describe an atmosphere model.
+ ******************************************************************************/
+/* The atmosphere describes absorbtion along the light paths */
+SSOL_API res_T
+ssol_atmosphere_create_uniform
+  (struct ssol_device* dev,
+   struct ssol_atmosphere** atmosphere);
+
+SSOL_API res_T
+ssol_atmosphere_ref_get
+  (struct ssol_atmosphere* atmosphere);
+
+SSOL_API res_T
+ssol_atmosphere_ref_put
+  (struct ssol_atmosphere* atmosphere);
+
+/* List of per wavelength power of the sun */
+SSOL_API res_T
+ssol_atmosphere_set_uniform_absorbtion
+  (struct ssol_atmosphere* atmosphere,
+   struct ssol_spectrum* spectrum);
 
 /*******************************************************************************
  * Miscellaneous functions

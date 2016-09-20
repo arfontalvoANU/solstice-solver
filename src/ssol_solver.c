@@ -15,6 +15,7 @@
 
 #include "ssol.h"
 #include "ssol_c.h"
+#include "ssol_atmosphere_c.h"
 #include "ssol_solver_c.h"
 #include "ssol_device_c.h"
 #include "ssol_scene_c.h"
@@ -207,6 +208,7 @@ static void
 check_segment(const struct segment* seg)
 {
   check_fst_segment(seg);
+  ASSERT_NAN(&seg->hit_distance, 1);
   ASSERT(seg->self_instance);
   NCHECK(seg->self_front, 99);
   /* hit filter is supposed to work properly */
@@ -264,6 +266,7 @@ reset_segment(struct segment* seg)
 #ifndef NDEBUG
   d3_splat(seg->dir, NAN);
   seg->hit = S3D_HIT_NULL;
+  seg->hit_distance = NAN;
   seg->hit_front = 99;
   seg->hit_instance = NULL;
   seg->hit_material = NULL;
@@ -596,6 +599,19 @@ propagate(struct realisation* rs)
   if (S3D_HIT_NONE(&seg->hit)) {
     rs->end = TERM_MISSING;
     return;
+  }
+
+  if (rs->data.scene->atmosphere) {
+    double ka;
+    const struct ssol_spectrum* spectrum;
+    switch (rs->data.scene->atmosphere->type) {
+    case ATMOS_UNIFORM:
+      spectrum = rs->data.scene->atmosphere->data.uniform.spectrum;
+      CHECK(spectrum_interpolate(spectrum, rs->freq, &ka), RES_OK);
+      break;
+    default: FATAL("Unreachable code\n"); break;
+    }
+    seg->weight *= exp(-ka * seg->hit_distance);
   }
 
   /* fill fragment  and loop */

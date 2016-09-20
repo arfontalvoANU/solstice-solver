@@ -51,6 +51,7 @@ set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
+  ssol_atmosphere.c
   ssol_brdf.c
   ssol_brdf_composite.c
   ssol_brdf_reflection.c
@@ -71,6 +72,7 @@ set(SSOL_FILES_INC_API
   ssol.h)
 
 set(SSOL_FILES_INC
+  ssol_atmosphere_c.h
   ssol_brdf.h
   ssol_brdf_composite.h
   ssol_brdf_reflection.h
@@ -142,6 +144,7 @@ if(NOT NO_TEST)
     register_test(${_name} ${_name})
   endfunction()
   
+  new_test(test_ssol_atmosphere)
   new_test(test_ssol_device)
   new_test(test_ssol_image)
   new_test(test_ssol_material)

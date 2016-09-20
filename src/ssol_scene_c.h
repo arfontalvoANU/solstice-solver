@@ -41,6 +41,7 @@ struct ssol_scene {
   struct s3d_scene* scn_rt;
   struct s3d_scene* scn_samp;
   struct ssol_sun* sun;
+  struct ssol_atmosphere* atmosphere;
 
   struct ssol_device* dev;
   ref_T ref;
