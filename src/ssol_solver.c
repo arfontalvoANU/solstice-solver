@@ -25,6 +25,8 @@
 #include "ssol_spectrum_c.h"
 #include "ssol_instance_c.h"
 #include "ssol_brdf_composite.h"
+#include "ssol_ranst_sun_dir.h"
+#include "ssol_ranst_sun_wl.h"
 
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
@@ -75,15 +77,14 @@ set_sun_distributions(struct solver_data* data)
   dev = data->scene->dev;
   ASSERT(dev && dev->allocator);
   /* first set the spectrum distribution */
-  res = ssp_ranst_piecewise_linear_create
-    (dev->allocator, &data->sun_spectrum_ran);
+  res = ranst_sun_wl_create(dev->allocator, &data->sun_wl_ran);
   if (res != RES_OK) goto error;
   spectrum = sun->spectrum;
   frequencies = darray_double_cdata_get(&spectrum->frequencies);
   intensities = darray_double_cdata_get(&spectrum->intensities);
   sz = darray_double_size_get(&spectrum->frequencies);
-  res = ssp_ranst_piecewise_linear_setup
-    (data->sun_spectrum_ran, frequencies, intensities, sz);
+  res = ranst_sun_wl_setup(
+      data->sun_wl_ran, frequencies, intensities, sz);
   if (res != RES_OK) goto error;
   /* then the direction distribution */
   res = ranst_sun_dir_create(dev->allocator, &data->sun_dir_ran);
@@ -108,12 +109,12 @@ set_sun_distributions(struct solver_data* data)
 exit:
   return res;
 error:
-  if (data->sun_spectrum_ran) {
-    SSP(ranst_piecewise_linear_ref_put(data->sun_spectrum_ran));
-    data->sun_spectrum_ran = NULL;
+  if (data->sun_wl_ran) {
+    CHECK(ranst_sun_wl_ref_put(data->sun_wl_ran), RES_OK);
+    data->sun_wl_ran = NULL;
   }
   if (data->sun_dir_ran) {
-    ASSERT(ranst_sun_dir_ref_put(data->sun_dir_ran) == RES_OK);
+    CHECK(ranst_sun_dir_ref_put(data->sun_dir_ran), RES_OK);
     data->sun_dir_ran = NULL;
   }
   goto exit;
@@ -123,10 +124,10 @@ static void
 release_solver_data(struct solver_data* data)
 {
   ASSERT(data);
-  if (data->view_rt) s3d_scene_view_ref_put(data->view_rt);
-  if (data->view_samp) s3d_scene_view_ref_put(data->view_samp);
-  if (data->sun_dir_ran) ranst_sun_dir_ref_put(data->sun_dir_ran);
-  if (data->sun_spectrum_ran) ssp_ranst_piecewise_linear_ref_put(data->sun_spectrum_ran);
+  if (data->view_rt) S3D(scene_view_ref_put(data->view_rt));
+  if (data->view_samp) S3D(scene_view_ref_put(data->view_samp));
+  if (data->sun_dir_ran) CHECK(ranst_sun_dir_ref_put(data->sun_dir_ran), RES_OK);
+  if (data->sun_wl_ran) CHECK(ranst_sun_wl_ref_put(data->sun_wl_ran), RES_OK);
   if (data->brdfs) brdf_composite_ref_put(data->brdfs);
   *data = SOLVER_DATA_NULL;
 }
@@ -198,8 +199,8 @@ check_fst_segment(const struct segment* seg)
   if (seg->on_punched) ASSERT_NAN(seg->hit_pos_local, 3);
   NCHECK(seg->on_punched, 99);
   ASSERT_NAN(seg->org, 3);
-  ASSERT(seg->weight > 0);
   ASSERT_NAN(&seg->tmin, 1);
+  ASSERT(seg->weight > 0);
 }
 
 static void
@@ -252,6 +253,7 @@ setup_next_segment(struct realisation* rs)
   seg->weight = prev->weight
     * brdf_composite_sample(
         data->brdfs, data->rng, prev->dir, data->fragment.Ns, seg->dir);
+
   return res;
 }
 
@@ -462,8 +464,7 @@ static void
 sample_wavelength(struct realisation* rs)
 {
   ASSERT(rs);
-  rs->freq = ssp_ranst_piecewise_linear_get
-    (rs->data.sun_spectrum_ran, rs->data.rng);
+  rs->freq = ranst_sun_wl_get(rs->data.sun_wl_ran, rs->data.rng);
 }
 
 /* check if the sampled point as described in rs->start receives sun light

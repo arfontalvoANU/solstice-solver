@@ -60,6 +60,7 @@ set(SSOL_FILES_SRC
   ssol_object.c
   ssol_instance.c
   ssol_ranst_sun_dir.c
+  ssol_ranst_sun_wl.c
   ssol_scene.c
   ssol_shape.c
   ssol_spectrum.c
@@ -80,6 +81,7 @@ set(SSOL_FILES_INC
   ssol_object_c.h
   ssol_instance_c.h
   ssol_ranst_sun_dir.h
+  ssol_ranst_sun_wl.h
   ssol_scene_c.h
   ssol_shape_c.h
   ssol_spectrum_c.h
@@ -139,7 +141,7 @@ if(NOT NO_TEST)
     build_test(${_name} ${ARGN})
     register_test(${_name} ${_name})
   endfunction()
-
+  
   new_test(test_ssol_device)
   new_test(test_ssol_image)
   new_test(test_ssol_material)

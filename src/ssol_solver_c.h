@@ -16,7 +16,6 @@
 #ifndef SSOL_SOLVER_C_H
 #define SSOL_SOLVER_C_H
 
-#include "ssol_ranst_sun_dir.h"
 #include "ssol_material_c.h"
 #include "ssol_c.h"
 
@@ -27,6 +26,8 @@
 #include <star/ssp.h>
 #include <star/s3d.h>
 
+struct ranst_sun_dir;
+struct ranst_sun_wl;
 
 #define DARRAY_NAME quadric
 #define DARRAY_DATA struct ssol_quadric
@@ -104,7 +105,7 @@ struct solver_data {
   struct s3d_scene_view* view_samp;
   /* The random distributions for sun sampling */
   struct ranst_sun_dir* sun_dir_ran;
-  struct ssp_ranst_piecewise_linear* sun_spectrum_ran;
+  struct ranst_sun_wl* sun_wl_ran;
   /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
   struct surface_fragment fragment;
