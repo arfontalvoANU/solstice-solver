@@ -137,16 +137,21 @@ res_T
 set_views(struct solver_data* data)
 {
   res_T res = RES_OK;
-  size_t nshapes_samp = 0;
+  char has_sampled, has_receiver;
 
   if (!data) return RES_BAD_ARG;
 
-  res = scene_setup_s3d_sampling_scene(data->scene);
+  res = scene_setup_s3d_sampling_scene(data->scene, &has_sampled, &has_receiver);
   if(res != RES_OK) goto error;
 
-  S3D(scene_get_shapes_count(data->scene->scn_samp, &nshapes_samp));
-  if(!nshapes_samp) {
-    log_error(data->scene->dev, "%s: no mirror geometry defined.\n", FUNC_NAME);
+  if (!has_sampled) {
+    log_error(data->scene->dev, "%s: no sampled geometry defined.\n", FUNC_NAME);
+    res = RES_BAD_ARG;
+    goto error;
+  }
+
+  if (!has_receiver) {
+    log_error(data->scene->dev, "%s: no receiver defined.\n", FUNC_NAME);
     res = RES_BAD_ARG;
     goto error;
   }
@@ -636,6 +641,36 @@ ssol_solve
 
   if (!scene || !rng || !output || !realisations_count)
     return RES_BAD_ARG;
+
+  if (!scene->sun) {
+    log_error(scene->dev, "%s: no sun attached.\n", FUNC_NAME);
+    return RES_BAD_ARG;
+  }
+
+  if (!scene->sun->spectrum) {
+    log_error(scene->dev, "%s: sun's spectrum undefined.\n", FUNC_NAME);
+    return RES_BAD_ARG;
+  }
+
+  if (scene->sun->dni <= 0) {
+    log_error(scene->dev, "%s: sun's DNI undefined.\n", FUNC_NAME);
+    return RES_BAD_ARG;
+  }
+
+  if (scene->atmosphere) {
+    switch (scene->atmosphere->type) {
+    case ATMOS_UNIFORM: {
+      char ok;
+      CHECK(spectrum_includes(scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum, &ok), RES_OK);
+      if (!ok) {
+        log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
+        return RES_BAD_ARG;
+      }
+      break;
+    }
+    default: FATAL("Unreachable code\n"); break;
+    }
+  }
 
   /* init realisation */
   res = init_realisation(scene, rng, output, &rs);

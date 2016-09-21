@@ -248,10 +248,14 @@ ssol_scene_detach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* a
  * Local functions
  ******************************************************************************/
 res_T
-scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
+scene_setup_s3d_sampling_scene
+  (struct ssol_scene* scn,
+   char* has_sampled,
+   char* has_receiver)
 {
   struct htable_instance_iterator it, end;
   res_T res = RES_OK;
+  char hs = 0, hr = 0;
   ASSERT(scn);
 
   S3D(scene_clear(scn->scn_samp));
@@ -265,7 +269,14 @@ scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
     unsigned id;
     htable_instance_iterator_next(&it);
 
+    if (!str_is_empty(&inst->receiver_back)
+      || !str_is_empty(&inst->receiver_front))
+    {
+      hr = 1;
+    }
+
     if(inst->dont_sample) continue;
+    hs = 1;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
@@ -282,10 +293,14 @@ scene_setup_s3d_sampling_scene(struct ssol_scene* scn)
   }
 
 exit:
+  if (has_sampled) *has_sampled = hs;
+  if (has_receiver) *has_receiver = hr;
   return res;
 error:
   S3D(scene_clear(scn->scn_samp));
   htable_instance_clear(&scn->instances_samp);
+  has_sampled = NULL;
+  has_receiver = NULL;
   goto exit;
 }
 
