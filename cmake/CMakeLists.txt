@@ -157,6 +157,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_solver2)
   new_test(test_ssol_solver3)
   new_test(test_ssol_solver4)
+  new_test(test_ssol_solver5)
   new_test(test_ssol_sun)
 endif(NOT NO_TEST)
 

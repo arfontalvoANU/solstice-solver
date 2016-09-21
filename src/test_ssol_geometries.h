@@ -22,7 +22,7 @@ struct desc {
 };
 
 /*******************************************************************************
- * Plane
+ * Square plane
  ******************************************************************************/
 static const float square_walls [] = {
   -1.f, -1.f, 0.f,
@@ -36,6 +36,22 @@ const unsigned square_walls_ids [] = { 0, 2, 1, 2, 0, 3 };
 const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
 
 static const struct desc square_walls_desc = { square_walls, square_walls_ids };
+
+/*******************************************************************************
+* Rectangle plane
+******************************************************************************/
+static const float rect_walls [] = {
+  -10.f, -1.f, 0.f,
+  10.f, -1.f, 0.f,
+  10.f,  1.f, 0.f,
+  -10.f,  1.f, 0.f
+};
+const unsigned rect_walls_nverts = sizeof(rect_walls) / sizeof(float[3]);
+
+const unsigned rect_walls_ids [] = { 0, 2, 1, 2, 0, 3 };
+const unsigned rect_walls_ntris = sizeof(rect_walls_ids) / sizeof(unsigned[3]);
+
+static const struct desc rect_walls_desc = { rect_walls, rect_walls_ids };
 
 /*******************************************************************************
  * Box
