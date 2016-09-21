@@ -80,10 +80,6 @@ spectrum_includes
   }
 
   test_sz = tested->frequencies.size;
-  if(!reference->frequencies.size || !test_sz) {
-    return RES_BAD_ARG;
-  }
-
   test_data = tested->frequencies.data;
   *include = spectrum_includes_point(reference, test_data[0])
     && spectrum_includes_point(reference, test_data[test_sz - 1]);
@@ -121,7 +117,7 @@ spectrum_interpolate
 
   slope = (ints[idx_next] - ints[idx_next - 1]) / (freqs[idx_next] - freqs[idx_next - 1]);
   *intensity = ints[idx_next - 1] + (wavelenght - freqs[idx_next - 1]) * slope;
-  ASSERT(*intensity > 0);
+  ASSERT(*intensity >= 0);
   return RES_OK;
 }
 
