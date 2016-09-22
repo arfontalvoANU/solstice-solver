@@ -31,7 +31,7 @@ ranst_sun_wl_create
 extern LOCAL_SYM res_T
 ranst_sun_wl_setup
   (struct ranst_sun_wl* ran,
-   const double* frequencies,
+   const double* wavelengths,
    const double* intensities,
    const size_t sz);
 

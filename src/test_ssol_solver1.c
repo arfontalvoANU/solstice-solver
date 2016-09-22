@@ -54,7 +54,7 @@ main(int argc, char** argv)
   struct ssol_spectrum* abs;
   struct ssol_atmosphere* atm;
   double dir[3];
-  double frequencies[3] = { 1, 2, 3 };
+  double wavelengths[3] = { 1, 2, 3 };
   double mismatch[3] = { 1.5, 3.5 };
   double intensities[3] = { 1, 0.8, 1 };
   double ka[3] = { 0, 0, 0 };
@@ -88,7 +88,7 @@ main(int argc, char** argv)
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, frequencies, intensities, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
@@ -213,7 +213,7 @@ main(int argc, char** argv)
 
   /* check atmosphere model; with no absorbtion result is unchanged */
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, frequencies, ka, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 3), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
@@ -232,7 +232,7 @@ main(int argc, char** argv)
   /* check atmosphere model; with absorbtion power decreases */
   ka[0] = ka[1] = ka[2] = 0.1;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, frequencies, ka, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 3), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
@@ -255,7 +255,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun_mono), RES_OK);
   ka[1] = 0.2;
-  CHECK(ssol_spectrum_setup(abs, frequencies, ka, 2), RES_OK);
+  CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 2), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);

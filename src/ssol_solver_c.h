@@ -120,7 +120,7 @@ struct realisation {
   struct darray_segment segments;
   struct starting_point start;
   struct solver_data data;
-  double freq;
+  double wavelength;
   size_t s_idx;
   size_t rs_id;
   uint32_t success_mask;

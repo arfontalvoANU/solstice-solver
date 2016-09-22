@@ -154,12 +154,12 @@ ranst_sun_wl_get
 res_T
 ranst_sun_wl_setup
   (struct ranst_sun_wl* ran,
-   const double* frequencies,
+   const double* wavelengths,
    const double* intensities,
    const size_t sz)
 {
   res_T res = RES_OK;
-  if (!ran || !frequencies || !intensities || !sz)
+  if (!ran || !wavelengths || !intensities || !sz)
     return RES_BAD_ARG;
   if (sz > 1) {
     ran->type = WL_PIECEWISE;
@@ -168,13 +168,13 @@ ranst_sun_wl_setup
       ran->allocator, &ran->state.piecewise.spectrum);
     if (res != RES_OK) goto error;
     res = ssp_ranst_piecewise_linear_setup
-    (ran->state.piecewise.spectrum, frequencies, intensities, sz);
+    (ran->state.piecewise.spectrum, wavelengths, intensities, sz);
     if (res != RES_OK) goto error;
   }
   else {
     ran->type = WL_DIRAC;
     ran->get = &ran_dirac_get;
-    ran->state.dirac.wavelength = frequencies[0];
+    ran->state.dirac.wavelength = wavelengths[0];
   }
 end:
   return res;

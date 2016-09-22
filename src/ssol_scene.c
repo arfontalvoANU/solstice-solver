@@ -411,7 +411,7 @@ hit_filter_function
       str_cget(receiver_name),
       (unsigned) rs->rs_id,
       (unsigned) rs->s_idx,
-      rs->freq,
+      rs->wavelength,
       seg->weight,
       SPLIT3(seg->hit_pos),
       SPLIT3(seg->dir),

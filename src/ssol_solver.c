@@ -66,7 +66,7 @@ set_sun_distributions(struct solver_data* data)
   struct ssol_spectrum* spectrum;
   struct ssol_device* dev;
   const struct ssol_sun* sun;
-  const double* frequencies;
+  const double* wavelengths;
   const double* intensities;
   res_T res = RES_OK;
   size_t sz;
@@ -81,11 +81,11 @@ set_sun_distributions(struct solver_data* data)
   res = ranst_sun_wl_create(dev->allocator, &data->sun_wl_ran);
   if (res != RES_OK) goto error;
   spectrum = sun->spectrum;
-  frequencies = darray_double_cdata_get(&spectrum->frequencies);
+  wavelengths = darray_double_cdata_get(&spectrum->wavelengths);
   intensities = darray_double_cdata_get(&spectrum->intensities);
-  sz = darray_double_size_get(&spectrum->frequencies);
+  sz = darray_double_size_get(&spectrum->wavelengths);
   res = ranst_sun_wl_setup(
-      data->sun_wl_ran, frequencies, intensities, sz);
+      data->sun_wl_ran, wavelengths, intensities, sz);
   if (res != RES_OK) goto error;
   /* then the direction distribution */
   res = ranst_sun_dir_create(dev->allocator, &data->sun_dir_ran);
@@ -251,7 +251,8 @@ setup_next_segment(struct realisation* rs)
 
   d3_set(seg->org, prev->hit_pos);
   
-  res = material_shade(prev->hit_material, &data->fragment, rs->freq, data->brdfs);
+  res = material_shade(
+    prev->hit_material, &data->fragment, rs->wavelength, data->brdfs);
   if (res != RES_OK) {
     rs->end = TERM_ERR;
     return res;
@@ -472,7 +473,7 @@ static void
 sample_wavelength(struct realisation* rs)
 {
   ASSERT(rs);
-  rs->freq = ranst_sun_wl_get(rs->data.sun_wl_ran, rs->data.rng);
+  rs->wavelength = ranst_sun_wl_get(rs->data.sun_wl_ran, rs->data.rng);
 }
 
 /* check if the sampled point as described in rs->start receives sun light
@@ -576,7 +577,7 @@ receive_sunlight(struct realisation* rs)
       str_cget(receiver_name),
       (unsigned) rs->rs_id,
       (unsigned) rs->s_idx,
-      rs->freq,
+      rs->wavelength,
       seg->weight,
       SPLIT3(seg->hit_pos),
       SPLIT3(seg->dir),
@@ -612,7 +613,7 @@ propagate(struct realisation* rs)
     switch (rs->data.scene->atmosphere->type) {
     case ATMOS_UNIFORM:
       spectrum = rs->data.scene->atmosphere->data.uniform.spectrum;
-      CHECK(spectrum_interpolate(spectrum, rs->freq, &ka), RES_OK);
+      CHECK(spectrum_interpolate(spectrum, rs->wavelength, &ka), RES_OK);
       break;
     default: FATAL("Unreachable code\n"); break;
     }

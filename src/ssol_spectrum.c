@@ -34,7 +34,7 @@ spectrum_release(ref_T* ref)
   ASSERT(ref);
   dev = spectrum->dev;
   ASSERT(dev && dev->allocator);
-  darray_double_release(&spectrum->frequencies);
+  darray_double_release(&spectrum->wavelengths);
   darray_double_release(&spectrum->intensities);
   MEM_RM(dev->allocator, spectrum);
   SSOL(device_ref_put(dev));
@@ -47,10 +47,10 @@ spectrum_includes_point
 {
   const double* data;
   size_t sz;
-  ASSERT(spectrum && spectrum->frequencies.data && spectrum->intensities.data);
-  sz = spectrum->frequencies.size;
+  ASSERT(spectrum && spectrum->wavelengths.data && spectrum->intensities.data);
+  sz = spectrum->wavelengths.size;
   ASSERT(sz && sz == spectrum->intensities.size);
-  data = spectrum->frequencies.data;
+  data = spectrum->wavelengths.data;
   return data[0] <= wavelenght && wavelenght <= data[sz - 1];
 }
 
@@ -79,8 +79,8 @@ spectrum_includes
     return RES_BAD_ARG;
   }
 
-  test_sz = tested->frequencies.size;
-  test_data = tested->frequencies.data;
+  test_sz = tested->wavelengths.size;
+  test_data = tested->wavelengths.data;
   *include = spectrum_includes_point(reference, test_data[0])
     && spectrum_includes_point(reference, test_data[test_sz - 1]);
 
@@ -94,7 +94,7 @@ spectrum_interpolate
    double* intensity)
 {
   double* next;
-  double* freqs;
+  double* wavelengths;
   double* ints;
   double slope;
   size_t idx_next, sz;
@@ -105,18 +105,20 @@ spectrum_interpolate
     return RES_BAD_ARG;
   }
 
-  sz = spectrum->frequencies.size;
-  freqs = spectrum->frequencies.data;
+  sz = spectrum->wavelengths.size;
+  wavelengths = spectrum->wavelengths.data;
   ints = spectrum->intensities.data;
-  next = search_lower_bound(&wavelenght, freqs, sz, sizeof(double), &eq_d);
+  next = search_lower_bound(&wavelenght, wavelengths, sz, sizeof(double), &eq_d);
   ASSERT(next); /* cause spectrum_includes_point */
-  idx_next = next - freqs;
+  idx_next = next - wavelengths;
   ASSERT(idx_next); /* cause spectrum_includes_point */
   ASSERT(ints[idx_next] >= ints[idx_next - 1]);
-  ASSERT(freqs[idx_next] >= freqs[idx_next - 1]);
+  ASSERT(wavelengths[idx_next] >= wavelengths[idx_next - 1]);
 
-  slope = (ints[idx_next] - ints[idx_next - 1]) / (freqs[idx_next] - freqs[idx_next - 1]);
-  *intensity = ints[idx_next - 1] + (wavelenght - freqs[idx_next - 1]) * slope;
+  slope = (ints[idx_next] - ints[idx_next - 1])
+    / (wavelengths[idx_next] - wavelengths[idx_next - 1]);
+  *intensity = ints[idx_next - 1] 
+    + (wavelenght - wavelengths[idx_next - 1]) * slope;
   ASSERT(*intensity >= 0);
   return RES_OK;
 }
@@ -144,7 +146,7 @@ ssol_spectrum_create
   SSOL(device_ref_get(dev));
   spectrum->dev = dev;
   ref_init(&spectrum->ref);
-  darray_double_init(dev->allocator, &spectrum->frequencies);
+  darray_double_init(dev->allocator, &spectrum->wavelengths);
   darray_double_init(dev->allocator, &spectrum->intensities);
 
 exit:
@@ -191,17 +193,17 @@ ssol_spectrum_setup
   || !data)
     return RES_BAD_ARG;
 
-  res = darray_double_resize(&spectrum->frequencies, nwavelength);
+  res = darray_double_resize(&spectrum->wavelengths, nwavelength);
   if (res != RES_OK) return res;
 
   res = darray_double_resize(&spectrum->intensities, nwavelength);
   if (res != RES_OK) {
-    darray_double_clear(&spectrum->frequencies);
+    darray_double_clear(&spectrum->wavelengths);
     return res;
   }
 
   FOR_EACH(i, 0, nwavelength) {
-    spectrum->frequencies.data[i] = wavelengths[i];
+    spectrum->wavelengths.data[i] = wavelengths[i];
     spectrum->intensities.data[i] = data[i];
   }
 

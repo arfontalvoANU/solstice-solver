@@ -54,7 +54,7 @@ main(int argc, char** argv)
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
   double dir[3];
-  double frequencies[3] = { 1, 2, 3 };
+  double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
   double transform[12]; /* 3x4 column major matrix */
   double polygon[] = { -10.0, -10.0, -10.0, 10.0, 10.0, 10.0, 10.0, -10.0 };
@@ -81,7 +81,7 @@ main(int argc, char** argv)
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, frequencies, intensities, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
