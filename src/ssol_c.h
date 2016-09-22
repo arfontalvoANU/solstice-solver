@@ -54,5 +54,7 @@ hit_filter_function
 #define ASSERT_NAN(x, sz) 
 #endif
 
+#define NON_BOOL 99
+
 #endif /* SSOL_C_H */
 

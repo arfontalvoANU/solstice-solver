@@ -197,13 +197,13 @@ check_fst_segment(const struct segment* seg)
   ASSERT(seg);
   ASSERT_NAN(seg->dir, 3);
   /* hit is not checked and can be used only for debugging purpose */
-  NCHECK(seg->hit_front, 99);
+  ASSERT(seg->hit_front != NON_BOOL);
   ASSERT(seg->hit_instance);
   ASSERT(seg->hit_material);
   ASSERT_NAN(seg->hit_normal, 3);
   ASSERT_NAN(seg->hit_pos, 3);
   if (seg->on_punched) ASSERT_NAN(seg->hit_pos_local, 3);
-  NCHECK(seg->on_punched, 99);
+  ASSERT(seg->on_punched != NON_BOOL);
   ASSERT_NAN(seg->org, 3);
   ASSERT_NAN(&seg->tmin, 1);
   ASSERT(seg->weight > 0);
@@ -215,7 +215,7 @@ check_segment(const struct segment* seg)
   check_fst_segment(seg);
   ASSERT_NAN(&seg->hit_distance, 1);
   ASSERT(seg->self_instance);
-  NCHECK(seg->self_front, 99);
+  ASSERT(seg->self_front != NON_BOOL);
   /* hit filter is supposed to work properly */
   ASSERT(seg->self_instance != seg->hit_instance
     || seg->self_front != seg->hit_front);
@@ -272,16 +272,16 @@ reset_segment(struct segment* seg)
   d3_splat(seg->dir, NAN);
   seg->hit = S3D_HIT_NULL;
   seg->hit_distance = NAN;
-  seg->hit_front = 99;
+  seg->hit_front = NON_BOOL;
   seg->hit_instance = NULL;
   seg->hit_material = NULL;
   d3_splat(seg->hit_normal, NAN);
   d3_splat(seg->hit_pos, NAN);
   d3_splat(seg->hit_pos_local, NAN);
-  seg->on_punched = 99;
+  seg->on_punched = NON_BOOL;
   d3_splat(seg->org, NAN);
   seg->self_instance = NULL;
-  seg->self_front = 99;
+  seg->self_front = NON_BOOL;
   seg->weight = NAN;
   seg->tmin = NAN;
 #else
@@ -295,12 +295,12 @@ reset_starting_point(struct starting_point* start)
   ASSERT(start);
 #ifndef NDEBUG
   start->cos_sun = NAN;
-  start->front_exposed = 99;
+  start->front_exposed = NON_BOOL;
   start->instance = NULL;
   start->material = NULL;
   d3_splat(start->rt_normal, NAN);
   d3_splat(start->sampl_normal, NAN);
-  start->on_punched = 99;
+  start->on_punched = NON_BOOL;
   d3_splat(start->pos, NAN);
   d3_splat(start->pos_local, NAN);
   start->sampl_primitive = S3D_PRIMITIVE_NULL;
@@ -316,12 +316,12 @@ check_starting_point(const struct starting_point* start)
 {
   ASSERT(start);
   ASSERT(start->cos_sun > 0); /* normal is flipped facing in_dir */
-  NCHECK(start->front_exposed, 99);
+  ASSERT(start->front_exposed != NON_BOOL);
   ASSERT(start->instance);
   ASSERT(start->material);
   ASSERT_NAN(start->rt_normal, 3);
   ASSERT_NAN(start->sampl_normal, 3);
-  NCHECK(start->on_punched, 99);
+  ASSERT(start->on_punched != NON_BOOL);
   ASSERT_NAN(start->pos, 3);
   if(start->on_punched) ASSERT_NAN(start->pos_local, 3);
   ASSERT(!S3D_PRIMITIVE_EQ(&start->sampl_primitive, &S3D_PRIMITIVE_NULL));
@@ -412,7 +412,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
   r3 = ssp_rng_canonical_float(data->rng);
   S3D(scene_view_sample(data->view_samp, r1, r2, r3, &sampl_prim, start->uv));
   S3D(primitive_get_attrib(&sampl_prim, S3D_POSITION, start->uv, &attrib));
-  CHECK(attrib.type, S3D_FLOAT3);
+  ASSERT(attrib.type == S3D_FLOAT3);
   d3_set_f3(start->pos, attrib.value);
 
   /* find the solstice shape and project the sampled point on the mirror */
@@ -423,7 +423,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
   start->on_punched = (shape->type == SHAPE_PUNCHED);
   /* set sampling normal */
   S3D(primitive_get_attrib(&sampl_prim, S3D_GEOMETRY_NORMAL, start->uv, &attrib));
-  CHECK(attrib.type, S3D_FLOAT3);
+  ASSERT(attrib.type == S3D_FLOAT3);
   d3_set_f3(start->sampl_normal, attrib.value);
   switch (shape->type) {
   case SHAPE_MESH: {
@@ -553,7 +553,7 @@ receive_sunlight(struct realisation* rs)
   seg->hit_instance = seg->self_instance;
   seg->self_instance = NULL;
   seg->hit_front = seg->self_front;
-  seg->self_front = 99;
+  seg->self_front = NON_BOOL;
   seg->weight = rs->data.sampled_area * sun->dni * start->cos_sun;
   ASSERT(seg->weight > 0);
 

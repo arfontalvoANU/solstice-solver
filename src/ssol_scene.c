@@ -333,7 +333,7 @@ hit_filter_function
   ASSERT_NAN(seg->org, 3);
   ASSERT_NAN(&seg->tmin, 1);
   ASSERT(seg->self_instance);
-  NCHECK(seg->self_front, 99);
+  ASSERT(seg->self_front != NON_BOOL);
 
   /* need to reject identical hits on triangle's edges */
   if (hit->distance <= seg->tmin) {
