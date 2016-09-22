@@ -49,6 +49,7 @@ main(int argc, char** argv)
   CHECK(ssol_image_setup(image, 0, 128, SSOL_PIXEL_DOUBLE3), RES_BAD_ARG);
   CHECK(ssol_image_setup(image, 128, 0, (enum ssol_pixel_format)999), RES_BAD_ARG);
   CHECK(ssol_image_setup(image, 128, 128, SSOL_PIXEL_DOUBLE3), RES_OK);
+  CHECK(ssol_image_setup(image, 128, 128, SSOL_PIXEL_DOUBLE3), RES_OK);
 
   CHECK(ssol_image_ref_put(image), RES_OK);
 

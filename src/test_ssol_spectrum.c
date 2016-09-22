@@ -54,6 +54,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_setup(spectrum, wavelengths, NULL, 3), RES_BAD_ARG);
   CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 0), RES_BAD_ARG);
   CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
 
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
 

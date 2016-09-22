@@ -59,6 +59,7 @@ main(int argc, char** argv)
   CHECK(ssol_mirror_set_shader(NULL, &shader), RES_BAD_ARG);
   CHECK(ssol_mirror_set_shader(material, NULL), RES_BAD_ARG);
   CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
+  CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
 
   shader.normal = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);

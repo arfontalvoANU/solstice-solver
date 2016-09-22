@@ -31,8 +31,10 @@ main(int argc, char** argv)
   struct ssol_sun* sun;
   struct ssol_sun* sun2;
   struct ssol_scene* scene;
+  struct ssol_scene* scene2;
   struct ssol_spectrum* spectrum;
   struct ssol_atmosphere* atm;
+  struct ssol_atmosphere* atm2;
   double wavelengths[3] = { 10, 20, 30 };
   double data[3] = { 1, 2.1, 1.5 };
   double transform[12];
@@ -55,8 +57,10 @@ main(int argc, char** argv)
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
   CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
+  CHECK(ssol_sun_create_directional(dev, &sun2), RES_OK);
 
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
+  CHECK(ssol_scene_create(dev, &scene2), RES_OK);
 
   CHECK(ssol_scene_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_scene_ref_get(scene), RES_OK);
@@ -64,48 +68,82 @@ main(int argc, char** argv)
   CHECK(ssol_scene_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
 
+  CHECK(ssol_scene_clear(NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_clear(scene), RES_OK);
+
   CHECK(ssol_scene_attach_instance(NULL, instance), RES_BAD_ARG);
   CHECK(ssol_scene_attach_instance(scene, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
 
   CHECK(ssol_scene_detach_instance(NULL, instance), RES_BAD_ARG);
   CHECK(ssol_scene_detach_instance(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_detach_instance(scene, instance), RES_BAD_ARG);
 
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
-  CHECK(ssol_scene_clear(NULL), RES_BAD_ARG);
-  CHECK(ssol_scene_clear(scene), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene2, instance), RES_OK);
+  CHECK(ssol_scene_detach_instance(scene2, instance), RES_OK);
+  CHECK(ssol_scene_detach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_detach_instance(scene2, instance), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_instance(scene, instance), RES_OK);
 
   CHECK(ssol_scene_attach_sun(NULL, sun), RES_BAD_ARG);
   CHECK(ssol_scene_attach_sun(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_scene_attach_sun(scene, sun), RES_BAD_ARG);
+  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_scene_attach_sun(scene, sun2), RES_BAD_ARG);
 
   CHECK(ssol_scene_detach_sun(NULL, sun), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_BAD_ARG);
 
+  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_scene_attach_sun(scene2, sun), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_sun(scene2, sun), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
+  CHECK(ssol_scene_attach_sun(scene2, sun), RES_OK);
+  CHECK(ssol_scene_detach_sun(scene, sun), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_sun(scene2, sun), RES_OK);
+
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, spectrum), RES_OK);
+  CHECK(ssol_atmosphere_create_uniform(dev, &atm2), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm2, spectrum), RES_OK);
 
   CHECK(ssol_scene_attach_atmosphere(NULL, atm), RES_BAD_ARG);
   CHECK(ssol_scene_attach_atmosphere(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
-  CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_BAD_ARG);
+  CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
+  CHECK(ssol_scene_attach_atmosphere(scene, atm2), RES_BAD_ARG);
 
   CHECK(ssol_scene_detach_atmosphere(NULL, atm), RES_BAD_ARG);
   CHECK(ssol_scene_detach_atmosphere(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_BAD_ARG);
 
-  CHECK(ssol_sun_create_directional(dev, &sun2), RES_OK);
+  CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
+  CHECK(ssol_scene_attach_atmosphere(scene2, atm), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_atmosphere(scene2, atm), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
+  CHECK(ssol_scene_attach_atmosphere(scene2, atm), RES_OK);
+  CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_atmosphere(scene2, atm), RES_OK);
+
   CHECK(ssol_scene_detach_sun(scene, sun2), RES_BAD_ARG);
   CHECK(ssol_sun_ref_put(sun2), RES_OK);
 
+  CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
+  CHECK(ssol_scene_clear(scene), RES_OK);
+
   CHECK(ssol_scene_ref_put(scene), RES_OK);
+  CHECK(ssol_scene_ref_put(scene2), RES_OK);
 
   CHECK(ssol_instance_ref_put(instance), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
@@ -113,6 +151,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_ref_put(sun), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
+  CHECK(ssol_atmosphere_ref_put(atm2), RES_OK);
   CHECK(ssol_material_ref_put(material), RES_OK);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);

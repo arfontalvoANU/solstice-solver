@@ -115,6 +115,7 @@ ssol_scene_attach_instance
   (struct ssol_scene* scene, struct ssol_instance* instance)
 {
   unsigned id;
+  struct ssol_instance** pinst;
   res_T res;
 
   if(!scene || !instance) return RES_BAD_ARG;
@@ -125,7 +126,12 @@ ssol_scene_attach_instance
 
   /* Register the instance against the scene */
   S3D(shape_get_id(instance->shape_rt, &id));
-  ASSERT(!htable_instance_find(&scene->instances_rt, &id));
+  pinst = htable_instance_find(&scene->instances_rt, &id);
+  if (pinst) {
+    /* already attached */
+    ASSERT(*pinst == instance); /* cannot be attached to another instance! */
+    return RES_OK;
+  }
   res = htable_instance_set(&scene->instances_rt, &id, &instance);
   if(res != RES_OK) {
     S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
@@ -192,11 +198,18 @@ ssol_scene_clear(struct ssol_scene* scene)
 res_T
 ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
-  if(!scene || ! sun
-  || sun->scene_attachment /* Should detach this sun first from its own scene */
-  || scene->sun) /* Should detach previous sun first */
+  if(!scene || ! sun)
     return RES_BAD_ARG;
-
+  if (sun->scene_attachment || scene->sun) {
+    /* already attached: must be linked together */
+    if (sun->scene_attachment != scene || scene->sun != sun)
+      /* if not detach first! */
+      return RES_BAD_ARG;
+    else
+      /* nothing to change */
+      return RES_OK;
+  }
+  /* no previous attachment */
   SSOL(sun_ref_get(sun));
   scene->sun = sun;
   sun->scene_attachment = scene;
@@ -220,11 +233,18 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 res_T
 ssol_scene_attach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* atm)
 {
-  if (!scene || !atm
-    || atm->scene_attachment /* Should detach this atmosphere first from its own scene */
-    || scene->atmosphere) /* Should detach previous atm first */
+  if (!scene || !atm)
     return RES_BAD_ARG;
-
+  if (atm->scene_attachment || scene->atmosphere) {
+    /* already attached: must be linked together */
+    if (atm->scene_attachment != scene || scene->atmosphere != atm)
+      /* if not detach first! */
+      return RES_BAD_ARG;
+    else
+      /* nothing to change */
+      return RES_OK;
+  }
+  /* no previous attachment */
   SSOL(atmosphere_ref_get(atm));
   scene->atmosphere = atm;
   atm->scene_attachment = scene;
