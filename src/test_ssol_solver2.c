@@ -23,6 +23,11 @@
 #define HALF_Y 1
 #include "test_ssol_rect_geometry.h"
 
+#define PLANE_NAME RECT
+#define HALF_X 0.5
+#define HALF_Y 1
+#include "test_ssol_rect_geometry.h"
+
 #define POLYGON_NAME POLY
 #define HALF_X 1
 #define HALF_Y 1
@@ -47,6 +52,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssp_rng* rng;
   struct ssol_scene* scene;
+  struct ssol_shape* rect;
   struct ssol_shape* square;
   struct ssol_vertex_data attribs[1];
   struct ssol_shape* quad_square;
@@ -59,7 +65,8 @@ main(int argc, char** argv)
   struct ssol_object* m_object;
   struct ssol_object* s_object;
   struct ssol_object* t_object;
-  struct ssol_instance* heliostat;
+  struct ssol_instance* heliostat1;
+  struct ssol_instance* heliostat2;
   struct ssol_instance* secondary;
   struct ssol_instance* target;
   struct ssol_sun* sun;
@@ -69,6 +76,7 @@ main(int argc, char** argv)
   double intensities[3] = { 1, 0.8, 1 };
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
+  double transform3[12]; /* 3x4 column major matrix */
   FILE* tmp;
   double m, std;
 
@@ -83,6 +91,9 @@ main(int argc, char** argv)
   d33_set_identity(transform2);
   d3_splat(transform2 + 9, 0);
   transform2[9] = 4; /* +4 offset along X axis */
+
+  d33_set_identity(transform3);
+  d3_splat(transform3 + 9, 0);
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
@@ -112,6 +123,12 @@ main(int argc, char** argv)
   CHECK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
     SQUARE_NVERTS__, attribs, 1, (void*) &SQUARE_DESC__), RES_OK);
 
+  CHECK(ssol_shape_create_mesh(dev, &rect), RES_OK);
+  attribs[0].usage = SSOL_POSITION;
+  attribs[0].get = get_position;
+  CHECK(ssol_mesh_setup(rect, RECT_NTRIS__, get_ids,
+    RECT_NVERTS__, attribs, 1, (void*) &RECT_DESC__), RES_OK);
+
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square), RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
@@ -130,10 +147,17 @@ main(int argc, char** argv)
   CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
-  CHECK(ssol_object_create(dev, square, m_mtl, m_mtl, &m_object), RES_OK);
-  CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat, "miroir", NULL), RES_OK);
-  CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
+  CHECK(ssol_object_create(dev, rect, m_mtl, m_mtl, &m_object), RES_OK);
+  CHECK(ssol_object_instantiate(m_object, &heliostat1), RES_OK);
+  CHECK(ssol_object_instantiate(m_object, &heliostat2), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat1, "miroir", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat2, "miroir", NULL), RES_OK);
+  transform3[9] = -0.5; /* -0.5 offset along X axis */
+  CHECK(ssol_instance_set_transform(heliostat1, transform3), RES_OK);
+  transform3[9] = +0.5; /* +0.5 offset along X axis */
+  CHECK(ssol_instance_set_transform(heliostat2, transform3), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, heliostat1), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, heliostat2), RES_OK);
 
   CHECK(ssol_object_create(dev, quad_square, m_mtl, m_mtl, &s_object), RES_OK);
   CHECK(ssol_object_instantiate(s_object, &secondary), RES_OK);
@@ -160,16 +184,18 @@ main(int argc, char** argv)
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
 #define SQR(x) ((x)*(x))
-  CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) - SQR(4 * DNI_cos)) / N), 1e-4), 1);
+  CHECK(eq_eps(std, 0, 1e-4), 1);
   /* free data */
 
-  CHECK(ssol_instance_ref_put(heliostat), RES_OK);
+  CHECK(ssol_instance_ref_put(heliostat1), RES_OK);
+  CHECK(ssol_instance_ref_put(heliostat2), RES_OK);
   CHECK(ssol_instance_ref_put(secondary), RES_OK);
   CHECK(ssol_instance_ref_put(target), RES_OK);
   CHECK(ssol_object_ref_put(m_object), RES_OK);
   CHECK(ssol_object_ref_put(s_object), RES_OK);
   CHECK(ssol_object_ref_put(t_object), RES_OK);
   CHECK(ssol_shape_ref_put(square), RES_OK);
+  CHECK(ssol_shape_ref_put(rect), RES_OK);
   CHECK(ssol_shape_ref_put(quad_square), RES_OK);
   CHECK(ssol_material_ref_put(m_mtl), RES_OK);
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);
