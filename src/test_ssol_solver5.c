@@ -15,9 +15,18 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
-#include "test_ssol_geometries.h"
 #include "test_ssol_materials.h"
 #include "test_ssol_postprocess.h"
+
+#define HALF_X 10
+#define HALF_Y 0.1
+#define PLANE_NAME RECT
+#include "test_ssol_rect_geometry.h"
+
+#define POLYGON_NAME POLY
+#define HALF_X 10
+#define HALF_Y 10
+#include "test_ssol_rect2D_geometry.h"
 
 #include "ssol_solver_c.h"
 
@@ -38,7 +47,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssp_rng* rng;
   struct ssol_scene* scene;
-  struct ssol_shape* square;
+  struct ssol_shape* rect;
   struct ssol_vertex_data attribs[1];
   struct ssol_shape* quad_square;
   struct ssol_carving carving;
@@ -57,8 +66,6 @@ main(int argc, char** argv)
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
   double transform[12]; /* 3x4 column major matrix */
-  double polygon[] = { -10.0, -10.0, -10.0, 10.0, 10.0, 10.0, 10.0, -10.0 };
-  const size_t npolygon_verts = sizeof(polygon) / sizeof(double[2]);
   FILE* tmp;
   double m, std;
 
@@ -91,17 +98,17 @@ main(int argc, char** argv)
 
   /* create scene content */
 
-  CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
+  CHECK(ssol_shape_create_mesh(dev, &rect), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, rect_walls_ntris, get_ids,
-    rect_walls_nverts, attribs, 1, (void*) &rect_walls_desc), RES_OK);
+  CHECK(ssol_mesh_setup(rect, RECT_NTRIS__, get_ids,
+    RECT_NVERTS__, attribs, 1, (void*) &RECT_DESC__), RES_OK);
 
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square), RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
-  carving.nb_vertices = npolygon_verts;
-  carving.context = &polygon;
+  carving.nb_vertices = POLY_NVERTS__;
+  carving.context = &POLY_EDGES__;
   quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
   quadric.data.parabol.focal = FOCAL;
   punched.nb_carvings = 1;
@@ -120,7 +127,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
-  CHECK(ssol_object_create(dev, square, v_mtl, v_mtl, &t_object), RES_OK);
+  CHECK(ssol_object_create(dev, rect, v_mtl, v_mtl, &t_object), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform), RES_OK);
   CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);
@@ -145,7 +152,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_ref_put(target), RES_OK);
   CHECK(ssol_object_ref_put(m_object), RES_OK);
   CHECK(ssol_object_ref_put(t_object), RES_OK);
-  CHECK(ssol_shape_ref_put(square), RES_OK);
+  CHECK(ssol_shape_ref_put(rect), RES_OK);
   CHECK(ssol_shape_ref_put(quad_square), RES_OK);
   CHECK(ssol_material_ref_put(m_mtl), RES_OK);
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);

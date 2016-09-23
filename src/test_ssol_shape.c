@@ -15,7 +15,11 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
-#include "test_ssol_geometries.h"
+
+#define PLANE_NAME SQUARE
+#define HALF_X 1
+#define HALF_Y 1
+#include "test_ssol_rect_geometry.h"
 
 #include <rsys/logger.h>
 
@@ -67,20 +71,20 @@ main(int argc, char** argv)
   attribs[2].usage = SSOL_TEXCOORD;
   attribs[2].get = get_uv;
 
-  CHECK(ssol_mesh_setup(NULL, box_walls_ntris, get_ids, box_walls_nverts,
-    attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, 0, get_ids, box_walls_nverts, attribs, 1,
-    (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, box_walls_ntris, NULL, box_walls_nverts,
-    attribs, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, 0, attribs, 1,
-    (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, box_walls_nverts,
-    NULL, 1, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, box_walls_nverts,
-    attribs, 0, (void*)&box_walls_desc), RES_BAD_ARG);
-  CHECK(ssol_mesh_setup(shape, box_walls_ntris, get_ids, box_walls_nverts,
-    attribs, 3, (void*)&box_walls_desc), RES_OK);
+  CHECK(ssol_mesh_setup(NULL, SQUARE_NTRIS__, get_ids, SQUARE_NVERTS__,
+    attribs, 1, (void*)&SQUARE_DESC__), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, 0, get_ids, SQUARE_NVERTS__, attribs, 1,
+    (void*)&SQUARE_DESC__), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, SQUARE_NTRIS__, NULL, SQUARE_NVERTS__,
+    attribs, 1, (void*)&SQUARE_DESC__), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, SQUARE_NTRIS__, get_ids, 0, attribs, 1,
+    (void*)&SQUARE_DESC__), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, SQUARE_NTRIS__, get_ids, SQUARE_NVERTS__,
+    NULL, 1, (void*)&SQUARE_DESC__), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, SQUARE_NTRIS__, get_ids, SQUARE_NVERTS__,
+    attribs, 0, (void*)&SQUARE_DESC__), RES_BAD_ARG);
+  CHECK(ssol_mesh_setup(shape, SQUARE_NTRIS__, get_ids, SQUARE_NVERTS__,
+    attribs, 3, (void*)&SQUARE_DESC__), RES_OK);
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
 

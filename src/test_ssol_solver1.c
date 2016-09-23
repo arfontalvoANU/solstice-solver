@@ -15,9 +15,13 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
-#include "test_ssol_geometries.h"
 #include "test_ssol_materials.h"
 #include "test_ssol_postprocess.h"
+
+#define HALF_X 1
+#define HALF_Y 1
+#define PLANE_NAME SQUARE
+#include "test_ssol_rect_geometry.h"
 
 #include "ssol_solver_c.h"
 
@@ -107,8 +111,8 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, square_walls_ntris, get_ids,
-    square_walls_nverts, attribs, 1, (void*)&square_walls_desc), RES_OK);
+  CHECK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
+    SQUARE_NVERTS__, attribs, 1, (void*)&SQUARE_DESC__), RES_OK);
 
   CHECK(ssol_material_create_mirror(dev, &m_mtl), RES_OK);
   shader.normal = get_shader_normal;
@@ -189,11 +193,11 @@ main(int argc, char** argv)
 #define N 5000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-2), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / N), 1e-1), 1);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 
   /* sample primary mirror only; variance is low */
@@ -206,9 +210,9 @@ main(int argc, char** argv)
   tmp = tmpfile();
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 
   /* check atmosphere model; with no absorbtion result is unchanged */

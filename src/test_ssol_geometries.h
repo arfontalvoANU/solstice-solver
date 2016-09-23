@@ -22,64 +22,6 @@ struct desc {
 };
 
 /*******************************************************************************
- * Square plane
- ******************************************************************************/
-static const float square_walls [] = {
-  -1.f, -1.f, 0.f,
-   1.f, -1.f, 0.f,
-   1.f,  1.f, 0.f,
-  -1.f,  1.f, 0.f
-};
-const unsigned square_walls_nverts = sizeof(square_walls) / sizeof(float[3]);
-
-const unsigned square_walls_ids [] = { 0, 2, 1, 2, 0, 3 };
-const unsigned square_walls_ntris = sizeof(square_walls_ids) / sizeof(unsigned[3]);
-
-static const struct desc square_walls_desc = { square_walls, square_walls_ids };
-
-/*******************************************************************************
-* Rectangle plane
-******************************************************************************/
-static const float rect_walls [] = {
-  -10.f, -1.f, 0.f,
-  10.f, -1.f, 0.f,
-  10.f,  1.f, 0.f,
-  -10.f,  1.f, 0.f
-};
-const unsigned rect_walls_nverts = sizeof(rect_walls) / sizeof(float[3]);
-
-const unsigned rect_walls_ids [] = { 0, 2, 1, 2, 0, 3 };
-const unsigned rect_walls_ntris = sizeof(rect_walls_ids) / sizeof(unsigned[3]);
-
-static const struct desc rect_walls_desc = { rect_walls, rect_walls_ids };
-
-/*******************************************************************************
- * Box
- ******************************************************************************/
-static const float box_walls [] = {
-  552.f, 0.f,   0.f,
-  0.f,   0.f,   0.f,
-  0.f,   559.f, 0.f,
-  552.f, 559.f, 0.f,
-  552.f, 0.f,   548.f,
-  0.f,   0.f,   548.f,
-  0.f,   559.f, 548.f,
-  552.f, 559.f, 548.f
-};
-const unsigned box_walls_nverts = sizeof(box_walls) / sizeof(float[3]);
-
-const unsigned box_walls_ids [] = {
-  0, 1, 2, 2, 3, 0, /* Bottom */
-  4, 5, 6, 6, 7, 4, /* Top */
-  1, 2, 6, 6, 5, 1, /* Left */
-  0, 3, 7, 7, 4, 0, /* Right */
-  2, 3, 7, 7, 6, 2  /* Back */
-};
-const unsigned box_walls_ntris = sizeof(box_walls_ids) / sizeof(unsigned[3]);
-
-static const struct desc box_walls_desc = { box_walls, box_walls_ids };
-
-/*******************************************************************************
  * Callbacks
  ******************************************************************************/
 static INLINE void

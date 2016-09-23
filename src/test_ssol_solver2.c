@@ -15,9 +15,18 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
-#include "test_ssol_geometries.h"
 #include "test_ssol_materials.h"
 #include "test_ssol_postprocess.h"
+
+#define PLANE_NAME SQUARE
+#define HALF_X 1
+#define HALF_Y 1
+#include "test_ssol_rect_geometry.h"
+
+#define POLYGON_NAME POLY
+#define HALF_X 1
+#define HALF_Y 1
+#include "test_ssol_rect2D_geometry.h"
 
 #include "ssol_solver_c.h"
 
@@ -60,8 +69,6 @@ main(int argc, char** argv)
   double intensities[3] = { 1, 0.8, 1 };
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
-  double polygon[] = { -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0 };
-  const size_t npolygon_verts = sizeof(polygon) / sizeof(double[2]);
   FILE* tmp;
   double m, std;
 
@@ -102,14 +109,14 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, square_walls_ntris, get_ids,
-    square_walls_nverts, attribs, 1, (void*)&square_walls_desc), RES_OK);
+  CHECK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
+    SQUARE_NVERTS__, attribs, 1, (void*) &SQUARE_DESC__), RES_OK);
 
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square), RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
-  carving.nb_vertices = npolygon_verts;
-  carving.context = &polygon;
+  carving.nb_vertices = POLY_NVERTS__;
+  carving.context = &POLY_EDGES__;
   quadric.type = SSOL_QUADRIC_PLANE;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
@@ -149,11 +156,11 @@ main(int argc, char** argv)
 #define N 10000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) - SQR(4 * DNI_cos)) / N), 1e-4), 1);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   /* free data */
 
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
