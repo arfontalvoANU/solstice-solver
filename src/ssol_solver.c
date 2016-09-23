@@ -202,7 +202,6 @@ check_fst_segment(const struct segment* seg)
   ASSERT(seg->hit_material);
   ASSERT_NAN(seg->hit_normal, 3);
   ASSERT_NAN(seg->hit_pos, 3);
-  if (seg->on_punched) ASSERT_NAN(seg->hit_pos_local, 3);
   ASSERT(seg->on_punched != NON_BOOL);
   ASSERT_NAN(seg->org, 3);
   ASSERT_NAN(&seg->tmin, 1);
@@ -278,7 +277,6 @@ reset_segment(struct segment* seg)
   seg->hit_material = NULL;
   d3_splat(seg->hit_normal, NAN);
   d3_splat(seg->hit_pos, NAN);
-  d3_splat(seg->hit_pos_local, NAN);
   seg->on_punched = NON_BOOL;
   d3_splat(seg->org, NAN);
   seg->self_instance = NULL;
@@ -303,7 +301,6 @@ reset_starting_point(struct starting_point* start)
   d3_splat(start->sampl_normal, NAN);
   start->on_punched = NON_BOOL;
   d3_splat(start->pos, NAN);
-  d3_splat(start->pos_local, NAN);
   start->sampl_primitive = S3D_PRIMITIVE_NULL;
   d3_splat(start->sundir, NAN);
   start->uv[0] = start->uv[1] = NAN;
@@ -324,7 +321,6 @@ check_starting_point(const struct starting_point* start)
   ASSERT_NAN(start->sampl_normal, 3);
   ASSERT(start->on_punched != NON_BOOL);
   ASSERT_NAN(start->pos, 3);
-  if(start->on_punched) ASSERT_NAN(start->pos_local, 3);
   ASSERT(!S3D_PRIMITIVE_EQ(&start->sampl_primitive, &S3D_PRIMITIVE_NULL));
   ASSERT_NAN(start->sundir, 3);
   ASSERT_NAN(start->uv, 2);
@@ -435,18 +431,17 @@ sample_point_on_primary_mirror(struct realisation* rs)
   }
   case SHAPE_PUNCHED: {
     const double* transform = start->instance->transform;
-    double tr[9];
+    double tr[9], pos_local[3];
     /* project the sampled point on the quadric */
     d33_inverse(tr, transform);
-    d3_set(start->pos_local, start->pos);
-    d3_sub(start->pos_local, start->pos_local, transform + 9);
-    d33_muld3(start->pos_local, tr, start->pos_local);
-    punched_shape_set_z_local(shape, start->pos_local);
+    d3_sub(pos_local, start->pos, transform + 9);
+    d33_muld3(pos_local, tr, pos_local);
+    punched_shape_set_z_local(shape, pos_local);
     /* transform point to world */
-    d33_muld3(start->pos, transform, start->pos_local);
+    d33_muld3(start->pos, transform, pos_local);
     d3_add(start->pos, transform + 9, start->pos);
     /* compute exact normal on the instance */
-    punched_shape_set_normal_local(shape, start->pos_local, start->rt_normal);
+    punched_shape_set_normal_local(shape, pos_local, start->rt_normal);
     /* transform normal to world */
     d33_invtrans(tr, transform);
     d33_muld3(start->rt_normal, tr, start->rt_normal);
@@ -549,7 +544,6 @@ receive_sunlight(struct realisation* rs)
   seg->hit_material = start->material;
   d3_set(seg->hit_normal, start->rt_normal);
   d3_set(seg->hit_pos, start->pos);
-  d3_set(seg->hit_pos_local, start->pos_local);
   seg->on_punched = start->on_punched;
   seg->hit_instance = seg->self_instance;
   seg->self_instance = NULL;

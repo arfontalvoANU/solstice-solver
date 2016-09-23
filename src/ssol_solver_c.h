@@ -65,7 +65,6 @@ struct segment {
   struct s3d_hit hit;
   double org[3], dir[4];
   double hit_pos[3];
-  double hit_pos_local[3]; /* in local coordinate, only set on punched shapes */
   double hit_normal[3]; /* possibly reversed to face the incoming dir */
   double hit_distance;
   float tmin; /* used to reject duplicate hits in raytracing */
@@ -81,7 +80,6 @@ struct starting_point {
   struct s3d_primitive sampl_primitive;
   double sundir[3];
   double pos[3];
-  double pos_local[3]; /* in local coordinate, only set on punched shapes */
   double rt_normal[3]; /* relative to the actual geometry; towards the sun*/
   double sampl_normal[3]; /* relative to the sampling plane; towards the sun*/
   double cos_sun; /* relative to the sampling plane; > 0 */

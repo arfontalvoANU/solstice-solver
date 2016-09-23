@@ -368,29 +368,24 @@ hit_filter_function
   switch (shape->type) {
   case SHAPE_PUNCHED: {
     /* hits on quadrics must be recomputed more accurately */
-    double org_local[3], dir_local[3];
+    double org_local[3], hit_pos_local[3], dir_local[3];
     const double* transform = inst->transform;
     double tr[9];
     d33_inverse(tr, transform);
    
     /* get org in local coordinate */
-    if (prev && prev->on_punched) {
-        d3_set(org_local, prev->hit_pos_local);
-      }
-    else {
-      d3_set(org_local, seg->org);
-      d3_sub(org_local, org_local, transform + 9);
-      d33_muld3(org_local, tr, org_local);
-    }
+    d3_set(org_local, seg->org);
+    d3_sub(org_local, org_local, transform + 9);
+    d33_muld3(org_local, tr, org_local);
      
     /* get dir in local */
     d33_muld3(dir_local, tr, seg->dir);
     /* recompute hit */
     int valid = punched_shape_intersect_local(shape, org_local, dir_local,
-      hit->distance, seg->hit_pos_local, seg->hit_normal, &seg->hit_distance);
+      hit->distance, hit_pos_local, seg->hit_normal, &seg->hit_distance);
     if (!valid) return 1;
     /* transform point to world */
-    d33_muld3(seg->hit_pos, transform, seg->hit_pos_local);
+    d33_muld3(seg->hit_pos, transform, hit_pos_local);
     d3_add(seg->hit_pos, transform + 9, seg->hit_pos);
     /* transform normal to world */
     d33_invtrans(tr, transform);
