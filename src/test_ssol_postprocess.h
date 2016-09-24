@@ -20,12 +20,11 @@
 #include <math.h>
 
 static INLINE res_T
-pp_sum(FILE* f, const char* target, double* mean, double* std)
+pp_sum(FILE* f, const char* target, const size_t count, double* mean, double* std)
 {
   double sum = 0, sum2 = 0, var;
-  size_t cpt = 0;
   char expect_tok[256];
-  ASSERT(f && target && mean && std);
+  ASSERT(f && target && mean && std && count);
   snprintf(expect_tok, 256, "'%s':", target);
   rewind(f);
   while (!feof(f)) {
@@ -33,24 +32,18 @@ pp_sum(FILE* f, const char* target, double* mean, double* std)
     if (fgets(buf, 256, f)) {
       char tok[256];
       double w;
-      if(2 == sscanf(buf, "Receiver %s %*f %*f %*f %lf", tok, &w)) {
+      if (2 == sscanf(buf, "Receiver %s %*f %*f %*f %lf", tok, &w)) {
         if (strcmp(tok, expect_tok)) continue;
         sum += w;
         sum2 += w * w;
       }
-      else if (1 == sscanf(buf, "Realisation %*d %s:", tok)) {
-        if (strcmp(tok, "end:")) continue;
-        cpt++;
-      }
     }
   }
-  if (cpt) {
-    *mean = sum / cpt;
-    var = (sum2 / cpt - *mean * *mean);
-    *std = var > 0 ? sqrt(var / cpt) : 0;
-    return RES_OK;
-  }
-  return RES_UNKNOWN_ERR;
+
+  *mean = sum / count;
+  var = (sum2 / count - *mean * *mean);
+  *std = var > 0 ? sqrt(var / count) : 0;
+  return RES_OK;
 }
 
 #endif /* TEST_SSOL_POSTPROCESS_H */

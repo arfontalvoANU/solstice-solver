@@ -140,7 +140,7 @@ main(int argc, char** argv)
   tmp = tmpfile();
 #define N 10000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);

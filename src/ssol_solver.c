@@ -671,30 +671,43 @@ ssol_solve
   res = init_realisation(scene, rng, output, &rs);
   if (res != RES_OK) goto error;
 
-  FOR_EACH(r, 0, realisations_count) {
-    reset_realisation(r, &rs);
-    sample_point_on_primary_mirror(&rs);
-    sample_input_sundir(&rs);
-    sample_wavelength(&rs);
+  for (r = 0; r < realisations_count; ) {
+    fpos_t real_start;
+    int err_count = 0;
+    CHECK(fgetpos(output, &real_start), 0);
+    do {
+      reset_realisation(r, &rs);
+      sample_point_on_primary_mirror(&rs);
+      sample_input_sundir(&rs);
+      sample_wavelength(&rs);
 
-    /* check if the point receives sun light */
-    if (receive_sunlight(&rs)) {
-      /* start propagating from mirror */
-      do {
-        if (RES_OK != setup_next_segment(&rs)) {
-          rs.end = TERM_ERR;
-        } else {
-          propagate(&rs);
-        }
-      } while (rs.end == TERM_NONE);
-    }
+      /* check if the point receives sun light */
+      if (receive_sunlight(&rs)) {
+        /* start propagating from mirror */
+        do {
+          if (RES_OK != setup_next_segment(&rs)) {
+            rs.end = TERM_ERR;
+          }
+          else {
+            propagate(&rs);
+          }
+        } while (rs.end == TERM_NONE);
+      }
+      /* propagation ended */
+      fprintf(output, "Realisation %u success mask: 0x%0x\n",
+        (unsigned) r, rs.success_mask);
+      fprintf(output, "Realisation %u end: %s\n\n",
+        (unsigned) r, END_TEXT[rs.end]);
 
-    /* propagation ended */
-    fprintf(output, "Realisation %u success mask: 0x%0x\n",
-      (unsigned)r, rs.success_mask);
-    fprintf(output, "Realisation %u end: %s\n\n",
-      (unsigned)r, END_TEXT[rs.end]);
+      /* must retry failed realisations */
+      if (rs.end == TERM_ERR) {
+        CHECK(fsetpos(output, &real_start), 0);
+        if (++err_count > 10) goto error;
+      }
+      else r++;
+    } while (rs.end == TERM_ERR);
   }
+  /* TODO: overwrite trailing chars if canceled realizations wrote past the current fpos */
 
 exit:
   release_realisation(&rs);

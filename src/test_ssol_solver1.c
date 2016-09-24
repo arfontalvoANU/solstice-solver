@@ -192,7 +192,7 @@ main(int argc, char** argv)
   CHECK(!tmp, 0);
 #define N 5000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-2), 1);
@@ -209,7 +209,7 @@ main(int argc, char** argv)
 
   tmp = tmpfile();
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
@@ -224,7 +224,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
@@ -243,7 +243,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 #define K (exp(-0.1 * 2 * sqrt(2)))
@@ -262,7 +262,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 2), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 #define K2 (exp(-0.121 * 2 * sqrt(2)))
