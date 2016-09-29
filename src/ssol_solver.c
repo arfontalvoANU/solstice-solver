@@ -265,7 +265,6 @@ static void
 check_segment(const struct segment* seg)
 {
   check_fst_segment(seg);
-  ASSERT_NAN(&seg->hit_distance, 1);
   ASSERT(seg->self_instance);
   ASSERT(seg->self_front != NON_BOOL);
   /* hit filter is supposed to work properly */
@@ -300,9 +299,6 @@ setup_next_segment(struct realisation* rs)
   seg->self_front = prev->hit_front;
   seg->sun_segment = 0;
 
-  /* reset candidates */
-  darray_receiver_record_clear(&rs->data.receiver_record_candidates);
-
   d3_set(seg->org, prev->hit_pos);
   
   res = material_shade(
@@ -330,7 +326,7 @@ reset_segment(struct segment* seg)
 #ifndef NDEBUG
   d3_splat(seg->dir, NAN);
   seg->hit = S3D_HIT_NULL;
-  seg->hit_distance = NAN;
+  seg->hit_distance = 0;
   seg->hit_front = NON_BOOL;
   seg->hit_instance = NULL;
   seg->hit_material = NULL;
@@ -343,6 +339,7 @@ reset_segment(struct segment* seg)
   seg->weight = NAN;
 #else
   seg->hit = S3D_HIT_NULL;
+  seg->hit_distance = 0;
 #endif
 }
 
@@ -397,6 +394,8 @@ reset_realisation(size_t cpt, struct realisation* rs)
   brdf_composite_clear(rs->data.brdfs);
   /* reset first segment (always used) */
   reset_segment(current_segment(rs));
+  /* reset candidates */
+  darray_receiver_record_clear(&rs->data.receiver_record_candidates);
 }
 
 static res_T
@@ -606,6 +605,7 @@ receive_sunlight(struct realisation* rs)
   d3_set(seg->hit_normal, start->rt_normal);
   d3_set(seg->hit_pos, start->pos);
   seg->on_punched = start->on_punched;
+  seg->hit_distance = DBL_MAX;
   seg->hit_instance = seg->self_instance;
   seg->self_instance = NULL;
   seg->hit_front = seg->self_front;
@@ -625,18 +625,19 @@ receive_sunlight(struct realisation* rs)
   } else {
     receiver_name = &start->instance->receiver_back;
   }
+  /* if the sampled instance holds a receiver, push a candidate */
   if(!str_is_empty(receiver_name)) {
-    /* normal orientation has already been checked */
-    fprintf(rs->data.out_stream,
-      "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      str_cget(receiver_name),
-      (unsigned) rs->rs_id,
-      (unsigned) rs->s_idx,
-      rs->wavelength,
-      seg->weight,
-      SPLIT3(seg->hit_pos),
-      SPLIT3(seg->dir),
-      SPLIT2(start->uv));
+    struct receiver_record candidate;
+    d3_set(candidate.dir, seg->dir);
+    candidate.hit_distance = 0; /* no atmospheric attenuation for sun rays */
+    d3_set(candidate.hit_normal, seg->hit_normal);
+    d3_set(candidate.hit_pos, seg->hit_pos);
+    candidate.instance = start->instance;
+    candidate.receiver_name = str_cget(receiver_name);
+    candidate.uv[0] = start->uv[0];
+    candidate.uv[1] = start->uv[1];
+    darray_receiver_record_push_back(
+      &rs->data.receiver_record_candidates, &candidate);
   }
 
   /* register success mask (normal orientation has already been checked) */
@@ -716,6 +717,8 @@ filter_receiver_hit_candidates(struct realisation* rs)
       SPLIT3(candidates->hit_normal),
       SPLIT2(candidates->uv));
   }
+  /* reset candidates */
+  darray_receiver_record_clear(&rs->data.receiver_record_candidates);
 }
 
 static void

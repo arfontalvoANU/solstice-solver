@@ -80,7 +80,7 @@ struct segment {
 };
 
 struct starting_point {
-  const struct ssol_instance* instance;
+  struct ssol_instance* instance;
   const struct ssol_material* material;
   struct s3d_primitive sampl_primitive;
   double sundir[3];
