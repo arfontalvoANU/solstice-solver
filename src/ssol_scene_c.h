@@ -47,7 +47,7 @@ struct ssol_scene {
   ref_T ref;
 };
 
-/* Fill the Star-3D sampling scene with the Star-3D shape of the mirrors */
+/* Fill the Star-3D sampling scene with the Star-3D shape of the instances */
 extern LOCAL_SYM res_T
 scene_setup_s3d_sampling_scene
   (struct ssol_scene* scn,

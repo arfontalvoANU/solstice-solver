@@ -411,7 +411,7 @@ hit_filter_function
   }
 
   /* Check if the hit surface is a receiver that registers hit data */
-  /* impacts on receivers before primary mirros are not registered */
+  /* impacts on receivers before sampled surfaces are not registered */
   if (!seg->sun_segment && !str_is_empty(receiver_name)) {
     struct receiver_record candidate;
     d3_set(candidate.dir, seg->dir);

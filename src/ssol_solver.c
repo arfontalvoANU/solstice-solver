@@ -451,7 +451,7 @@ release_realisation(struct realisation* rs)
  * material is set to NULL and will be set later
  */
 static void
-sample_point_on_primary_mirror(struct realisation* rs)
+sample_starting_point(struct realisation* rs)
 {
   struct s3d_attrib attrib;
   struct ssol_shape* shape;
@@ -464,7 +464,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
   data = &rs->data;
   ASSERT(data->rng && data->view_samp && data->scene);
   start = &rs->start;
-  /* sample a point on a primary mirror's carving */
+  /* sample a point on an instance's sampling surface */
   r1 = ssp_rng_canonical_float(data->rng);
   r2 = ssp_rng_canonical_float(data->rng);
   r3 = ssp_rng_canonical_float(data->rng);
@@ -473,7 +473,7 @@ sample_point_on_primary_mirror(struct realisation* rs)
   ASSERT(attrib.type == S3D_FLOAT3);
   d3_set_f3(start->pos, attrib.value);
 
-  /* find the solstice shape and project the sampled point on the mirror */
+  /* find the sampled shape and project the sampled point on the actual geometry */
   start->instance = *htable_instance_find
     (&data->scene->instances_samp, &sampl_prim.inst_id);
   start->sampl_primitive = sampl_prim;
@@ -776,7 +776,7 @@ ssol_solve
     CHECK(fgetpos(output, &real_start), 0);
     do {
       reset_realisation(r, &rs);
-      sample_point_on_primary_mirror(&rs);
+      sample_starting_point(&rs);
       sample_input_sundir(&rs);
       sample_wavelength(&rs);
 
