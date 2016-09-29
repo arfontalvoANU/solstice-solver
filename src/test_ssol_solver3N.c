@@ -61,7 +61,7 @@ void set_1(struct common* common, const double pos[3]) {
   d3_normalize(out_dir, out_dir);
   d3_cross(axis, out_dir, common->sun_dir);
   /* FIXME: manage the colinear case */
-  d3_normalize(axis, axis);
+  NCHECK(d3_normalize(axis, axis), 0);
   c = d3_dot(out_dir, common->sun_dir);
   a = acos(c) / 2;
 
