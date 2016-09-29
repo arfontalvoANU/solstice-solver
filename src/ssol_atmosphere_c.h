@@ -41,4 +41,10 @@ struct ssol_atmosphere {
   ref_T ref;
 };
 
+double
+compute_atmosphere_attenuation
+  (const struct ssol_atmosphere* atmosphere,
+   const double distance,
+   const double wavelength);
+
 #endif /* SSOL_ATMOSPHERE_C_H */

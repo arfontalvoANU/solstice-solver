@@ -335,7 +335,7 @@ hit_filter_function
   void* realisation,
   void* filter_data)
 {
-  const struct ssol_instance* inst;
+  struct ssol_instance* inst;
   const struct ssol_shape* shape;
   const struct str* receiver_name;
   struct realisation* rs = realisation;
@@ -351,16 +351,8 @@ hit_filter_function
   /* these components have been set */
   ASSERT_NAN(seg->dir, 3);
   ASSERT_NAN(seg->org, 3);
-  ASSERT_NAN(&seg->tmin, 1);
   ASSERT(seg->self_instance);
   ASSERT(seg->self_front != NON_BOOL);
-
-  /* need to reject identical hits on triangle's edges */
-  if (hit->distance <= seg->tmin) {
-    ASSERT(hit->distance == seg->tmin);
-    return 1;
-  }
-  seg->tmin = hit->distance;
 
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
   shape = inst->object->shape;
@@ -419,18 +411,19 @@ hit_filter_function
   }
 
   /* Check if the hit surface is a receiver that registers hit data */
-  /* sun segments must not be registered */
+  /* impacts on receivers before primary mirros are not registered */
   if (!seg->sun_segment && !str_is_empty(receiver_name)) {
-    fprintf(rs->data.out_stream,
-      "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      str_cget(receiver_name),
-      (unsigned) rs->rs_id,
-      (unsigned) rs->s_idx,
-      rs->wavelength,
-      seg->weight,
-      SPLIT3(seg->hit_pos),
-      SPLIT3(seg->dir),
-      SPLIT2(hit->uv));
+    struct receiver_record candidate;
+    d3_set(candidate.dir, seg->dir);
+    candidate.hit_distance = seg->hit_distance;
+    d3_set(candidate.hit_normal, seg->hit_normal);
+    d3_set(candidate.hit_pos, seg->hit_pos);
+    candidate.instance = inst;
+    candidate.receiver_name = str_cget(receiver_name);
+    candidate.uv[0] = seg->hit.uv[0];
+    candidate.uv[1] = seg->hit.uv[1];
+    darray_receiver_record_push_back(
+      &rs->data.receiver_record_candidates, &candidate);
   }
 
   /* register success mask */

@@ -57,6 +57,55 @@ solstice_trace_ray(struct realisation* rs)
   /* the filter function recomputes intersections on quadrics and sets seg */
 }
 
+static int
+cmp_candidates(const void* _c1, const void* _c2)
+{
+  const struct receiver_record* c1 = _c1;
+  const struct receiver_record* c2 = _c2;
+  const double d1 = c1->hit_distance;
+  const double d2 = c2->hit_distance;
+  return (d1 > d2) - (d1 < d2);
+}
+
+static FINLINE res_T
+check_scene(const struct ssol_scene* scene) {
+  ASSERT(scene);
+  if (!scene->sun) {
+    log_error(scene->dev, "%s: no sun attached.\n", FUNC_NAME);
+    return RES_BAD_ARG;
+  }
+
+  if (!scene->sun->spectrum) {
+    log_error(scene->dev, "%s: sun's spectrum undefined.\n", FUNC_NAME);
+    return RES_BAD_ARG;
+  }
+
+  if (scene->sun->dni <= 0) {
+    log_error(scene->dev, "%s: sun's DNI undefined.\n", FUNC_NAME);
+    return RES_BAD_ARG;
+  }
+
+  if (scene->atmosphere) {
+    switch (scene->atmosphere->type) {
+    case ATMOS_UNIFORM: {
+      char ok;
+      CHECK(spectrum_includes(
+        scene->atmosphere->data.uniform.spectrum,
+        scene->sun->spectrum,
+        &ok),
+        RES_OK);
+      if (!ok) {
+        log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
+        return RES_BAD_ARG;
+      }
+      break;
+    }
+    default: FATAL("Unreachable code\n"); break;
+    }
+  }
+  return RES_OK;
+}
+
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
@@ -130,6 +179,10 @@ release_solver_data(struct solver_data* data)
   if (data->sun_dir_ran) CHECK(ranst_sun_dir_ref_put(data->sun_dir_ran), RES_OK);
   if (data->sun_wl_ran) CHECK(ranst_sun_wl_ref_put(data->sun_wl_ran), RES_OK);
   if (data->brdfs) brdf_composite_ref_put(data->brdfs);
+  if (data->receiver_record_candidates.data)
+    darray_receiver_record_release(&data->receiver_record_candidates);
+  if (data->instances_ptr.data)
+    darray_instances_ptr_release(&data->instances_ptr);
   *data = SOLVER_DATA_NULL;
 }
 
@@ -194,6 +247,7 @@ current_segment(struct realisation* rs)
 static void
 check_fst_segment(const struct segment* seg)
 {
+  (void) seg;
   ASSERT(seg);
   ASSERT_NAN(seg->dir, 3);
   /* hit is not checked and can be used only for debugging purpose */
@@ -204,7 +258,6 @@ check_fst_segment(const struct segment* seg)
   ASSERT_NAN(seg->hit_pos, 3);
   ASSERT(seg->on_punched != NON_BOOL);
   ASSERT_NAN(seg->org, 3);
-  ASSERT_NAN(&seg->tmin, 1);
   ASSERT(seg->weight > 0);
 }
 
@@ -246,7 +299,9 @@ setup_next_segment(struct realisation* rs)
   seg->self_instance = prev->hit_instance;
   seg->self_front = prev->hit_front;
   seg->sun_segment = 0;
-  seg->tmin = -1; /* any valid tmin allowed */
+
+  /* reset candidates */
+  darray_receiver_record_clear(&rs->data.receiver_record_candidates);
 
   d3_set(seg->org, prev->hit_pos);
   
@@ -259,7 +314,11 @@ setup_next_segment(struct realisation* rs)
 
   seg->weight = prev->weight
     * brdf_composite_sample(
-        data->brdfs, data->rng, prev->dir, data->fragment.Ns, seg->dir);
+      data->brdfs, data->rng, prev->dir, data->fragment.Ns, seg->dir);
+  if (rs->s_idx > 1) {
+    seg->weight *= compute_atmosphere_attenuation(
+      rs->data.scene->atmosphere, prev->hit_distance, rs->wavelength);
+  }
 
   return res;
 }
@@ -282,7 +341,6 @@ reset_segment(struct segment* seg)
   seg->self_instance = NULL;
   seg->self_front = NON_BOOL;
   seg->weight = NAN;
-  seg->tmin = NAN;
 #else
   seg->hit = S3D_HIT_NULL;
 #endif
@@ -312,6 +370,7 @@ reset_starting_point(struct starting_point* start)
 static void
 check_starting_point(const struct starting_point* start)
 {
+  (void) start;
   ASSERT(start);
   ASSERT(start->cos_sun > 0); /* normal is flipped facing in_dir */
   ASSERT(start->front_exposed != NON_BOOL);
@@ -360,6 +419,9 @@ init_realisation
   rs->data.scene = scene;
   rs->data.rng = rng;
   rs->data.out_stream = out;
+  darray_receiver_record_init(
+    scene->dev->allocator, &rs->data.receiver_record_candidates);
+  darray_instances_ptr_init(scene->dev->allocator, &rs->data.instances_ptr);
   /* create 2 s3d_scene_view for raytracing and sampling */
   res = set_views(&rs->data);
   if (res != RES_OK) goto error;
@@ -525,7 +587,6 @@ receive_sunlight(struct realisation* rs)
   seg->self_instance = start->instance;
   seg->self_front = start->front_exposed;
   seg->sun_segment = 1;
-  seg->tmin = -1; /* any valid tmin allowed */
 
   /* search for occlusions from starting point */
   ASSERT(rs->s_idx == 0); /* sun segment */
@@ -590,32 +651,94 @@ receive_sunlight(struct realisation* rs)
 }
 
 static void
+filter_receiver_hit_candidates(struct realisation* rs)
+{
+  struct receiver_record* candidates;
+  struct receiver_record* candidates_end;
+  struct segment* seg;
+  struct darray_instances_ptr* inst_array;
+  size_t candidates_count;
+  double tmax, prev_distance;
+
+  ASSERT(rs);
+  candidates_count = rs->data.receiver_record_candidates.size;
+  if (!candidates_count)
+    return;
+  candidates = rs->data.receiver_record_candidates.data;
+  inst_array = &rs->data.instances_ptr;
+
+  /* sort candidates by distance */
+  if (candidates_count > 1) {
+    qsort(candidates,
+      candidates_count, sizeof(struct receiver_record), cmp_candidates);
+  }
+  /* filter duplicates and candidates past the actual hit distance */
+  seg = current_segment(rs);
+  tmax = seg->hit_distance;
+  prev_distance = -1;
+  darray_instances_ptr_clear(inst_array);
+  for (candidates_end = candidates + candidates_count;
+    candidates->hit_distance <= tmax && candidates < candidates_end;
+    candidates++)
+  {
+    if (candidates->hit_distance == prev_distance) {
+      int i = 0, is_duplicate = 0;
+      const struct ssol_instance** ptr
+        = darray_instances_ptr_data_get(inst_array);
+      while (!is_duplicate && i < darray_instances_ptr_size_get(inst_array)) {
+        if (*ptr == candidates->instance) 
+          is_duplicate = 1;
+        ptr++;
+        i++;
+      }
+      /* more than one candidate with same distance
+         can be duplicates (duplicate = same distance, same instance) */
+      if (is_duplicate) continue;
+      darray_instances_ptr_push_back(inst_array, &candidates->instance);
+    }
+    else {
+      prev_distance = candidates->hit_distance;
+      darray_instances_ptr_clear(inst_array);
+      darray_instances_ptr_push_back(inst_array, &candidates->instance);
+    }
+    /* output valid receiver hits */
+    fprintf(rs->data.out_stream,
+      "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
+      candidates->receiver_name,
+      (unsigned) rs->rs_id,
+      (unsigned) rs->s_idx,
+      rs->wavelength,
+      /* take amosphere into account with the correct distance */
+      seg->weight * compute_atmosphere_attenuation(
+        rs->data.scene->atmosphere, candidates->hit_distance, rs->wavelength),
+      SPLIT3(candidates->hit_pos),
+      SPLIT3(candidates->dir),
+      SPLIT3(candidates->hit_normal),
+      SPLIT2(candidates->uv));
+  }
+}
+
+static void
 propagate(struct realisation* rs)
 {
-  struct segment* seg = current_segment(rs);
+  struct segment* seg;
+
+  ASSERT(rs);
+  seg = current_segment(rs);
 
   /* check if the ray hits something */
   solstice_trace_ray(rs);
+
+  /* post process possible hits on receivers */
+  filter_receiver_hit_candidates(rs);
+
   if (S3D_HIT_NONE(&seg->hit)) {
     rs->end = TERM_MISSING;
     return;
   }
-
-  if (rs->data.scene->atmosphere) {
-    double ka;
-    const struct ssol_spectrum* spectrum;
-    switch (rs->data.scene->atmosphere->type) {
-    case ATMOS_UNIFORM:
-      spectrum = rs->data.scene->atmosphere->data.uniform.spectrum;
-      CHECK(spectrum_interpolate(spectrum, rs->wavelength, &ka), RES_OK);
-      break;
-    default: FATAL("Unreachable code\n"); break;
-    }
-    seg->weight *= exp(-ka * seg->hit_distance);
-  }
+  check_segment(seg);
 
   /* fill fragment  and loop */
-  check_segment(seg);
   surface_fragment_setup(&rs->data.fragment, seg->hit_pos, seg->dir,
     seg->hit_normal, &seg->hit.prim, seg->hit.uv);
 }
@@ -637,35 +760,8 @@ ssol_solve
   if (!scene || !rng || !output || !realisations_count)
     return RES_BAD_ARG;
 
-  if (!scene->sun) {
-    log_error(scene->dev, "%s: no sun attached.\n", FUNC_NAME);
-    return RES_BAD_ARG;
-  }
-
-  if (!scene->sun->spectrum) {
-    log_error(scene->dev, "%s: sun's spectrum undefined.\n", FUNC_NAME);
-    return RES_BAD_ARG;
-  }
-
-  if (scene->sun->dni <= 0) {
-    log_error(scene->dev, "%s: sun's DNI undefined.\n", FUNC_NAME);
-    return RES_BAD_ARG;
-  }
-
-  if (scene->atmosphere) {
-    switch (scene->atmosphere->type) {
-    case ATMOS_UNIFORM: {
-      char ok;
-      CHECK(spectrum_includes(scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum, &ok), RES_OK);
-      if (!ok) {
-        log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
-        return RES_BAD_ARG;
-      }
-      break;
-    }
-    default: FATAL("Unreachable code\n"); break;
-    }
-  }
+  res = check_scene(scene);
+  if (res != RES_OK) return res;
 
   /* init realisation */
   res = init_realisation(scene, rng, output, &rs);

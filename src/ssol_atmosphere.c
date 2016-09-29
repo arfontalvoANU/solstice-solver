@@ -16,6 +16,7 @@
 #include "ssol.h"
 #include "ssol_atmosphere_c.h"
 #include "ssol_device_c.h"
+#include "ssol_spectrum_c.h"
 
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
@@ -43,10 +44,31 @@ atmosphere_release(ref_T* ref)
   SSOL(device_ref_put(dev));
 }
 
-
 /*******************************************************************************
 * Exported ssol_atmosphere functions
 ******************************************************************************/
+double
+compute_atmosphere_attenuation
+  (const struct ssol_atmosphere* atmosphere,
+   const double distance,
+   const double wavelength)
+{
+  double ka;
+  const struct ssol_spectrum* spectrum;
+  if (!atmosphere)
+    return 1;
+
+  ASSERT(distance >= 0 && wavelength >= 0);
+  switch (atmosphere->type) {
+  case ATMOS_UNIFORM:
+    spectrum = atmosphere->data.uniform.spectrum;
+    CHECK(spectrum_interpolate(spectrum, wavelength, &ka), RES_OK);
+    break;
+  default: FATAL("Unreachable code\n"); break;
+  }
+  return exp(-ka * distance);
+}
+
 res_T
 ssol_atmosphere_create_uniform
   (struct ssol_device* dev,

@@ -17,6 +17,7 @@
 #define SSOL_SOLVER_C_H
 
 #include "ssol_material_c.h"
+#include "ssol_instance_c.h"
 #include "ssol_c.h"
 
 #include <rsys/ref_count.h>
@@ -35,6 +36,11 @@ struct ranst_sun_wl;
 
 #define DARRAY_NAME 3dshape
 #define DARRAY_DATA struct s3d_shape*
+#include <rsys/dynamic_array.h>
+
+#include <rsys/dynamic_array.h>
+#define DARRAY_DATA struct ssol_instance*
+#define DARRAY_NAME instances_ptr
 #include <rsys/dynamic_array.h>
 
 enum realisation_termination {
@@ -67,7 +73,6 @@ struct segment {
   double hit_pos[3];
   double hit_normal[3]; /* possibly reversed to face the incoming dir */
   double hit_distance;
-  float tmin; /* used to reject duplicate hits in raytracing */
   char hit_front; /* is the ending point of the segment on the front face? */
   char self_front; /* was the starting point of the segment on the front face? */
   char on_punched; /* is the hit on a punched shape? */
@@ -89,9 +94,24 @@ struct starting_point {
   char on_punched; /* is the point on a punched shape? */
 };
 
+struct receiver_record {
+  struct ssol_instance* instance;
+  const char* receiver_name;
+  double dir[4];
+  double hit_pos[3];
+  float uv[2];
+  double hit_normal[3]; /* face the incoming dir */
+  double hit_distance;
+};
+
 #include <rsys/dynamic_array.h>
 #define DARRAY_DATA struct segment
 #define DARRAY_NAME segment
+#include <rsys/dynamic_array.h>
+
+#include <rsys/dynamic_array.h>
+#define DARRAY_DATA struct receiver_record
+#define DARRAY_NAME receiver_record
 #include <rsys/dynamic_array.h>
 
 struct solver_data {
@@ -108,6 +128,8 @@ struct solver_data {
   /* Tmp data used for propagation */
   struct brdf_composite* brdfs;
   struct surface_fragment fragment;
+  struct darray_receiver_record receiver_record_candidates;
+  struct darray_instances_ptr instances_ptr;
   /* total area of the surface sampled as starting point candidate */
   float sampled_area;
 };
