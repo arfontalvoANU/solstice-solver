@@ -246,7 +246,7 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
-#define K (exp(-0.1 * 2 * sqrt(2)))
+#define K (exp(-0.1 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K * DNI_cos, 4 * K * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
 
@@ -265,8 +265,8 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
-#define K2 (exp(-0.121 * 2 * sqrt(2)))
-  CHECK(eq_eps(m, 4 * K2 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
+#define K2 (exp(-0.121 * 4 * sqrt(2)))
+  CHECK(eq_eps(m, 4 * K2 * DNI_cos, 4 * K2 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
 
   /* free data */
