@@ -143,7 +143,7 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(0))
-  CHECK(eq_eps(m, 400 * DNI_cos, 1), 1);
+  CHECK(eq_eps(m, 400 * DNI_cos, 400 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std, 0, 0.1), 1);
 
   /* free data */
