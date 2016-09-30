@@ -25,6 +25,7 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
+#include <rsys/math.h>
 
 #include <star/scpr.h>
 
@@ -852,7 +853,30 @@ ssol_punched_surface_setup
   }
 
   /* Define the #slices of the discretized quadric */
-  nslices = psurf->quadric->type == SSOL_QUADRIC_PLANE ? 1 : 50;
+  switch (psurf->quadric->type) {
+  case SSOL_QUADRIC_PLANE:
+    nslices = 1;
+    break;
+  case SSOL_QUADRIC_PARABOL: {
+    double z[2];
+    z[0] = (lower[0] * lower[0] + lower[1] * lower[1])
+      / (4.0 * psurf->quadric->data.parabol.focal);
+    z[1] = (upper[0] * upper[0] + upper[1] * upper[1])
+      / (4.0 * psurf->quadric->data.parabol.focal);
+    nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
+    break;
+  }
+  case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+    double z[2];
+    z[0] = (lower[1] * lower[1]) /
+      (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
+    z[1] = (upper[1] * upper[1]) /
+      (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
+    nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
+    break;
+  }
+  default: FATAL("Unreachable code\n"); break;
+  }
 
   res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);
   if(res != RES_OK) goto error;
