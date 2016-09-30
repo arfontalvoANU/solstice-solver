@@ -311,6 +311,7 @@ setup_next_segment(struct realisation* rs)
   seg->weight = prev->weight
     * brdf_composite_sample(
       data->brdfs, data->rng, prev->dir, data->fragment.Ns, seg->dir);
+  ASSERT(d3_dot(seg->dir, seg->dir));
   if (rs->s_idx > 1) {
     seg->weight *= compute_atmosphere_attenuation(
       rs->data.scene->atmosphere, prev->hit_distance, rs->wavelength);

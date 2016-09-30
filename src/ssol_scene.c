@@ -296,6 +296,8 @@ scene_setup_s3d_sampling_scene
     }
 
     if(inst->dont_sample) continue;
+    /* FIXME: should not sample virtual (material) instance
+       as material is used to compute output dir */
     hs = 1;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
