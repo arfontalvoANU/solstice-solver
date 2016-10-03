@@ -38,7 +38,6 @@ struct ranst_sun_wl;
 #define DARRAY_DATA struct s3d_shape*
 #include <rsys/dynamic_array.h>
 
-#include <rsys/dynamic_array.h>
 #define DARRAY_DATA struct ssol_instance*
 #define DARRAY_NAME instances_ptr
 #include <rsys/dynamic_array.h>
@@ -104,12 +103,10 @@ struct receiver_record {
   double hit_distance;
 };
 
-#include <rsys/dynamic_array.h>
 #define DARRAY_DATA struct segment
 #define DARRAY_NAME segment
 #include <rsys/dynamic_array.h>
 
-#include <rsys/dynamic_array.h>
 #define DARRAY_DATA struct receiver_record
 #define DARRAY_NAME receiver_record
 #include <rsys/dynamic_array.h>
@@ -145,10 +142,6 @@ struct realisation {
   size_t rs_id;
   uint32_t success_mask;
 };
-
-#define SOLVER_DATA_NULL__ \
- {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
-static const struct solver_data SOLVER_DATA_NULL = SOLVER_DATA_NULL__;
 
 extern LOCAL_SYM res_T
 set_sun_distributions(struct solver_data* data);

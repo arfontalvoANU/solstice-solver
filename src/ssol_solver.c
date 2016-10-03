@@ -29,11 +29,12 @@
 #include "ssol_ranst_sun_dir.h"
 #include "ssol_ranst_sun_wl.h"
 
+#include <rsys/float3.h>
+#include <rsys/double3.h>
+#include <rsys/double44.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
-#include <rsys/double3.h>
-#include <rsys/double44.h>
 
 #define END_TEXT__ \
   { "NONE", "SUCCESS", "SHADOW", "POINTING", "MISSING", "BLOCKED", "ERROR" }
@@ -87,20 +88,20 @@ check_scene(const struct ssol_scene* scene) {
 
   if (scene->atmosphere) {
     switch (scene->atmosphere->type) {
-    case ATMOS_UNIFORM: {
-      char ok;
-      CHECK(spectrum_includes(
-        scene->atmosphere->data.uniform.spectrum,
-        scene->sun->spectrum,
-        &ok),
-        RES_OK);
-      if (!ok) {
-        log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
-        return RES_BAD_ARG;
+      case ATMOS_UNIFORM: {
+        char ok;
+        CHECK(spectrum_includes(
+          scene->atmosphere->data.uniform.spectrum,
+          scene->sun->spectrum,
+          &ok),
+          RES_OK);
+        if (!ok) {
+          log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
+          return RES_BAD_ARG;
+        }
+        break;
       }
-      break;
-    }
-    default: FATAL("Unreachable code\n"); break;
+      default: FATAL("Unreachable code\n"); break;
     }
   }
   return RES_OK;
@@ -183,7 +184,7 @@ release_solver_data(struct solver_data* data)
     darray_receiver_record_release(&data->receiver_record_candidates);
   if (data->instances_ptr.data)
     darray_instances_ptr_release(&data->instances_ptr);
-  *data = SOLVER_DATA_NULL;
+  memset(data, 0, sizeof(struct solver_data));
 }
 
 res_T
@@ -289,7 +290,7 @@ setup_next_segment(struct realisation* rs)
   seg = current_segment(rs);
   data = &rs->data;
   ASSERT(seg && prev && data);
-  
+
   if(rs->s_idx == 1)
     check_fst_segment(prev);
   else
@@ -300,7 +301,7 @@ setup_next_segment(struct realisation* rs)
   seg->sun_segment = 0;
 
   d3_set(seg->org, prev->hit_pos);
-  
+
   res = material_shade(
     prev->hit_material, &data->fragment, rs->wavelength, data->brdfs);
   if (res != RES_OK) {
@@ -325,19 +326,19 @@ reset_segment(struct segment* seg)
 {
   ASSERT(seg);
 #ifndef NDEBUG
-  d3_splat(seg->dir, NAN);
+  d3_splat(seg->dir, NaN);
   seg->hit = S3D_HIT_NULL;
   seg->hit_distance = 0;
   seg->hit_front = NON_BOOL;
   seg->hit_instance = NULL;
   seg->hit_material = NULL;
-  d3_splat(seg->hit_normal, NAN);
-  d3_splat(seg->hit_pos, NAN);
+  d3_splat(seg->hit_normal, NaN);
+  d3_splat(seg->hit_pos, NaN);
   seg->on_punched = NON_BOOL;
-  d3_splat(seg->org, NAN);
+  d3_splat(seg->org, NaN);
   seg->self_instance = NULL;
   seg->self_front = NON_BOOL;
-  seg->weight = NAN;
+  seg->weight = NaN;
 #else
   seg->hit = S3D_HIT_NULL;
   seg->hit_distance = 0;
@@ -349,17 +350,17 @@ reset_starting_point(struct starting_point* start)
 {
   ASSERT(start);
 #ifndef NDEBUG
-  start->cos_sun = NAN;
+  start->cos_sun = NaN;
   start->front_exposed = NON_BOOL;
   start->instance = NULL;
   start->material = NULL;
-  d3_splat(start->rt_normal, NAN);
-  d3_splat(start->sampl_normal, NAN);
+  d3_splat(start->rt_normal, NaN);
+  d3_splat(start->sampl_normal, NaN);
   start->on_punched = NON_BOOL;
-  d3_splat(start->pos, NAN);
+  d3_splat(start->pos, NaN);
   start->sampl_primitive = S3D_PRIMITIVE_NULL;
-  d3_splat(start->sundir, NAN);
-  start->uv[0] = start->uv[1] = NAN;
+  d3_splat(start->sundir, NaN);
+  start->uv[0] = start->uv[1] = (float)NaN;
 #else
   start->sampl_primitive = S3D_PRIMITIVE_NULL;
 #endif
@@ -415,12 +416,13 @@ init_realisation
   res = darray_segment_resize(&rs->segments, 16);
   if (res != RES_OK) goto error;
 
-  rs->data = SOLVER_DATA_NULL;
+  memset(&rs->data, 0, sizeof(rs->data));
+
   rs->data.scene = scene;
   rs->data.rng = rng;
   rs->data.out_stream = out;
-  darray_receiver_record_init(
-    scene->dev->allocator, &rs->data.receiver_record_candidates);
+  darray_receiver_record_init
+    (scene->dev->allocator, &rs->data.receiver_record_candidates);
   darray_instances_ptr_init(scene->dev->allocator, &rs->data.instances_ptr);
   /* create 2 s3d_scene_view for raytracing and sampling */
   res = set_views(&rs->data);
@@ -449,8 +451,7 @@ release_realisation(struct realisation* rs)
 
 /* partial setting of rs->start
  * front_exposed, cos_sun will be set later
- * material is set to NULL and will be set later
- */
+ * material is set to NULL and will be set later */
 static void
 sample_starting_point(struct realisation* rs)
 {
@@ -485,31 +486,31 @@ sample_starting_point(struct realisation* rs)
   ASSERT(attrib.type == S3D_FLOAT3);
   d3_set_f3(start->sampl_normal, attrib.value);
   switch (shape->type) {
-  case SHAPE_MESH: {
-    /* no projection needed */
-    /* set geometry normal */
-    d3_set(start->rt_normal, start->sampl_normal);
-    break;
-  }
-  case SHAPE_PUNCHED: {
-    const double* transform = start->instance->transform;
-    double tr[9], pos_local[3];
-    /* project the sampled point on the quadric */
-    d33_inverse(tr, transform);
-    d3_sub(pos_local, start->pos, transform + 9);
-    d33_muld3(pos_local, tr, pos_local);
-    punched_shape_set_z_local(shape, pos_local);
-    /* transform point to world */
-    d33_muld3(start->pos, transform, pos_local);
-    d3_add(start->pos, transform + 9, start->pos);
-    /* compute exact normal on the instance */
-    punched_shape_set_normal_local(shape, pos_local, start->rt_normal);
-    /* transform normal to world */
-    d33_invtrans(tr, transform);
-    d33_muld3(start->rt_normal, tr, start->rt_normal);
-    break;
-  }
-  default: FATAL("Unreachable code.\n"); break;
+    case SHAPE_MESH: {
+      /* no projection needed */
+      /* set geometry normal */
+      d3_set(start->rt_normal, start->sampl_normal);
+      break;
+    }
+    case SHAPE_PUNCHED: {
+      const double* transform = start->instance->transform;
+      double tr[9], pos_local[3];
+      /* project the sampled point on the quadric */
+      d33_inverse(tr, transform);
+      d3_sub(pos_local, start->pos, transform + 9);
+      d33_muld3(pos_local, tr, pos_local);
+      punched_shape_set_z_local(shape, pos_local);
+      /* transform point to world */
+      d33_muld3(start->pos, transform, pos_local);
+      d3_add(start->pos, transform + 9, start->pos);
+      /* compute exact normal on the instance */
+      punched_shape_set_normal_local(shape, pos_local, start->rt_normal);
+      /* transform normal to world */
+      d33_invtrans(tr, transform);
+      d33_muld3(start->rt_normal, tr, start->rt_normal);
+      break;
+    }
+    default: FATAL("Unreachable code.\n"); break;
   }
   /* TODO: transform everything to world coordinate */
 
@@ -544,7 +545,7 @@ receive_sunlight(struct realisation* rs)
   const struct ssol_sun* sun;
   struct starting_point* start;
 
-  ASSERT(rs && rs->s_idx == 0); 
+  ASSERT(rs && rs->s_idx == 0);
   seg = current_segment(rs);
   sun = rs->data.scene->sun;
   start = &rs->start;
@@ -557,22 +558,19 @@ receive_sunlight(struct realisation* rs)
   start->front_exposed = start->geom_cos < 0;
   if (start->front_exposed) {
     start->material = start->instance->object->mtl_front;
-  }
-  else {
+  } else {
     start->material = start->instance->object->mtl_back;
   }
   /* normals must face the sun and cos must be positive */
   if (start->geom_cos > 0) {
     d3_muld(start->rt_normal, start->rt_normal, -1);
-  }
-  else {
+  } else {
     start->geom_cos *= -1;
   }
   start->cos_sun = d3_dot(start->sampl_normal, start->sundir);
   if (start->cos_sun > 0) {
     d3_muld(start->sampl_normal, start->sampl_normal, -1);
-  }
-  else {
+  } else {
     start->cos_sun *= -1;
   }
 
@@ -596,7 +594,7 @@ receive_sunlight(struct realisation* rs)
     return 0;
   }
 
-  /* fill segment to allow standard propagation 
+  /* fill segment to allow standard propagation
    * pretend the ray was cast in the opposite direction */
   d3_set(seg->dir, start->sundir);
   d3_sub(seg->org, seg->org, seg->dir);
@@ -648,7 +646,7 @@ receive_sunlight(struct realisation* rs)
   else {
     rs->success_mask |= start->instance->target_back_mask;
   }
-  
+
   return 1;
 }
 
@@ -684,11 +682,10 @@ filter_receiver_hit_candidates(struct realisation* rs)
     candidates++)
   {
     if (candidates->hit_distance == prev_distance) {
-      int i = 0, is_duplicate = 0;
-      const struct ssol_instance** ptr
-        = darray_instances_ptr_data_get(inst_array);
+      size_t i = 0, is_duplicate = 0;
+      struct ssol_instance** ptr = darray_instances_ptr_data_get(inst_array);
       while (!is_duplicate && i < darray_instances_ptr_size_get(inst_array)) {
-        if (*ptr == candidates->instance) 
+        if (*ptr == candidates->instance)
           is_duplicate = 1;
         ptr++;
         i++;
@@ -742,7 +739,7 @@ propagate(struct realisation* rs)
   }
   check_segment(seg);
 
-  /* fill fragment  and loop */
+  /* fill fragment and loop */
   surface_fragment_setup(&rs->data.fragment, seg->hit_pos, seg->dir,
     seg->hit_normal, &seg->hit.prim, seg->hit.uv);
 }
@@ -810,7 +807,8 @@ ssol_solve
       else r++;
     } while (rs.end == TERM_ERR);
   }
-  /* TODO: overwrite trailing chars if canceled realizations wrote past the current fpos */
+  /* TODO: overwrite trailing chars if canceled realizations wrote past the
+   * current fpos */
 
 exit:
   release_realisation(&rs);

@@ -19,7 +19,7 @@
 #include <rsys/mem_allocator.h>
 #include <stdio.h>
 
-static void
+static INLINE void
 log_stream(const char* msg, void* ctx)
 {
   ASSERT(msg);
@@ -27,7 +27,7 @@ log_stream(const char* msg, void* ctx)
   printf("%s\n", msg);
 }
 
-static void
+static INLINE void
 check_memory_allocator(struct mem_allocator* allocator)
 {
   if(MEM_ALLOCATED_SIZE(allocator)) {
@@ -37,5 +37,13 @@ check_memory_allocator(struct mem_allocator* allocator)
     FATAL("Memory leaks\n");
   }
 }
+
+extern LOCAL_SYM res_T
+pp_sum
+  (FILE* f, 
+   const char* target,
+   const size_t count,
+   double* mean,
+   double* std);
 
 #endif /* TEST_SSOL_UTILS_H */

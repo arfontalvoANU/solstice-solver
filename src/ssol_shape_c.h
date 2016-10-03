@@ -37,28 +37,23 @@ struct ssol_shape {
   ref_T ref;
 };
 
-/*
- * Compute the z value from x,y according to the punched face quadric's equation
- */
+/* Compute the z value from x,y according to the punched face quadric's
+ * equation */
 extern LOCAL_SYM void
 punched_shape_set_z_local
   (const struct ssol_shape* shape,
    double pt[3]);
 
-/*
-* set the normal to a punched shape at pt
-*/
+/* set the normal to a punched shape at pt */
 extern LOCAL_SYM void
 punched_shape_set_normal_local
   (const struct ssol_shape* shape,
    const double pt[3],
    double normal[3]);
 
-/* 
- * Search for an exact ray intersection on a punched shape
+/* Search for an exact ray intersection on a punched shape
  * hint is an estimate of the distance (can be from raytracing)
- * Return 1 on success
- */
+ * Return 1 on success */
 extern LOCAL_SYM int
 punched_shape_intersect_local
   (const struct ssol_shape* shape,

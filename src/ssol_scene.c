@@ -342,12 +342,10 @@ hit_filter_function
   const struct str* receiver_name;
   struct realisation* rs = realisation;
   struct segment* seg;
-  struct segment* prev;
 
   (void) filter_data, (void) org, (void) dir;
   ASSERT(rs);
   seg = current_segment(rs);
-  prev = previous_segment(rs);
   ASSERT(seg);
 
   /* these components have been set */
@@ -365,6 +363,7 @@ hit_filter_function
     double org_local[3], hit_pos_local[3], dir_local[3];
     const double* transform = inst->transform;
     double tr[9];
+    int valid;
     d33_inverse(tr, transform);
    
     /* get org in local coordinate */
@@ -375,7 +374,7 @@ hit_filter_function
     /* get dir in local */
     d33_muld3(dir_local, tr, seg->dir);
     /* recompute hit */
-    int valid = punched_shape_intersect_local(shape, org_local, dir_local,
+    valid = punched_shape_intersect_local(shape, org_local, dir_local,
       hit->distance, hit_pos_local, seg->hit_normal, &seg->hit_distance);
     if (!valid) return 1;
     /* transform point to world */

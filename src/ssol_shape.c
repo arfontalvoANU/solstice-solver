@@ -590,23 +590,6 @@ quadric_solve_second
 }
 
 static void
-shape_release(ref_T* ref)
-{
-  struct ssol_device* dev;
-  struct ssol_shape* shape = CONTAINER_OF(ref, struct ssol_shape, ref);
-  ASSERT(ref);
-  dev = shape->dev;
-  ASSERT(dev && dev->allocator);
-  if(shape->shape_rt) S3D(shape_ref_put(shape->shape_rt));
-  if(shape->shape_samp) S3D(shape_ref_put(shape->shape_samp));
-  MEM_RM(dev->allocator, shape);
-  SSOL(device_ref_put(dev));
-}
-
-/*******************************************************************************
- * Local functions
- ******************************************************************************/
-void
 quadric_plane_gradient_local(double grad[3])
 {
   grad[0] = 0;
@@ -614,7 +597,7 @@ quadric_plane_gradient_local(double grad[3])
   grad[2] = 1;
 }
 
-void
+static void
 quadric_parabol_gradient_local
   (const struct ssol_quadric_parabol* quad,
    const double pt[3],
@@ -625,7 +608,7 @@ quadric_parabol_gradient_local
   grad[2] = 2 * quad->focal;
 }
 
-void
+static void
 quadric_parabolic_cylinder_gradient_local
   (const struct ssol_quadric_parabolic_cylinder* quad,
    const double pt[3],
@@ -636,7 +619,7 @@ quadric_parabolic_cylinder_gradient_local
   grad[2] = 2 * quad->focal;
 }
 
-int
+static int
 quadric_plane_intersect_local
   (const double org[3],
    const double dir[3],
@@ -655,7 +638,7 @@ quadric_plane_intersect_local
   return 1;
 }
 
-int
+static int
 quadric_parabol_intersect_local
   (const struct ssol_quadric_parabol* quad,
    const double org[3],
@@ -677,7 +660,7 @@ quadric_parabol_intersect_local
   return 1;
 }
 
-int
+static int
 quadric_parabolic_cylinder_intersect_local
   (const struct ssol_quadric_parabolic_cylinder* quad,
    const double org[3],
@@ -698,27 +681,45 @@ quadric_parabolic_cylinder_intersect_local
   return 1;
 }
 
+static void
+shape_release(ref_T* ref)
+{
+  struct ssol_device* dev;
+  struct ssol_shape* shape = CONTAINER_OF(ref, struct ssol_shape, ref);
+  ASSERT(ref);
+  dev = shape->dev;
+  ASSERT(dev && dev->allocator);
+  if(shape->shape_rt) S3D(shape_ref_put(shape->shape_rt));
+  if(shape->shape_samp) S3D(shape_ref_put(shape->shape_samp));
+  MEM_RM(dev->allocator, shape);
+  SSOL(device_ref_put(dev));
+}
+
+/*******************************************************************************
+ * Local functions
+ ******************************************************************************/
 void
-punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3]) {
+punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
+{
   ASSERT(shape && pt);
   ASSERT(shape->type == SHAPE_PUNCHED);
   switch (shape->quadric.type) {
-  case SSOL_QUADRIC_PLANE: {
-    pt[2] = 0;
-    break;
-  }
-  case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
-    const struct ssol_quadric_parabolic_cylinder* quad
-      = &shape->quadric.data.parabolic_cylinder;
-    pt[2] = (pt[1] * pt[1]) / (4.0 * quad->focal);
-    break;
-  }
-  case SSOL_QUADRIC_PARABOL: {
-    const struct ssol_quadric_parabol* quad = &shape->quadric.data.parabol;
-    pt[2] = (pt[0] * pt[0] + pt[1] * pt[1]) / (4.0 * quad->focal);
-    break;
-  }
-  default: FATAL("Unreachable code\n"); break;
+    case SSOL_QUADRIC_PLANE: {
+      pt[2] = 0;
+      break;
+    }
+    case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+      const struct ssol_quadric_parabolic_cylinder* quad
+        = &shape->quadric.data.parabolic_cylinder;
+      pt[2] = (pt[1] * pt[1]) / (4.0 * quad->focal);
+      break;
+    }
+    case SSOL_QUADRIC_PARABOL: {
+      const struct ssol_quadric_parabol* quad = &shape->quadric.data.parabol;
+      pt[2] = (pt[0] * pt[0] + pt[1] * pt[1]) / (4.0 * quad->focal);
+      break;
+    }
+    default: FATAL("Unreachable code\n"); break;
   }
 }
 
@@ -854,28 +855,28 @@ ssol_punched_surface_setup
 
   /* Define the #slices of the discretized quadric */
   switch (psurf->quadric->type) {
-  case SSOL_QUADRIC_PLANE:
-    nslices = 1;
-    break;
-  case SSOL_QUADRIC_PARABOL: {
-    double z[2];
-    z[0] = (lower[0] * lower[0] + lower[1] * lower[1])
-      / (4.0 * psurf->quadric->data.parabol.focal);
-    z[1] = (upper[0] * upper[0] + upper[1] * upper[1])
-      / (4.0 * psurf->quadric->data.parabol.focal);
-    nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
-    break;
-  }
-  case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
-    double z[2];
-    z[0] = (lower[1] * lower[1]) /
-      (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
-    z[1] = (upper[1] * upper[1]) /
-      (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
-    nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
-    break;
-  }
-  default: FATAL("Unreachable code\n"); break;
+    case SSOL_QUADRIC_PLANE:
+      nslices = 1;
+      break;
+    case SSOL_QUADRIC_PARABOL: {
+      double z[2];
+      z[0] = (lower[0] * lower[0] + lower[1] * lower[1])
+        / (4.0 * psurf->quadric->data.parabol.focal);
+      z[1] = (upper[0] * upper[0] + upper[1] * upper[1])
+        / (4.0 * psurf->quadric->data.parabol.focal);
+      nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
+      break;
+    }
+    case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
+      double z[2];
+      z[0] = (lower[1] * lower[1]) /
+        (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
+      z[1] = (upper[1] * upper[1]) /
+        (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
+      nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
+      break;
+    }
+    default: FATAL("Unreachable code\n"); break;
   }
 
   res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);

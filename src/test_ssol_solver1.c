@@ -16,7 +16,6 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 #include "test_ssol_materials.h"
-#include "test_ssol_postprocess.h"
 
 #define HALF_X 1
 #define HALF_Y 1

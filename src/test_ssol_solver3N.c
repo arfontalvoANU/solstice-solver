@@ -16,7 +16,6 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 #include "test_ssol_materials.h"
-#include "test_ssol_postprocess.h"
 
 #define PLANE_NAME SQUARE
 #define HALF_X 250
@@ -38,8 +37,8 @@
 #include <star/ssp.h>
 
 /*******************************************************************************
-* Helper functions
-******************************************************************************/
+ * Helper functions
+ ******************************************************************************/
 struct common {
   struct ssol_scene* scene;
   struct ssol_object* m_object;
@@ -47,7 +46,9 @@ struct common {
   double sun_dir[3];
 };
 
-void set_1(struct common* common, const double pos[3]) {
+static void
+set_1(struct common* common, const double pos[3])
+{
   struct ssol_instance* heliostat;
   double transform[12]; /* 3x4 column major matrix */
   double out_dir[3], axis[3], c, a;
@@ -78,8 +79,8 @@ void set_1(struct common* common, const double pos[3]) {
 }
 
 /*******************************************************************************
-* Test main program
-******************************************************************************/
+ * Test main program
+ ******************************************************************************/
 int
 main(int argc, char** argv)
 {
@@ -111,7 +112,6 @@ main(int argc, char** argv)
   FILE* tmp;
   double m, std;
   int i, j, k;
-
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -187,7 +187,7 @@ main(int argc, char** argv)
       }
     }
   }
-  
+
   d33_rotation_pitch(transform, PI); /* flip faces: invert normal */
   d3_set(transform + 9, target_pos);
 

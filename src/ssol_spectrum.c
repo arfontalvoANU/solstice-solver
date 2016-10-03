@@ -54,7 +54,7 @@ spectrum_includes_point
   return data[0] <= wavelenght && wavelenght <= data[sz - 1];
 }
 
-int
+static int
 eq_d(const void* key, const void* base)
 {
   double k = *(double*) key;
@@ -110,7 +110,7 @@ spectrum_interpolate
   ints = spectrum->intensities.data;
   next = search_lower_bound(&wavelenght, wavelengths, sz, sizeof(double), &eq_d);
   ASSERT(next); /* cause spectrum_includes_point */
-  idx_next = next - wavelengths;
+  idx_next = (size_t)(next - wavelengths);
   ASSERT(idx_next); /* cause spectrum_includes_point */
   ASSERT(ints[idx_next] >= ints[idx_next - 1]);
   ASSERT(wavelengths[idx_next] >= wavelengths[idx_next - 1]);

@@ -44,14 +44,14 @@ hit_filter_function
 
 #include <math.h>
 
-#ifndef NAN
-#define NAN (INF * 0.0)
-#endif
-#define ISNAN(x) (!((x) == (x)))
 #ifndef NDEBUG
-#define ASSERT_NAN(x, sz) {int i; for (i = 0; i < (sz); i++)ASSERT(!ISNAN((x)[i]));}
+  #define ASSERT_NAN(x, sz) {                                                  \
+    int i__;                                                                   \
+    FOR_EACH(i__, 0, sz)                                                       \
+      ASSERT(!IS_NaN((x)[i__]));                                               \
+  } (void)0
 #else
-#define ASSERT_NAN(x, sz) 
+  #define ASSERT_NAN(x, sz)
 #endif
 
 #define NON_BOOL 99

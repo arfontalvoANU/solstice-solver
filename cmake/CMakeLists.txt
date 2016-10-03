@@ -121,29 +121,18 @@ rcmake_setup_devel(solstice-solver SolSolver ${VERSION} solstice/ssol_version.h)
 # Add tests
 ################################################################################
 if(NOT NO_TEST)
-  function(build_test _name)
+  function(new_test _name)
     add_executable(${_name}
-      ${SSOL_SOURCE_DIR}/test_ssol_utils.h
       ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
       ${SSOL_SOURCE_DIR}/test_ssol_materials.h
+      ${SSOL_SOURCE_DIR}/test_ssol_utils.h
+      ${SSOL_SOURCE_DIR}/test_ssol_utils.c
       ${SSOL_SOURCE_DIR}/${_name}.c)
     target_link_libraries(${_name} solstice-solver RSys Star3D StarSP)
-    set(_libraries  ${ARGN})
-    foreach(_lib ${_libraries})
-      target_link_libraries(${_name} ${_lib})
-    endforeach()
-  endfunction()
-
-  function(register_test _name)
-    add_test(${_name} ${ARGN})
+    add_test(${_name} ${_name})
     rcmake_set_test_runtime_dirs(${_name} _runtime_dirs)
   endfunction()
 
-  function(new_test _name)
-    build_test(${_name} ${ARGN})
-    register_test(${_name} ${_name})
-  endfunction()
-  
   new_test(test_ssol_atmosphere)
   new_test(test_ssol_device)
   new_test(test_ssol_image)
@@ -161,7 +150,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_solver4)
   new_test(test_ssol_solver5)
   new_test(test_ssol_sun)
-endif(NOT NO_TEST)
+endif()
 
 ################################################################################
 # Define output & install directories
