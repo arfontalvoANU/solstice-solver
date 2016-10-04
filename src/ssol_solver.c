@@ -769,9 +769,6 @@ ssol_solve
   if (res != RES_OK) goto error;
 
   for (r = 0; r < realisations_count; ) {
-    fpos_t real_start;
-    int err_count = 0;
-    CHECK(fgetpos(output, &real_start), 0);
     do {
       reset_realisation(r, &rs);
       sample_starting_point(&rs);
@@ -798,17 +795,12 @@ ssol_solve
 
       /* must retry failed realisations */
       if (rs.end == TERM_ERR) {
-        CHECK(fsetpos(output, &real_start), 0);
-        if (++err_count > 10) {
-          log_error(scene->dev, "%s: too many failures.\n", FUNC_NAME);
-          goto error;
-        }
+        log_error(scene->dev, "%s: realisation failure.\n", FUNC_NAME);
+        goto error;
       }
       else r++;
     } while (rs.end == TERM_ERR);
   }
-  /* TODO: overwrite trailing chars if canceled realizations wrote past the
-   * current fpos */
 
 exit:
   release_realisation(&rs);
