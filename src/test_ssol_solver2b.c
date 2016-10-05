@@ -186,7 +186,7 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
-  CHECK(eq_eps(m, 2 * DNI_cos, 2 * DNI_cos * 1e-2), 1);
+  CHECK(eq_eps(m, 2 * DNI_cos, 2 * DNI_cos * 2e-2), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) / 2 - SQR(2 * DNI_cos)) / N), 1e-3), 1);
   /* free data */
