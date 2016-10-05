@@ -27,6 +27,7 @@ find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.3 REQUIRED)
 find_package(Star3D 0.4 REQUIRED)
 find_package(StarCPR REQUIRED)
+find_package(StarSF 0.0 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
@@ -38,9 +39,10 @@ include_directories(
   ${RSys_INCLUDE_DIR}
   ${Star3D_INCLUDE_DIR}
   ${StarCPR_INCLUDE_DIR}
+  ${StarSF_INCLUDE_DIR}
   ${StarSP_INCLUDE_DIR})
 
-rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D StarCPR StarSP)
+rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D StarCPR StarSF StarSP)
 
 ################################################################################
 # Configure and define targets
@@ -52,9 +54,6 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
   ssol_atmosphere.c
-  ssol_brdf.c
-  ssol_brdf_composite.c
-  ssol_brdf_reflection.c
   ssol_device.c
   ssol_image.c
   ssol_material.c
@@ -73,9 +72,6 @@ set(SSOL_FILES_INC_API
 
 set(SSOL_FILES_INC
   ssol_atmosphere_c.h
-  ssol_brdf.h
-  ssol_brdf_composite.h
-  ssol_brdf_reflection.h
   ssol_c.h
   ssol_device_c.h
   ssol_image_c.h
@@ -99,7 +95,7 @@ rcmake_prepend_path(SSOL_FILES_INC_API ${SSOL_SOURCE_DIR})
 rcmake_prepend_path(SSOL_FILES_DOC ${PROJECT_SOURCE_DIR}/../)
 
 add_library(solstice-solver SHARED ${SSOL_FILES_SRC} ${SSOL_FILES_INC} ${SSOL_FILES_INC_API})
-target_link_libraries(solstice-solver RSys Star3D StarCPR StarSP)
+target_link_libraries(solstice-solver RSys Star3D StarCPR StarSF StarSP)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_link_libraries(solstice-solver m)

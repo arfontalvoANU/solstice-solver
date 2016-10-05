@@ -18,9 +18,9 @@
 
 #include <rsys/ref_count.h>
 
-struct brdf_composite;
 struct s3d_hit;
 struct s3d_primitive;
+struct ssf_bsdf;
 struct ssol_device;
 
 struct surface_fragment {
@@ -31,7 +31,7 @@ struct surface_fragment {
   double uv[2]; /* Texture coordinates */
 };
 #define SURFACE_FRAGMENT_NULL__ {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}}
-static const struct surface_fragment SURFACE_FRAGMENT_NULL = 
+static const struct surface_fragment SURFACE_FRAGMENT_NULL =
   SURFACE_FRAGMENT_NULL__;
 
 enum material_type {
@@ -65,7 +65,7 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct brdf_composite* brdfs); /* Container of BRDFs */
+   struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 #endif /* SSOL_MATERIAL_C_H */
 

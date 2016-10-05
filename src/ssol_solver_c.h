@@ -123,7 +123,7 @@ struct solver_data {
   struct ranst_sun_dir* sun_dir_ran;
   struct ranst_sun_wl* sun_wl_ran;
   /* Tmp data used for propagation */
-  struct brdf_composite* brdfs;
+  struct ssf_bsdf* bsdf;
   struct surface_fragment fragment;
   struct darray_receiver_record receiver_record_candidates;
   struct darray_instances_ptr instances_ptr;

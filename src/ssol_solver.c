@@ -25,7 +25,6 @@
 #include "ssol_material_c.h"
 #include "ssol_spectrum_c.h"
 #include "ssol_instance_c.h"
-#include "ssol_brdf_composite.h"
 #include "ssol_ranst_sun_dir.h"
 #include "ssol_ranst_sun_wl.h"
 
@@ -35,6 +34,8 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
+
+#include <star/ssf.h>
 
 #define END_TEXT__ \
   { "NONE", "SUCCESS", "SHADOW", "POINTING", "MISSING", "BLOCKED", "ERROR" }
@@ -179,7 +180,7 @@ release_solver_data(struct solver_data* data)
   if (data->view_samp) S3D(scene_view_ref_put(data->view_samp));
   if (data->sun_dir_ran) CHECK(ranst_sun_dir_ref_put(data->sun_dir_ran), RES_OK);
   if (data->sun_wl_ran) CHECK(ranst_sun_wl_ref_put(data->sun_wl_ran), RES_OK);
-  if (data->brdfs) brdf_composite_ref_put(data->brdfs);
+  if (data->bsdf) SSF(bsdf_ref_put(data->bsdf));
   if (data->receiver_record_candidates.data)
     darray_receiver_record_release(&data->receiver_record_candidates);
   if (data->instances_ptr.data)
@@ -279,6 +280,9 @@ setup_next_segment(struct realisation* rs)
   res_T res = RES_OK;
   const struct segment* prev;
   const struct solver_data* data;
+  double wi[3]; /* Incident direction */
+  double pdf;
+  double R;
   struct segment* seg;
   ASSERT(rs);
 
@@ -302,20 +306,25 @@ setup_next_segment(struct realisation* rs)
 
   d3_set(seg->org, prev->hit_pos);
 
-  res = material_shade(
-    prev->hit_material, &data->fragment, rs->wavelength, data->brdfs);
+  res = material_shade
+    (prev->hit_material, &data->fragment, rs->wavelength, data->bsdf);
   if (res != RES_OK) {
     rs->end = TERM_ERR;
     return res;
   }
 
-  seg->weight = prev->weight
-    * brdf_composite_sample(
-      data->brdfs, data->rng, prev->dir, data->fragment.Ns, seg->dir);
+  /* By convention, Star-SF assumes that incoming and reflected directions
+   * point outward the surface => negate incoming dir */
+  d3_minus(wi, prev->dir);
+
+  R = ssf_bsdf_sample
+    (data->bsdf, data->rng, wi, data->fragment.Ns, seg->dir, &pdf);
+  seg->weight = prev->weight * R;
+
   ASSERT(d3_dot(seg->dir, seg->dir));
   if (rs->s_idx > 1) {
-    seg->weight *= compute_atmosphere_attenuation(
-      rs->data.scene->atmosphere, prev->hit_distance, rs->wavelength);
+    seg->weight *= compute_atmosphere_attenuation
+      (rs->data.scene->atmosphere, prev->hit_distance, rs->wavelength);
   }
 
   return res;
@@ -393,7 +402,7 @@ reset_realisation(size_t cpt, struct realisation* rs)
   rs->rs_id = cpt;
   rs->success_mask = 0;
   reset_starting_point(&rs->start);
-  brdf_composite_clear(rs->data.brdfs);
+  SSF(bsdf_clear(rs->data.bsdf));
   /* reset first segment (always used) */
   reset_segment(current_segment(rs));
   /* reset candidates */
@@ -431,7 +440,7 @@ init_realisation
   /* create sun distributions */
   res = set_sun_distributions(&rs->data);
   if (res != RES_OK) goto error;
-  res = brdf_composite_create(scene->dev, &rs->data.brdfs);
+  res = ssf_bsdf_create(scene->dev->allocator, &rs->data.bsdf);
   if (res != RES_OK) goto error;
 
 exit:

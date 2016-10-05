@@ -14,8 +14,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_brdf_composite.h"
-#include "ssol_brdf_reflection.h"
 #include "ssol_c.h"
 #include "ssol_material_c.h"
 #include "ssol_device_c.h"
@@ -28,6 +26,8 @@
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
 
+#include <star/ssf.h>
+
 #include <math.h>
 
 /*******************************************************************************
@@ -38,31 +38,63 @@ mirror_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct brdf_composite* brdfs)
+   struct ssf_bsdf* bsdf)
 {
-  struct brdf* reflect = NULL;
+  struct ssf_bxdf* brdf = NULL;
+  struct ssf_fresnel* fresnel = NULL;
+  struct ssf_microfacet_distribution* distrib = NULL;
   const struct ssol_mirror_shader* shader;
   double normal[3];
-  double R; /* Reflectivity */
+  double roughness;
+  double reflectivity;
   res_T res;
   ASSERT(mtl && fragment && mtl->type == MATERIAL_MIRROR);
-  ASSERT(brdfs);
+  ASSERT(bsdf);
 
   shader = &mtl->data.mirror;
 
-  /* FIXME currently the mirror material is a purely reflective BRDF. Discard
-   * the roughness parameters */
+  /* Fetch material attribs */
   shader->normal(mtl->dev, wavelength, fragment->pos, fragment->Ng,
     fragment->Ns, fragment->uv, fragment->dir, normal);
   shader->reflectivity(mtl->dev, wavelength, fragment->pos, fragment->Ng,
-    fragment->Ns, fragment->uv, fragment->dir, &R);
+    fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
+  shader->roughness(mtl->dev, wavelength, fragment->pos, fragment->Ng,
+    fragment->Ns, fragment->uv, fragment->dir, &roughness);
 
-  if(RES_OK != (res = brdf_reflection_create(mtl->dev, &reflect))) goto error;
-  if(RES_OK != (res = brdf_reflection_setup(reflect, R))) goto error;
-  if(RES_OK != (res = brdf_composite_add(brdfs, reflect))) goto error;
+  /* Setup the fresnel term */
+  res = ssf_fresnel_create(mtl->dev->allocator, &ssf_fresnel_constant, &fresnel);
+  if(res != RES_OK) goto error;
+  res = ssf_fresnel_constant_setup(fresnel, reflectivity);
+  if(res != RES_OK) goto error;
+
+  /* Setup the BRDF */
+  if(roughness == 0) { /* Purely specular reflection */
+    res = ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_reflection, &brdf);
+    if(res != RES_OK) goto error;
+    res = ssf_specular_reflection_setup(brdf, fresnel);
+    if(res != RES_OK) goto error;
+  } else { /* Glossy reflection */
+    res = ssf_microfacet_distribution_create
+      (mtl->dev->allocator, &ssf_beckmann_distribution, &distrib);
+    if(res != RES_OK) goto error;
+    res = ssf_beckmann_distribution_setup(distrib, roughness);
+    if(res != RES_OK) goto error;
+
+    res = ssf_bxdf_create
+      (mtl->dev->allocator, &ssf_microfacet2_reflection, &brdf);
+    if(res != RES_OK) goto error;
+    res = ssf_microfacet_reflection_setup(brdf, fresnel, distrib);
+    if(res != RES_OK) goto error;
+  }
+
+  /* Setup the BSDF */
+  res = ssf_bsdf_add(bsdf, brdf, 1.0);
+  if(res != RES_OK) goto error;
 
 exit:
-  if(reflect) brdf_ref_put(reflect);
+  if(brdf) SSF(bxdf_ref_put(brdf));
+  if(fresnel) SSF(fresnel_ref_put(fresnel));
+  if(distrib) SSF(microfacet_distribution_ref_put(distrib));
   return res;
 error:
   goto exit;
@@ -252,7 +284,7 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct brdf_composite* brdfs) /* Container of BRDFs */
+   struct ssf_bsdf* bsdf)
 {
   res_T res = RES_OK;
   ASSERT(mtl);
@@ -260,7 +292,7 @@ material_shade
   /* Specific material shading */
   switch(mtl->type) {
     case MATERIAL_MIRROR:
-      res = mirror_shade(mtl, fragment, wavelength, brdfs);
+      res = mirror_shade(mtl, fragment, wavelength, bsdf);
       break;
     case MATERIAL_VIRTUAL: /* Nothing to shade */ break;
     default: FATAL("Unreachable code\n"); break;
