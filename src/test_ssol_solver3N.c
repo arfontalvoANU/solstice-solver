@@ -128,7 +128,6 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
-  SSOL(sun_set_direction(sun, common.sun_dir));
   d3(sun_dir, 1, 0, -1);
   d3_normalize(sun_dir, sun_dir);
   CHECK(ssol_sun_set_direction(sun, sun_dir), RES_OK);
