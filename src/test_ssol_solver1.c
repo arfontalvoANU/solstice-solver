@@ -64,6 +64,7 @@ main(int argc, char** argv)
   double mono = 1.21;
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
+  double dbl;
   FILE* tmp = NULL;
   double m, std;
 
@@ -194,9 +195,10 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
-  CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-2), 1);
+  CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
 #define SQR(x) ((x)*(x))
-  CHECK(eq_eps(std, sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / N), 1e-1), 1);
+  dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / N);
+  CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
   CHECK(fclose(tmp), 0);
 
   /* sample primary mirror only; variance is low */
@@ -210,7 +212,7 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
-  CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
+  CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(fclose(tmp), 0);
 
@@ -226,7 +228,7 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
-  CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
+  CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
@@ -246,7 +248,7 @@ main(int argc, char** argv)
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 #define K (exp(-0.1 * 4 * sqrt(2)))
-  CHECK(eq_eps(m, 4 * K * DNI_cos, 4 * K * DNI_cos * 1e-4), 1);
+  CHECK(eq_eps(m, 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
 
   /* check a monochromatic sun */
@@ -265,7 +267,7 @@ main(int argc, char** argv)
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
   CHECK(fclose(tmp), 0);
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
-  CHECK(eq_eps(m, 4 * K2 * DNI_cos, 4 * K2 * DNI_cos * 1e-4), 1);
+  CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
 
   /* free data */
