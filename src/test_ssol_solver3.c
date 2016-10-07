@@ -50,7 +50,7 @@ main(int argc, char** argv)
   struct ssol_vertex_data attribs[1];
   struct ssol_shape* quad_square;
   struct ssol_carving carving;
-  struct ssol_quadric quadric;
+  struct ssol_quadric quadric = SSOL_QUADRIC_DEFAULT;
   struct ssol_punched_surface punched;
   struct ssol_material* m_mtl;
   struct ssol_material* v_mtl;

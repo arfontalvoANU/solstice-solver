@@ -146,10 +146,16 @@ struct ssol_quadric {
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
   } data;
+
+  /* 3x4 column major transformation of the quadric in object space */
+  double transform[12];
 };
 
-#define SSOL_QUADRIC_DEFAULT__ \
-  {SSOL_QUADRIC_PLANE, {SSOL_QUADRIC_PLANE_DEFAULT__}}
+#define SSOL_QUADRIC_DEFAULT__ {                                               \
+  SSOL_QUADRIC_PLANE,                                                          \
+  {SSOL_QUADRIC_PLANE_DEFAULT__},                                              \
+  {1,0,0, 0,1,0, 0,0,1, 0,0,0}                                                 \
+}
 static const struct ssol_quadric SSOL_QUADRIC_DEFAULT = SSOL_QUADRIC_DEFAULT__;
 
 /* Define the contour of a 2D polygon as well as the clipping operation to

@@ -502,21 +502,36 @@ sample_starting_point(struct realisation* rs)
       break;
     }
     case SHAPE_PUNCHED: {
-      const double* transform = start->instance->transform;
-      double tr[9], pos_local[3];
+      struct ssol_instance* inst = start->instance;
+      double pos_local[3];
+      double R[9]; /* Rotation matrix */
+      double T[3]; /* Translation vector */
+      double R_invtrans[9]; /* Inverse transpose rotation matrix */
+      double T_inv[3]; /* Inverse of the translation vector */
+
+      if(d33_is_identity(shape->quadric.transform)) {
+        d33_set(R, inst->transform);
+        d3_set (T, inst->transform+9);
+      } else {
+        d33_muld33(R, shape->quadric.transform, inst->transform);
+        d33_muld3 (T, shape->quadric.transform, inst->transform+9);
+      }
+      d33_invtrans(R_invtrans, R);
+      d3_minus(T_inv, T);
+
       /* project the sampled point on the quadric */
-      d33_inverse(tr, transform);
-      d3_sub(pos_local, start->pos, transform + 9);
-      d33_muld3(pos_local, tr, pos_local);
+      d3_set(pos_local, start->pos);
+      d3_add(pos_local, pos_local, T_inv);
+      d3_muld33(pos_local, pos_local, R_invtrans);
+
       punched_shape_set_z_local(shape, pos_local);
       /* transform point to world */
-      d33_muld3(start->pos, transform, pos_local);
-      d3_add(start->pos, transform + 9, start->pos);
+      d33_muld3(start->pos, R, pos_local);
+      d3_add(start->pos, start->pos, T);
       /* compute exact normal on the instance */
       punched_shape_set_normal_local(shape, pos_local, start->rt_normal);
       /* transform normal to world */
-      d33_invtrans(tr, transform);
-      d33_muld3(start->rt_normal, tr, start->rt_normal);
+      d33_muld3(start->rt_normal, R_invtrans, start->rt_normal);
       break;
     }
     default: FATAL("Unreachable code.\n"); break;

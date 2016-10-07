@@ -119,7 +119,7 @@ ssol_scene_attach_instance
   res_T res;
 
   if(!scene || !instance) return RES_BAD_ARG;
-  
+
   /* Attach the instantiated s3d shape to ray-trace to the RT scene */
   res = s3d_scene_attach_shape(scene->scn_rt, instance->shape_rt);
   if(res != RES_OK) return res;
@@ -358,41 +358,51 @@ hit_filter_function
   shape = inst->object->shape;
   seg->on_punched = (shape->type == SHAPE_PUNCHED);
   switch (shape->type) {
-  case SHAPE_PUNCHED: {
-    /* hits on quadrics must be recomputed more accurately */
-    double org_local[3], hit_pos_local[3], dir_local[3];
-    const double* transform = inst->transform;
-    double tr[9];
-    int valid;
-    d33_inverse(tr, transform);
-   
-    /* get org in local coordinate */
-    d3_set(org_local, seg->org);
-    d3_sub(org_local, org_local, transform + 9);
-    d33_muld3(org_local, tr, org_local);
-     
-    /* get dir in local */
-    d33_muld3(dir_local, tr, seg->dir);
-    /* recompute hit */
-    valid = punched_shape_intersect_local(shape, org_local, dir_local,
-      hit->distance, hit_pos_local, seg->hit_normal, &seg->hit_distance);
-    if (!valid) return 1;
-    /* transform point to world */
-    d33_muld3(seg->hit_pos, transform, hit_pos_local);
-    d3_add(seg->hit_pos, transform + 9, seg->hit_pos);
-    /* transform normal to world */
-    d33_invtrans(tr, transform);
-    d33_muld3(seg->hit_normal, tr, seg->hit_normal);
-    break;
-  }
-  case SHAPE_MESH: {
-    d3_set_f3(seg->hit_normal, hit->normal);
-    /* use raytraced distance to fill hit_pos */
-    d3_add(seg->hit_pos, seg->org, d3_muld(seg->hit_pos, seg->dir, hit->distance));
-    seg->hit_distance = hit->distance;
-    break;
-  }
-  default: FATAL("Unreachable code.\n"); break;
+    case SHAPE_MESH: {
+      d3_set_f3(seg->hit_normal, hit->normal);
+      /* use raytraced distance to fill hit_pos */
+      d3_add(seg->hit_pos, seg->org, d3_muld(seg->hit_pos, seg->dir, hit->distance));
+      seg->hit_distance = hit->distance;
+      break;
+    }
+    case SHAPE_PUNCHED: {
+      /* hits on quadrics must be recomputed more accurately */
+      double org_local[3], hit_pos_local[3], dir_local[3];
+      double R[9]; /* Rotation matrix */
+      double T[3]; /* Translation vector */
+      double R_invtrans[9]; /* Inverse transpose rotation matrix */
+      double T_inv[3]; /* Inverse of the translation vector */
+      int valid;
+
+      if(d33_is_identity(shape->quadric.transform)) {
+        d33_set(R, inst->transform);
+        d3_set (T, inst->transform+9);
+      } else {
+        d33_muld33(R, shape->quadric.transform, inst->transform);
+        d33_muld3 (T, shape->quadric.transform, inst->transform+9);
+      }
+      d33_invtrans(R_invtrans, R);
+      d3_minus(T_inv, T);
+
+      /* get org in local coordinate */
+      d3_set(org_local, seg->org);
+      d3_add(org_local, org_local, T_inv);
+      d3_muld33(org_local, org_local, R_invtrans);
+
+      /* get dir in local */
+      d3_muld33(dir_local, seg->dir, R_invtrans);
+      /* recompute hit */
+      valid = punched_shape_intersect_local(shape, org_local, dir_local,
+        hit->distance, hit_pos_local, seg->hit_normal, &seg->hit_distance);
+      if (!valid) return 1;
+      /* transform point to world */
+      d33_muld3(seg->hit_pos, R, hit_pos_local);
+      d3_add(seg->hit_pos, seg->hit_pos, T);
+      /* transform normal to world */
+      d33_muld3(seg->hit_normal, R_invtrans, seg->hit_normal);
+      break;
+    }
+    default: FATAL("Unreachable code.\n"); break;
   }
   d3_normalize(seg->hit_normal, seg->hit_normal);
 
