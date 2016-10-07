@@ -470,6 +470,7 @@ sample_starting_point(struct realisation* rs)
   struct solver_data* data;
   struct s3d_primitive sampl_prim;
   struct starting_point* start;
+  size_t id;
 
   ASSERT(rs);
   data = &rs->data;
@@ -488,7 +489,11 @@ sample_starting_point(struct realisation* rs)
   start->instance = *htable_instance_find
     (&data->scene->instances_samp, &sampl_prim.inst_id);
   start->sampl_primitive = sampl_prim;
-  shape = start->instance->object->shape;
+  id = *htable_shaded_shape_find
+    (&start->instance->object->shaded_shapes_samp, &sampl_prim.geom_id);
+  start->shaded_shape = darray_shaded_shape_cdata_get
+    (&start->instance->object->shaded_shapes)+id; 
+  shape = start->shaded_shape->shape;
   start->on_punched = (shape->type == SHAPE_PUNCHED);
   /* set sampling normal */
   S3D(primitive_get_attrib(&sampl_prim, S3D_GEOMETRY_NORMAL, start->uv, &attrib));
@@ -581,9 +586,9 @@ receive_sunlight(struct realisation* rs)
   start->geom_cos = d3_dot(start->rt_normal, start->sundir);
   start->front_exposed = start->geom_cos < 0;
   if (start->front_exposed) {
-    start->material = start->instance->object->mtl_front;
+    start->material = start->shaded_shape->mtl_front;
   } else {
-    start->material = start->instance->object->mtl_back;
+    start->material = start->shaded_shape->mtl_back;
   }
   /* normals must face the sun and cos must be positive */
   if (start->geom_cos > 0) {

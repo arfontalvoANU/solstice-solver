@@ -43,11 +43,27 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_virtual(dev, &mtl2), RES_OK);
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
 
-  CHECK(ssol_object_create(NULL, shape, mtl, NULL, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, NULL, mtl, NULL, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, shape, NULL, mtl, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, shape, mtl, mtl, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, shape, mtl, mtl, &object), RES_OK);
+  CHECK(ssol_object_create(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_create(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_create(NULL, &object), RES_BAD_ARG);
+  CHECK(ssol_object_create(dev, &object), RES_OK);
+
+  CHECK(ssol_object_add_shaded_shape(NULL, NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, shape, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, shape, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, NULL, mtl, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, NULL, mtl, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, shape, mtl, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, shape, mtl, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, NULL, NULL, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, NULL, NULL, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, shape, NULL, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, shape, NULL, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, NULL, mtl, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, NULL, mtl, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(NULL, shape, mtl, mtl), RES_BAD_ARG);
+  CHECK(ssol_object_add_shaded_shape(object, shape, mtl, mtl), RES_OK);
 
   CHECK(ssol_object_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_object_ref_get(object), RES_OK);
@@ -55,7 +71,12 @@ main(int argc, char** argv)
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
 
-  CHECK(ssol_object_create(dev, shape, mtl, mtl2, &object), RES_OK);
+  CHECK(ssol_object_create(dev, &object), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(object, shape, mtl, mtl2), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(object, shape, mtl2, mtl), RES_OK);
+
+  CHECK(ssol_object_clear(NULL), RES_BAD_ARG);
+  CHECK(ssol_object_clear(object), RES_OK);
 
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);

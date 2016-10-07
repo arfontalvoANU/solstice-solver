@@ -403,9 +403,6 @@ ssol_mirror_set_shader
 SSOL_API res_T
 ssol_object_create
   (struct ssol_device* dev,
-   struct ssol_shape* shape,
-   struct ssol_material* mtl_front, /* Material to apply to front faces */
-   struct ssol_material* mtl_back, /* Material to apply to back faces */
    struct ssol_object** obj);
 
 SSOL_API res_T
@@ -415,6 +412,18 @@ ssol_object_ref_get
 SSOL_API res_T
 ssol_object_ref_put
   (struct ssol_object* obj);
+
+SSOL_API res_T
+ssol_object_add_shaded_shape
+  (struct ssol_object* object,
+   struct ssol_shape* shape,
+   struct ssol_material* mtl_front, /* Front face material of the shape */
+   struct ssol_material* mtl_back); /* Back face material of the shape */
+
+/* Remove all the shaded shapes */
+SSOL_API res_T
+ssol_object_clear
+  (struct ssol_object* object);
 
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as

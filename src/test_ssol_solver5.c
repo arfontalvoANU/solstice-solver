@@ -122,11 +122,13 @@ main(int argc, char** argv)
   CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
-  CHECK(ssol_object_create(dev, quad_square, m_mtl, m_mtl, &m_object), RES_OK);
+  CHECK(ssol_object_create(dev, &m_object), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(m_object, quad_square, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
-  CHECK(ssol_object_create(dev, rect, v_mtl, v_mtl, &t_object), RES_OK);
+  CHECK(ssol_object_create(dev, &t_object), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(t_object, rect, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform), RES_OK);
   CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);

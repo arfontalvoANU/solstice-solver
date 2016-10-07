@@ -289,9 +289,8 @@ scene_setup_s3d_sampling_scene
     unsigned id;
     htable_instance_iterator_next(&it);
 
-    if (!str_is_empty(&inst->receiver_back)
-      || !str_is_empty(&inst->receiver_front))
-    {
+    if(!str_is_empty(&inst->receiver_back)
+    || !str_is_empty(&inst->receiver_front)) {
       hr = 1;
     }
 
@@ -338,10 +337,12 @@ hit_filter_function
   void* filter_data)
 {
   struct ssol_instance* inst;
+  const struct shaded_shape* shaded_shape;
   const struct ssol_shape* shape;
   const struct str* receiver_name;
   struct realisation* rs = realisation;
   struct segment* seg;
+  size_t id;
 
   (void) filter_data, (void) org, (void) dir;
   ASSERT(rs);
@@ -355,7 +356,10 @@ hit_filter_function
   ASSERT(seg->self_front != NON_BOOL);
 
   inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
-  shape = inst->object->shape;
+  id = *htable_shaded_shape_find
+    (&inst->object->shaded_shapes_rt, &hit->prim.geom_id);
+  shaded_shape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
+  shape = shaded_shape->shape;
   seg->on_punched = (shape->type == SHAPE_PUNCHED);
   switch (shape->type) {
     case SHAPE_MESH: {
@@ -413,11 +417,11 @@ hit_filter_function
   }
 
   if(seg->hit_front) {
-    seg->hit_material = inst->object->mtl_front;
+    seg->hit_material = shaded_shape->mtl_front;
     receiver_name = &inst->receiver_front;
   } else {
     d3_muld(seg->hit_normal, seg->hit_normal, -1);
-    seg->hit_material = inst->object->mtl_back;
+    seg->hit_material = shaded_shape->mtl_back;
     receiver_name = &inst->receiver_back;
   }
 

@@ -80,6 +80,7 @@ struct segment {
 
 struct starting_point {
   struct ssol_instance* instance;
+  const struct shaded_shape* shaded_shape;
   const struct ssol_material* material;
   struct s3d_primitive sampl_primitive;
   double sundir[3];
