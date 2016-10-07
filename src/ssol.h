@@ -345,6 +345,12 @@ SSOL_API res_T
 ssol_shape_ref_put
   (struct ssol_shape* shape);
 
+/* Retrieve the id of the shape */
+SSOL_API res_T
+ssol_shape_get_id
+  (struct ssol_shape* shape,
+   uint32_t* id);
+
 /* Define a punched surface in local space, i.e. no translation & no orientation */
 SSOL_API res_T
 ssol_punched_surface_setup
