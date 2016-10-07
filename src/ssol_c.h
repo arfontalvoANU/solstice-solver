@@ -56,5 +56,10 @@ hit_filter_function
 
 #define NON_BOOL 99
 
+/* hack until the needed API comes from a merge */
+#define FRONT_FLAG 0
+#define RECEIVER_ID_MASK 0x7FFFFFFF
+#define BACK_FLAG 0x80000000
+
 #endif /* SSOL_C_H */
 

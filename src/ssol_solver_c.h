@@ -95,12 +95,12 @@ struct starting_point {
 
 struct receiver_record {
   struct ssol_instance* instance;
-  const char* receiver_name;
-  double dir[4];
-  double hit_pos[3];
+  uint32_t receiver_id;
+  float dir[4];
+  float hit_pos[3];
   float uv[2];
-  double hit_normal[3]; /* face the incoming dir */
-  double hit_distance;
+  float hit_normal[3]; /* face the incoming dir */
+  float hit_distance;
 };
 
 #define DARRAY_DATA struct segment
@@ -138,8 +138,8 @@ struct realisation {
   struct starting_point start;
   struct solver_data data;
   double wavelength;
-  size_t s_idx;
   size_t rs_id;
+  uint32_t s_idx;
   uint32_t success_mask;
 };
 

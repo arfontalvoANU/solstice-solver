@@ -78,6 +78,7 @@ main(int argc, char** argv)
   double transform3[12]; /* 3x4 column major matrix */
   FILE* tmp;
   double m, std;
+  uint32_t r_id;
 
   (void) argc, (void) argv;
 
@@ -178,7 +179,8 @@ main(int argc, char** argv)
   tmp = tmpfile();
 #define N 10000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
+  CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
+  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);

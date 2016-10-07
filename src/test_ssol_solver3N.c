@@ -113,6 +113,7 @@ main(int argc, char** argv)
   double m, std;
   int i, j, k;
   (void) argc, (void) argv;
+  uint32_t r_id;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
@@ -201,7 +202,8 @@ main(int argc, char** argv)
   tmp = tmpfile();
 #define N 10000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
+  CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
+  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 8))
   CHECK(eq_eps(m, 4 * NX * NY * NZ * DNI_cos, 4 * NX * NY * NZ * DNI_cos * 2e-1), 1);

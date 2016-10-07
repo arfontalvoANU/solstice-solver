@@ -68,10 +68,10 @@ main(int argc, char** argv)
   double transform[12]; /* 3x4 column major matrix */
   FILE* tmp;
   double m1, std1, m2, std2;
+  uint32_t r_id1, r_id2;
 
   (void) argc, (void) argv;
 #define FOCAL 10
-  d33_splat(transform, 0);
   d3_splat(transform + 9, 0);
   d33_rotation_pitch(transform, PI); /* flip faces: invert normal */
   transform[11] = FOCAL; /* +FOCAL offset along Z axis */
@@ -140,18 +140,18 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_target_mask(target2, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target2, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
-
-  CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
-
+  
   tmp = tmpfile();
 #define N 10000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible1", N, &m1, &std1), RES_OK);
-  CHECK(pp_sum(tmp, "cible2", N, &m2, &std2), RES_OK);
+  CHECK(get_receiver_id(target1, 1, &r_id1), RES_OK);
+  CHECK(get_receiver_id(target2, 1, &r_id2), RES_OK);
+  CHECK(pp_sum(tmp, r_id1, N, &m1, &std1), RES_OK);
+  CHECK(pp_sum(tmp, r_id2, N, &m2, &std2), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m1, std1);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m1, 400 * DNI_cos, 400 * DNI_cos * 1e-4), 1);
-  CHECK(eq_eps(std1, 0, 0.1), 1);
+  CHECK(eq_eps(std1, 0, 1), 1);
   CHECK(m1, m2);
   CHECK(std1, std2);
 

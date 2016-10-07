@@ -67,10 +67,10 @@ main(int argc, char** argv)
   double transform[12]; /* 3x4 column major matrix */
   FILE* tmp;
   double m, std;
+  uint32_t r_id;
 
   (void) argc, (void) argv;
 #define FOCAL 10
-  d33_splat(transform, 0);
   d3_splat(transform + 9, 0);
   d33_rotation_pitch(transform, PI); /* flip faces: invert normal */
   transform[11] = FOCAL; /* +FOCAL offset along Z axis */
@@ -134,16 +134,15 @@ main(int argc, char** argv)
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 20, stdout), RES_OK);
-
   tmp = tmpfile();
 #define N 10000
   CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
-  CHECK(pp_sum(tmp, "cible", N, &m, &std), RES_OK);
+  CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
+  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);
-  CHECK(eq_eps(std, 0, 0.1), 1);
+  CHECK(eq_eps(std, 0, 1), 1);
 
   /* free data */
 

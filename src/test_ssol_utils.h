@@ -40,10 +40,14 @@ check_memory_allocator(struct mem_allocator* allocator)
 
 extern LOCAL_SYM res_T
 pp_sum
-  (FILE* f, 
-   const char* target,
+  (FILE* f,
+   const uint32_t receiver_id,
    const size_t count,
    double* mean,
    double* std);
+
+/* hack until the needed API comes from a merge */
+struct ssol_instance;
+res_T get_receiver_id(struct ssol_instance* instance, const int front_face, uint32_t* id);
 
 #endif /* TEST_SSOL_UTILS_H */

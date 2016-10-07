@@ -23,33 +23,50 @@
 #include <stdio.h>
 #include <string.h>
 
+/* hack until the needed API comes from a merge */
+#include "ssol_instance_c.h"
+#include "ssol_c.h"
+res_T
+get_receiver_id (struct ssol_instance* instance, const int front_face, uint32_t* id) {
+  struct str* rec;
+
+  if (!instance || !id)
+    return RES_BAD_ARG;
+  rec = front_face ? &instance->receiver_front : &instance->receiver_back;
+  if(str_is_empty(rec))
+    return RES_BAD_ARG;
+
+  S3D(shape_get_id(instance->shape_rt, id));
+  *id |= (front_face ? FRONT_FLAG : BACK_FLAG);
+  return RES_OK;
+}
+
 res_T
 pp_sum
   (FILE* f,
-   const char* target,
+   const uint32_t receiver_id,
    const size_t count,
    double* mean,
    double* std)
 {
+  struct receiver_data hit;
   double sum = 0;
   double sum2 = 0;
   double E, V, SE;
-  char expect_tok[256];
-  ASSERT(f && target && mean && std && count);
+  
+  if(!f || !mean || !std || !count)
+    return RES_BAD_ARG;
 
-  snprintf(expect_tok, 256, "'%s':", target);
   rewind(f);
-  while (!feof(f)) {
-    char buf[256];
-    if (fgets(buf, 256, f)) {
-      char tok[256];
-      double w;
-      if (2 == sscanf(buf, "Receiver %s %*f %*f %*f %lf", tok, &w)) {
-        if (strcmp(tok, expect_tok)) continue;
-        sum += w;
-        sum2 += w * w;
-      }
-    }
+  while (1 == fread(&hit, sizeof(struct receiver_data), 1, f)) {
+    if (ferror(f))
+      return RES_BAD_ARG;
+
+    if (receiver_id != hit.receiver_id)
+      continue;
+
+    sum += hit.weight;
+    sum2 += hit.weight * hit.weight;
   }
 
   E = sum / (double)count;

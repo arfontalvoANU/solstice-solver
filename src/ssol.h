@@ -194,6 +194,21 @@ struct ssol_mirror_shader {
 static const struct ssol_mirror_shader SSOL_MIRROR_SHADER_NULL =
   SSOL_MIRROR_SHADER_NULL__;
 
+/* The type of data produced on receiver hits 
+   as ssol_solve() write them on its FILE* argument */
+struct receiver_data {
+  uint64_t realization_id;
+  int64_t date;
+  uint32_t segment_id;
+  uint32_t receiver_id;
+  float wavelength;
+  float pos[3];
+  float in_dir[3];
+  float normal[3];
+  float weight;
+  float uv[2];
+};
+
 /*
  * All the ssol structures are ref counted. Once created with the appropriated
  * `ssol_<TYPE>_create' function, the caller implicitly owns the created data,

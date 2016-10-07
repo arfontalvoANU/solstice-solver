@@ -28,6 +28,7 @@
 #include "ssol_ranst_sun_dir.h"
 #include "ssol_ranst_sun_wl.h"
 
+#include <rsys/float2.h>
 #include <rsys/float3.h>
 #include <rsys/double3.h>
 #include <rsys/double44.h>
@@ -553,6 +554,7 @@ receive_sunlight(struct realisation* rs)
   const struct str* receiver_name = NULL;
   const struct ssol_sun* sun;
   struct starting_point* start;
+  uint32_t receiver_id;
 
   ASSERT(rs && rs->s_idx == 0);
   seg = current_segment(rs);
@@ -630,20 +632,24 @@ receive_sunlight(struct realisation* rs)
   /* if the sampled instance is a receiver, register the sampled point */
   if(start->front_exposed) {
     receiver_name = &start->instance->receiver_front;
+    receiver_id = FRONT_FLAG;
   } else {
     receiver_name = &start->instance->receiver_back;
+    receiver_id = BACK_FLAG;
   }
   /* if the sampled instance holds a receiver, push a candidate */
   if(!str_is_empty(receiver_name)) {
+    uint32_t id;
     struct receiver_record candidate;
-    d3_set(candidate.dir, seg->dir);
+    f3_set_d3(candidate.dir, seg->dir);
     candidate.hit_distance = 0; /* no atmospheric attenuation for sun rays */
-    d3_set(candidate.hit_normal, seg->hit_normal);
-    d3_set(candidate.hit_pos, seg->hit_pos);
+    f3_set_d3(candidate.hit_normal, seg->hit_normal);
+    f3_set_d3(candidate.hit_pos, seg->hit_pos);
     candidate.instance = start->instance;
-    candidate.receiver_name = str_cget(receiver_name);
-    candidate.uv[0] = start->uv[0];
-    candidate.uv[1] = start->uv[1];
+    S3D(shape_get_id(start->instance->shape_rt, &id));
+    ASSERT((id & RECEIVER_ID_MASK) == id);
+    candidate.receiver_id = receiver_id | id;
+    f2_set(candidate.uv, start->uv);
     darray_receiver_record_push_back(
       &rs->data.receiver_record_candidates, &candidate);
   }
@@ -690,6 +696,8 @@ filter_receiver_hit_candidates(struct realisation* rs)
     candidates->hit_distance <= tmax && candidates < candidates_end;
     candidates++)
   {
+    struct receiver_data out;
+    float weight;
     if (candidates->hit_distance == prev_distance) {
       size_t i = 0, is_duplicate = 0;
       struct ssol_instance** ptr = darray_instances_ptr_data_get(inst_array);
@@ -709,20 +717,21 @@ filter_receiver_hit_candidates(struct realisation* rs)
       darray_instances_ptr_clear(inst_array);
       darray_instances_ptr_push_back(inst_array, &candidates->instance);
     }
-    /* output valid receiver hits */
-    fprintf(rs->data.out_stream,
-      "Receiver '%s': %u %u %g %g (%g:%g:%g) (%g:%g:%g) (%g:%g:%g) (%g:%g)\n",
-      candidates->receiver_name,
-      (unsigned) rs->rs_id,
-      (unsigned) rs->s_idx,
-      rs->wavelength,
-      /* take amosphere into account with the correct distance */
-      seg->weight * compute_atmosphere_attenuation(
-        rs->data.scene->atmosphere, candidates->hit_distance, rs->wavelength),
-      SPLIT3(candidates->hit_pos),
-      SPLIT3(candidates->dir),
-      SPLIT3(candidates->hit_normal),
-      SPLIT2(candidates->uv));
+
+    /* take amosphere into account with distance to receiver */
+    weight = (float) (seg->weight * compute_atmosphere_attenuation(
+      rs->data.scene->atmosphere, candidates->hit_distance, rs->wavelength));
+    out.realization_id = rs->rs_id;
+    out.date = 0; /* TODO */
+    out.segment_id = rs->s_idx;
+    out.receiver_id = candidates->receiver_id;
+    out.wavelength = (float)rs->wavelength;
+    f3_set(out.pos, candidates->hit_pos);
+    f3_set(out.in_dir, candidates->dir);
+    f3_set(out.normal, candidates->hit_normal);
+    out.weight = weight;
+    f2_set(out.uv, candidates->uv);
+    fwrite(&out, sizeof(struct receiver_data), 1, rs->data.out_stream);
   }
   /* reset candidates */
   darray_receiver_record_clear(&rs->data.receiver_record_candidates);
@@ -797,10 +806,13 @@ ssol_solve
         } while (rs.end == TERM_NONE);
       }
       /* propagation ended */
+#if 0
+      /* TODO: use this to feed the implicit MC computations */
       fprintf(output, "Realisation %u success mask: 0x%0x\n",
         (unsigned) r, rs.success_mask);
       fprintf(output, "Realisation %u end: %s\n\n",
         (unsigned) r, END_TEXT[rs.end]);
+#endif // 0
 
       /* must retry failed realisations */
       if (rs.end == TERM_ERR) {
