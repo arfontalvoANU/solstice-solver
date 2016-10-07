@@ -42,26 +42,6 @@ struct ranst_sun_wl;
 #define DARRAY_NAME instances_ptr
 #include <rsys/dynamic_array.h>
 
-enum realisation_termination {
-  TERM_NONE,
-  TERM_SUCCESS,
-  TERM_SHADOW,
-  TERM_POINTING,
-  TERM_MISSING,
-  TERM_BLOCKED,
-  TERM_ERR,
-
-  TERM_COUNT__
-};
-
-enum realisation_mode {
-  MODE_NONE,
-  MODE_STD,
-  MODE_ROULETTE,
-
-  MODE_COUNT__
-};
-
 struct segment {
   const struct ssol_instance* hit_instance;
   const struct ssol_instance* self_instance; /* instance of the starting point */
@@ -132,15 +112,14 @@ struct solver_data {
 };
 
 struct realisation {
-  enum realisation_termination end;
-  enum realisation_mode mode;
   struct darray_segment segments;
   struct starting_point start;
   struct solver_data data;
   double wavelength;
   size_t rs_id;
   uint32_t s_idx;
-  uint32_t success_mask;
+  /* status */
+  char end, error, shadow, success;
 };
 
 extern LOCAL_SYM res_T

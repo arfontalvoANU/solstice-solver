@@ -56,6 +56,8 @@ main(int argc, char** argv)
   struct ssol_spectrum* spectrum;
   struct ssol_spectrum* abs;
   struct ssol_atmosphere* atm;
+  struct ssol_estimator* estimator;
+  struct ssol_estimator_status status;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
   double mismatch[3] = { 1.5, 3.5 };
@@ -100,12 +102,14 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_estimator_create(dev, &estimator), RES_OK);
 
-  CHECK(ssol_solve(NULL, rng, 10, stdout), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, NULL, 10, stdout), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 0, stdout), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, NULL), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no geometry */
+  CHECK(ssol_solve(NULL, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, NULL, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 0, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, stdout, NULL), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no geometry */
 
   /* create scene content */
 
@@ -141,25 +145,25 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_target_mask(target, 0x4, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 1, stdout), RES_OK); /* ready to solve! */
+  CHECK(ssol_solve(scene, rng, 1, stdout, estimator), RES_OK); /* ready to solve! */
 
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
   CHECK(ssol_instance_dont_sample(heliostat, 1), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no geometry to sample */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no geometry to sample */
   CHECK(ssol_instance_dont_sample(target, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(secondary, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(heliostat, 0), RES_OK);
 
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no attached sun */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no attached sun */
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* sun with no spectrum */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* sun with no spectrum */
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
@@ -167,13 +171,13 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* sun with undefined DNI */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* sun with undefined DNI */
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
 
   CHECK(ssol_instance_set_receiver(heliostat, NULL, NULL), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, NULL, NULL), RES_OK);
   CHECK(ssol_instance_set_receiver(target, NULL, NULL), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* no receiver in scene */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no receiver in scene */
   CHECK(ssol_instance_set_receiver(heliostat, "miroir", NULL), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, "secondaire", NULL), RES_OK);
   CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);
@@ -183,25 +187,33 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* spectra mismatch */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* spectra mismatch */
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
 
   /* can sample any geometry; variance is high */
-  tmp = tmpfile();
-  CHECK(!tmp, 0);
+  NCHECK(tmp = tmpfile(), 0);
 #define N 5000
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(ssol_estimator_clear(estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(get_receiver_id(target, 1, &r_id), RES_OK); 
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
-#define DNI_cos (1000 * cos(PI / 4))
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+#define COS cos(PI / 4)
+#define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
 #define SQR(x) ((x)*(x))
   dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / N);
   CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
   CHECK(fclose(tmp), 0);
+  /* target was sampled but shadowed by secondary */
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 2 * dbl), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, status.SE), 1);
 
   /* sample primary mirror only; variance is low */
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
@@ -210,13 +222,20 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_target_mask(secondary, 0, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
 
-  tmp = tmpfile();
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  NCHECK(tmp = tmpfile(), 0);
+  CHECK(ssol_estimator_clear(estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(fclose(tmp), 0);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* check atmosphere model; with no absorbtion result is unchanged */
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
@@ -226,15 +245,22 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(ssol_estimator_clear(estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(fclose(tmp), 0);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* check atmosphere model; with absorbtion power decreases */
   ka[0] = ka[1] = ka[2] = 0.1;
@@ -245,13 +271,20 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(ssol_estimator_clear(estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(fclose(tmp), 0);
 #define K (exp(-0.1 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* check a monochromatic sun */
   CHECK(ssol_spectrum_setup(spectrum, &mono, intensities, 1), RES_OK);
@@ -264,13 +297,20 @@ main(int argc, char** argv)
   ka[1] = 0.2;
   CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 2), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(ssol_estimator_clear(estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(fclose(tmp), 0);
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* free data */
 
@@ -287,6 +327,7 @@ main(int argc, char** argv)
   CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
+  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun_mono), RES_OK);

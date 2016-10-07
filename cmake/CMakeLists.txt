@@ -55,6 +55,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 set(SSOL_FILES_SRC
   ssol_atmosphere.c
   ssol_device.c
+  ssol_estimator.c
   ssol_image.c
   ssol_material.c
   ssol_object.c
@@ -74,6 +75,7 @@ set(SSOL_FILES_INC
   ssol_atmosphere_c.h
   ssol_c.h
   ssol_device_c.h
+  ssol_estimator_c.h
   ssol_image_c.h
   ssol_material_c.h
   ssol_object_c.h
@@ -131,6 +133,7 @@ if(NOT NO_TEST)
 
   new_test(test_ssol_atmosphere)
   new_test(test_ssol_device)
+  new_test(test_ssol_estimator)
   new_test(test_ssol_image)
   new_test(test_ssol_material)
   new_test(test_ssol_object)

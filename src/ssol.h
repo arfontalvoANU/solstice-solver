@@ -56,6 +56,7 @@ struct ssol_scene;
 struct ssol_shape;
 struct ssol_spectrum;
 struct ssol_sun;
+struct ssol_estimator;
 
 enum ssol_clipping_op {
   SSOL_AND,
@@ -207,6 +208,21 @@ struct receiver_data {
   float normal[3];
   float weight;
   float uv[2];
+};
+
+/* result for MC simulations */
+struct ssol_estimator_status {
+  double E; /* Expected value */
+  double V; /* Variance */
+  double SE; /* Standard error, i.e. sqrt(V / N) */
+  size_t N; /* Samples count */
+};
+
+/* the always-ON indicators (MC computations) */
+enum status_type {
+  STATUS_SHADOW,
+  STATUS_MISSING,
+  STATUS_TYPES_COUNT__
 };
 
 /*
@@ -571,6 +587,32 @@ ssol_atmosphere_set_uniform_absorbtion
    struct ssol_spectrum* spectrum);
 
 /*******************************************************************************
+* Estimator API - Describe the state of a simulation.
+******************************************************************************/
+SSOL_API res_T
+ssol_estimator_create
+  (struct ssol_device* dev,
+   struct ssol_estimator** estimator);
+
+SSOL_API res_T
+ssol_estimator_get_status
+  (const struct ssol_estimator* estimator,
+    enum status_type type,
+    struct ssol_estimator_status* status);
+
+SSOL_API res_T
+ssol_estimator_clear
+  (struct ssol_estimator* estimator);
+
+SSOL_API res_T
+ssol_estimator_ref_get
+  (struct ssol_estimator* estimator);
+
+SSOL_API res_T
+ssol_estimator_ref_put
+  (struct ssol_estimator* estimator);
+
+/*******************************************************************************
  * Miscellaneous functions
  ******************************************************************************/
 SSOL_API res_T
@@ -578,7 +620,8 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
-   FILE* output);
+   FILE* output,
+   struct ssol_estimator* estimator);
 
 END_DECLS
 

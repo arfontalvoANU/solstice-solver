@@ -61,6 +61,8 @@ main(int argc, char** argv)
   struct ssol_instance* target;
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
+  struct ssol_estimator* estimator;
+  struct ssol_estimator_status status;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
@@ -94,6 +96,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_estimator_create(dev, &estimator), RES_OK);
 
   /* create scene content */
 
@@ -133,17 +136,24 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
-  
-  tmp = tmpfile();
+
+  NCHECK(tmp = tmpfile(), 0);
 #define N 20000
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
+  CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 2e-1), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, sqrt((SQR(400 * DNI_cos) / 100 - SQR(4 * DNI_cos)) / N), 20), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* free data */
 
@@ -156,6 +166,7 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(m_mtl), RES_OK);
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
+  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);

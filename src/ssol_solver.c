@@ -18,6 +18,7 @@
 #include "ssol_atmosphere_c.h"
 #include "ssol_solver_c.h"
 #include "ssol_device_c.h"
+#include "ssol_estimator_c.h"
 #include "ssol_scene_c.h"
 #include "ssol_shape_c.h"
 #include "ssol_object_c.h"
@@ -37,11 +38,6 @@
 #include <rsys/rsys.h>
 
 #include <star/ssf.h>
-
-#define END_TEXT__ \
-  { "NONE", "SUCCESS", "SHADOW", "POINTING", "MISSING", "BLOCKED", "ERROR" }
-
-static const char* END_TEXT[] = END_TEXT__;
 
 /*******************************************************************************
  * Helper functions
@@ -289,7 +285,7 @@ setup_next_segment(struct realisation* rs)
 
   if (++rs->s_idx >= darray_segment_size_get(&rs->segments)) {
     res = darray_segment_resize(&rs->segments, rs->s_idx + 1);
-    if (res != RES_OK) return res;
+    if (res != RES_OK) goto error;
   }
   prev = previous_segment(rs);
   seg = current_segment(rs);
@@ -309,10 +305,7 @@ setup_next_segment(struct realisation* rs)
 
   res = material_shade
     (prev->hit_material, &data->fragment, rs->wavelength, data->bsdf);
-  if (res != RES_OK) {
-    rs->end = TERM_ERR;
-    return res;
-  }
+  if (res != RES_OK) goto error;
 
   /* By convention, Star-SF assumes that incoming and reflected directions
    * point outward the surface => negate incoming dir */
@@ -328,7 +321,13 @@ setup_next_segment(struct realisation* rs)
       (rs->data.scene->atmosphere, prev->hit_distance, rs->wavelength);
   }
 
+  end:
   return res;
+
+  error:
+  rs->end = 1;
+  rs->error = 1;
+  goto end;
 }
 
 void
@@ -398,10 +397,11 @@ static void
 reset_realisation(size_t cpt, struct realisation* rs)
 {
   rs->s_idx = 0;
-  rs->end = TERM_NONE;
-  rs->mode = MODE_STD;
+  rs->end = 0;
+  rs->error = 0;
+  rs->shadow = 0;
+  rs->success = 0;
   rs->rs_id = cpt;
-  rs->success_mask = 0;
   reset_starting_point(&rs->start);
   SSF(bsdf_clear(rs->data.bsdf));
   /* reset first segment (always used) */
@@ -596,12 +596,14 @@ receive_sunlight(struct realisation* rs)
   seg->self_instance = start->instance;
   seg->self_front = start->front_exposed;
   seg->sun_segment = 1;
+  seg->weight = rs->data.sampled_area * sun->dni * start->cos_sun;
 
   /* search for occlusions from starting point */
   ASSERT(rs->s_idx == 0); /* sun segment */
   solstice_trace_ray(rs);
   if (!S3D_HIT_NONE(&seg->hit)) {
-    rs->end = TERM_SHADOW;
+    rs->end = 1;
+    rs->shadow = 1;
     return 0;
   }
 
@@ -620,7 +622,6 @@ receive_sunlight(struct realisation* rs)
   seg->self_instance = NULL;
   seg->hit_front = seg->self_front;
   seg->self_front = NON_BOOL;
-  seg->weight = rs->data.sampled_area * sun->dni * start->cos_sun;
   ASSERT(seg->weight > 0);
 
   /* fill fragment from starting point */
@@ -652,14 +653,6 @@ receive_sunlight(struct realisation* rs)
     f2_set(candidate.uv, start->uv);
     darray_receiver_record_push_back(
       &rs->data.receiver_record_candidates, &candidate);
-  }
-
-  /* register success mask (normal orientation has already been checked) */
-  if (start->front_exposed) {
-    rs->success_mask |= start->instance->target_front_mask;
-  }
-  else {
-    rs->success_mask |= start->instance->target_back_mask;
   }
 
   return 1;
@@ -732,6 +725,7 @@ filter_receiver_hit_candidates(struct realisation* rs)
     out.weight = weight;
     f2_set(out.uv, candidates->uv);
     fwrite(&out, sizeof(struct receiver_data), 1, rs->data.out_stream);
+    rs->success = 1;
   }
   /* reset candidates */
   darray_receiver_record_clear(&rs->data.receiver_record_candidates);
@@ -752,7 +746,7 @@ propagate(struct realisation* rs)
   filter_receiver_hit_candidates(rs);
 
   if (S3D_HIT_NONE(&seg->hit)) {
-    rs->end = TERM_MISSING;
+    rs->end = 1;
     return;
   }
   check_segment(seg);
@@ -770,13 +764,14 @@ ssol_solve
   (struct ssol_scene* scene,
    struct ssp_rng* rng,
    const size_t realisations_count,
-   FILE* output)
+   FILE* output,
+   struct ssol_estimator* estimator)
 {
   struct realisation rs;
   size_t r;
   res_T res = RES_OK;
 
-  if (!scene || !rng || !output || !realisations_count)
+  if (!scene || !rng || !output || !estimator || !realisations_count)
     return RES_BAD_ARG;
 
   res = check_scene(scene);
@@ -788,6 +783,8 @@ ssol_solve
 
   for (r = 0; r < realisations_count; ) {
     do {
+      struct segment* seg;
+      double w;
       reset_realisation(r, &rs);
       sample_starting_point(&rs);
       sample_input_sundir(&rs);
@@ -797,32 +794,35 @@ ssol_solve
       if (receive_sunlight(&rs)) {
         /* start propagating from mirror */
         do {
-          if (RES_OK != setup_next_segment(&rs)) {
-            rs.end = TERM_ERR;
-          }
-          else {
+          if (RES_OK == setup_next_segment(&rs)) {
             propagate(&rs);
           }
-        } while (rs.end == TERM_NONE);
+        } while (!rs.end);
       }
-      /* propagation ended */
-#if 0
-      /* TODO: use this to feed the implicit MC computations */
-      fprintf(output, "Realisation %u success mask: 0x%0x\n",
-        (unsigned) r, rs.success_mask);
-      fprintf(output, "Realisation %u end: %s\n\n",
-        (unsigned) r, END_TEXT[rs.end]);
-#endif // 0
-
-      /* must retry failed realisations */
-      if (rs.end == TERM_ERR) {
+      if (rs.error) {
+        /* TODO: must retry failed realisations */
         log_error(scene->dev, "%s: realisation failure.\n", FUNC_NAME);
         goto error;
       }
-      else r++;
-    } while (rs.end == TERM_ERR);
+      /* propagation ended: feed implicit MC data */
+      seg = current_segment(&rs);
+      w = seg->weight;
+
+      ASSERT(!rs.success | !rs.shadow);
+      if (rs.shadow) {
+        estimator->shadow.weight += w;
+        estimator->shadow.sqr_weight += w * w;
+      }
+      else if (!rs.success) {
+        estimator->missing.weight += w;
+        estimator->missing.sqr_weight += w * w;
+      }
+
+      r++;
+    } while (rs.error);
   }
 
+  estimator->realisation_count += realisations_count;
 exit:
   release_realisation(&rs);
   return res;

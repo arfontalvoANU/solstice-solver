@@ -434,13 +434,6 @@ hit_filter_function
       &rs->data.receiver_record_candidates, &candidate);
   }
 
-  /* register success mask */
-  if(seg->hit_front) {
-    rs->success_mask |= inst->target_front_mask;
-  }
-  else {
-    rs->success_mask |= inst->target_back_mask;
-  }
   if(seg->hit_material->type == MATERIAL_VIRTUAL) {
     return 1; /* Discard virtual material */
   }

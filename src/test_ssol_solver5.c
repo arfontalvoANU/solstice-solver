@@ -61,6 +61,8 @@ main(int argc, char** argv)
   struct ssol_instance* target;
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
+  struct ssol_estimator* estimator;
+  struct ssol_estimator_status status;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
@@ -94,6 +96,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_estimator_create(dev, &estimator), RES_OK);
 
   /* create scene content */
 
@@ -134,15 +137,22 @@ main(int argc, char** argv)
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  tmp = tmpfile();
+  NCHECK(tmp = tmpfile(), 0);
 #define N 10000
-  CHECK(ssol_solve(scene, rng, N, tmp), RES_OK);
+  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
   CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
   CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
+  CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);
   CHECK(eq_eps(std, 0, 1), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* free data */
 
@@ -152,6 +162,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_ref_put(t_object), RES_OK);
   CHECK(ssol_shape_ref_put(rect), RES_OK);
   CHECK(ssol_shape_ref_put(quad_square), RES_OK);
+  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
   CHECK(ssol_material_ref_put(m_mtl), RES_OK);
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
