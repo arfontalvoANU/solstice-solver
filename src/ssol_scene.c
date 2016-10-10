@@ -422,7 +422,7 @@ hit_filter_function
     f3_set_d3(candidate.hit_normal, seg->hit_normal);
     f3_set_d3(candidate.hit_pos, seg->hit_pos);
     candidate.instance = inst;
-    SSOL(get_receiver_id(inst, seg->hit_front, &candidate.receiver_id));
+    get_receiver_id(inst, seg->hit_front, &candidate.receiver_id);
     f2_set(candidate.uv, seg->hit.uv);
     darray_receiver_record_push_back(
       &rs->data.receiver_record_candidates, &candidate);
