@@ -470,7 +470,8 @@ quadric_setup_s3d_shape_rt
  * profile of the quadric */
 static res_T
 quadric_setup_s3d_shape_samp
-  (const struct darray_double* coords,
+  (const struct ssol_quadric* quadric, 
+   const struct darray_double* coords,
    const struct darray_size_t* ids,
    struct s3d_shape* shape)
 {
@@ -488,6 +489,7 @@ quadric_setup_s3d_shape_samp
   ntris = (unsigned)darray_size_t_size_get(ids) / 3/*#ids per triangle*/;
   ctx.coords = darray_double_cdata_get(coords);
   ctx.ids = darray_size_t_cdata_get(ids);
+  ctx.transform = quadric->transform;
 
   vdata.usage = S3D_POSITION;
   vdata.type = S3D_FLOAT3;
@@ -922,7 +924,7 @@ ssol_punched_surface_setup
   if(res != RES_OK) goto error;
 
   /* Setup the Star-3D shape to sample */
-  res = quadric_setup_s3d_shape_samp(&coords, &ids, shape->shape_samp);
+  res = quadric_setup_s3d_shape_samp(psurf->quadric, &coords, &ids, shape->shape_samp);
   if(res != RES_OK) goto error;
 
 exit:
