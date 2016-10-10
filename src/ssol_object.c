@@ -126,10 +126,10 @@ ssol_object_add_shaded_shape
   }
 
   S3D(shape_get_id(shape->shape_rt, &id_rt));
-  S3D(shape_get_id(shape->shape_rt, &id_samp));
+  S3D(shape_get_id(shape->shape_samp, &id_samp));
   if(htable_shaded_shape_find(&object->shaded_shapes_rt, &id_rt)) {
     log_warning
-      (object->dev, "%s: the already already own the shape.\n", FUNC_NAME);
+      (object->dev, "%s: the object already own the shape.\n", FUNC_NAME);
     goto exit;
   }
 
