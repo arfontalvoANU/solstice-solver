@@ -783,6 +783,7 @@ ssol_solve
 {
   struct realisation rs;
   size_t r;
+  size_t success_count = 0;
   res_T res = RES_OK;
 
   if (!scene || !rng || !output || !estimator || !realisations_count)
@@ -816,6 +817,10 @@ ssol_solve
       estimator->failed_count++;
       /* FIXME: remove failed realisations' outputs from the output stream */
     }
+    else {
+      success_count++;
+    }
+
     /* propagation ended: feed implicit MC data */
     seg = current_segment(&rs);
     w = seg->weight;
@@ -831,7 +836,7 @@ ssol_solve
     }
   }
 
-  estimator->realisation_count += realisations_count;
+  estimator->realisation_count += success_count;
 exit:
   release_realisation(&rs);
   return res;
