@@ -15,7 +15,6 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
-#include "test_ssol_materials.h"
 
 #define HALF_X 1
 #define HALF_Y 1
@@ -31,8 +30,8 @@
 #include <star/ssp.h>
 
 /*******************************************************************************
-* Test main program
-******************************************************************************/
+ * Test main program
+ ******************************************************************************/
 int
 main(int argc, char** argv)
 {

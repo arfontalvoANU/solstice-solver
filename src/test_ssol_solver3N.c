@@ -114,8 +114,8 @@ main(int argc, char** argv)
   FILE* tmp;
   double m, std;
   int i, j, k;
-  (void) argc, (void) argv;
   uint32_t r_id;
+  (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 

@@ -46,8 +46,8 @@ scene_release(ref_T* ref)
   SSOL(scene_clear(scene));
   if(scene->scn_rt) S3D(scene_ref_put(scene->scn_rt));
   if(scene->scn_samp) S3D(scene_ref_put(scene->scn_samp));
-  if (scene->sun) SSOL(sun_ref_put(scene->sun));
-  if (scene->atmosphere) SSOL(atmosphere_ref_put(scene->atmosphere));
+  if(scene->sun) SSOL(sun_ref_put(scene->sun));
+  if(scene->atmosphere) SSOL(atmosphere_ref_put(scene->atmosphere));
   htable_instance_release(&scene->instances_rt);
   htable_instance_release(&scene->instances_samp);
   MEM_RM(dev->allocator, scene);
@@ -413,8 +413,8 @@ hit_filter_function
     receiver_name = &inst->receiver_back;
   }
 
-  /* Check if the hit surface is a receiver that registers hit data */
-  /* impacts on receivers before sampled surfaces are not registered */
+  /* Check if the hit surface is a receiver that registers hit data 
+   * impacts on receivers before sampled surfaces are not registered */
   if (!seg->sun_segment && !str_is_empty(receiver_name)) {
     struct receiver_record candidate;
     f3_set_d3(candidate.dir, seg->dir);
