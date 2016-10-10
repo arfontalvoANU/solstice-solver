@@ -22,20 +22,22 @@
 struct ssol_spectrum {
   struct darray_double wavelengths;
   struct darray_double intensities;
+
   struct ssol_device* dev;
   ref_T ref;
 };
 
-extern LOCAL_SYM res_T
+/* Check that the `tested' spectrum is included into `reference' */
+extern LOCAL_SYM int
 spectrum_includes
   (const struct ssol_spectrum* reference,
-   const struct ssol_spectrum* tested,
-   char* include);
+   const struct ssol_spectrum* tested);
 
-extern LOCAL_SYM res_T
+/* Retrieve the linearly interpolated spectrum intensity for the commited
+ * wavelength */
+extern LOCAL_SYM double
 spectrum_interpolate
   (const struct ssol_spectrum* spectrum,
-   const double wavelenght,
-   double* intensity);
+   const double wavelength);
 
 #endif /* SSOL_SPECTRUM_C_H */

@@ -70,39 +70,33 @@ cmp_candidates(const void* _c1, const void* _c2)
 }
 
 static FINLINE res_T
-check_scene(const struct ssol_scene* scene) {
-  ASSERT(scene);
+check_scene(const struct ssol_scene* scene, const char* caller)
+{
+  ASSERT(scene && caller);
+
   if (!scene->sun) {
-    log_error(scene->dev, "%s: no sun attached.\n", FUNC_NAME);
+    log_error(scene->dev, "%s: no sun attached.\n", caller);
     return RES_BAD_ARG;
   }
 
   if (!scene->sun->spectrum) {
-    log_error(scene->dev, "%s: sun's spectrum undefined.\n", FUNC_NAME);
+    log_error(scene->dev, "%s: sun's spectrum undefined.\n", caller);
     return RES_BAD_ARG;
   }
 
   if (scene->sun->dni <= 0) {
-    log_error(scene->dev, "%s: sun's DNI undefined.\n", FUNC_NAME);
+    log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
     return RES_BAD_ARG;
   }
 
   if (scene->atmosphere) {
-    switch (scene->atmosphere->type) {
-      case ATMOS_UNIFORM: {
-        char ok;
-        CHECK(spectrum_includes(
-          scene->atmosphere->data.uniform.spectrum,
-          scene->sun->spectrum,
-          &ok),
-          RES_OK);
-        if (!ok) {
-          log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
-          return RES_BAD_ARG;
-        }
-        break;
-      }
-      default: FATAL("Unreachable code\n"); break;
+    int i;
+    ASSERT(scene->atmosphere->type == ATMOS_UNIFORM);
+    i = spectrum_includes
+      (scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum);
+    if (!i) {
+      log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", caller);
+      return RES_BAD_ARG;
     }
   }
   return RES_OK;
@@ -492,7 +486,7 @@ sample_starting_point(struct realisation* rs)
   id = *htable_shaded_shape_find
     (&start->instance->object->shaded_shapes_samp, &sampl_prim.geom_id);
   start->shaded_shape = darray_shaded_shape_cdata_get
-    (&start->instance->object->shaded_shapes)+id; 
+    (&start->instance->object->shaded_shapes)+id;
   shape = start->shaded_shape->shape;
   start->on_punched = (shape->type == SHAPE_PUNCHED);
   /* set sampling normal */
@@ -790,7 +784,7 @@ ssol_solve
   if (!scene || !rng || !output || !realisations_count)
     return RES_BAD_ARG;
 
-  res = check_scene(scene);
+  res = check_scene(scene, FUNC_NAME);
   if (res != RES_OK) return res;
 
   /* init realisation */

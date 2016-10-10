@@ -556,7 +556,7 @@ ssol_sun_set_buie_param
 /*******************************************************************************
  * Atmosphere API - Describe an atmosphere model.
  ******************************************************************************/
-/* The atmosphere describes absorbtion along the light paths */
+/* The atmosphere describes absorption along the light paths */
 SSOL_API res_T
 ssol_atmosphere_create_uniform
   (struct ssol_device* dev,

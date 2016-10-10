@@ -62,7 +62,7 @@ compute_atmosphere_attenuation
   switch (atmosphere->type) {
   case ATMOS_UNIFORM:
     spectrum = atmosphere->data.uniform.spectrum;
-    CHECK(spectrum_interpolate(spectrum, wavelength, &ka), RES_OK);
+    ka = spectrum_interpolate(spectrum, wavelength);
     break;
   default: FATAL("Unreachable code\n"); break;
   }
