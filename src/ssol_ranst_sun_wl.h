@@ -16,24 +16,17 @@
 #ifndef SSOL_RANST_SUN_WL_H
 #define SSOL_RANST_SUN_WL_H
 
-/* Random variate state of a sun direction */
-struct ranst_sun_wl;
-
 /* External types */
 struct ssp_rng;
 struct mem_allocator;
+
+/* Random variate state of a sun direction */
+struct ranst_sun_wl;
 
 extern LOCAL_SYM res_T
 ranst_sun_wl_create
   (struct mem_allocator* allocator,
    struct ranst_sun_wl** ran);
-
-extern LOCAL_SYM res_T
-ranst_sun_wl_setup
-  (struct ranst_sun_wl* ran,
-   const double* wavelengths,
-   const double* intensities,
-   const size_t sz);
 
 extern LOCAL_SYM res_T
 ranst_sun_wl_ref_get
@@ -47,6 +40,13 @@ extern LOCAL_SYM double
 ranst_sun_wl_get
   (const struct ranst_sun_wl* ran,
    struct ssp_rng* rng);
+
+extern LOCAL_SYM res_T
+ranst_sun_wl_setup
+  (struct ranst_sun_wl* ran,
+   const double* wavelengths,
+   const double* intensities,
+   const size_t sz);
 
 #endif /* SSOL_RANST_SUN_WL_H */
 

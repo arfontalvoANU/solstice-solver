@@ -16,17 +16,31 @@
 #ifndef SSOL_RANST_SUN_DIR_H
 #define SSOL_RANST_SUN_DIR_H
 
-/* Random variate state of a sun direction */
-struct ranst_sun_dir;
-
 /* External types */
 struct ssp_rng;
 struct mem_allocator;
+
+/* Random variate state of a sun direction */
+struct ranst_sun_dir;
 
 extern LOCAL_SYM res_T
 ranst_sun_dir_create
   (struct mem_allocator* allocator,
    struct ranst_sun_dir** ran);
+
+extern LOCAL_SYM res_T
+ranst_sun_dir_ref_get
+  (struct ranst_sun_dir* ran);
+
+extern LOCAL_SYM res_T
+ranst_sun_dir_ref_put
+  (struct ranst_sun_dir* ran);
+
+extern LOCAL_SYM double*
+ranst_sun_dir_get
+  (const struct ranst_sun_dir* ran,
+   struct ssp_rng* rng,
+   double dir[3]);
 
 extern LOCAL_SYM res_T
 ranst_sun_dir_buie_setup
@@ -44,20 +58,6 @@ extern LOCAL_SYM res_T
 ranst_sun_dir_dirac_setup
   (struct ranst_sun_dir* ran,
    const double dir[3]);
-
-extern LOCAL_SYM res_T
-ranst_sun_dir_ref_get
-  (struct ranst_sun_dir* ran);
-
-extern LOCAL_SYM res_T
-ranst_sun_dir_ref_put
-  (struct ranst_sun_dir* ran);
-
-extern LOCAL_SYM double*
-ranst_sun_dir_get
-  (const struct ranst_sun_dir* ran,
-   struct ssp_rng* rng,
-   double dir[3]);
 
 #endif /* SSOL_RANST_SUN_DIR_H */
 

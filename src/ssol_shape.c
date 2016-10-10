@@ -18,10 +18,12 @@
 #include "ssol_device_c.h"
 #include "ssol_shape_c.h"
 
-#include <rsys/double3.h>
 #include <rsys/double2.h>
+#include <rsys/double3.h>
+#include <rsys/double33.h>
 #include <rsys/dynamic_array_double.h>
 #include <rsys/dynamic_array_size_t.h>
+#include <rsys/float3.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
@@ -40,6 +42,7 @@ struct quadric_mesh_context {
   const double* coords;
   const size_t* ids;
   double focal; /* Use by parabol and parabolic cylinder quadrics */
+  const double* transform; /* 3x4 column major matrix */
 };
 
 /*******************************************************************************
@@ -171,10 +174,17 @@ quadric_mesh_plane_get_pos(const unsigned ivert, float pos[3], void* ctx)
 {
   const size_t i = ivert*2/*#coords per vertex*/;
   const struct quadric_mesh_context* msh = ctx;
+  double p[3]; /* Temporary quadric space position */
   ASSERT(pos && ctx);
-  pos[0] = (float)msh->coords[i+0];
-  pos[1] = (float)msh->coords[i+1];
-  pos[2] = 0.f;
+  p[0] = (float)msh->coords[i+0];
+  p[1] = (float)msh->coords[i+1];
+  p[2] = 0.f;
+
+  /* Transform the position in object space */
+  d33_muld3(p, msh->transform, p);
+  d3_add(p, p, msh->transform+9);
+
+  f3_set_d3(pos, p);
 }
 
 static void
@@ -182,13 +192,17 @@ quadric_mesh_parabol_get_pos(const unsigned ivert, float pos[3], void* ctx)
 {
   const size_t i = ivert*2/*#coords per vertex*/;
   const struct quadric_mesh_context* msh = ctx;
-  double x, y;
+  double p[3]; /* Temporary quadric space position */
   ASSERT(pos && ctx);
-  x = msh->coords[i+0];
-  y = msh->coords[i+1];
-  pos[0] = (float)x;
-  pos[1] = (float)y;
-  pos[2] = (float)((x*x + y*y) / (4.0*msh->focal));
+  p[0] = msh->coords[i+0];
+  p[1] = msh->coords[i+1];
+  p[2] = (p[0]*p[0] + p[1]*p[1]) / (4.0*msh->focal);
+
+  /* Transform the position in object space */
+  d33_muld3(p, msh->transform, p);
+  d3_add(p, p, msh->transform+9);
+
+  f3_set_d3(pos, p);
 }
 
 static void
@@ -197,13 +211,17 @@ quadric_mesh_parabolic_cylinder_get_pos
 {
   const size_t i = ivert*2/*#coords per vertex*/;
   const struct quadric_mesh_context* msh = ctx;
-  double x, y;
+  double p[3]; /* Temporary quadric space position */
   ASSERT(pos && ctx);
-  x = msh->coords[i+0];
-  y = msh->coords[i+1];
-  pos[0] = (float)x;
-  pos[1] = (float)y;
-  pos[2] = (float)((y*y) / (4.0*msh->focal));
+  p[0] = msh->coords[i+0];
+  p[1] = msh->coords[i+1];
+  p[2] = ((p[1]*p[1]) / (4.0*msh->focal));
+
+  /* Transform the position in object space */
+  d33_muld3(p, msh->transform, p);
+  d3_add(p, p, msh->transform+9);
+
+  f3_set_d3(pos, p);
 }
 
 static FINLINE int
@@ -425,6 +443,7 @@ quadric_setup_s3d_shape_rt
   ntris = (unsigned)darray_size_t_size_get(ids) / 3/*#ids per triangle*/;
   ctx.coords = darray_double_cdata_get(coords);
   ctx.ids = darray_size_t_cdata_get(ids);
+  ctx.transform = quadric->transform;
 
   vdata.usage = S3D_POSITION;
   vdata.type = S3D_FLOAT3;
@@ -538,9 +557,9 @@ inject_same_sign(const double x, const double src)
   return ucast.d;
 }
 
-/* solve a 2nd degree equation
-   hint is used to select among the 2 solutions (if applies)
-   the selected solution is then the closest to hint positive value */
+/* Solve a 2nd degree equation
+ * hint is used to select among the 2 solutions (if applies)
+ * the selected solution is then the closest to hint positive value */
 static int
 quadric_solve_second
   (const double a,
@@ -550,38 +569,38 @@ quadric_solve_second
    double* dist)
 {
   ASSERT(dist);
-  if (a != 0) {
-    /* standard case: 2nd degree */
+  if(a != 0) {
+    /* Standard case: 2nd degree */
     const double delta = b * b - 4 * a * c;
-    if (delta > 0) {
+    if(delta > 0) {
       const double sqrt_delta = sqrt(delta);
-      /* precise formula */
+      /* Precise formula */
       const double t1 = (-b - inject_same_sign(sqrt_delta, b)) / (2 * b);
       const double t2 = c / (a * t1);
-      if (t1 < 0 && t2 < 0) return 0; /* no positive solution */
-      if (t1 < 0) {
+      if(t1 < 0 && t2 < 0) return 0; /* no positive solution */
+      if(t1 < 0) {
         *dist = t2; /* t2 is the only positive solution */
         return 1;
       }
-      if (t2 < 0) {
+      if(t2 < 0) {
         *dist = t1; /* t1 is the only positive solution */
         return 1;
       }
-      /* both t1 and t2 are positive: choose the closest value to hint */
+      /* Both t1 and t2 are positive: choose the closest value to hint */
       *dist = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
       return 1;
-    } else if (delta == 0) {
+    } else if(delta == 0) {
       const double t = -b / (2 * a);
-      if (t < 0) return 0; /* no positive solution */
+      if(t < 0) return 0; /* no positive solution */
       *dist = t;
       return 1;
     } else {
       return 0;
     }
-  } else if (b != 0) {
+  } else if(b != 0) {
     /* degenerated case: 1st degree only */
     const double t = -c / b;
-    if (t < 0) return 0; /* no positive solution */
+    if(t < 0) return 0; /* no positive solution */
     *dist = t;
     return 1;
   }
@@ -632,7 +651,7 @@ quadric_plane_intersect_local
   const double b = dir[2];
   const double c = org[2];
   int sol = quadric_solve_second(a, b, c, 0, dist);
-  if (!sol) return 0;
+  if(!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_plane_gradient_local(grad);
   return 1;
@@ -654,7 +673,7 @@ quadric_parabol_intersect_local
     2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
   const int sol = quadric_solve_second(a, b, c, hint, dist);
-  if (!sol) return 0;
+  if(!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_parabol_gradient_local(quad, pt, grad);
   return 1;
@@ -675,7 +694,7 @@ quadric_parabolic_cylinder_intersect_local
   const double b = 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[1] * org[1] - 4 * quad->focal * org[2];
   const int sol = quadric_solve_second(a, b, c, hint, dist);
-  if (!sol) return 0;
+  if(!sol) return 0;
   d3_add(pt, org, d3_muld(pt, dir, *dist));
   quadric_parabolic_cylinder_gradient_local(quad, pt, grad);
   return 1;
@@ -817,6 +836,17 @@ ssol_shape_ref_put(struct ssol_shape* shape)
 {
   if(!shape) return RES_BAD_ARG;
   ref_put(&shape->ref, shape_release);
+  return RES_OK;
+}
+
+res_T
+ssol_shape_get_id(struct ssol_shape* shape, uint32_t* id)
+{
+  unsigned ui;
+  STATIC_ASSERT(sizeof(unsigned) <= sizeof(uint32_t), Unexpected_sizeof_unsigned);
+  if(!shape || !id) return RES_BAD_ARG;
+  S3D(shape_get_id(shape->shape_rt, &ui));
+  *id = (uint32_t)ui;
   return RES_OK;
 }
 

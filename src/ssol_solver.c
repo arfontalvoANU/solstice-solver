@@ -67,39 +67,33 @@ cmp_candidates(const void* _c1, const void* _c2)
 }
 
 static FINLINE res_T
-check_scene(const struct ssol_scene* scene) {
-  ASSERT(scene);
+check_scene(const struct ssol_scene* scene, const char* caller)
+{
+  ASSERT(scene && caller);
+
   if (!scene->sun) {
-    log_error(scene->dev, "%s: no sun attached.\n", FUNC_NAME);
+    log_error(scene->dev, "%s: no sun attached.\n", caller);
     return RES_BAD_ARG;
   }
 
   if (!scene->sun->spectrum) {
-    log_error(scene->dev, "%s: sun's spectrum undefined.\n", FUNC_NAME);
+    log_error(scene->dev, "%s: sun's spectrum undefined.\n", caller);
     return RES_BAD_ARG;
   }
 
   if (scene->sun->dni <= 0) {
-    log_error(scene->dev, "%s: sun's DNI undefined.\n", FUNC_NAME);
+    log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
     return RES_BAD_ARG;
   }
 
   if (scene->atmosphere) {
-    switch (scene->atmosphere->type) {
-      case ATMOS_UNIFORM: {
-        char ok;
-        CHECK(spectrum_includes(
-          scene->atmosphere->data.uniform.spectrum,
-          scene->sun->spectrum,
-          &ok),
-          RES_OK);
-        if (!ok) {
-          log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", FUNC_NAME);
-          return RES_BAD_ARG;
-        }
-        break;
-      }
-      default: FATAL("Unreachable code\n"); break;
+    int i;
+    ASSERT(scene->atmosphere->type == ATMOS_UNIFORM);
+    i = spectrum_includes
+      (scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum);
+    if (!i) {
+      log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", caller);
+      return RES_BAD_ARG;
     }
   }
   return RES_OK;
@@ -471,6 +465,7 @@ sample_starting_point(struct realisation* rs)
   struct solver_data* data;
   struct s3d_primitive sampl_prim;
   struct starting_point* start;
+  size_t id;
 
   ASSERT(rs);
   data = &rs->data;
@@ -489,7 +484,11 @@ sample_starting_point(struct realisation* rs)
   start->instance = *htable_instance_find
     (&data->scene->instances_samp, &sampl_prim.inst_id);
   start->sampl_primitive = sampl_prim;
-  shape = start->instance->object->shape;
+  id = *htable_shaded_shape_find
+    (&start->instance->object->shaded_shapes_samp, &sampl_prim.geom_id);
+  start->shaded_shape = darray_shaded_shape_cdata_get
+    (&start->instance->object->shaded_shapes)+id;
+  shape = start->shaded_shape->shape;
   start->on_punched = (shape->type == SHAPE_PUNCHED);
   /* set sampling normal */
   S3D(primitive_get_attrib(&sampl_prim, S3D_GEOMETRY_NORMAL, start->uv, &attrib));
@@ -503,21 +502,36 @@ sample_starting_point(struct realisation* rs)
       break;
     }
     case SHAPE_PUNCHED: {
-      const double* transform = start->instance->transform;
-      double tr[9], pos_local[3];
+      struct ssol_instance* inst = start->instance;
+      double pos_local[3];
+      double R[9]; /* Rotation matrix */
+      double T[3]; /* Translation vector */
+      double R_invtrans[9]; /* Inverse transpose rotation matrix */
+      double T_inv[3]; /* Inverse of the translation vector */
+
+      if(d33_is_identity(shape->quadric.transform)) {
+        d33_set(R, inst->transform);
+        d3_set (T, inst->transform+9);
+      } else {
+        d33_muld33(R, shape->quadric.transform, inst->transform);
+        d33_muld3 (T, shape->quadric.transform, inst->transform+9);
+      }
+      d33_invtrans(R_invtrans, R);
+      d3_minus(T_inv, T);
+
       /* project the sampled point on the quadric */
-      d33_inverse(tr, transform);
-      d3_sub(pos_local, start->pos, transform + 9);
-      d33_muld3(pos_local, tr, pos_local);
+      d3_set(pos_local, start->pos);
+      d3_add(pos_local, pos_local, T_inv);
+      d3_muld33(pos_local, pos_local, R_invtrans);
+
       punched_shape_set_z_local(shape, pos_local);
       /* transform point to world */
-      d33_muld3(start->pos, transform, pos_local);
-      d3_add(start->pos, transform + 9, start->pos);
+      d33_muld3(start->pos, R, pos_local);
+      d3_add(start->pos, start->pos, T);
       /* compute exact normal on the instance */
       punched_shape_set_normal_local(shape, pos_local, start->rt_normal);
       /* transform normal to world */
-      d33_invtrans(tr, transform);
-      d33_muld3(start->rt_normal, tr, start->rt_normal);
+      d33_muld3(start->rt_normal, R_invtrans, start->rt_normal);
       break;
     }
     default: FATAL("Unreachable code.\n"); break;
@@ -568,9 +582,9 @@ receive_sunlight(struct realisation* rs)
   start->geom_cos = d3_dot(start->rt_normal, start->sundir);
   start->front_exposed = start->geom_cos < 0;
   if (start->front_exposed) {
-    start->material = start->instance->object->mtl_front;
+    start->material = start->shaded_shape->mtl_front;
   } else {
-    start->material = start->instance->object->mtl_back;
+    start->material = start->shaded_shape->mtl_back;
   }
   /* normals must face the sun and cos must be positive */
   if (start->geom_cos > 0) {
@@ -774,7 +788,7 @@ ssol_solve
   if (!scene || !rng || !output || !estimator || !realisations_count)
     return RES_BAD_ARG;
 
-  res = check_scene(scene);
+  res = check_scene(scene, FUNC_NAME);
   if (res != RES_OK) return res;
 
   /* init realisation */

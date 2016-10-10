@@ -16,12 +16,34 @@
 #ifndef SSOL_OBJECT_C_H
 #define SSOL_OBJECT_C_H
 
+#include <rsys/dynamic_array.h>
+#include <rsys/hash_table.h>
 #include <rsys/ref_count.h>
 
-struct ssol_object {
+struct shaded_shape {
   struct ssol_shape* shape;
-  struct ssol_material* mtl_front; /* Front faces material */
-  struct ssol_material* mtl_back; /* Back faces material */
+  struct ssol_material* mtl_back; /* Material of the front faces */
+  struct ssol_material* mtl_front; /* Material of the back faces */
+};
+
+/* Define the darray_shaded_shape data structure */
+#define DARRAY_NAME shaded_shape
+#define DARRAY_DATA struct shaded_shape
+#include <rsys/dynamic_array.h>
+
+/* Define the htable_shaded_shape data structure */
+#define HTABLE_NAME shaded_shape
+#define HTABLE_KEY unsigned /* S3D object instance identifier */
+#define HTABLE_DATA size_t
+#include <rsys/hash_table.h>
+
+struct ssol_object {
+  /* List of shaded shapes added to the object */
+  struct darray_shaded_shape shaded_shapes;
+
+  /* Map the RT/Samp S3D id to an entry into the shaded_shapes array */
+  struct htable_shaded_shape shaded_shapes_rt;
+  struct htable_shaded_shape shaded_shapes_samp;
 
   struct s3d_scene* scn_rt; /* RT scene to instantiate */
   struct s3d_scene* scn_samp; /* Sampling scene to instantiate */

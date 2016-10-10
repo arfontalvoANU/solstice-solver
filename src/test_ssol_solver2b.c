@@ -56,7 +56,7 @@ main(int argc, char** argv)
   struct ssol_shape* quad_square;
   struct ssol_shape* quad_rect;
   struct ssol_carving carving;
-  struct ssol_quadric quadric;
+  struct ssol_quadric quadric = SSOL_QUADRIC_DEFAULT;
   struct ssol_punched_surface punched;
   struct ssol_material* m_mtl;
   struct ssol_material* v_mtl;
@@ -155,7 +155,8 @@ main(int argc, char** argv)
   CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
-  CHECK(ssol_object_create(dev, quad_rect, m_mtl, m_mtl, &m_object), RES_OK);
+  CHECK(ssol_object_create(dev, &m_object), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(m_object, quad_rect, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat1), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat2), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat1, "miroir", NULL), RES_OK);
@@ -167,14 +168,16 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, heliostat1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat2), RES_OK);
 
-  CHECK(ssol_object_create(dev, quad_square, m_mtl, m_mtl, &s_object), RES_OK);
+  CHECK(ssol_object_create(dev, &s_object), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(s_object, quad_square, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(s_object, &secondary), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, "secondaire", NULL), RES_OK);
   CHECK(ssol_instance_set_transform(secondary, transform1), RES_OK);
   CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
 
-  CHECK(ssol_object_create(dev, rect, v_mtl, v_mtl, &t_object), RES_OK);
+  CHECK(ssol_object_create(dev, &t_object), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(t_object, rect, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);

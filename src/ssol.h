@@ -147,10 +147,16 @@ struct ssol_quadric {
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
   } data;
+
+  /* 3x4 column major transformation of the quadric in object space */
+  double transform[12];
 };
 
-#define SSOL_QUADRIC_DEFAULT__ \
-  {SSOL_QUADRIC_PLANE, {SSOL_QUADRIC_PLANE_DEFAULT__}}
+#define SSOL_QUADRIC_DEFAULT__ {                                               \
+  SSOL_QUADRIC_PLANE,                                                          \
+  {SSOL_QUADRIC_PLANE_DEFAULT__},                                              \
+  {1,0,0, 0,1,0, 0,0,1, 0,0,0}                                                 \
+}
 static const struct ssol_quadric SSOL_QUADRIC_DEFAULT = SSOL_QUADRIC_DEFAULT__;
 
 /* Define the contour of a 2D polygon as well as the clipping operation to
@@ -370,6 +376,12 @@ SSOL_API res_T
 ssol_shape_ref_put
   (struct ssol_shape* shape);
 
+/* Retrieve the id of the shape */
+SSOL_API res_T
+ssol_shape_get_id
+  (struct ssol_shape* shape,
+   uint32_t* id);
+
 /* Define a punched surface in local space, i.e. no translation & no orientation */
 SSOL_API res_T
 ssol_punched_surface_setup
@@ -422,9 +434,6 @@ ssol_mirror_set_shader
 SSOL_API res_T
 ssol_object_create
   (struct ssol_device* dev,
-   struct ssol_shape* shape,
-   struct ssol_material* mtl_front, /* Material to apply to front faces */
-   struct ssol_material* mtl_back, /* Material to apply to back faces */
    struct ssol_object** obj);
 
 SSOL_API res_T
@@ -434,6 +443,18 @@ ssol_object_ref_get
 SSOL_API res_T
 ssol_object_ref_put
   (struct ssol_object* obj);
+
+SSOL_API res_T
+ssol_object_add_shaded_shape
+  (struct ssol_object* object,
+   struct ssol_shape* shape,
+   struct ssol_material* mtl_front, /* Front face material of the shape */
+   struct ssol_material* mtl_back); /* Back face material of the shape */
+
+/* Remove all the shaded shapes */
+SSOL_API res_T
+ssol_object_clear
+  (struct ssol_object* object);
 
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as
@@ -566,7 +587,7 @@ ssol_sun_set_buie_param
 /*******************************************************************************
  * Atmosphere API - Describe an atmosphere model.
  ******************************************************************************/
-/* The atmosphere describes absorbtion along the light paths */
+/* The atmosphere describes absorption along the light paths */
 SSOL_API res_T
 ssol_atmosphere_create_uniform
   (struct ssol_device* dev,
@@ -582,7 +603,7 @@ ssol_atmosphere_ref_put
 
 /* List of per wavelength power of the sun */
 SSOL_API res_T
-ssol_atmosphere_set_uniform_absorbtion
+ssol_atmosphere_set_uniform_absorption
   (struct ssol_atmosphere* atmosphere,
    struct ssol_spectrum* spectrum);
 

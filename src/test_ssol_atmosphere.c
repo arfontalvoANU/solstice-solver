@@ -52,11 +52,11 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
 
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(NULL, spectrum), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, NULL), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, spectrum), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, spectrum2), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, spectrum2), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(NULL, spectrum), RES_BAD_ARG);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, NULL), RES_BAD_ARG);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, spectrum), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, spectrum2), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, spectrum2), RES_OK);
 
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   

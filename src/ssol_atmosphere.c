@@ -62,7 +62,7 @@ compute_atmosphere_attenuation
   switch (atmosphere->type) {
   case ATMOS_UNIFORM:
     spectrum = atmosphere->data.uniform.spectrum;
-    CHECK(spectrum_interpolate(spectrum, wavelength, &ka), RES_OK);
+    ka = spectrum_interpolate(spectrum, wavelength);
     break;
   default: FATAL("Unreachable code\n"); break;
   }
@@ -124,7 +124,7 @@ ssol_atmosphere_ref_put
 }
 
 res_T
-ssol_atmosphere_set_uniform_absorbtion
+ssol_atmosphere_set_uniform_absorption
   (struct ssol_atmosphere* atmosphere,
    struct ssol_spectrum* spectrum)
 {
