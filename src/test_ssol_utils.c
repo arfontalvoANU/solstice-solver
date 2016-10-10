@@ -16,30 +16,13 @@
 #define _POSIX_C_SOURCE 200809L /* snprintf support */
 
 #include "test_ssol_utils.h"
+#include "ssol_c.h"
 
 #include <rsys/math.h>
 
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-/* hack until the needed API comes from a merge */
-#include "ssol_instance_c.h"
-#include "ssol_c.h"
-res_T
-get_receiver_id (struct ssol_instance* instance, const int front_face, uint32_t* id) {
-  struct str* rec;
-
-  if (!instance || !id)
-    return RES_BAD_ARG;
-  rec = front_face ? &instance->receiver_front : &instance->receiver_back;
-  if(str_is_empty(rec))
-    return RES_BAD_ARG;
-
-  S3D(shape_get_id(instance->shape_rt, id));
-  *id |= (front_face ? FRONT_FLAG : BACK_FLAG);
-  return RES_OK;
-}
 
 res_T
 pp_sum

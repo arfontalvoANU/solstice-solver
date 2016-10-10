@@ -46,8 +46,4 @@ pp_sum
    double* mean,
    double* std);
 
-/* hack until the needed API comes from a merge */
-struct ssol_instance;
-res_T get_receiver_id(struct ssol_instance* instance, const int front_face, uint32_t* id);
-
 #endif /* TEST_SSOL_UTILS_H */

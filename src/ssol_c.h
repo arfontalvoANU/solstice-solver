@@ -61,5 +61,22 @@ hit_filter_function
 #define RECEIVER_ID_MASK 0x7FFFFFFF
 #define BACK_FLAG 0x80000000
 
+#include "ssol_instance_c.h"
+static FINLINE res_T
+get_receiver_id(struct ssol_instance* instance, const int front_face, uint32_t* id) {
+  struct str* rec;
+
+  if (!instance || !id)
+    return RES_BAD_ARG;
+  rec = front_face ? &instance->receiver_front : &instance->receiver_back;
+  if (str_is_empty(rec))
+    return RES_BAD_ARG;
+
+  S3D(shape_get_id(instance->shape_rt, id));
+  ASSERT((*id & RECEIVER_ID_MASK) == *id);
+  *id |= (front_face ? FRONT_FLAG : BACK_FLAG);
+  return RES_OK;
+}
+
 #endif /* SSOL_C_H */
 
