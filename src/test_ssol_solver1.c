@@ -182,7 +182,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
   CHECK(ssol_spectrum_setup(abs, mismatch, ka, 2), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, abs), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, stdout), RES_BAD_ARG); /* spectra mismatch */
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
@@ -218,11 +218,11 @@ main(int argc, char** argv)
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(fclose(tmp), 0);
 
-  /* check atmosphere model; with no absorbtion result is unchanged */
+  /* check atmosphere model; with no absorption result is unchanged */
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
   CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 3), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, abs), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
@@ -236,12 +236,12 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
 
-  /* check atmosphere model; with absorbtion power decreases */
+  /* check atmosphere model; with absorption power decreases */
   ka[0] = ka[1] = ka[2] = 0.1;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
   CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 3), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, abs), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);

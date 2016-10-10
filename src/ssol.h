@@ -572,7 +572,7 @@ ssol_atmosphere_ref_put
 
 /* List of per wavelength power of the sun */
 SSOL_API res_T
-ssol_atmosphere_set_uniform_absorbtion
+ssol_atmosphere_set_uniform_absorption
   (struct ssol_atmosphere* atmosphere,
    struct ssol_spectrum* spectrum);
 

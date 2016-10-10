@@ -124,7 +124,7 @@ ssol_atmosphere_ref_put
 }
 
 res_T
-ssol_atmosphere_set_uniform_absorbtion
+ssol_atmosphere_set_uniform_absorption
   (struct ssol_atmosphere* atmosphere,
    struct ssol_spectrum* spectrum)
 {

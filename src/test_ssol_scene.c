@@ -112,9 +112,9 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm, spectrum), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm, spectrum), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm2), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorbtion(atm2, spectrum), RES_OK);
+  CHECK(ssol_atmosphere_set_uniform_absorption(atm2, spectrum), RES_OK);
 
   CHECK(ssol_scene_attach_atmosphere(NULL, atm), RES_BAD_ARG);
   CHECK(ssol_scene_attach_atmosphere(scene, NULL), RES_BAD_ARG);
