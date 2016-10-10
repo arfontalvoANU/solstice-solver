@@ -67,6 +67,7 @@ main(int argc, char** argv)
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
   double dbl;
+  size_t count, fcount;
   FILE* tmp = NULL;
   double m, std;
   uint32_t r_id;
@@ -196,26 +197,34 @@ main(int argc, char** argv)
 
   /* can sample any geometry; variance is high */
   NCHECK(tmp = tmpfile(), 0);
-#define N 10000
+#define N__ 10000
   CHECK(ssol_estimator_clear(estimator), RES_OK);
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(get_receiver_id(target, 1, &r_id), RES_OK); 
-  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
+  CHECK(fclose(tmp), 0);
+  CHECK(ssol_estimator_get_failed_count(estimator, &fcount), RES_OK);
+  CHECK(fcount, 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
 #define COS cos(PI / 4)
 #define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
 #define SQR(x) ((x)*(x))
-  dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / N);
+  dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / count);
   CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
-  CHECK(fclose(tmp), 0);
   /* target was sampled but shadowed by secondary */
   CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, m, 2 * dbl), 1);
+  CHECK(status.N, count);
+  CHECK(status.Nf, fcount);
   CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, m, status.SE), 1);
+  CHECK(status.N, count);
+  CHECK(status.Nf, fcount);
 
   /* sample primary mirror only; variance is low */
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
@@ -226,12 +235,14 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
-  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
+  CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
-  CHECK(fclose(tmp), 0);
   CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
@@ -248,10 +259,12 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
-  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
@@ -274,10 +287,12 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
-  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
 #define K (exp(-0.1 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
@@ -300,10 +315,12 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 2), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
-  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
+  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);

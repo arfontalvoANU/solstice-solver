@@ -222,6 +222,7 @@ struct ssol_estimator_status {
   double V; /* Variance */
   double SE; /* Standard error, i.e. sqrt(V / N) */
   size_t N; /* Samples count */
+  size_t Nf; /* Failed samples count */
 };
 
 /* the always-ON indicators (MC computations) */
@@ -620,6 +621,16 @@ ssol_estimator_get_status
   (const struct ssol_estimator* estimator,
     enum status_type type,
     struct ssol_estimator_status* status);
+
+SSOL_API res_T
+ssol_estimator_get_count
+  (const struct ssol_estimator* estimator,
+   size_t* count);
+
+SSOL_API res_T
+ssol_estimator_get_failed_count
+  (const struct ssol_estimator* estimator,
+   size_t* count);
 
 SSOL_API res_T
 ssol_estimator_clear

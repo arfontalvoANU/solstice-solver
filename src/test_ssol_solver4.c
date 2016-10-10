@@ -68,6 +68,7 @@ main(int argc, char** argv)
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
   double transform[12]; /* 3x4 column major matrix */
+  size_t count;
   FILE* tmp;
   double m1, std1, m2, std2;
   uint32_t r_id1, r_id2;
@@ -147,12 +148,14 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-#define N 10000
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
+#define N__ 10000
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(get_receiver_id(target1, 1, &r_id1), RES_OK);
   CHECK(get_receiver_id(target2, 1, &r_id2), RES_OK);
-  CHECK(pp_sum(tmp, r_id1, N, &m1, &std1), RES_OK);
-  CHECK(pp_sum(tmp, r_id2, N, &m2, &std2), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id1, count, &m1, &std1), RES_OK);
+  CHECK(pp_sum(tmp, r_id2, count, &m2, &std2), RES_OK);
   CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m1, std1);
 #define DNI_cos (1000 * cos(0))
@@ -166,6 +169,7 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(status.Nf, 0);
 
   /* free data */
 

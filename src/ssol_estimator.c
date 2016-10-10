@@ -114,9 +114,30 @@ ssol_estimator_get_status
     default: FATAL("Unreachable code.\n"); break;
   }
   status->N = estimator->realisation_count;
+  status->Nf = estimator->failed_count;
   status->E = data->weight / (double)status->N;
   status->V = data->sqr_weight / (double)status->N - status->E * status->E;
   status->SE = (status->V > 0) ? sqrt(status->V / (double)status->N) : 0;
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_count
+(const struct ssol_estimator* estimator,
+  size_t* count)
+{
+  if (!estimator || !count) return RES_BAD_ARG;
+  *count = estimator->realisation_count;
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_failed_count
+(const struct ssol_estimator* estimator,
+  size_t* count)
+{
+  if (!estimator || !count) return RES_BAD_ARG;
+  *count = estimator->failed_count;
   return RES_OK;
 }
 

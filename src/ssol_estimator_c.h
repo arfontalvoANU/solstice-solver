@@ -33,6 +33,7 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
 struct ssol_estimator {
   size_t realisation_count;
+  size_t failed_count;
   /* the implicit MC computations */
   struct mc_data shadow;
   struct mc_data missing;

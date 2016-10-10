@@ -78,6 +78,7 @@ main(int argc, char** argv)
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
   double transform3[12]; /* 3x4 column major matrix */
+  size_t count;
   FILE* tmp;
   double m, std;
   uint32_t r_id;
@@ -186,22 +187,25 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
   
   NCHECK(tmp = tmpfile(), 0);
-#define N 50000
-  CHECK(ssol_solve(scene, rng, N, tmp, estimator), RES_OK);
+#define N__ 50000
+  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
-  CHECK(pp_sum(tmp, r_id, N, &m, &std), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(count, N__);
+  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 2 * DNI_cos, MMAX(2 * DNI_cos * 1e-2, std)), 1);
 #define SQR(x) ((x)*(x))
-  CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) / 2 - SQR(2 * DNI_cos)) / N), 1e-3), 1);
+  CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) / 2 - SQR(2 * DNI_cos)) / count), 1e-3), 1);
   CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
   CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(status.Nf, 0);
 
   /* free data */
 

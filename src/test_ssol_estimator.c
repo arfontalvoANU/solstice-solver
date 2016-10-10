@@ -41,6 +41,7 @@ main(int argc, char** argv)
   struct ssp_rng* rng;
   struct ssol_estimator* estimator;
   struct ssol_estimator_status status;
+  size_t count;
 
   (void) argc, (void) argv;
 
@@ -69,6 +70,14 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_status(estimator, STATUS_TYPES_COUNT__, &status), RES_BAD_ARG);
   CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+
+  CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+
+  CHECK(ssol_estimator_get_failed_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_failed_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
 
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 

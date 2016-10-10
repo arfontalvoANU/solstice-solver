@@ -795,45 +795,40 @@ ssol_solve
   res = init_realisation(scene, rng, output, &rs);
   if (res != RES_OK) goto error;
 
-  for (r = 0; r < realisations_count; ) {
-    do {
-      struct segment* seg;
-      double w;
-      reset_realisation(r, &rs);
-      sample_starting_point(&rs);
-      sample_input_sundir(&rs);
-      sample_wavelength(&rs);
+  for (r = 0; r < realisations_count; r++) {
+    struct segment* seg;
+    double w;
+    reset_realisation(r, &rs);
+    sample_starting_point(&rs);
+    sample_input_sundir(&rs);
+    sample_wavelength(&rs);
 
-      /* check if the point receives sun light */
-      if (receive_sunlight(&rs)) {
-        /* start propagating from mirror */
-        do {
-          if (RES_OK == setup_next_segment(&rs)) {
-            propagate(&rs);
-          }
-        } while (!rs.end);
-      }
-      if (rs.error) {
-        /* TODO: must retry failed realisations */
-        log_error(scene->dev, "%s: realisation failure.\n", FUNC_NAME);
-        goto error;
-      }
-      /* propagation ended: feed implicit MC data */
-      seg = current_segment(&rs);
-      w = seg->weight;
+    /* check if the point receives sun light */
+    if (receive_sunlight(&rs)) {
+      /* start propagating from mirror */
+      do {
+        if (RES_OK == setup_next_segment(&rs)) {
+          propagate(&rs);
+        }
+      } while (!rs.end);
+    }
+    if (rs.error) {
+      estimator->failed_count++;
+      /* FIXME: remove failed realisations' outputs from the output stream */
+    }
+    /* propagation ended: feed implicit MC data */
+    seg = current_segment(&rs);
+    w = seg->weight;
 
-      ASSERT(!rs.success | !rs.shadow);
-      if (rs.shadow) {
-        estimator->shadow.weight += w;
-        estimator->shadow.sqr_weight += w * w;
-      }
-      else if (!rs.success) {
-        estimator->missing.weight += w;
-        estimator->missing.sqr_weight += w * w;
-      }
-
-      r++;
-    } while (rs.error);
+    ASSERT(!rs.success | !rs.shadow);
+    if (rs.shadow) {
+      estimator->shadow.weight += w;
+      estimator->shadow.sqr_weight += w * w;
+    }
+    else if (!rs.success) {
+      estimator->missing.weight += w;
+      estimator->missing.sqr_weight += w * w;
+    }
   }
 
   estimator->realisation_count += realisations_count;
