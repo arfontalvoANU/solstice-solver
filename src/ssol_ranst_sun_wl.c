@@ -24,7 +24,7 @@
 #include <rsys/rsys.h>
 #include <rsys/ref_count.h>
 
- /*******************************************************************************
+/*******************************************************************************
  * Distributions types for wavelengths
  ******************************************************************************/
 struct ran_piecewise_wl_state {
@@ -42,7 +42,7 @@ enum wl_ran_type {
 };
 
 /* One single type for all distributions. Only the state type depends on the
-* distribution type */
+ * distribution type */
 struct ranst_sun_wl {
   double(*get)
     (const struct ranst_sun_wl* ran, struct ssp_rng* rng);
@@ -66,13 +66,13 @@ distrib_sun_wl_release(ref_T* ref)
   ASSERT(ref);
   ran = CONTAINER_OF(ref, struct ranst_sun_wl, ref);
   switch (ran->type) {
-  case WL_DIRAC:
-    break;
-  case WL_PIECEWISE:
-    SSP(ranst_piecewise_linear_ref_put(ran->state.piecewise.spectrum));
-    ran->state.piecewise.spectrum = NULL;
-    break;
-  default: FATAL("Unreachable code\n"); break;
+    case WL_DIRAC:
+      break;
+    case WL_PIECEWISE:
+      SSP(ranst_piecewise_linear_ref_put(ran->state.piecewise.spectrum));
+      ran->state.piecewise.spectrum = NULL;
+      break;
+    default: FATAL("Unreachable code\n"); break;
   }
   MEM_RM(ran->allocator, ran);
 }
@@ -85,7 +85,8 @@ ran_piecewise_get
   (const struct ranst_sun_wl* ran,
    struct ssp_rng* rng)
 {
-  ASSERT(ran && rng && ran->type == WL_PIECEWISE && ran->state.piecewise.spectrum);
+  ASSERT(ran && rng && ran->type == WL_PIECEWISE);
+  ASSERT(ran->state.piecewise.spectrum);
   return ssp_ranst_piecewise_linear_get(ran->state.piecewise.spectrum, rng);
 }
 
@@ -94,8 +95,8 @@ ran_piecewise_get
  ******************************************************************************/
 static double
 ran_dirac_get
-(const struct ranst_sun_wl* ran,
-  struct ssp_rng* rng)
+  (const struct ranst_sun_wl* ran,
+   struct ssp_rng* rng)
 {
   (void) rng;
   ASSERT(ran && rng && ran->type == WL_DIRAC);
@@ -164,24 +165,24 @@ ranst_sun_wl_setup
   if (sz > 1) {
     ran->type = WL_PIECEWISE;
     ran->get = &ran_piecewise_get;
-    res = ssp_ranst_piecewise_linear_create(
-      ran->allocator, &ran->state.piecewise.spectrum);
+    res = ssp_ranst_piecewise_linear_create
+      (ran->allocator, &ran->state.piecewise.spectrum);
     if (res != RES_OK) goto error;
     res = ssp_ranst_piecewise_linear_setup
-    (ran->state.piecewise.spectrum, wavelengths, intensities, sz);
+      (ran->state.piecewise.spectrum, wavelengths, intensities, sz);
     if (res != RES_OK) goto error;
-  }
-  else {
+  } else {
     ran->type = WL_DIRAC;
     ran->get = &ran_dirac_get;
     ran->state.dirac.wavelength = wavelengths[0];
   }
-end:
+exit:
   return res;
 error:
-  if (ran->state.piecewise.spectrum)
+  if(ran->state.piecewise.spectrum) {
     SSP(ranst_piecewise_linear_ref_put(ran->state.piecewise.spectrum));
-  ran->state.piecewise.spectrum = NULL;
-  goto end;
+    ran->state.piecewise.spectrum = NULL;
+  }
+  goto exit;
 }
 

@@ -257,9 +257,9 @@ ran_pillbox_get
  ******************************************************************************/
 static double*
 ran_dirac_get
-(const struct ranst_sun_dir* ran,
-  struct ssp_rng* rng,
-  double dir[3])
+  (const struct ranst_sun_dir* ran,
+   struct ssp_rng* rng,
+   double dir[3])
 {
   (void) rng;
   ASSERT(d3_is_normalized(ran->state.dirac.dir));
@@ -356,9 +356,9 @@ ranst_sun_dir_dirac_setup
    const double dir[3])
 {
   if (!ran || !dir) return RES_BAD_ARG;
-  if (0 == d3_normalize(ran->state.dirac.dir, dir))
-    /* zero vector */
-    return RES_BAD_ARG;
+  if (0 == d3_normalize(ran->state.dirac.dir, dir)) {
+    return RES_BAD_ARG; /* zero vector */
+  }
   ran->get = ran_dirac_get;
   return RES_OK;
 }
