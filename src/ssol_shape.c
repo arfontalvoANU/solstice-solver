@@ -89,8 +89,8 @@ check_carving(const struct ssol_carving* polygon)
 {
   if(!polygon || !polygon->get || polygon->nb_vertices <= 0)
     return RES_BAD_ARG;
-  /* we don't check that the polygon defines a not empty area
-   * in such case, the quadric is valid but can have zero surface */
+  /* we don't check that the polygon defines a not empty area in such case, the
+   * quadric is valid but can have zero surface */
   return RES_OK;
 }
 

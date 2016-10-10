@@ -212,7 +212,7 @@ main(int argc, char** argv)
 #define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
 #define SQR(x) ((x)*(x))
-  dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / count);
+  dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / (double)count);
   CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
   /* target was sampled but shadowed by secondary */
   CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);

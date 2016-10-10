@@ -198,7 +198,8 @@ main(int argc, char** argv)
 #define DNI_cos (1000 * cos(PI / 4))
   CHECK(eq_eps(m, 2 * DNI_cos, MMAX(2 * DNI_cos * 1e-2, std)), 1);
 #define SQR(x) ((x)*(x))
-  CHECK(eq_eps(std, sqrt((SQR(4 * DNI_cos) / 2 - SQR(2 * DNI_cos)) / count), 1e-3), 1);
+  CHECK(eq_eps(std,
+    sqrt((SQR(4 * DNI_cos) / 2 - SQR(2 * DNI_cos)) / (double)count), 1e-3), 1);
   CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
