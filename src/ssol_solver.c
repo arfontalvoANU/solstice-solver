@@ -690,7 +690,7 @@ filter_receiver_hit_candidates(struct realisation* rs)
     candidates++)
   {
     struct receiver_data out;
-    float weight;
+    double weight;
     if (candidates->hit_distance == prev_distance) {
       size_t i = 0, is_duplicate = 0;
       struct ssol_instance** ptr = darray_instances_ptr_data_get(inst_array);
@@ -712,8 +712,8 @@ filter_receiver_hit_candidates(struct realisation* rs)
     }
 
     /* take amosphere into account with distance to receiver */
-    weight = (float) (seg->weight * compute_atmosphere_attenuation(
-      rs->data.scene->atmosphere, candidates->hit_distance, rs->wavelength));
+    weight = seg->weight * compute_atmosphere_attenuation(
+      rs->data.scene->atmosphere, candidates->hit_distance, rs->wavelength);
     out.realization_id = rs->rs_id;
     out.date = 0; /* TODO */
     out.segment_id = rs->s_idx;

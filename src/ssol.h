@@ -206,7 +206,7 @@ struct receiver_data {
   float pos[3];
   float in_dir[3];
   float normal[3];
-  float weight;
+  double weight;
   float uv[2];
 };
 
