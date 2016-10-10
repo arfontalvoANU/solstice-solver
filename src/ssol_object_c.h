@@ -26,7 +26,7 @@ struct shaded_shape {
   struct ssol_material* mtl_front; /* Material of the back faces */
 };
 
-/* Define the darray_shaded_shapedata structure */
+/* Define the darray_shaded_shape data structure */
 #define DARRAY_NAME shaded_shape
 #define DARRAY_DATA struct shaded_shape
 #include <rsys/dynamic_array.h>

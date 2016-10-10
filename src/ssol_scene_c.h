@@ -36,12 +36,15 @@ struct ssol_scene;
 struct ssol_sun;
 
 struct ssol_scene {
+  /* Map the instantiated RT/Samp S3D shape id to its SSOL intrance */
   struct htable_instance instances_rt;
   struct htable_instance instances_samp;
-  struct s3d_scene* scn_rt;
-  struct s3d_scene* scn_samp;
-  struct ssol_sun* sun;
-  struct ssol_atmosphere* atmosphere;
+
+  struct s3d_scene* scn_rt; /* S3D scene to ray trace */
+  struct s3d_scene* scn_samp; /* S3D scene to sample */
+
+  struct ssol_sun* sun; /* Sun of the scene */
+  struct ssol_atmosphere* atmosphere; /* Atmosphere of the scene */
 
   struct ssol_device* dev;
   ref_T ref;
