@@ -223,6 +223,8 @@ struct ssol_receiver_data {
   float normal[3];
   double weight;
   float uv[2];
+
+  /* TODO Add the geometry and primitive identifier */
 };
 
 /* result for MC simulations */
@@ -490,10 +492,12 @@ ssol_instance_set_receiver
   (struct ssol_instance* instance,
    const int mask); /* Combination of ssol_face_flags */
 
+/* Define whether or not the instance is sampled or not. By default an instance
+ * is sampled. */
 SSOL_API res_T
-ssol_instance_dont_sample
+ssol_instance_sample
   (struct ssol_instance* instance,
-   const int dont_sample);
+   const int sample);
 
 /* Retrieve the id of the shape */
 SSOL_API res_T

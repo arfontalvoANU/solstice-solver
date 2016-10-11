@@ -147,13 +147,13 @@ main(int argc, char** argv)
 
   CHECK(ssol_solve(scene, rng, 1, stdout, estimator), RES_OK); /* ready to solve! */
 
-  CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
-  CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
-  CHECK(ssol_instance_dont_sample(heliostat, 1), RES_OK);
+  CHECK(ssol_instance_sample(target, 0), RES_OK);
+  CHECK(ssol_instance_sample(secondary, 0), RES_OK);
+  CHECK(ssol_instance_sample(heliostat, 0), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no geometry to sample */
-  CHECK(ssol_instance_dont_sample(target, 0), RES_OK);
-  CHECK(ssol_instance_dont_sample(secondary, 0), RES_OK);
-  CHECK(ssol_instance_dont_sample(heliostat, 0), RES_OK);
+  CHECK(ssol_instance_sample(target, 1), RES_OK);
+  CHECK(ssol_instance_sample(secondary, 1), RES_OK);
+  CHECK(ssol_instance_sample(heliostat, 1), RES_OK);
 
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no attached sun */
@@ -224,8 +224,8 @@ main(int argc, char** argv)
   CHECK(status.Nf, fcount);
 
   /* sample primary mirror only; variance is low */
-  CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
-  CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
+  CHECK(ssol_instance_sample(target, 0), RES_OK);
+  CHECK(ssol_instance_sample(secondary, 0), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);

@@ -295,7 +295,7 @@ scene_setup_s3d_sampling_scene
       hr = 1;
     }
 
-    if(inst->dont_sample) continue;
+    if(!inst->sample) continue;
     /* FIXME: should not sample virtual (material) instance
        as material is used to compute output dir */
     hs = 1;

@@ -137,12 +137,12 @@ main(int argc, char** argv)
   CHECK(ssol_object_instantiate(t_object, &target1), RES_OK);
   CHECK(ssol_instance_set_transform(target1, transform), RES_OK);
   CHECK(ssol_instance_set_receiver(target1, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_dont_sample(target1, 1), RES_OK);
+  CHECK(ssol_instance_sample(target1, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target1), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target2), RES_OK);
   CHECK(ssol_instance_set_transform(target2, transform), RES_OK);
   CHECK(ssol_instance_set_receiver(target2, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_dont_sample(target2, 1), RES_OK);
+  CHECK(ssol_instance_sample(target2, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);

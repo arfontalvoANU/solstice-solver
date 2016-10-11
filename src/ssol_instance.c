@@ -77,6 +77,7 @@ ssol_object_instantiate
   SSOL(object_ref_get(object));
   instance->dev = dev;
   instance->object = object;
+  instance->sample = 1;
   d33_set_identity(instance->transform);
   d3_splat(instance->transform + 9, 0);
 
@@ -159,12 +160,12 @@ ssol_instance_set_receiver(struct ssol_instance* instance, const int mask)
 }
 
 res_T
-ssol_instance_dont_sample
+ssol_instance_sample
   (struct ssol_instance* instance,
-   const int dont_sample)
+   const int sample)
 {
   if(!instance) return RES_BAD_ARG;
-  instance->dont_sample = dont_sample;
+  instance->sample = sample;
   return RES_OK;
 }
 
