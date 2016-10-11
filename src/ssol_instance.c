@@ -153,12 +153,10 @@ error:
 }
 
 res_T
-ssol_instance_set_receiver
-  (struct ssol_instance* instance, const int front, const int back)
+ssol_instance_set_receiver(struct ssol_instance* instance, const int mask)
 {
   if(!instance) return RES_BAD_ARG;
-  instance->receiver_front = front;
-  instance->receiver_back = back;
+  instance->receiver_mask = mask;
   return RES_OK;
 }
 
@@ -189,7 +187,7 @@ ssol_instance_dont_sample
 res_T
 ssol_instance_get_id(struct ssol_instance* instance, uint32_t* id)
 {
-  unsigned u; 
+  unsigned u;
   STATIC_ASSERT
     (sizeof(unsigned) <= sizeof(uint32_t), Unexpected_sizeof_unsigned);
   if(!instance || !id) return RES_BAD_ARG;

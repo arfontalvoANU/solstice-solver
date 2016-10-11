@@ -649,10 +649,10 @@ receive_sunlight(struct realisation* rs)
   SSOL(instance_get_id(start->instance, &inst_id));
   ASSERT(inst_id < INT32_MAX);
   if(start->front_exposed) {
-    is_receiver = start->instance->receiver_front;
+    is_receiver = start->instance->receiver_mask & SSOL_FRONT;
     receiver_id = (int32_t)inst_id;
   } else {
-    is_receiver = start->instance->receiver_back;
+    is_receiver = start->instance->receiver_mask & SSOL_BACK;
     receiver_id = -(int32_t)inst_id;
   }
   /* if the sampled instance holds a receiver, push a candidate */

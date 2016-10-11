@@ -72,8 +72,8 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
 
   #define SET_RECEIVER ssol_instance_set_receiver
-  CHECK(ssol_instance_set_receiver(NULL, 0, 0), RES_BAD_ARG);
-  CHECK(ssol_instance_set_receiver(instance, 0, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(NULL, 0), RES_BAD_ARG);
+  CHECK(ssol_instance_set_receiver(instance, 0), RES_OK);
   #undef SET_RECEIVER
 
   CHECK(ssol_instance_set_target_mask(NULL, 1, 1), RES_BAD_ARG);

@@ -291,7 +291,7 @@ scene_setup_s3d_sampling_scene
     unsigned id;
     htable_instance_iterator_next(&it);
 
-    if(inst->receiver_back || inst->receiver_front) {
+    if(inst->receiver_mask) {
       hr = 1;
     }
 
@@ -423,12 +423,12 @@ hit_filter_function
   ASSERT(inst_id < INT32_MAX);
   if(seg->hit_front) {
     seg->hit_material = shaded_shape->mtl_front;
-    is_receiver = inst->receiver_front;
+    is_receiver = inst->receiver_mask & SSOL_FRONT;
     receiver_id = (int32_t)inst_id;
   } else {
     d3_muld(seg->hit_normal, seg->hit_normal, -1);
     seg->hit_material = shaded_shape->mtl_back;
-    is_receiver = inst->receiver_back;
+    is_receiver = inst->receiver_mask & SSOL_BACK;
     receiver_id = -(int32_t)inst_id;
   }
 

@@ -58,6 +58,11 @@ struct ssol_spectrum;
 struct ssol_sun;
 struct ssol_estimator;
 
+enum ssol_face_flag {
+  SSOL_FRONT = BIT(0),
+  SSOL_BACK = BIT(1)
+};
+
 enum ssol_clipping_op {
   SSOL_AND,
   SSOL_SUB,
@@ -479,11 +484,11 @@ ssol_instance_set_transform
   (struct ssol_instance* instance,
    const double transform[12]); /* 3x4 column major matrix */
 
+/* Specify which sides of the faces are receivers */
 SSOL_API res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const int front, /* Define wether or not front faces are receivers */
-   const int back); /* Define wheter or not back faces are receivers */
+   const int mask); /* Combination of ssol_face_flags */
 
 SSOL_API res_T
 ssol_instance_set_target_mask
