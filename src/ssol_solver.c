@@ -816,11 +816,10 @@ ssol_solve
     if (rs.error) {
       estimator->failed_count++;
       /* FIXME: remove failed realisations' outputs from the output stream */
-    }
-    else {
-      success_count++;
+      continue;
     }
 
+    success_count++;
     /* propagation ended: feed implicit MC data */
     seg = current_segment(&rs);
     w = seg->weight;
