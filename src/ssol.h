@@ -491,12 +491,6 @@ ssol_instance_set_receiver
    const int mask); /* Combination of ssol_face_flags */
 
 SSOL_API res_T
-ssol_instance_set_target_mask
-  (struct ssol_instance* instance,
-   const uint32_t front_mask,
-   const uint32_t back_mask);
-
-SSOL_API res_T
 ssol_instance_dont_sample
   (struct ssol_instance* instance,
    const int dont_sample);

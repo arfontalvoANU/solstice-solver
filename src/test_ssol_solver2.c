@@ -177,7 +177,6 @@ main(int argc, char** argv)
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 

@@ -66,8 +66,7 @@ ssol_object_instantiate
 
   dev = object->dev;
   ASSERT(dev && dev->allocator);
-  instance = (struct ssol_instance*)MEM_CALLOC
-    (dev->allocator, 1, sizeof(struct ssol_instance));
+  instance = MEM_CALLOC(dev->allocator, 1, sizeof(struct ssol_instance));
   if(!instance) {
     res = RES_MEM_ERR;
     goto error;
@@ -78,7 +77,6 @@ ssol_object_instantiate
   SSOL(object_ref_get(object));
   instance->dev = dev;
   instance->object = object;
-  instance->target_front_mask = instance->target_back_mask = 0;
   d33_set_identity(instance->transform);
   d3_splat(instance->transform + 9, 0);
 
@@ -157,20 +155,6 @@ ssol_instance_set_receiver(struct ssol_instance* instance, const int mask)
 {
   if(!instance) return RES_BAD_ARG;
   instance->receiver_mask = mask;
-  return RES_OK;
-}
-
-res_T
-ssol_instance_set_target_mask
-  (struct ssol_instance* instance,
-   const uint32_t front_mask,
-   const uint32_t back_mask)
-{
-  if(!instance)
-    return RES_BAD_ARG;
-
-  instance->target_front_mask = front_mask;
-  instance->target_back_mask = back_mask;
   return RES_OK;
 }
 

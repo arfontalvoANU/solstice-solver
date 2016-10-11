@@ -131,13 +131,11 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(m_object, square, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_set_target_mask(heliostat, 0x1, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
   CHECK(ssol_object_instantiate(m_object, &secondary), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT), RES_OK);
   CHECK(ssol_instance_set_transform(secondary, transform1), RES_OK);
-  CHECK(ssol_instance_set_target_mask(secondary, 0x2, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
 
   CHECK(ssol_object_create(dev, &t_object), RES_OK);
@@ -145,7 +143,6 @@ main(int argc, char** argv)
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_set_target_mask(target, 0x4, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   CHECK(ssol_solve(scene, rng, 1, stdout, estimator), RES_OK); /* ready to solve! */
@@ -229,9 +226,6 @@ main(int argc, char** argv)
   /* sample primary mirror only; variance is low */
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
-  CHECK(ssol_instance_set_target_mask(heliostat, 0, 0), RES_OK);
-  CHECK(ssol_instance_set_target_mask(secondary, 0, 0), RES_OK);
-  CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);

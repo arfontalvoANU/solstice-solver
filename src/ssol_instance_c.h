@@ -25,7 +25,6 @@ struct ssol_instance {
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
   double transform[12]; /* Column major 4x3 affine transformation */
-  uint32_t target_front_mask, target_back_mask; /* FIXME remove this? */
   int receiver_mask; /* Combination of ssol_face_flag */
   int dont_sample;
 
