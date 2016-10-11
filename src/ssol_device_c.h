@@ -16,10 +16,16 @@
 #ifndef SSOL_DEVICE_C_H
 #define SSOL_DEVICE_C_H
 
+#include <rsys/free_list.h>
 #include <rsys/ref_count.h>
 #include <star/s3d.h>
 
 struct scpr_mesh;
+
+/* Declare the free list used to generate unique identifier */
+struct name { FITEM; };
+#define FITEM_TYPE name
+#include <rsys/free_list.h>
 
 struct ssol_device {
   struct logger* logger;

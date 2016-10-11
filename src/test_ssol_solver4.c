@@ -136,13 +136,13 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, square, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target1), RES_OK);
   CHECK(ssol_instance_set_transform(target1, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target1, "cible1", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(target1, 1, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(target1, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target1, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target1), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target2), RES_OK);
   CHECK(ssol_instance_set_transform(target2, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target2, "cible2", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(target2, 1, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(target2, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target2, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
@@ -150,12 +150,12 @@ main(int argc, char** argv)
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
-  CHECK(get_receiver_id(target1, 1, &r_id1), RES_OK);
-  CHECK(get_receiver_id(target2, 1, &r_id2), RES_OK);
+  CHECK(ssol_instance_get_id(target1, &r_id1), RES_OK);
+  CHECK(ssol_instance_get_id(target2, &r_id2), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, r_id1, count, &m1, &std1), RES_OK);
-  CHECK(pp_sum(tmp, r_id2, count, &m2, &std2), RES_OK);
+  CHECK(pp_sum(tmp, (int32_t)r_id1, count, &m1, &std1), RES_OK);
+  CHECK(pp_sum(tmp, (int32_t)r_id2, count, &m2, &std2), RES_OK);
   CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m1, std1);
 #define DNI_cos (1000 * cos(0))

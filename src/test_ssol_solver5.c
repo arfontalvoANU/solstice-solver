@@ -135,7 +135,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, rect, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, 1, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
@@ -143,10 +143,10 @@ main(int argc, char** argv)
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
-  CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
+  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(0))

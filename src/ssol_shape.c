@@ -842,17 +842,6 @@ ssol_shape_ref_put(struct ssol_shape* shape)
 }
 
 res_T
-ssol_shape_get_id(struct ssol_shape* shape, uint32_t* id)
-{
-  unsigned ui;
-  STATIC_ASSERT(sizeof(unsigned) <= sizeof(uint32_t), Unexpected_sizeof_unsigned);
-  if(!shape || !id) return RES_BAD_ARG;
-  S3D(shape_get_id(shape->shape_rt, &ui));
-  *id = (uint32_t)ui;
-  return RES_OK;
-}
-
-res_T
 ssol_punched_surface_setup
   (struct ssol_shape* shape,
    const struct ssol_punched_surface* psurf)

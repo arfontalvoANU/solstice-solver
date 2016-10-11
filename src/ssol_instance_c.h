@@ -16,19 +16,21 @@
 #ifndef SSOL_INSTANCE_C_H
 #define SSOL_INSTANCE_C_H
 
+#include <rsys/free_list.h>
 #include <rsys/list.h>
 #include <rsys/ref_count.h>
-#include <rsys/str.h>
 
 struct ssol_instance {
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
-  struct str receiver_front; /* Empty if front faces are not receivers */
-  struct str receiver_back; /* Empty if back faces are not receivers */
   double transform[12]; /* Column major 4x3 affine transformation */
-  uint32_t target_front_mask, target_back_mask;
+  uint32_t target_front_mask, target_back_mask; /* FIXME remove this? */
+  int receiver_front; /* Are front faces receivers */
+  int receiver_back; /* Are back faces receivers */
   int dont_sample;
+
+  struct fid id; /* Unique identifier */
 
   struct ssol_device* dev;
   ref_T ref;

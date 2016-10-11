@@ -160,8 +160,8 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(m_object, quad_rect, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat1), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat2), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat1, "miroir", NULL), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat2, "miroir", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat1, 1, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat2, 1, 0), RES_OK);
   transform3[9] = -0.5; /* -0.5 offset along X axis */
   CHECK(ssol_instance_set_transform(heliostat1, transform3), RES_OK);
   transform3[9] = +0.5; /* +0.5 offset along X axis */
@@ -172,7 +172,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, &s_object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(s_object, quad_square, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(s_object, &secondary), RES_OK);
-  CHECK(ssol_instance_set_receiver(secondary, "secondaire", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(secondary, 1, 0), RES_OK);
   CHECK(ssol_instance_set_transform(secondary, transform1), RES_OK);
   CHECK(ssol_instance_dont_sample(secondary, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
@@ -181,7 +181,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, rect, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, "cible", NULL), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, 1, 0), RES_OK);
   CHECK(ssol_instance_set_target_mask(target, 0x1, 0), RES_OK);
   CHECK(ssol_instance_dont_sample(target, 1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
@@ -189,10 +189,10 @@ main(int argc, char** argv)
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 50000
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
-  CHECK(get_receiver_id(target, 1, &r_id), RES_OK);
+  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, r_id, count, &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(PI / 4))

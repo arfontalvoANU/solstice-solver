@@ -76,7 +76,7 @@ struct starting_point {
 
 struct receiver_record {
   struct ssol_instance* instance;
-  uint32_t receiver_id;
+  int32_t receiver_id;
   float dir[4];
   float hit_pos[3];
   float uv[2];

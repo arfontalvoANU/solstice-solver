@@ -41,7 +41,7 @@ check_memory_allocator(struct mem_allocator* allocator)
 extern LOCAL_SYM res_T
 pp_sum
   (FILE* f,
-   const uint32_t receiver_id,
+   const int32_t receiver_id,
    const size_t count,
    double* mean,
    double* std);

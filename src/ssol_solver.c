@@ -565,10 +565,11 @@ static int
 receive_sunlight(struct realisation* rs)
 {
   struct segment* seg;
-  const struct str* receiver_name = NULL;
   const struct ssol_sun* sun;
   struct starting_point* start;
-  uint32_t receiver_id;
+  int is_receiver = 0;
+  uint32_t inst_id;
+  int32_t receiver_id;
 
   ASSERT(rs && rs->s_idx == 0);
   seg = current_segment(rs);
@@ -645,28 +646,27 @@ receive_sunlight(struct realisation* rs)
     seg->hit_normal, &start->sampl_primitive, start->uv);
 
   /* if the sampled instance is a receiver, register the sampled point */
+  SSOL(instance_get_id(start->instance, &inst_id));
+  ASSERT(inst_id < INT32_MAX);
   if(start->front_exposed) {
-    receiver_name = &start->instance->receiver_front;
-    receiver_id = FRONT_FLAG;
+    is_receiver = start->instance->receiver_front;
+    receiver_id = (int32_t)inst_id;
   } else {
-    receiver_name = &start->instance->receiver_back;
-    receiver_id = BACK_FLAG;
+    is_receiver = start->instance->receiver_back;
+    receiver_id = -(int32_t)inst_id;
   }
   /* if the sampled instance holds a receiver, push a candidate */
-  if(!str_is_empty(receiver_name)) {
-    uint32_t id;
+  if(is_receiver) {
     struct receiver_record candidate;
     f3_set_d3(candidate.dir, seg->dir);
     candidate.hit_distance = 0; /* no atmospheric attenuation for sun rays */
     f3_set_d3(candidate.hit_normal, seg->hit_normal);
     f3_set_d3(candidate.hit_pos, seg->hit_pos);
     candidate.instance = start->instance;
-    S3D(shape_get_id(start->instance->shape_rt, &id));
-    ASSERT((id & RECEIVER_ID_MASK) == id);
-    candidate.receiver_id = receiver_id | id;
+    candidate.receiver_id = receiver_id;
     f2_set(candidate.uv, start->uv);
-    darray_receiver_record_push_back(
-      &rs->data.receiver_record_candidates, &candidate);
+    darray_receiver_record_push_back
+      (&rs->data.receiver_record_candidates, &candidate);
   }
 
   return 1;
@@ -703,7 +703,7 @@ filter_receiver_hit_candidates(struct realisation* rs)
     candidates->hit_distance <= tmax && candidates < candidates_end;
     candidates++)
   {
-    struct receiver_data out;
+    struct ssol_receiver_data out;
     double weight;
     if (candidates->hit_distance == prev_distance) {
       size_t i = 0, is_duplicate = 0;
@@ -738,7 +738,7 @@ filter_receiver_hit_candidates(struct realisation* rs)
     f3_set(out.normal, candidates->hit_normal);
     out.weight = weight;
     f2_set(out.uv, candidates->uv);
-    fwrite(&out, sizeof(struct receiver_data), 1, rs->data.out_stream);
+    fwrite(&out, sizeof(struct ssol_receiver_data), 1, rs->data.out_stream);
     rs->success = 1;
   }
   /* reset candidates */
@@ -843,4 +843,3 @@ error:
   /* TODO: release data */
   goto exit;
 }
-

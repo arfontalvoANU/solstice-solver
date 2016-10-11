@@ -57,5 +57,12 @@ scene_setup_s3d_sampling_scene
    char* has_sampled,
    char* has_receiver);
 
+/* TODO comment */
+extern LOCAL_SYM res_T
+scene_create_s3d_views
+  (struct ssol_scene* scn,
+   struct s3d_scene_view** view_rt,
+   struct s3d_scene_view** view_samp);
+
 #endif /* SSOL_SCENE_C_H */
 

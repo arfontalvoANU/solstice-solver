@@ -37,7 +37,6 @@ main(int argc, char** argv)
   struct ssol_punched_surface punched_surface;
   struct ssol_carving carving;
   struct ssol_quadric quadric;
-  uint32_t id;
   double polygon[] = {
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
   };
@@ -58,11 +57,6 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_mesh(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_shape_create_mesh(NULL, &shape), RES_BAD_ARG);
   CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
-
-  CHECK(ssol_shape_get_id(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_shape_get_id(shape, NULL), RES_BAD_ARG);
-  CHECK(ssol_shape_get_id(NULL, &id), RES_BAD_ARG);
-  CHECK(ssol_shape_get_id(shape, &id), RES_OK);
 
   CHECK(ssol_shape_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_shape_ref_get(shape), RES_OK);

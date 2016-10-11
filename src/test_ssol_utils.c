@@ -27,12 +27,12 @@
 res_T
 pp_sum
   (FILE* f,
-   const uint32_t receiver_id,
+   const int32_t receiver_id,
    const size_t count,
    double* mean,
    double* std)
 {
-  struct receiver_data hit;
+  struct ssol_receiver_data hit;
   double sum = 0;
   double sum2 = 0;
   double E, V, SE;
@@ -41,7 +41,7 @@ pp_sum
     return RES_BAD_ARG;
 
   rewind(f);
-  while (1 == fread(&hit, sizeof(struct receiver_data), 1, f)) {
+  while (1 == fread(&hit, sizeof(struct ssol_receiver_data), 1, f)) {
     if (ferror(f))
       return RES_BAD_ARG;
 

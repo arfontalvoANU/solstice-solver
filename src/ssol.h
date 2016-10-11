@@ -201,13 +201,17 @@ struct ssol_mirror_shader {
 static const struct ssol_mirror_shader SSOL_MIRROR_SHADER_NULL =
   SSOL_MIRROR_SHADER_NULL__;
 
-/* The type of data produced on receiver hits 
-   as ssol_solve() write them on its FILE* argument */
-struct receiver_data {
+/* The type of data produced on receiver hits as ssol_solve() write them on its
+ * FILE* argument */
+struct ssol_receiver_data {
   uint64_t realization_id;
   int64_t date;
   uint32_t segment_id;
-  uint32_t receiver_id;
+
+  /* Its absolute value is the identifier of an SSOL instance. A negative
+   * value means for back faces primitive */
+  int32_t receiver_id;
+
   float wavelength;
   float pos[3];
   float in_dir[3];
@@ -377,12 +381,6 @@ SSOL_API res_T
 ssol_shape_ref_put
   (struct ssol_shape* shape);
 
-/* Retrieve the id of the shape */
-SSOL_API res_T
-ssol_shape_get_id
-  (struct ssol_shape* shape,
-   uint32_t* id);
-
 /* Define a punched surface in local space, i.e. no translation & no orientation */
 SSOL_API res_T
 ssol_punched_surface_setup
@@ -484,8 +482,8 @@ ssol_instance_set_transform
 SSOL_API res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const char* name_front, /* May be NULL <=> Front faces are no more receivers */
-   const char* name_back); /* May be NULL <=> back faces are no more receivers */
+   const int front, /* Define wether or not front faces are receivers */
+   const int back); /* Define wheter or not back faces are receivers */
 
 SSOL_API res_T
 ssol_instance_set_target_mask
@@ -495,13 +493,14 @@ ssol_instance_set_target_mask
 
 SSOL_API res_T
 ssol_instance_dont_sample
-(struct ssol_instance* instance,
-  const int dont_sample);
-
-SSOL_API res_T
-ssol_instance_is_attached
   (struct ssol_instance* instance,
-   char* is_attached);
+   const int dont_sample);
+
+/* Retrieve the id of the shape */
+SSOL_API res_T
+ssol_instance_get_id
+  (struct ssol_instance* instance,
+   uint32_t* id);
 
 /*******************************************************************************
  * Spectrum API - Collection of wavelengths with their associated data.

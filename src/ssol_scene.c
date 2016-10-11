@@ -291,8 +291,7 @@ scene_setup_s3d_sampling_scene
     unsigned id;
     htable_instance_iterator_next(&it);
 
-    if(!str_is_empty(&inst->receiver_back)
-    || !str_is_empty(&inst->receiver_front)) {
+    if(inst->receiver_back || inst->receiver_front) {
       hr = 1;
     }
 
@@ -341,10 +340,12 @@ hit_filter_function
   struct ssol_instance* inst;
   const struct shaded_shape* shaded_shape;
   const struct ssol_shape* shape;
-  const struct str* receiver_name;
   struct realisation* rs = realisation;
   struct segment* seg;
   size_t id;
+  int is_receiver = 0;
+  uint32_t inst_id;
+  int32_t receiver_id;
 
   (void) filter_data, (void) org, (void) dir;
   ASSERT(rs);
@@ -418,25 +419,29 @@ hit_filter_function
     return 1;
   }
 
+  SSOL(instance_get_id(inst, &inst_id));
+  ASSERT(inst_id < INT32_MAX);
   if(seg->hit_front) {
     seg->hit_material = shaded_shape->mtl_front;
-    receiver_name = &inst->receiver_front;
+    is_receiver = inst->receiver_front;
+    receiver_id = (int32_t)inst_id;
   } else {
     d3_muld(seg->hit_normal, seg->hit_normal, -1);
     seg->hit_material = shaded_shape->mtl_back;
-    receiver_name = &inst->receiver_back;
+    is_receiver = inst->receiver_back;
+    receiver_id = -(int32_t)inst_id;
   }
 
-  /* Check if the hit surface is a receiver that registers hit data 
+  /* Check if the hit surface is a receiver that registers hit data
    * impacts on receivers before sampled surfaces are not registered */
-  if (!seg->sun_segment && !str_is_empty(receiver_name)) {
+  if (!seg->sun_segment && is_receiver) {
     struct receiver_record candidate;
     f3_set_d3(candidate.dir, seg->dir);
     candidate.hit_distance = (float)seg->hit_distance;
     f3_set_d3(candidate.hit_normal, seg->hit_normal);
     f3_set_d3(candidate.hit_pos, seg->hit_pos);
     candidate.instance = inst;
-    get_receiver_id(inst, seg->hit_front, &candidate.receiver_id);
+    candidate.receiver_id = receiver_id;
     f2_set(candidate.uv, seg->hit.uv);
     darray_receiver_record_push_back(
       &rs->data.receiver_record_candidates, &candidate);

@@ -43,8 +43,6 @@ instance_release(ref_T* ref)
   SSOL(object_ref_put(instance->object));
   if(instance->shape_rt) S3D(shape_ref_put(instance->shape_rt));
   if(instance->shape_samp) S3D(shape_ref_put(instance->shape_samp));
-  str_release(&instance->receiver_front);
-  str_release(&instance->receiver_back);
   MEM_RM(dev->allocator, instance);
   SSOL(device_ref_put(dev));
 }
@@ -61,7 +59,7 @@ ssol_object_instantiate
   struct ssol_device* dev;
 
   res_T res = RES_OK;
-  if (!object || !out_instance) {
+  if(!object || !out_instance) {
     res = RES_BAD_ARG;
     goto error;
   }
@@ -70,21 +68,19 @@ ssol_object_instantiate
   ASSERT(dev && dev->allocator);
   instance = (struct ssol_instance*)MEM_CALLOC
     (dev->allocator, 1, sizeof(struct ssol_instance));
-  if (!instance) {
+  if(!instance) {
     res = RES_MEM_ERR;
     goto error;
   }
 
+  ref_init(&instance->ref);
+  SSOL(device_ref_get(dev));
+  SSOL(object_ref_get(object));
   instance->dev = dev;
   instance->object = object;
+  instance->target_front_mask = instance->target_back_mask = 0;
   d33_set_identity(instance->transform);
   d3_splat(instance->transform + 9, 0);
-  instance->target_front_mask = instance->target_back_mask = 0;
-  str_init(dev->allocator, &instance->receiver_front);
-  str_init(dev->allocator, &instance->receiver_back);
-  SSOL(object_ref_get(object));
-  SSOL(device_ref_get(dev));
-  ref_init(&instance->ref);
 
   /* Create the Star-3D instance to ray-trace */
   res = s3d_scene_instantiate(object->scn_rt, &instance->shape_rt);
@@ -98,7 +94,7 @@ exit:
   if(out_instance) *out_instance = instance;
   return res;
 error:
-  if (instance) {
+  if(instance) {
     SSOL(instance_ref_put(instance));
     instance = NULL;
   }
@@ -118,7 +114,7 @@ res_T
 ssol_instance_ref_put
   (struct ssol_instance* instance)
 {
-  if (!instance)
+  if(!instance)
     return RES_BAD_ARG;
   ref_put(&instance->ref, instance_release);
   return RES_OK;
@@ -158,39 +154,12 @@ error:
 
 res_T
 ssol_instance_set_receiver
-  (struct ssol_instance* instance,
-   const char* name_front,
-   const char* name_back)
+  (struct ssol_instance* instance, const int front, const int back)
 {
-  struct str front;
-  struct str back;
-  res_T res = RES_OK;
-
   if(!instance) return RES_BAD_ARG;
-
-  str_init(instance->dev->allocator, &front);
-  str_init(instance->dev->allocator, &back);
-
-  if(name_front) {
-    res = str_set(&front, name_front);
-    if(res != RES_OK) goto error;
-  }
-  if(name_back) {
-    res = str_set(&back, name_back);
-    if(res != RES_OK) goto error;
-  }
-
-  res = str_copy_and_release(&instance->receiver_front, &front);
-  ASSERT(res == RES_OK);
-  res = str_copy_and_release(&instance->receiver_back, &back);
-  ASSERT(res == RES_OK);
-
-exit:
-  return res;
-error:
-  str_release(&front);
-  str_release(&back);
-  goto exit;
+  instance->receiver_front = front;
+  instance->receiver_back = back;
+  return RES_OK;
 }
 
 res_T
@@ -199,7 +168,7 @@ ssol_instance_set_target_mask
    const uint32_t front_mask,
    const uint32_t back_mask)
 {
-  if (!instance)
+  if(!instance)
     return RES_BAD_ARG;
 
   instance->target_front_mask = front_mask;
@@ -212,19 +181,20 @@ ssol_instance_dont_sample
   (struct ssol_instance* instance,
    const int dont_sample)
 {
-  if (!instance)
-    return RES_BAD_ARG;
-
+  if(!instance) return RES_BAD_ARG;
   instance->dont_sample = dont_sample;
   return RES_OK;
 }
 
 res_T
-ssol_instance_is_attached
-  (struct ssol_instance* instance, char* is_attached)
+ssol_instance_get_id(struct ssol_instance* instance, uint32_t* id)
 {
-  FATAL("Not implemented yet.");
-  if(!instance || !is_attached) return RES_BAD_ARG;
+  unsigned u; 
+  STATIC_ASSERT
+    (sizeof(unsigned) <= sizeof(uint32_t), Unexpected_sizeof_unsigned);
+  if(!instance || !id) return RES_BAD_ARG;
+  S3D(shape_get_id(instance->shape_rt, &u));
+  *id = (uint32_t)u;
   return RES_OK;
 }
 

@@ -17,11 +17,32 @@
 #define SSOL_C_H
 
 #include "ssol.h"
+#include "ssol_instance_c.h"
+
 #include <star/s3d.h>
+
+#include <math.h>
 
 #define SSOL_TO_S3D_POSITION S3D_POSITION
 #define SSOL_TO_S3D_NORMAL S3D_ATTRIB_0
 #define SSOL_TO_S3D_TEXCOORD S3D_ATTRIB_1
+
+/* hack until the needed API comes from a merge */
+#define FRONT_FLAG 0
+#define RECEIVER_ID_MASK 0x7FFFFFFF
+#define BACK_FLAG 0x80000000
+
+#ifndef NDEBUG
+  #define ASSERT_NAN(x, sz) {                                                  \
+    int i__;                                                                   \
+    FOR_EACH(i__, 0, sz)                                                       \
+      ASSERT(!IS_NaN((x)[i__]));                                               \
+  } (void)0
+#else
+  #define ASSERT_NAN(x, sz)
+#endif
+
+#define NON_BOOL 99
 
 static FINLINE enum s3d_attrib_usage
 ssol_to_s3d_attrib_usage(const enum ssol_attrib_usage usage)
@@ -41,42 +62,6 @@ hit_filter_function
    const float dir[3],
    void* realisation,
    void* filter_data);
-
-#include <math.h>
-
-#ifndef NDEBUG
-  #define ASSERT_NAN(x, sz) {                                                  \
-    int i__;                                                                   \
-    FOR_EACH(i__, 0, sz)                                                       \
-      ASSERT(!IS_NaN((x)[i__]));                                               \
-  } (void)0
-#else
-  #define ASSERT_NAN(x, sz)
-#endif
-
-#define NON_BOOL 99
-
-/* hack until the needed API comes from a merge */
-#define FRONT_FLAG 0
-#define RECEIVER_ID_MASK 0x7FFFFFFF
-#define BACK_FLAG 0x80000000
-
-#include "ssol_instance_c.h"
-static FINLINE res_T
-get_receiver_id(struct ssol_instance* instance, const int front_face, uint32_t* id) {
-  struct str* rec;
-
-  if (!instance || !id)
-    return RES_BAD_ARG;
-  rec = front_face ? &instance->receiver_front : &instance->receiver_back;
-  if (str_is_empty(rec))
-    return RES_BAD_ARG;
-
-  S3D(shape_get_id(instance->shape_rt, id));
-  ASSERT((*id & RECEIVER_ID_MASK) == *id);
-  *id |= (front_face ? FRONT_FLAG : BACK_FLAG);
-  return RES_OK;
-}
 
 #endif /* SSOL_C_H */
 
