@@ -28,7 +28,9 @@ main(int argc, char** argv)
   struct ssol_material* material;
   struct ssol_object* object;
   struct ssol_instance* instance;
+  struct ssol_instance* instance1;
   double transform[12];
+  uint32_t id, id1;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -48,12 +50,21 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(object, shape, material, material), RES_OK);
 
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
+  CHECK(ssol_object_instantiate(object, &instance1), RES_OK);
+
+  CHECK(ssol_instance_get_id(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_id(instance, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_id(NULL, &id), RES_BAD_ARG);
+  CHECK(ssol_instance_get_id(instance, &id), RES_OK);
+  CHECK(ssol_instance_get_id(instance1, &id1), RES_OK);
+  NCHECK(id, id1);
 
   CHECK(ssol_instance_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_instance_ref_get(instance), RES_OK);
 
   CHECK(ssol_instance_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(instance1), RES_OK);
 
   CHECK(ssol_instance_set_transform(NULL, transform), RES_BAD_ARG);
   CHECK(ssol_instance_set_transform(instance, NULL), RES_BAD_ARG);
