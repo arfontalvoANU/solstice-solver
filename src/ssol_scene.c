@@ -385,7 +385,8 @@ hit_filter_function
   /* Discard self intersection */
   switch(sshape->shape->type) {
     case SHAPE_MESH:
-      if(S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from)) {
+      if(hit->distance <= 1.e-6 /* FIXME hack */
+      || S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from)) {
         /* Discard self intersection for mesh, i.e. when the intersected
          * primitive is the primitive from which the ray starts */
         return 1;

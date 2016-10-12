@@ -918,6 +918,7 @@ ssol_solve
     sshape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
 
     /* Fetch the current position and its associated normal */
+    d3_set_f3(pos, posf);
     switch(sshape->shape->type) {
       case SHAPE_MESH:
         S3D(primitive_get_attrib(&prim, S3D_GEOMETRY_NORMAL, uv, &attr));
@@ -925,7 +926,6 @@ ssol_solve
         d3_set_f3(N, attr.value);
         break;
       case SHAPE_PUNCHED:
-        d3_set_f3(pos, posf);
         punched_shape_project_point(sshape->shape, inst->transform, pos, pos, N);
         break;
       default: FATAL("Unreachable code"); break;
@@ -992,7 +992,7 @@ ssol_solve
         f2_set(out.uv, uv);
         out.weight = weight;
         n = fwrite(&out, sizeof(out), 1, output);
-        if(n != sizeof(out)) {
+        if(n < 1) {
           res = RES_IO_ERR;
           goto error;
         }
@@ -1007,6 +1007,7 @@ ssol_solve
         surface_fragment_setup(&frag, pos, dir, N, &prim, uv);
 
         /* Shade the surface fragment */
+        SSF(bsdf_clear(bsdf));
         res = material_shade(mtl, &frag, wl, bsdf);
         if(res != RES_OK) goto error;
 
@@ -1031,8 +1032,8 @@ ssol_solve
       ++depth;
 
       /* Retrieve the hit instance and shaded shape */
-      inst = *htable_instance_find(&scn->instances_rt, &prim.inst_id);
-      id = *htable_shaded_shape_find(&inst->object->shaded_shapes_rt, &prim.geom_id);
+      inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
+      id = *htable_shaded_shape_find(&inst->object->shaded_shapes_rt, &hit.prim.geom_id);
       sshape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
 
       /* Fetch the current position and its associated normal */
@@ -1063,8 +1064,8 @@ ssol_solve
       estimator->missing.weight += weight;
       estimator->missing.sqr_weight += weight*weight;
     }
-
   }
+  estimator->realisation_count += nrealisations;
 
 exit:
   if(view_rt) S3D(scene_view_ref_put(view_rt));

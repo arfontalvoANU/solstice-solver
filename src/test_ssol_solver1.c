@@ -177,7 +177,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(heliostat, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(target, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG); /* no receiver in scene */
+  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_OK); /* no receiver in scene */
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
@@ -197,7 +197,7 @@ main(int argc, char** argv)
 #define N__ 10000
   CHECK(ssol_estimator_clear(estimator), RES_OK);
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
-  CHECK(ssol_instance_get_id(target, &r_id), RES_OK); 
+  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);

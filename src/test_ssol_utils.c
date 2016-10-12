@@ -36,7 +36,7 @@ pp_sum
   double sum = 0;
   double sum2 = 0;
   double E, V, SE;
-  
+
   if(!f || !mean || !std || !count)
     return RES_BAD_ARG;
 
