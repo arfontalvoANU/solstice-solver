@@ -27,11 +27,6 @@
 #define SSOL_TO_S3D_NORMAL S3D_ATTRIB_0
 #define SSOL_TO_S3D_TEXCOORD S3D_ATTRIB_1
 
-/* hack until the needed API comes from a merge */
-#define FRONT_FLAG 0
-#define RECEIVER_ID_MASK 0x7FFFFFFF
-#define BACK_FLAG 0x80000000
-
 #ifndef NDEBUG
   #define ASSERT_NAN(x, sz) {                                                  \
     int i__;                                                                   \
@@ -42,7 +37,17 @@
   #define ASSERT_NAN(x, sz)
 #endif
 
-#define NON_BOOL 99
+struct ray_data {
+  struct ssol_scene* scn;
+  struct s3d_primitive prim_from;
+  struct ssol_instance* inst_from;
+  enum  ssol_side_flag side_from;
+
+  /* Output data */
+  double N[3];
+  double dst;
+};
+
 
 static FINLINE enum s3d_attrib_usage
 ssol_to_s3d_attrib_usage(const enum ssol_attrib_usage usage)

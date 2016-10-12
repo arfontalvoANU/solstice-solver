@@ -144,9 +144,7 @@ ranst_sun_wl_ref_put(struct ranst_sun_wl* ran)
 }
 
 double
-ranst_sun_wl_get
-  (const struct ranst_sun_wl* ran,
-   struct ssp_rng* rng)
+ranst_sun_wl_get(const struct ranst_sun_wl* ran, struct ssp_rng* rng)
 {
   ASSERT(ran);
   return ran->get(ran, rng);

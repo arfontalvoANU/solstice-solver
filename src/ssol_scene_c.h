@@ -50,14 +50,8 @@ struct ssol_scene {
   ref_T ref;
 };
 
-/* Fill the Star-3D sampling scene with the Star-3D shape of the instances */
-extern LOCAL_SYM res_T
-scene_setup_s3d_sampling_scene
-  (struct ssol_scene* scn,
-   char* has_sampled,
-   char* has_receiver);
-
-/* TODO comment */
+/* Create the Star-3D views of the RT and sampling scenes. Return an error if
+ * the sampling scene is empty. */
 extern LOCAL_SYM res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,

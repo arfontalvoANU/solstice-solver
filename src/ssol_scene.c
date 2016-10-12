@@ -129,7 +129,7 @@ ssol_scene_attach_instance
   /* Register the instance against the scene */
   S3D(shape_get_id(instance->shape_rt, &id));
   pinst = htable_instance_find(&scene->instances_rt, &id);
-  if (pinst) {
+  if(pinst) {
     /* already attached */
     ASSERT(*pinst == instance); /* cannot be attached to another instance! */
     return RES_OK;
@@ -202,14 +202,15 @@ ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 {
   if(!scene || ! sun)
     return RES_BAD_ARG;
-  if (sun->scene_attachment || scene->sun) {
+  if(sun->scene_attachment || scene->sun) {
     /* already attached: must be linked together */
-    if (sun->scene_attachment != scene || scene->sun != sun)
+    if(sun->scene_attachment != scene || scene->sun != sun) {
       /* if not detach first! */
       return RES_BAD_ARG;
-    else
+    } else {
       /* nothing to change */
       return RES_OK;
+    }
   }
   /* no previous attachment */
   SSOL(sun_ref_get(sun));
@@ -235,16 +236,17 @@ ssol_scene_detach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
 res_T
 ssol_scene_attach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* atm)
 {
-  if (!scene || !atm)
+  if(!scene || !atm)
     return RES_BAD_ARG;
-  if (atm->scene_attachment || scene->atmosphere) {
+  if(atm->scene_attachment || scene->atmosphere) {
     /* already attached: must be linked together */
-    if (atm->scene_attachment != scene || scene->atmosphere != atm)
+    if(atm->scene_attachment != scene || scene->atmosphere != atm) {
       /* if not detach first! */
       return RES_BAD_ARG;
-    else
+    } else {
       /* nothing to change */
       return RES_OK;
+    }
   }
   /* no previous attachment */
   SSOL(atmosphere_ref_get(atm));
@@ -256,7 +258,7 @@ ssol_scene_attach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* a
 res_T
 ssol_scene_detach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* atm)
 {
-  if (!scene || !atm || !scene->atmosphere || atm->scene_attachment != scene)
+  if(!scene || !atm || !scene->atmosphere || atm->scene_attachment != scene)
     return RES_BAD_ARG;
 
   ASSERT(atm == scene->atmosphere);
@@ -270,15 +272,18 @@ ssol_scene_detach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* a
  * Local functions
  ******************************************************************************/
 res_T
-scene_setup_s3d_sampling_scene
+scene_create_s3d_views
   (struct ssol_scene* scn,
-   char* has_sampled,
-   char* has_receiver)
+   struct s3d_scene_view** out_view_rt,
+   struct s3d_scene_view** out_view_samp)
 {
   struct htable_instance_iterator it, end;
+  struct s3d_scene_view* view_rt = NULL;
+  struct s3d_scene_view* view_samp = NULL;
+  int has_sampled = 0;
+  int has_receiver = 0;
   res_T res = RES_OK;
-  char hs = 0, hr = 0;
-  ASSERT(scn);
+  ASSERT(scn && out_view_rt && out_view_samp);
 
   S3D(scene_clear(scn->scn_samp));
   htable_instance_clear(&scn->instances_samp);
@@ -292,37 +297,59 @@ scene_setup_s3d_sampling_scene
     htable_instance_iterator_next(&it);
 
     if(inst->receiver_mask) {
-      hr = 1;
+      has_receiver = 1;
     }
 
     if(!inst->sample) continue;
+
     /* FIXME: should not sample virtual (material) instance
        as material is used to compute output dir */
-    hs = 1;
+    has_sampled = 1;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
-    if (res != RES_OK) goto error;
+    if(res != RES_OK) goto error;
 
     /* Register the instantiated s3d sampling shape */
     S3D(shape_get_id(inst->shape_samp, &id));
     ASSERT(!htable_instance_find(&scn->instances_samp, &id));
     res = htable_instance_set(&scn->instances_samp, &id, &inst);
-    if (res != RES_OK) goto error;
+    if(res != RES_OK) goto error;
 
     /* Do not get a reference onto the instance since it was already referenced
      * by the scene on its attachment */
   }
 
+  if(!has_sampled) {
+    log_error(scn->dev, "No solstice instance to sample.\n");
+    res = RES_BAD_ARG;
+    goto error;
+  }
+
+  if(!has_receiver) {
+    log_warning(scn->dev, "No receiver is defined.\n");
+  }
+
+  res = s3d_scene_view_create(scn->scn_rt, S3D_TRACE, &view_rt);
+  if(res != RES_OK) goto error;
+  res = s3d_scene_view_create(scn->scn_samp, S3D_SAMPLE, &view_samp);
+  if(res != RES_OK) goto error;
+
 exit:
-  if (has_sampled) *has_sampled = hs;
-  if (has_receiver) *has_receiver = hr;
+  *out_view_rt = view_rt;
+  *out_view_samp = view_samp;
   return res;
 error:
   S3D(scene_clear(scn->scn_samp));
   htable_instance_clear(&scn->instances_samp);
-  has_sampled = NULL;
-  has_receiver = NULL;
+  if(view_rt) {
+    S3D(scene_view_ref_put(view_rt));
+    view_rt = NULL;
+  }
+  if(view_samp) {
+    S3D(scene_view_ref_put(view_samp));
+    view_samp = NULL;
+  }
   goto exit;
 }
 
@@ -331,126 +358,74 @@ error:
  ******************************************************************************/
 int
 hit_filter_function
-(const struct s3d_hit* hit,
-  const float org[3],
-  const float dir[3],
-  void* realisation,
-  void* filter_data)
+  (const struct s3d_hit* hit,
+   const float posf[3],
+   const float dirf[3],
+   void* ray_data,
+   void* filter_data)
 {
   struct ssol_instance* inst;
-  const struct shaded_shape* shaded_shape;
-  const struct ssol_shape* shape;
-  struct realisation* rs = realisation;
-  struct segment* seg;
+  struct ssol_material* mtl;
+  struct ray_data* rdata = ray_data;
+  const struct shaded_shape* sshape;
+  enum ssol_side_flag hit_side;
+  double pos[3], dir[3], N[3], dst = FLT_MAX;
   size_t id;
-  int is_receiver = 0;
-  uint32_t inst_id;
-  int32_t receiver_id;
+  (void)filter_data;
+  ASSERT(hit && posf && dirf);
 
-  (void) filter_data, (void) org, (void) dir;
-  ASSERT(rs);
-  seg = current_segment(rs);
-  ASSERT(seg);
+  /* No ray data => nothing to filter */
+  if(!ray_data) return 0;
 
-  /* these components have been set */
-  ASSERT_NAN(seg->dir, 3);
-  ASSERT_NAN(seg->org, 3);
-  ASSERT(seg->self_instance);
-  ASSERT(seg->self_front != NON_BOOL);
-
-  inst = *htable_instance_find(&rs->data.scene->instances_rt, &hit->prim.inst_id);
-  id = *htable_shaded_shape_find
-    (&inst->object->shaded_shapes_rt, &hit->prim.geom_id);
-  shaded_shape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
-  shape = shaded_shape->shape;
-  seg->on_punched = (shape->type == SHAPE_PUNCHED);
-  switch (shape->type) {
-    case SHAPE_MESH: {
-      d3_set_f3(seg->hit_normal, hit->normal);
-      /* use raytraced distance to fill hit_pos */
-      d3_add(seg->hit_pos, seg->org, d3_muld(seg->hit_pos, seg->dir, hit->distance));
-      seg->hit_distance = hit->distance;
-      break;
-    }
-    case SHAPE_PUNCHED: {
-      /* hits on quadrics must be recomputed more accurately */
-      double org_local[3], hit_pos_local[3], dir_local[3];
-      double R[9]; /* Rotation matrix */
-      double T[3]; /* Translation vector */
-      double R_invtrans[9]; /* Inverse transpose rotation matrix */
-      double T_inv[3]; /* Inverse of the translation vector */
-      int valid;
-
-      if(d33_is_identity(shape->quadric.transform)) {
-        d33_set(R, inst->transform);
-        d3_set (T, inst->transform+9);
-      } else {
-        d33_muld33(R, shape->quadric.transform, inst->transform);
-        d33_muld3 (T, shape->quadric.transform, inst->transform+9);
-      }
-      d33_invtrans(R_invtrans, R);
-      d3_minus(T_inv, T);
-
-      /* get org in local coordinate */
-      d3_set(org_local, seg->org);
-      d3_add(org_local, org_local, T_inv);
-      d3_muld33(org_local, org_local, R_invtrans);
-
-      /* get dir in local */
-      d3_muld33(dir_local, seg->dir, R_invtrans);
-      /* recompute hit */
-      valid = punched_shape_intersect_local(shape, org_local, dir_local,
-        hit->distance, hit_pos_local, seg->hit_normal, &seg->hit_distance);
-      if (!valid) return 1;
-      /* transform point to world */
-      d33_muld3(seg->hit_pos, R, hit_pos_local);
-      d3_add(seg->hit_pos, seg->hit_pos, T);
-      /* transform normal to world */
-      d33_muld3(seg->hit_normal, R_invtrans, seg->hit_normal);
-      break;
-    }
-    default: FATAL("Unreachable code.\n"); break;
-  }
-  d3_normalize(seg->hit_normal, seg->hit_normal);
+  /* Retrieve the intersected instance and shaded shape */
+  inst = *htable_instance_find(&rdata->scn->instances_rt, &hit->prim.inst_id);
+  id = *htable_shaded_shape_find(&inst->object->shaded_shapes_rt, &hit->prim.geom_id);
+  sshape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
 
   /* Discard self intersection */
-  seg->hit_front = d3_dot(seg->hit_normal, seg->dir) < 0;
-  if (seg->self_instance == inst && seg->self_front != seg->hit_front) {
+  switch(sshape->shape->type) {
+    case SHAPE_MESH:
+      if(S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from)) {
+        /* Discard self intersection for mesh, i.e. when the intersected
+         * primitive is the primitive from which the ray starts */
+        return 1;
+      } else {
+        /* No self intersection. Define which side of the primitive is hit.
+         * Note that incoming direction points inward the primitive */
+        hit_side = f3_dot(hit->normal, dirf) < 0 ? SSOL_FRONT : SSOL_BACK;
+      }
+      break;
+    case SHAPE_PUNCHED:
+      /* Project the hit position into the punched shape */
+      d3_set_f3(dir, dirf);
+      d3_set_f3(pos, posf);
+      dst = punched_shape_trace_ray(sshape->shape, inst->transform, pos, dir,
+        hit->distance, pos, N);
+      if(dst >= FLT_MAX) {
+        /* No projection is found => the ray does not intersect the quadric */
+        return 1;
+      } else if(inst == rdata->inst_from) {
+        /* If the intersected instance is the one from which the ray starts,
+         * ensure that the ray does not intersect the opposite side of the
+         * quadric */
+        hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
+        if(hit_side != rdata->side_from) {
+          return 1;
+        }
+      }
+    default: FATAL("Unreachable code.\n"); break;
+  }
+
+  /* Discard virtual material that are not receivers */
+  mtl = hit_side == SSOL_FRONT ? sshape->mtl_front : sshape->mtl_back;
+  if(!(inst->receiver_mask & (int)hit_side) && mtl->type == MATERIAL_VIRTUAL)
     return 1;
+
+  /* Save the nearest intersected quadric point */
+  if(sshape->shape->type == SHAPE_PUNCHED && rdata->dst >= dst) {
+    d3_set(rdata->N, N);
+    rdata->dst = dst;
   }
 
-  SSOL(instance_get_id(inst, &inst_id));
-  ASSERT(inst_id < INT32_MAX);
-  if(seg->hit_front) {
-    seg->hit_material = shaded_shape->mtl_front;
-    is_receiver = inst->receiver_mask & SSOL_FRONT;
-    receiver_id = (int32_t)inst_id;
-  } else {
-    d3_muld(seg->hit_normal, seg->hit_normal, -1);
-    seg->hit_material = shaded_shape->mtl_back;
-    is_receiver = inst->receiver_mask & SSOL_BACK;
-    receiver_id = -(int32_t)inst_id;
-  }
-
-  /* Check if the hit surface is a receiver that registers hit data
-   * impacts on receivers before sampled surfaces are not registered */
-  if (!seg->sun_segment && is_receiver) {
-    struct receiver_record candidate;
-    f3_set_d3(candidate.dir, seg->dir);
-    candidate.hit_distance = (float)seg->hit_distance;
-    f3_set_d3(candidate.hit_normal, seg->hit_normal);
-    f3_set_d3(candidate.hit_pos, seg->hit_pos);
-    candidate.instance = inst;
-    candidate.receiver_id = receiver_id;
-    f2_set(candidate.uv, seg->hit.uv);
-    darray_receiver_record_push_back(
-      &rs->data.receiver_record_candidates, &candidate);
-  }
-
-  if(seg->hit_material->type == MATERIAL_VIRTUAL) {
-    return 1; /* Discard virtual material */
-  }
-
-  seg->hit_instance = inst;
   return 0;
 }

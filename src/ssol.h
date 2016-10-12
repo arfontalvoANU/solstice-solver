@@ -58,7 +58,7 @@ struct ssol_spectrum;
 struct ssol_sun;
 struct ssol_estimator;
 
-enum ssol_face_flag {
+enum ssol_side_flag {
   SSOL_FRONT = BIT(0),
   SSOL_BACK = BIT(1)
 };

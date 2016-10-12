@@ -14,8 +14,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_sun_c.h"
 #include "ssol_device_c.h"
+#include "ssol_sun_c.h"
+#include "ssol_ranst_sun_dir.h"
+#include "ssol_ranst_sun_wl.h"
+#include "ssol_spectrum_c.h"
 
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
@@ -175,4 +178,62 @@ ssol_sun_set_buie_param
   sun->data.csr.ratio = ratio;
   return RES_OK;
 }
+
+/*******************************************************************************
+ * Local function
+ ******************************************************************************/
+res_T
+sun_create_distributions
+  (struct ssol_sun* sun,
+   struct ranst_sun_dir** out_ran_dir,
+   struct ranst_sun_wl** out_ran_wl)
+{
+  struct ranst_sun_dir* ran_dir = NULL;
+  struct ranst_sun_wl* ran_wl = NULL;
+  res_T res = RES_OK;
+  ASSERT(sun && out_ran_dir && out_ran_wl);
+
+  /* Create and setup the spectrum distribution */
+  res = ranst_sun_wl_create(sun->dev->allocator, &ran_wl);
+  if(res != RES_OK) goto error;
+  res = ranst_sun_wl_setup(ran_wl,
+    darray_double_cdata_get(&sun->spectrum->wavelengths),
+    darray_double_cdata_get(&sun->spectrum->intensities),
+    darray_double_size_get(&sun->spectrum->wavelengths));
+  if(res != RES_OK) goto error;
+
+  /* Create and setup the the direction distribution */
+  res = ranst_sun_dir_create(sun->dev->allocator, &ran_dir);
+  if(res != RES_OK) goto error;
+  switch(sun->type) {
+    case SUN_DIRECTIONAL:
+      res = ranst_sun_dir_dirac_setup(ran_dir, sun->direction);
+      break;
+    case SUN_PILLBOX:
+      res = ranst_sun_dir_pillbox_setup
+        (ran_dir, sun->data.pillbox.aperture, sun->direction);
+      break;
+    case SUN_BUIE:
+      res = ranst_sun_dir_buie_setup
+        (ran_dir, sun->data.csr.ratio, sun->direction);
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+
+exit:
+  *out_ran_dir = ran_dir;
+  *out_ran_wl = ran_wl;
+  return res;
+error:
+  if(ran_wl) {
+    CHECK(ranst_sun_wl_ref_put(ran_wl), RES_OK);
+    ran_wl = NULL;
+  }
+  if(ran_dir) {
+    CHECK(ranst_sun_dir_ref_put(ran_dir), RES_OK);
+    ran_dir = NULL;
+  }
+  goto exit;
+}
+
 
