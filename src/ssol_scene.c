@@ -414,6 +414,7 @@ hit_filter_function
           return 1;
         }
       }
+      break;
     default: FATAL("Unreachable code.\n"); break;
   }
 
