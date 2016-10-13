@@ -902,13 +902,13 @@ ssol_solve
     float range[2] = { 0, FLT_MAX };
     size_t id;
     int depth = 0;
+    int hit_a_receiver = 0;
 
     /* Sample a point into the scene view */
-    S3D(scene_view_sample(view_samp,
-      ssp_rng_canonical_float(rng),
-      ssp_rng_canonical_float(rng),
-      ssp_rng_canonical_float(rng),
-      &prim, uv));
+    const float r1 = ssp_rng_canonical_float(rng);
+    const float r2 = ssp_rng_canonical_float(rng);
+    const float r3 = ssp_rng_canonical_float(rng);
+    S3D(scene_view_sample(view_samp, r1, r2, r3, &prim, uv));
 
     /* Retrieve the position of the sampled point */
     S3D(primitive_get_attrib(&prim, S3D_POSITION, uv, &attr));
@@ -1001,6 +1001,7 @@ ssol_solve
           res = RES_IO_ERR;
           goto error;
         }
+        hit_a_receiver = 1;
       }
 
       if(mtl->type == MATERIAL_VIRTUAL) {
@@ -1071,7 +1072,7 @@ ssol_solve
       ray_data.side_from = cos_dir_N < 0 ? SSOL_FRONT : SSOL_BACK;
     }
 
-    if(depth == 0) {
+    if(!hit_a_receiver) {
       estimator->missing.weight += weight;
       estimator->missing.sqr_weight += weight*weight;
     }
