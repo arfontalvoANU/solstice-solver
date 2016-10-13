@@ -43,9 +43,203 @@
 
 #include <omp.h>
 
+struct point {
+  const struct ssol_instance* inst;
+  const struct shaded_shape* sshape;
+  struct s3d_primitive prim;
+  double N[3];
+  double pos[3];
+  double dir[3]; /* Incoming direction */
+  float uv[2];
+  double wl; /* Sampled wavelength */
+  double weight;
+  enum ssol_side_flag side;
+};
+
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static void
+point_init
+  (struct point* pt,
+   struct ssol_scene* scn,
+   const double sampled_area,
+   struct s3d_scene_view* view_samp,
+   struct ranst_sun_dir* ran_sun_dir,
+   struct ranst_sun_wl* ran_sun_wl,
+   struct ssp_rng* rng)
+{
+  struct s3d_attrib attr;
+  size_t id;
+
+  /* Sample a point into the scene view */
+  S3D(scene_view_sample
+    (view_samp,
+     ssp_rng_canonical_float(rng),
+     ssp_rng_canonical_float(rng),
+     ssp_rng_canonical_float(rng),
+     &pt->prim, pt->uv));
+
+  /* Retrieve the position of the sampled point */
+  S3D(primitive_get_attrib(&pt->prim, S3D_POSITION, pt->uv, &attr));
+  d3_set_f3(pt->pos, attr.value);
+
+  /* Retrieve the normal of the sampled point */
+  S3D(primitive_get_attrib(&pt->prim, S3D_GEOMETRY_NORMAL, pt->uv, &attr));
+  f3_normalize(attr.value, attr.value);
+  d3_set_f3(pt->N, attr.value);
+
+  /* Sample a sun direction */
+  ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
+
+  /* Initialise the Monte Carlo weight */
+  pt->weight = scn->sun->dni * sampled_area * fabs(d3_dot(pt->N, pt->dir));
+
+  /* Retrieve the sampled instance and shaded shape */
+  pt->inst = *htable_instance_find(&scn->instances_samp, &pt->prim.inst_id);
+  id = *htable_shaded_shape_find
+    (&pt->inst->object->shaded_shapes_samp, &pt->prim.geom_id);
+  pt->sshape = darray_shaded_shape_cdata_get
+    (&pt->inst->object->shaded_shapes) + id;
+
+  /* For punched surface, retrieve the sampled position and normal onto the
+   * quadric surface */
+  if(pt->sshape->shape->type == SHAPE_PUNCHED) {
+    punched_shape_project_point
+      (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, pt->N);
+  }
+
+  /* Sample a wavelength */
+  pt->wl = ranst_sun_wl_get(ran_sun_wl, rng);
+
+  /* Define the primitive side on which the point lies */
+  if(d3_dot(pt->N, pt->dir) < 0) {
+    pt->side = SSOL_FRONT;
+  } else {
+    pt->side = SSOL_BACK;
+    d3_minus(pt->N, pt->N);
+  }
+}
+
+static FINLINE void
+point_update_from_hit
+  (struct point* pt,
+   struct ssol_scene* scn, /* Scene into which the hit occurs */
+   const float org[3], /* Origin of the ray that generates the hit */
+   const float dir[3], /* Direction of the ray that generates the hit */
+   const struct s3d_hit* hit,
+   struct ray_data* rdata) /* Ray data used to generate the hit */
+{
+  double tmp[3];
+  float tmpf[3];
+  size_t id;
+
+  /* Retrieve the hit instance and shaded shape */
+  pt->inst = *htable_instance_find(&scn->instances_rt, &hit->prim.inst_id);
+  id = *htable_shaded_shape_find
+    (&pt->inst->object->shaded_shapes_rt, &hit->prim.geom_id);
+  pt->sshape = darray_shaded_shape_cdata_get
+    (&pt->inst->object->shaded_shapes) + id;
+
+  /* Fetch the current position and its associated normal */
+  switch(pt->sshape->shape->type) {
+    case SHAPE_MESH:
+      d3_set_f3(pt->N, hit->normal);
+      d3_normalize(pt->N, pt->N);
+      f3_mulf(tmpf, dir, hit->distance);
+      f3_add(tmpf, org, tmpf);
+      d3_set_f3(pt->pos, tmpf);
+      break;
+    case SHAPE_PUNCHED:
+      d3_normalize(pt->N, rdata->N);
+      d3_muld(tmp, pt->dir, rdata->dst);
+      d3_add(pt->pos, pt->pos, tmp);
+      break;
+    default: FATAL("Unreachable code"); break;
+  }
+
+  pt->prim = hit->prim;
+
+  /* Define the primitive side on which the point lies */
+  if(d3_dot(pt->dir, pt->N) < 0) {
+    pt->side = SSOL_FRONT;
+  } else {
+    pt->side = SSOL_BACK;
+    d3_minus(pt->N, pt->N);
+  }
+}
+
+static FINLINE struct ssol_material*
+point_get_material(const struct point* pt)
+{
+  return pt->side == SSOL_FRONT ? pt->sshape->mtl_front : pt->sshape->mtl_back;
+}
+
+static FINLINE res_T
+point_shade
+  (struct point* pt, struct ssf_bsdf* bsdf, struct ssp_rng* rng, double dir[3])
+{
+  struct surface_fragment frag;
+  double wi[3], pdf;
+  res_T res;
+
+  /* TODO ensure that if `prim' was sampled, then the surface fragment setup
+   * remains valid in *all* situations, i.e. even though the point primitive
+   * comes from a sampling operation */
+  surface_fragment_setup(&frag, pt->pos, pt->dir, pt->N, &pt->prim, pt->uv);
+
+  /* Shade the surface fragment */
+  SSF(bsdf_clear(bsdf));
+  res = material_shade(point_get_material(pt), &frag, pt->wl, bsdf);
+  if(res != RES_OK) return res;
+
+  /* By convention, Star-SF assumes that incoming and reflected
+   * directions point outward the surface => negate incoming dir */
+  d3_minus(wi, pt->dir);
+
+  pt->weight *= ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
+  return RES_OK;
+}
+
+static int
+point_receive_sunlight
+  (struct point* pt,
+   struct ssol_scene* scn,
+   struct s3d_scene_view* view_rt)
+{
+  struct ray_data ray_data = RAY_DATA_NULL;
+  struct s3d_hit hit;
+  float dir[3], pos[3], range[2] = { 0, FLT_MAX };
+
+  /* Initialise the ray data to avoid self intersection */
+  ray_data.scn = scn;
+  ray_data.prim_from = pt->prim;
+  ray_data.inst_from = pt->inst;
+  ray_data.side_from = pt->side;
+  ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
+  ray_data.dst = FLT_MAX;
+
+  /* Trace a ray toward the sun to check if the sampled point is occluded */
+  f3_minus(dir, f3_set_d3(dir, pt->dir));
+  f3_set_d3(pos, pt->pos);
+  S3D(scene_view_trace_ray(view_rt, pos, dir, range, &ray_data, &hit));
+  return S3D_HIT_NONE(&hit);
+}
+
+static FINLINE int
+point_is_receiver(const struct point* pt)
+{
+  return (pt->inst->receiver_mask & (int)pt->side) != 0;
+}
+
+static FINLINE int32_t
+point_get_id(const struct point* pt)
+{
+  uint32_t inst_id;
+  SSOL(instance_get_id(pt->inst, &inst_id));
+  return pt->side == SSOL_FRONT ? (int32_t)inst_id : -(int32_t)inst_id;
+}
+
 static FINLINE res_T
 check_scene(const struct ssol_scene* scene, const char* caller)
 {
@@ -148,25 +342,16 @@ ssol_solve
 
   #pragma omp parallel for schedule(static)
   for(i = 0; i < nrealisations; ++i) {
-    struct ssp_rng* rng;
-    struct s3d_attrib attr;
     struct s3d_hit hit;
-    struct s3d_primitive prim;
+    struct point pt;
+    struct ssp_rng* rng;
     struct ssf_bsdf* bsdf;
-    struct surface_fragment frag;
-    struct ssol_instance* inst;
-    struct ray_data ray_data = RAY_DATA_NULL;
     struct mc_data* shadow;
     struct mc_data* missing;
-    const struct shaded_shape* sshape;
-    double pos[3], dir[3], N[3], weight, cos_dir_N, wl;
-    float posf[3], dirf[3], uv[2];
-    float range[2] = { 0, FLT_MAX };
-    size_t id;
+    float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
-    int depth = 0;
+    size_t depth = 0;
     int hit_a_receiver = 0;
-    res_T res_local;
 
     if(ATOMIC_GET(&res) != RES_OK) continue; /* An error occurs */
 
@@ -176,102 +361,37 @@ ssol_solve
     shadow = mc_shadows + ithread;
     missing = mc_missings + ithread;
 
-    /* Sample a point into the scene view */
-    S3D(scene_view_sample
-      (view_samp,
-       ssp_rng_canonical_float(rng),
-       ssp_rng_canonical_float(rng),
-       ssp_rng_canonical_float(rng),
-       &prim, uv));
+    /* Find a new starting point of the radiative random walk */
+    point_init(&pt, scn, sampled_area, view_samp, ran_sun_dir, ran_sun_wl, rng);
 
-    /* Retrieve the position of the sampled point */
-    S3D(primitive_get_attrib(&prim, S3D_POSITION, uv, &attr));
-    d3_set_f3(pos, attr.value);
-
-    /* Retrieve the sampled instance and shaded shape */
-    inst = *htable_instance_find(&scn->instances_samp, &prim.inst_id);
-    id = *htable_shaded_shape_find(&inst->object->shaded_shapes_samp, &prim.geom_id);
-    sshape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
-
-    /* Fetch the sampled position and its associated normal */
-    S3D(primitive_get_attrib(&prim, S3D_GEOMETRY_NORMAL, uv, &attr));
-    f3_normalize(attr.value, attr.value);
-    d3_set_f3(N, attr.value);
-
-    /* Sample a sun direction */
-    ranst_sun_dir_get(ran_sun_dir, rng, dir);
-    cos_dir_N = d3_dot(N, dir);
-
-    /* Initialise the Monte Carlo weight */
-    weight = scn->sun->dni * sampled_area * fabs(cos_dir_N);
-
-    /* For punched surface, retrieve the sampled position and normal onto the
-     * quadric surface */
-    if(sshape->shape->type == SHAPE_PUNCHED) {
-      punched_shape_project_point(sshape->shape, inst->transform, pos, pos, N);
-      cos_dir_N = d3_dot(N, dir);
-    }
-
-    /* Initialise the ray data to avoid self intersection */
-    ray_data.scn = scn;
-    ray_data.prim_from = prim;
-    ray_data.inst_from = inst;
-    ray_data.side_from = cos_dir_N < 0 ? SSOL_FRONT : SSOL_BACK;
-    ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
-    ray_data.dst = FLT_MAX;
-
-    /* Trace a ray toward the sun to check if the sampled point is occluded */
-    f3_minus(dirf, f3_set_d3(dirf, dir));
-    f3_set_d3(posf, pos);
-    S3D(scene_view_trace_ray(view_rt, posf, dirf, range, &ray_data, &hit));
-    if(!S3D_HIT_NONE(&hit)) { /* First ray is occluded */
-      shadow->weight += weight;
-      shadow->sqr_weight += weight*weight;
+    /* Check that the starting point is visible from its incoming dir */
+    if(!point_receive_sunlight(&pt, scn, view_rt)) {
+      shadow->weight += pt.weight;
+      shadow->sqr_weight += pt.weight * pt.weight;
       continue;
     }
-    ray_data.discard_virtual_materials = 0;
 
-    /* Sample a wavelength */
-    wl = ranst_sun_wl_get(ran_sun_wl, rng);
+    /* Setup the next ray */
+    f3_set_d3(org, pt.pos);
+    f3_set_d3(dir, pt.dir);
 
     for(;;) { /* Here we go for the radiative random walk */
+      struct ray_data ray_data = RAY_DATA_NULL;
       struct ssol_material* mtl;
-      double tmp[3];
-      float tmpf[3];
-      double pdf;
-      uint32_t inst_id;
-      int32_t receiver_id;
-      int is_receiver;
 
-      if(cos_dir_N < 0) { /* Front face */
-        mtl = sshape->mtl_front;
-        is_receiver = inst->receiver_mask & SSOL_FRONT;
-        SSOL(instance_get_id(inst, &inst_id));
-        receiver_id = (int32_t)inst_id;
-        ray_data.side_from = SSOL_FRONT;
-
-      } else { /* Back face */
-        mtl = sshape->mtl_back;
-        is_receiver = inst->receiver_mask & SSOL_BACK;
-        SSOL(instance_get_id(inst, &inst_id));
-        receiver_id = -(int32_t)inst_id;
-        d3_minus(N, N);
-        ray_data.side_from = SSOL_BACK;
-      }
-
-      if(is_receiver) {
+      if(point_is_receiver(&pt)) {
         struct ssol_receiver_data out;
         size_t n;
         out.realization_id = i;
         out.date = 0; /* TODO */
         out.segment_id = (uint32_t)depth;
-        out.receiver_id = receiver_id;
-        out.wavelength = (float)wl;
-        f3_set_d3(out.pos, pos);
-        f3_set_d3(out.in_dir, dir);
-        f3_set_d3(out.normal, N);
-        f2_set(out.uv, uv);
-        out.weight = weight;
+        out.receiver_id = point_get_id(&pt);
+        out.wavelength = (float)pt.wl;
+        f3_set_d3(out.pos, pt.pos);
+        f3_set_d3(out.in_dir, pt.dir);
+        f3_set_d3(out.normal, pt.N);
+        f2_set(out.uv, pt.uv);
+        out.weight = pt.weight;
         n = fwrite(&out, sizeof(out), 1, output);
         if(n < 1) {
           ATOMIC_SET(&res, RES_IO_ERR);
@@ -280,82 +400,52 @@ ssol_solve
         hit_a_receiver = 1;
       }
 
+      mtl = point_get_material(&pt);
       if(mtl->type == MATERIAL_VIRTUAL) {
-        /* Note that for Virtual materials, the ray parameters 'posf' & 'dirf'
+        /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
          * are not updated to ensure that it pursues its traversal without any
          * accuracy issue */
         range[0] = nextafterf(hit.distance, FLT_MAX);
         range[1] = FLT_MAX;
       } else {
-        /* TODO ensure that if `prim' was sampled, then the surface fragment
-         * setup remains valid in *all* situations */
-        surface_fragment_setup(&frag, pos, dir, N, &prim, uv);
-
-        /* Shade the surface fragment */
-        SSF(bsdf_clear(bsdf));
-        res_local = material_shade(mtl, &frag, wl, bsdf);
-        if(res_local != RES_OK) { ATOMIC_SET(&res, res_local); break; }
-
-        /* By convention, Star-SF assumes that incoming and reflected
-         * directions point outward the surface => negate incoming dir */
-        d3_minus(dir, dir);
-
-        /* Sample the BSDF to find the next direction to trace */
-        weight *= ssf_bsdf_sample(bsdf, rng, dir, frag.Ns, dir, &pdf);
+        res_T res_local = point_shade(&pt, bsdf, rng, pt.dir);
+        if(res_local != RES_OK) {
+          ATOMIC_SET(&res, res_local);
+          break;
+        }
 
         /* Setup new ray parameters */
-        range[0] = 0;
-        range[1] = FLT_MAX;
-        f3_set_d3(posf, pos);
-        f3_set_d3(dirf, dir);
+        f2(range, 0, FLT_MAX);
+        f3_set_d3(org, pt.pos);
+        f3_set_d3(dir, pt.dir);
       }
 
       /* Trace the next ray */
-      ray_data.dst = FLT_MAX;
+      ray_data.scn = scn,
+      ray_data.prim_from = pt.prim;
+      ray_data.inst_from = pt.inst;
+      ray_data.side_from = pt.side;
+      ray_data.discard_virtual_materials = 0;
       ray_data.range_min = range[0];
-      S3D(scene_view_trace_ray(view_rt, posf, dirf, range, &ray_data, &hit));
+      ray_data.dst = FLT_MAX;
+      S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
       if(S3D_HIT_NONE(&hit)) break;
 
       depth += mtl->type != MATERIAL_VIRTUAL;
 
       /* Take into account the atmosphere attenuation along the new ray */
       if(scn->atmosphere) {
-        weight *= compute_atmosphere_attenuation
-          (scn->atmosphere, hit.distance, wl);
+        pt.weight *= compute_atmosphere_attenuation
+          (scn->atmosphere, hit.distance, pt.wl);
       }
 
-      /* Retrieve the hit instance and shaded shape */
-      inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
-      id = *htable_shaded_shape_find(&inst->object->shaded_shapes_rt, &hit.prim.geom_id);
-      sshape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
-
-      /* Fetch the current position and its associated normal */
-      switch(sshape->shape->type) {
-        case SHAPE_MESH:
-          f3_normalize(hit.normal, hit.normal);
-          d3_set_f3(N, hit.normal);
-          f3_mulf(tmpf, dirf, hit.distance);
-          f3_add(tmpf, posf, tmpf);
-          d3_set_f3(pos, tmpf);
-          break;
-        case SHAPE_PUNCHED:
-          d3_normalize(N, ray_data.N);
-          d3_muld(tmp, dir, ray_data.dst);
-          d3_add(pos, pos, tmp);
-          break;
-        default: FATAL("Unreachable code"); break;
-      }
-
-      /* Setup the ray data to avoid self intersection */
-      ray_data.prim_from = hit.prim;
-      ray_data.inst_from = inst;
-
-      cos_dir_N = d3_dot(dir, N);
+      /* Update the point */
+      point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
     }
 
     if(!hit_a_receiver) {
-      missing->weight += weight;
-      missing->sqr_weight += weight*weight;
+      missing->weight += pt.weight;
+      missing->sqr_weight += pt.weight*pt.weight;
     }
   }
 

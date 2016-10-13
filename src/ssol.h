@@ -502,7 +502,7 @@ ssol_instance_sample
 /* Retrieve the id of the shape */
 SSOL_API res_T
 ssol_instance_get_id
-  (struct ssol_instance* instance,
+  (const struct ssol_instance* instance,
    uint32_t* id);
 
 /*******************************************************************************

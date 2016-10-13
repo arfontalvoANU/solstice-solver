@@ -33,7 +33,7 @@
 struct ray_data {
   struct ssol_scene* scn; /* The scene into which the ray is traced */
   struct s3d_primitive prim_from; /* Primitive from which the ray starts */
-  struct ssol_instance* inst_from; /* Instance from which the ray starts */
+  const struct ssol_instance* inst_from; /* Instance from which the ray starts */
   enum  ssol_side_flag side_from; /* Primitive side from which the ray starts */
   int discard_virtual_materials; /* Define if virtual materials are not RT */
   float range_min;

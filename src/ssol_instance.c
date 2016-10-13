@@ -170,7 +170,7 @@ ssol_instance_sample
 }
 
 res_T
-ssol_instance_get_id(struct ssol_instance* instance, uint32_t* id)
+ssol_instance_get_id(const struct ssol_instance* instance, uint32_t* id)
 {
   unsigned u;
   STATIC_ASSERT
