@@ -22,11 +22,6 @@
 
 struct scpr_mesh;
 
-/* Declare the free list used to generate unique identifier */
-struct name { FITEM; };
-#define FITEM_TYPE name
-#include <rsys/free_list.h>
-
 struct ssol_device {
   struct logger* logger;
   struct mem_allocator* allocator;

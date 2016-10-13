@@ -36,9 +36,12 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
+#include <rsys/stretchy_array.h>
 
 #include <star/ssf.h>
 #include <star/ssp.h>
+
+#include <omp.h>
 
 /*******************************************************************************
  * Helper functions
@@ -82,7 +85,7 @@ check_scene(const struct ssol_scene* scene, const char* caller)
 res_T
 ssol_solve
   (struct ssol_scene* scn,
-   struct ssp_rng* rng,
+   struct ssp_rng* rng_state,
    const size_t nrealisations,
    FILE* output,
    struct ssol_estimator* estimator)
@@ -91,12 +94,16 @@ ssol_solve
   struct s3d_scene_view* view_samp = NULL;
   struct ranst_sun_dir* ran_sun_dir = NULL;
   struct ranst_sun_wl* ran_sun_wl = NULL;
-  struct ssf_bsdf* bsdf = NULL;
+  struct ssf_bsdf** bsdfs = NULL;
+  struct ssp_rng** rngs = NULL;
+  struct ssp_rng_proxy* rng_proxy = NULL;
+  struct mc_data* mc_shadows = NULL;
+  struct mc_data* mc_missings = NULL;
   float sampled_area;
   size_t i;
-  res_T res = RES_OK;
+  ATOMIC res = RES_OK;
 
-  if(!scn || !rng || !nrealisations || !output || !estimator) {
+  if(!scn || !rng_state || !nrealisations || !output || !estimator) {
     res = RES_BAD_ARG;
     goto error;
   }
@@ -111,31 +118,71 @@ ssol_solve
   if(res != RES_OK) goto error;
   S3D(scene_view_compute_area(view_samp, &sampled_area));
 
-  /* Create per thread data structures. TODO create as many of these structures
-   * as there are threads */
-  res = ssf_bsdf_create(scn->dev->allocator, &bsdf);
+  /* Create a RNG proxy from the submitted RNG state */
+  res = ssp_rng_proxy_create_from_rng
+    (scn->dev->allocator, rng_state, scn->dev->nthreads, &rng_proxy);
   if(res != RES_OK) goto error;
 
-  FOR_EACH(i, 0, nrealisations) {
+  /* Create per thread data structures */
+  #define CREATE(Data) {                                                       \
+    ASSERT(!(Data));                                                           \
+    if(!sa_add((Data), scn->dev->nthreads)) {                                  \
+      res = RES_BAD_ARG;                                                       \
+      goto error;                                                              \
+    }                                                                          \
+    memset((Data), 0, sizeof((Data)[0])*scn->dev->nthreads);                   \
+  } (void)0
+  CREATE(rngs);
+  CREATE(bsdfs);
+  CREATE(mc_shadows);
+  CREATE(mc_missings);
+  #undef CREATE
+
+  /* Setup per thread data structures */
+  FOR_EACH(i, 0, scn->dev->nthreads) {
+    res = ssf_bsdf_create(scn->dev->allocator, bsdfs+i);
+    if(res != RES_OK) goto error;
+    res = ssp_rng_proxy_create_rng(rng_proxy, i, rngs + i);
+    if(res != RES_OK) goto error;
+  }
+
+  #pragma omp parallel for schedule(static)
+  for(i = 0; i < nrealisations; ++i) {
+    struct ssp_rng* rng;
     struct s3d_attrib attr;
     struct s3d_hit hit;
     struct s3d_primitive prim;
+    struct ssf_bsdf* bsdf;
     struct surface_fragment frag;
     struct ssol_instance* inst;
-    const struct shaded_shape* sshape;
     struct ray_data ray_data = RAY_DATA_NULL;
+    struct mc_data* shadow;
+    struct mc_data* missing;
+    const struct shaded_shape* sshape;
     double pos[3], dir[3], N[3], weight, cos_dir_N, wl;
     float posf[3], dirf[3], uv[2];
     float range[2] = { 0, FLT_MAX };
     size_t id;
+    const int ithread = omp_get_thread_num();
     int depth = 0;
     int hit_a_receiver = 0;
+    res_T res_local;
+
+    if(ATOMIC_GET(&res) != RES_OK) continue; /* An error occurs */
+
+    /* Fetch per thread data */
+    rng = rngs[ithread];
+    bsdf = bsdfs[ithread];
+    shadow = mc_shadows + ithread;
+    missing = mc_missings + ithread;
 
     /* Sample a point into the scene view */
-    const float r1 = ssp_rng_canonical_float(rng);
-    const float r2 = ssp_rng_canonical_float(rng);
-    const float r3 = ssp_rng_canonical_float(rng);
-    S3D(scene_view_sample(view_samp, r1, r2, r3, &prim, uv));
+    S3D(scene_view_sample
+      (view_samp,
+       ssp_rng_canonical_float(rng),
+       ssp_rng_canonical_float(rng),
+       ssp_rng_canonical_float(rng),
+       &prim, uv));
 
     /* Retrieve the position of the sampled point */
     S3D(primitive_get_attrib(&prim, S3D_POSITION, uv, &attr));
@@ -170,25 +217,24 @@ ssol_solve
     ray_data.prim_from = prim;
     ray_data.inst_from = inst;
     ray_data.side_from = cos_dir_N < 0 ? SSOL_FRONT : SSOL_BACK;
-    ray_data.discard_virtual_materials = 1;
+    ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
+    ray_data.dst = FLT_MAX;
 
     /* Trace a ray toward the sun to check if the sampled point is occluded */
     f3_minus(dirf, f3_set_d3(dirf, dir));
     f3_set_d3(posf, pos);
-    ray_data.dst = FLT_MAX;
     S3D(scene_view_trace_ray(view_rt, posf, dirf, range, &ray_data, &hit));
     if(!S3D_HIT_NONE(&hit)) { /* First ray is occluded */
-      estimator->shadow.weight += weight;
-      estimator->shadow.sqr_weight += weight*weight;
+      shadow->weight += weight;
+      shadow->sqr_weight += weight*weight;
       continue;
     }
-    /* Virtual materials are discarded for primary rays only */
     ray_data.discard_virtual_materials = 0;
 
     /* Sample a wavelength */
     wl = ranst_sun_wl_get(ran_sun_wl, rng);
 
-    for(;;) {
+    for(;;) { /* Here we go for the radiative random walk */
       struct ssol_material* mtl;
       double tmp[3];
       float tmpf[3];
@@ -228,8 +274,8 @@ ssol_solve
         out.weight = weight;
         n = fwrite(&out, sizeof(out), 1, output);
         if(n < 1) {
-          res = RES_IO_ERR;
-          goto error;
+          ATOMIC_SET(&res, RES_IO_ERR);
+          break;
         }
         hit_a_receiver = 1;
       }
@@ -247,8 +293,8 @@ ssol_solve
 
         /* Shade the surface fragment */
         SSF(bsdf_clear(bsdf));
-        res = material_shade(mtl, &frag, wl, bsdf);
-        if(res != RES_OK) goto error;
+        res_local = material_shade(mtl, &frag, wl, bsdf);
+        if(res_local != RES_OK) { ATOMIC_SET(&res, res_local); break; }
 
         /* By convention, Star-SF assumes that incoming and reflected
          * directions point outward the surface => negate incoming dir */
@@ -270,7 +316,7 @@ ssol_solve
       S3D(scene_view_trace_ray(view_rt, posf, dirf, range, &ray_data, &hit));
       if(S3D_HIT_NONE(&hit)) break;
 
-      ++depth;
+      depth += mtl->type != MATERIAL_VIRTUAL;
 
       /* Take into account the atmosphere attenuation along the new ray */
       if(scn->atmosphere) {
@@ -308,9 +354,17 @@ ssol_solve
     }
 
     if(!hit_a_receiver) {
-      estimator->missing.weight += weight;
-      estimator->missing.sqr_weight += weight*weight;
+      missing->weight += weight;
+      missing->sqr_weight += weight*weight;
     }
+  }
+
+  /* Merge per thread estimations */
+  FOR_EACH(i, 0, scn->dev->nthreads) {
+    estimator->shadow.weight += mc_shadows[i].weight;
+    estimator->shadow.sqr_weight += mc_shadows[i].sqr_weight;
+    estimator->missing.weight += mc_missings[i].weight;
+    estimator->missing.sqr_weight += mc_missings[i].sqr_weight;
   }
   estimator->realisation_count += nrealisations;
 
@@ -319,8 +373,18 @@ exit:
   if(view_samp) S3D(scene_view_ref_put(view_samp));
   if(ran_sun_dir) ranst_sun_dir_ref_put(ran_sun_dir);
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
-  if(bsdf) SSF(bsdf_ref_put(bsdf));
-  return res;
+  if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
+  if(bsdfs) {
+    FOR_EACH(i, 0, scn->dev->nthreads) if(bsdfs[i]) SSF(bsdf_ref_put(bsdfs[i]));
+    sa_release(bsdfs);
+  }
+  if(rngs) {
+    FOR_EACH(i, 0, scn->dev->nthreads) if(rngs[i]) SSP(rng_ref_put(rngs[i]));
+    sa_release(rngs);
+  }
+  sa_release(mc_shadows);
+  sa_release(mc_missings);
+  return (res_T)res;
 error:
   goto exit;
 }

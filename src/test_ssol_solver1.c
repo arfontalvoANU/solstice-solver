@@ -217,7 +217,7 @@ main(int argc, char** argv)
   CHECK(status.Nf, fcount);
   CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, status.SE), 1);
+  CHECK(eq_eps(status.E, m, 2*status.SE), 1);
   CHECK(status.N, count);
   CHECK(status.Nf, fcount);
 
