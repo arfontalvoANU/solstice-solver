@@ -683,14 +683,19 @@ quadric_parabol_intersect_local
    double* dist) /* in/out: */
 {
   /* Define x^2 + y^2 - 4 focal z = 0 */
+  double dst;
   const double a = dir[0] * dir[0] + dir[1] * dir[1];
   const double b =
     2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
-  const int sol = quadric_solve_second(a, b, c, hint, dist);
+  const int sol = quadric_solve_second(a, b, c, hint, &dst);
+  double tmp[3];
+
   if(!sol) return 0;
-  d3_add(pt, org, d3_muld(pt, dir, *dist));
-  quadric_parabol_gradient_local(quad, pt, grad);
+  d3_add(tmp, org, d3_muld(tmp, dir, dst));
+  quadric_parabol_gradient_local(quad, tmp, grad);
+  d3_set(pt, tmp);
+  *dist = dst;
   return 1;
 }
 

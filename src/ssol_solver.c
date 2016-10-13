@@ -897,7 +897,7 @@ ssol_solve
     struct ssol_instance* inst;
     const struct shaded_shape* sshape;
     struct ray_data ray_data = RAY_DATA_NULL;
-    double pos[3], dir[3], N[3], tmp[3], weight, cos_dir_N, wl;
+    double pos[3], dir[3], N[3], weight, cos_dir_N, wl;
     float posf[3], dirf[3], uv[2];
     float range[2] = { 0, FLT_MAX };
     size_t id;
@@ -912,30 +912,31 @@ ssol_solve
 
     /* Retrieve the position of the sampled point */
     S3D(primitive_get_attrib(&prim, S3D_POSITION, uv, &attr));
-    f3_set(posf, attr.value);
+    d3_set_f3(pos, attr.value);
 
     /* Retrieve the sampled instance and shaded shape */
     inst = *htable_instance_find(&scn->instances_samp, &prim.inst_id);
     id = *htable_shaded_shape_find(&inst->object->shaded_shapes_samp, &prim.geom_id);
     sshape = darray_shaded_shape_cdata_get(&inst->object->shaded_shapes)+id;
 
-    /* Fetch the current position and its associated normal */
-    d3_set_f3(pos, posf);
-    switch(sshape->shape->type) {
-      case SHAPE_MESH:
-        S3D(primitive_get_attrib(&prim, S3D_GEOMETRY_NORMAL, uv, &attr));
-        f3_normalize(attr.value, attr.value);
-        d3_set_f3(N, attr.value);
-        break;
-      case SHAPE_PUNCHED:
-        punched_shape_project_point(sshape->shape, inst->transform, pos, pos, N);
-        break;
-      default: FATAL("Unreachable code"); break;
-    }
+    /* Fetch the sampled position and its associated normal */
+    S3D(primitive_get_attrib(&prim, S3D_GEOMETRY_NORMAL, uv, &attr));
+    f3_normalize(attr.value, attr.value);
+    d3_set_f3(N, attr.value);
 
     /* Sample a sun direction */
     ranst_sun_dir_get(ran_sun_dir, rng, dir);
     cos_dir_N = d3_dot(N, dir);
+
+    /* Initialise the Monte Carlo weight */
+    weight = scn->sun->dni * sampled_area * fabs(cos_dir_N);
+
+    /* For punched surface, retrieve the sampled position and normal onto the
+     * quadric surface */
+    if(sshape->shape->type == SHAPE_PUNCHED) {
+      punched_shape_project_point(sshape->shape, inst->transform, pos, pos, N);
+      cos_dir_N = d3_dot(N, dir);
+    }
 
     /* Initialise the ray data to avoid self intersection */
     ray_data.scn = scn;
@@ -946,6 +947,7 @@ ssol_solve
 
     /* Trace a ray toward the sun to check if the sampled point is occluded */
     f3_minus(dirf, f3_set_d3(dirf, dir));
+    f3_set_d3(posf, pos);
     ray_data.dst = FLT_MAX;
     S3D(scene_view_trace_ray(view_rt, posf, dirf, range, &ray_data, &hit));
     if(!S3D_HIT_NONE(&hit)) { /* First ray is occluded */
@@ -959,11 +961,10 @@ ssol_solve
     /* Sample a wavelength */
     wl = ranst_sun_wl_get(ran_sun_wl, rng);
 
-    /* Initialise the integration weight */
-    weight = scn->sun->dni * sampled_area * fabs(cos_dir_N);
-
     for(;;) {
       struct ssol_material* mtl;
+      double tmp[3];
+      float tmpf[3];
       double pdf;
       uint32_t inst_id;
       int32_t receiver_id;
@@ -974,6 +975,7 @@ ssol_solve
         is_receiver = inst->receiver_mask & SSOL_FRONT;
         SSOL(instance_get_id(inst, &inst_id));
         receiver_id = (int32_t)inst_id;
+        ray_data.side_from = SSOL_FRONT;
 
       } else { /* Back face */
         mtl = sshape->mtl_back;
@@ -981,6 +983,7 @@ ssol_solve
         SSOL(instance_get_id(inst, &inst_id));
         receiver_id = -(int32_t)inst_id;
         d3_minus(N, N);
+        ray_data.side_from = SSOL_BACK;
       }
 
       if(is_receiver) {
@@ -1005,6 +1008,9 @@ ssol_solve
       }
 
       if(mtl->type == MATERIAL_VIRTUAL) {
+        /* Note that for Virtual materials, the ray parameters 'posf' & 'dirf'
+         * are not updated to ensure that it pursues its traversal without any
+         * accuracy issue */
         range[0] = nextafterf(hit.distance, FLT_MAX);
         range[1] = FLT_MAX;
       } else {
@@ -1024,20 +1030,22 @@ ssol_solve
         /* Sample the BSDF to find the next direction to trace */
         weight *= ssf_bsdf_sample(bsdf, rng, dir, frag.Ns, dir, &pdf);
 
+        /* Setup new ray parameters */
         range[0] = 0;
         range[1] = FLT_MAX;
+        f3_set_d3(posf, pos);
+        f3_set_d3(dirf, dir);
       }
 
       /* Trace the next ray */
       ray_data.dst = FLT_MAX;
-      f3_set_d3(dirf, dir);
-      f3_set_d3(posf, pos);
+      ray_data.range_min = range[0];
       S3D(scene_view_trace_ray(view_rt, posf, dirf, range, &ray_data, &hit));
       if(S3D_HIT_NONE(&hit)) break;
 
       ++depth;
 
-      /* Take into account the atomosphere attenuation along the new ray */
+      /* Take into account the atmosphere attenuation along the new ray */
       if(scn->atmosphere) {
         weight *= compute_atmosphere_attenuation
           (scn->atmosphere, hit.distance, wl);
@@ -1053,9 +1061,9 @@ ssol_solve
         case SHAPE_MESH:
           f3_normalize(hit.normal, hit.normal);
           d3_set_f3(N, hit.normal);
-          f3_mulf(dirf, dirf, hit.distance);
-          f3_add(posf, posf, dirf);
-          d3_set_f3(pos, posf);
+          f3_mulf(tmpf, dirf, hit.distance);
+          f3_add(tmpf, posf, tmpf);
+          d3_set_f3(pos, tmpf);
           break;
         case SHAPE_PUNCHED:
           d3_normalize(N, ray_data.N);
@@ -1064,12 +1072,12 @@ ssol_solve
           break;
         default: FATAL("Unreachable code"); break;
       }
-      cos_dir_N = d3_dot(dir, N);
 
       /* Setup the ray data to avoid self intersection */
       ray_data.prim_from = hit.prim;
       ray_data.inst_from = inst;
-      ray_data.side_from = cos_dir_N < 0 ? SSOL_FRONT : SSOL_BACK;
+
+      cos_dir_N = d3_dot(dir, N);
     }
 
     if(!hit_a_receiver) {

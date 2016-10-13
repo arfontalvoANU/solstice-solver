@@ -44,6 +44,7 @@ struct ray_data {
   struct ssol_instance* inst_from; /* Instance from which the ray starts */
   enum  ssol_side_flag side_from; /* Primitive side from which the ray starts */
   int discard_virtual_materials; /* Define if virtual materials are not RT */
+  float range_min;
 
   /* Output data */
   double N[3];
@@ -51,7 +52,7 @@ struct ray_data {
 };
 
 static const struct ray_data RAY_DATA_NULL = {
-  NULL, S3D_PRIMITIVE_NULL__, NULL, 0, 0, {NaN, NaN, NaN}, NaN
+  NULL, S3D_PRIMITIVE_NULL__, NULL, 0, 0, 0, {NaN, NaN, NaN}, NaN
 };
 
 

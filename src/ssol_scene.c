@@ -368,7 +368,7 @@ hit_filter_function
   struct ssol_material* mtl;
   struct ray_data* rdata = ray_data;
   const struct shaded_shape* sshape;
-  enum ssol_side_flag hit_side;
+  enum ssol_side_flag hit_side = 3;
   double pos[3], dir[3], N[3], dst = FLT_MAX;
   size_t id;
   (void)filter_data;
@@ -386,6 +386,7 @@ hit_filter_function
   switch(sshape->shape->type) {
     case SHAPE_MESH:
       if(hit->distance <= 1.e-6 /* FIXME hack */
+      || hit->distance <= rdata->range_min
       || S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from)) {
         /* Discard self intersection for mesh, i.e. when the intersected
          * primitive is the primitive from which the ray starts */
@@ -405,13 +406,16 @@ hit_filter_function
       if(dst >= FLT_MAX) {
         /* No projection is found => the ray does not intersect the quadric */
         return 1;
-      } else if(inst == rdata->inst_from) {
-        /* If the intersected instance is the one from which the ray starts,
-         * ensure that the ray does not intersect the opposite side of the
-         * quadric */
+      } else {
         hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
-        if(hit_side != rdata->side_from) {
-          return 1;
+        if(inst == rdata->inst_from) {
+          /* If the intersected instance is the one from which the ray starts,
+           * ensure that the ray does not intersect the opposite side of the
+           * quadric */
+          hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
+          if(hit_side != rdata->side_from) {
+            return 1;
+          }
         }
       }
       break;
