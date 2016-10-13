@@ -19,6 +19,7 @@
 #include "ssol.h"
 #include "ssol_instance_c.h"
 
+#include <rsys/math.h>
 #include <star/s3d.h>
 
 #include <math.h>
@@ -38,14 +39,19 @@
 #endif
 
 struct ray_data {
-  struct ssol_scene* scn;
-  struct s3d_primitive prim_from;
-  struct ssol_instance* inst_from;
-  enum  ssol_side_flag side_from;
+  struct ssol_scene* scn; /* The scene into which the ray is traced */
+  struct s3d_primitive prim_from; /* Primitive from which the ray starts */
+  struct ssol_instance* inst_from; /* Instance from which the ray starts */
+  enum  ssol_side_flag side_from; /* Primitive side from which the ray starts */
+  int discard_virtual_materials; /* Define if virtual materials are not RT */
 
   /* Output data */
   double N[3];
   double dst;
+};
+
+static const struct ray_data RAY_DATA_NULL = {
+  NULL, S3D_PRIMITIVE_NULL__, NULL, 0, 0, {NaN, NaN, NaN}, NaN
 };
 
 

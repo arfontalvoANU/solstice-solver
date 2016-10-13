@@ -896,7 +896,7 @@ ssol_solve
     struct surface_fragment frag;
     struct ssol_instance* inst;
     const struct shaded_shape* sshape;
-    struct ray_data ray_data;
+    struct ray_data ray_data = RAY_DATA_NULL;
     double pos[3], dir[3], N[3], tmp[3], weight, cos_dir_N, wl;
     float posf[3], dirf[3], uv[2];
     float range[2] = { 0, FLT_MAX };
@@ -942,6 +942,7 @@ ssol_solve
     ray_data.prim_from = prim;
     ray_data.inst_from = inst;
     ray_data.side_from = cos_dir_N < 0 ? SSOL_FRONT : SSOL_BACK;
+    ray_data.discard_virtual_materials = 1;
 
     /* Trace a ray toward the sun to check if the sampled point is occluded */
     f3_minus(dirf, f3_set_d3(dirf, dir));
@@ -952,6 +953,8 @@ ssol_solve
       estimator->shadow.sqr_weight += weight*weight;
       continue;
     }
+    /* Virtual materials are discarded for primary rays only */
+    ray_data.discard_virtual_materials = 0;
 
     /* Sample a wavelength */
     wl = ranst_sun_wl_get(ran_sun_wl, rng);

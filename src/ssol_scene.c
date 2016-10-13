@@ -418,10 +418,13 @@ hit_filter_function
     default: FATAL("Unreachable code.\n"); break;
   }
 
-  /* Discard virtual material that are not receivers */
   mtl = hit_side == SSOL_FRONT ? sshape->mtl_front : sshape->mtl_back;
-  if(!(inst->receiver_mask & (int)hit_side) && mtl->type == MATERIAL_VIRTUAL)
-    return 1;
+  if(mtl->type == MATERIAL_VIRTUAL) {
+    /* Discard all virtual materials */
+    if(rdata->discard_virtual_materials) return 1;
+    /* Discard virtual material that are not receivers */
+    if((inst->receiver_mask&(int)hit_side) == 0) return 1;
+  }
 
   /* Save the nearest intersected quadric point */
   if(sshape->shape->type == SHAPE_PUNCHED && rdata->dst >= dst) {
