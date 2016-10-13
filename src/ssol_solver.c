@@ -49,7 +49,7 @@ struct point {
   struct s3d_primitive prim;
   double N[3];
   double pos[3];
-  double dir[3]; /* Incoming direction */
+  double dir[3];
   float uv[2];
   double wl; /* Sampled wavelength */
   double weight;
@@ -59,17 +59,22 @@ struct point {
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
-static void
+/* Return 1 if the returned point is lit by the sun and 0 otherwise */
+static int
 point_init
   (struct point* pt,
    struct ssol_scene* scn,
    const double sampled_area,
    struct s3d_scene_view* view_samp,
+   struct s3d_scene_view* view_rt,
    struct ranst_sun_dir* ran_sun_dir,
    struct ranst_sun_wl* ran_sun_wl,
    struct ssp_rng* rng)
 {
   struct s3d_attrib attr;
+  struct s3d_hit hit;
+  struct ray_data ray_data = RAY_DATA_NULL;
+  float dir[3], pos[3], range[2] = { 0, FLT_MAX };
   size_t id;
 
   /* Sample a point into the scene view */
@@ -109,9 +114,6 @@ point_init
       (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, pt->N);
   }
 
-  /* Sample a wavelength */
-  pt->wl = ranst_sun_wl_get(ran_sun_wl, rng);
-
   /* Define the primitive side on which the point lies */
   if(d3_dot(pt->N, pt->dir) < 0) {
     pt->side = SSOL_FRONT;
@@ -119,6 +121,24 @@ point_init
     pt->side = SSOL_BACK;
     d3_minus(pt->N, pt->N);
   }
+
+  /* Initialise the ray data to avoid self intersection */
+  ray_data.scn = scn;
+  ray_data.prim_from = pt->prim;
+  ray_data.inst_from = pt->inst;
+  ray_data.side_from = pt->side;
+  ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
+  ray_data.dst = FLT_MAX;
+
+  /* Trace a ray toward the sun to check if the sampled point is occluded */
+  f3_minus(dir, f3_set_d3(dir, pt->dir));
+  f3_set_d3(pos, pt->pos);
+  S3D(scene_view_trace_ray(view_rt, pos, dir, range, &ray_data, &hit));
+  if(!S3D_HIT_NONE(&hit)) return 0;
+
+  /* Sample a wavelength */
+  pt->wl = ranst_sun_wl_get(ran_sun_wl, rng);
+  return 1;
 }
 
 static FINLINE void
@@ -199,31 +219,6 @@ point_shade
 
   pt->weight *= ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
   return RES_OK;
-}
-
-static int
-point_receive_sunlight
-  (struct point* pt,
-   struct ssol_scene* scn,
-   struct s3d_scene_view* view_rt)
-{
-  struct ray_data ray_data = RAY_DATA_NULL;
-  struct s3d_hit hit;
-  float dir[3], pos[3], range[2] = { 0, FLT_MAX };
-
-  /* Initialise the ray data to avoid self intersection */
-  ray_data.scn = scn;
-  ray_data.prim_from = pt->prim;
-  ray_data.inst_from = pt->inst;
-  ray_data.side_from = pt->side;
-  ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
-  ray_data.dst = FLT_MAX;
-
-  /* Trace a ray toward the sun to check if the sampled point is occluded */
-  f3_minus(dir, f3_set_d3(dir, pt->dir));
-  f3_set_d3(pos, pt->pos);
-  S3D(scene_view_trace_ray(view_rt, pos, dir, range, &ray_data, &hit));
-  return S3D_HIT_NONE(&hit);
 }
 
 static FINLINE int
@@ -351,6 +346,7 @@ ssol_solve
     float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
     size_t depth = 0;
+    int is_lit;
     int hit_a_receiver = 0;
 
     if(ATOMIC_GET(&res) != RES_OK) continue; /* An error occurs */
@@ -362,16 +358,17 @@ ssol_solve
     missing = mc_missings + ithread;
 
     /* Find a new starting point of the radiative random walk */
-    point_init(&pt, scn, sampled_area, view_samp, ran_sun_dir, ran_sun_wl, rng);
+    is_lit = point_init(&pt, scn, sampled_area, view_samp, view_rt,
+      ran_sun_dir, ran_sun_wl, rng);
 
-    /* Check that the starting point is visible from its incoming dir */
-    if(!point_receive_sunlight(&pt, scn, view_rt)) {
+    if(!is_lit) { /* The starting point is not lit */
       shadow->weight += pt.weight;
       shadow->sqr_weight += pt.weight * pt.weight;
       continue;
     }
 
-    /* Setup the next ray */
+    /* Setup the ray as if it starts from the curreunt point position in order to handle
+     * the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
     f3_set_d3(dir, pt.dir);
 
@@ -408,6 +405,8 @@ ssol_solve
         range[0] = nextafterf(hit.distance, FLT_MAX);
         range[1] = FLT_MAX;
       } else {
+        /* Modulate the point weight wrt to its scattering functions and
+         * generate an outgoing direction */
         res_T res_local = point_shade(&pt, bsdf, rng, pt.dir);
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);

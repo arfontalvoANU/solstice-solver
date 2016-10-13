@@ -192,7 +192,7 @@ main(int argc, char** argv)
 
   /* can sample any geometry; variance is high */
   NCHECK(tmp = tmpfile(), 0);
-#define N__ 100000
+#define N__ 10000
   CHECK(ssol_estimator_clear(estimator), RES_OK);
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
