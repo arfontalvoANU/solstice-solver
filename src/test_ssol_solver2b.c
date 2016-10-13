@@ -32,8 +32,6 @@
 #define HALF_Y 1
 #include "test_ssol_rect2D_geometry.h"
 
-#include "ssol_solver_c.h"
-
 #include <rsys/logger.h>
 #include <rsys/double33.h>
 

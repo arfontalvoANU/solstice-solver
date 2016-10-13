@@ -22,8 +22,6 @@
 #define PLANE_NAME SQUARE
 #include "test_ssol_rect_geometry.h"
 
-#include "ssol_solver_c.h"
-
 #include <rsys/logger.h>
 #include <rsys/double33.h>
 

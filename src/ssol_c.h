@@ -24,20 +24,12 @@
 
 #include <math.h>
 
+/* Map from SSOL attributes to Star-3D ones */
 #define SSOL_TO_S3D_POSITION S3D_POSITION
 #define SSOL_TO_S3D_NORMAL S3D_ATTRIB_0
 #define SSOL_TO_S3D_TEXCOORD S3D_ATTRIB_1
 
-#ifndef NDEBUG
-  #define ASSERT_NAN(x, sz) {                                                  \
-    int i__;                                                                   \
-    FOR_EACH(i__, 0, sz)                                                       \
-      ASSERT(!IS_NaN((x)[i__]));                                               \
-  } (void)0
-#else
-  #define ASSERT_NAN(x, sz)
-#endif
-
+/* Data sent to the Star-3D filter function */
 struct ray_data {
   struct ssol_scene* scn; /* The scene into which the ray is traced */
   struct s3d_primitive prim_from; /* Primitive from which the ray starts */
@@ -47,8 +39,8 @@ struct ray_data {
   float range_min;
 
   /* Output data */
-  double N[3];
-  double dst;
+  double N[3]; /* Normal of the nearest punched surface point */
+  double dst; /* Hit distance of the nearest punced surface point */
 };
 
 static const struct ray_data RAY_DATA_NULL = {

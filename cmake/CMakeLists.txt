@@ -85,7 +85,6 @@ set(SSOL_FILES_INC
   ssol_scene_c.h
   ssol_shape_c.h
   ssol_spectrum_c.h
-  ssol_solver_c.h
   ssol_sun_c.h)
 
 set(SSOL_FILES_DOC COPYING README.md)

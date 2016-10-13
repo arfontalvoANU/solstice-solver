@@ -17,7 +17,6 @@
 #include "ssol_c.h"
 #include "ssol_atmosphere_c.h"
 #include "ssol_scene_c.h"
-#include "ssol_solver_c.h"
 #include "ssol_sun_c.h"
 #include "ssol_device_c.h"
 #include "ssol_material_c.h"
@@ -30,7 +29,7 @@
 #include <rsys/rsys.h>
 #include <rsys/float2.h>
 #include <rsys/float3.h>
-#include <rsys/double33.h>
+#include <rsys/double3.h>
 
 /*******************************************************************************
  * Helper functions
@@ -438,3 +437,4 @@ hit_filter_function
 
   return 0;
 }
+
