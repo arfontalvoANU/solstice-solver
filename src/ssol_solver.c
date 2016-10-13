@@ -313,7 +313,8 @@ ssol_solve
   struct mc_data* mc_shadows = NULL;
   struct mc_data* mc_missings = NULL;
   float sampled_area;
-  size_t i;
+  int nthreads = 0;
+  int i;
   ATOMIC res = RES_OK;
 
   if(!scn || !rng_state || !nrealisations || !output || !estimator) {
@@ -352,7 +353,8 @@ ssol_solve
   #undef CREATE
 
   /* Setup per thread data structures */
-  FOR_EACH(i, 0, scn->dev->nthreads) {
+  nthreads = (int)scn->dev->nthreads;
+  FOR_EACH(i, 0, nthreads) {
     res = ssf_bsdf_create(scn->dev->allocator, bsdfs+i);
     if(res != RES_OK) goto error;
     res = ssp_rng_proxy_create_rng(rng_proxy, i, rngs + i);
@@ -361,7 +363,7 @@ ssol_solve
 
   #pragma omp parallel for schedule(static)
   for(i = 0; i < nrealisations; ++i) {
-    struct s3d_hit hit;
+    struct s3d_hit hit = S3D_HIT_NULL;
     struct point pt;
     struct ssp_rng* rng;
     struct ssf_bsdf* bsdf;
@@ -395,6 +397,7 @@ ssol_solve
      * the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
     f3_set_d3(dir, pt.dir);
+    hit.distance = 0;
 
     for(;;) { /* Here we go for the radiative random walk */
       struct ray_data ray_data = RAY_DATA_NULL;
@@ -461,7 +464,7 @@ ssol_solve
   }
 
   /* Merge per thread estimations */
-  FOR_EACH(i, 0, scn->dev->nthreads) {
+  FOR_EACH(i, 0, nthreads) {
     estimator->shadow.weight += mc_shadows[i].weight;
     estimator->shadow.sqr_weight += mc_shadows[i].sqr_weight;
     estimator->missing.weight += mc_missings[i].weight;
@@ -476,11 +479,11 @@ exit:
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
   if(bsdfs) {
-    FOR_EACH(i, 0, scn->dev->nthreads) if(bsdfs[i]) SSF(bsdf_ref_put(bsdfs[i]));
+    FOR_EACH(i, 0, nthreads) if(bsdfs[i]) SSF(bsdf_ref_put(bsdfs[i]));
     sa_release(bsdfs);
   }
   if(rngs) {
-    FOR_EACH(i, 0, scn->dev->nthreads) if(rngs[i]) SSP(rng_ref_put(rngs[i]));
+    FOR_EACH(i, 0, nthreads) if(rngs[i]) SSP(rng_ref_put(rngs[i]));
     sa_release(rngs);
   }
   sa_release(mc_shadows);
