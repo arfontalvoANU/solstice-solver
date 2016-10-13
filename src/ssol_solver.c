@@ -236,6 +236,30 @@ point_get_id(const struct point* pt)
 }
 
 static FINLINE res_T
+point_dump
+  (const struct point* pt,
+   const size_t irealisation,
+   const size_t isegment,
+   FILE* stream)
+{
+  struct ssol_receiver_data out;
+  size_t n;
+
+  out.realization_id = irealisation;
+  out.date = 0; /* TODO */
+  out.segment_id = (uint32_t)isegment;
+  out.receiver_id = point_get_id(pt);
+  out.wavelength = (float)pt->wl;
+  f3_set_d3(out.pos, pt->pos);
+  f3_set_d3(out.in_dir, pt->dir);
+  f3_set_d3(out.normal, pt->N);
+  f2_set(out.uv, pt->uv);
+  out.weight = pt->weight;
+  n = fwrite(&out, sizeof(out), 1, stream);
+  return n != 1 ? RES_IO_ERR : RES_OK;
+}
+
+static FINLINE res_T
 check_scene(const struct ssol_scene* scene, const char* caller)
 {
   ASSERT(scene && caller);
@@ -377,21 +401,9 @@ ssol_solve
       struct ssol_material* mtl;
 
       if(point_is_receiver(&pt)) {
-        struct ssol_receiver_data out;
-        size_t n;
-        out.realization_id = i;
-        out.date = 0; /* TODO */
-        out.segment_id = (uint32_t)depth;
-        out.receiver_id = point_get_id(&pt);
-        out.wavelength = (float)pt.wl;
-        f3_set_d3(out.pos, pt.pos);
-        f3_set_d3(out.in_dir, pt.dir);
-        f3_set_d3(out.normal, pt.N);
-        f2_set(out.uv, pt.uv);
-        out.weight = pt.weight;
-        n = fwrite(&out, sizeof(out), 1, output);
-        if(n < 1) {
-          ATOMIC_SET(&res, RES_IO_ERR);
+        const res_T res_local = point_dump(&pt, i, depth, output);
+        if(res_local != RES_OK) {
+          ATOMIC_SET(&res, res_local);
           break;
         }
         hit_a_receiver = 1;
