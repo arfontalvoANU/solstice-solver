@@ -1,17 +1,17 @@
 /* Copyright (C) CNRS 2016
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>. */
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "ssol_atmosphere_c.h"
@@ -23,8 +23,8 @@
 #include <rsys/ref_count.h>
 
 /*******************************************************************************
-* Helper functions
-******************************************************************************/
+ * Helper functions
+ ******************************************************************************/
 static void
 atmosphere_release(ref_T* ref)
 {
@@ -34,41 +34,19 @@ atmosphere_release(ref_T* ref)
   dev = atmosphere->dev;
   ASSERT(dev && dev->allocator);
   switch (atmosphere->type) {
-  case ATMOS_UNIFORM:
-    if (atmosphere->data.uniform.spectrum)
-      SSOL(spectrum_ref_put(atmosphere->data.uniform.spectrum));
-    break;
-  default: FATAL("Unreachable code\n"); break;
+    case ATMOS_UNIFORM:
+      if (atmosphere->data.uniform.spectrum)
+        SSOL(spectrum_ref_put(atmosphere->data.uniform.spectrum));
+      break;
+    default: FATAL("Unreachable code\n"); break;
   }
   MEM_RM(dev->allocator, atmosphere);
   SSOL(device_ref_put(dev));
 }
 
 /*******************************************************************************
-* Exported ssol_atmosphere functions
+ * Exported ssol_atmosphere functions
 ******************************************************************************/
-double
-compute_atmosphere_attenuation
-  (const struct ssol_atmosphere* atmosphere,
-   const double distance,
-   const double wavelength)
-{
-  double ka;
-  const struct ssol_spectrum* spectrum;
-  if (!atmosphere)
-    return 1;
-
-  ASSERT(distance >= 0 && wavelength >= 0);
-  switch (atmosphere->type) {
-  case ATMOS_UNIFORM:
-    spectrum = atmosphere->data.uniform.spectrum;
-    ka = spectrum_interpolate(spectrum, wavelength);
-    break;
-  default: FATAL("Unreachable code\n"); break;
-  }
-  return exp(-ka * distance);
-}
-
 res_T
 ssol_atmosphere_create_uniform
   (struct ssol_device* dev,
@@ -140,3 +118,29 @@ ssol_atmosphere_set_uniform_absorption
   uni->spectrum = spectrum;
   return RES_OK;
 }
+
+/*******************************************************************************
+ * Local functions
+ ******************************************************************************/
+double
+compute_atmosphere_attenuation
+  (const struct ssol_atmosphere* atmosphere,
+   const double distance,
+   const double wavelength)
+{
+  double ka;
+  const struct ssol_spectrum* spectrum;
+  if (!atmosphere)
+    return 1;
+
+  ASSERT(distance >= 0 && wavelength >= 0);
+  switch (atmosphere->type) {
+    case ATMOS_UNIFORM:
+      spectrum = atmosphere->data.uniform.spectrum;
+      ka = spectrum_interpolate(spectrum, wavelength);
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+  return exp(-ka * distance);
+}
+

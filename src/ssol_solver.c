@@ -44,6 +44,7 @@
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+#if 0
 static FINLINE void
 solstice_trace_ray(struct realisation* rs)
 {
@@ -66,6 +67,7 @@ cmp_candidates(const void* _c1, const void* _c2)
   const double d2 = c2->hit_distance;
   return (d1 > d2) - (d1 < d2);
 }
+#endif
 
 static FINLINE res_T
 check_scene(const struct ssol_scene* scene, const char* caller)
@@ -1030,6 +1032,12 @@ ssol_solve
       if(S3D_HIT_NONE(&hit)) break;
 
       ++depth;
+
+      /* Take into account the atomosphere attenuation along the new ray */
+      if(scn->atmosphere) {
+        weight *= compute_atmosphere_attenuation
+          (scn->atmosphere, hit.distance, wl);
+      }
 
       /* Retrieve the hit instance and shaded shape */
       inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
