@@ -299,7 +299,7 @@ res_T
 ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng_state,
-   const size_t nrealisations,
+   const size_t realisations_count,
    FILE* output,
    struct ssol_estimator* estimator)
 {
@@ -312,15 +312,26 @@ ssol_solve
   struct ssp_rng_proxy* rng_proxy = NULL;
   struct mc_data* mc_shadows = NULL;
   struct mc_data* mc_missings = NULL;
-  float sampled_area;
+  float sampled_area = 0;
   int nthreads = 0;
-  int i;
+  int nrealisations = 0;
+  int i = 0;
   ATOMIC res = RES_OK;
+  ASSERT(nrealisations <= INT_MAX);
 
-  if(!scn || !rng_state || !nrealisations || !output || !estimator) {
+  if(!scn || !rng_state || !realisations_count || !output || !estimator) {
     res = RES_BAD_ARG;
     goto error;
   }
+
+  /* CL compiler supports OpenMP parallel loop whose indices are signed. The
+   * following line ensures that the unsigned number of realisations does not
+   * overflow the reaisation index */
+  if(realisations_count > INT_MAX) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
+  nrealisations = (int)realisations_count;
 
   res = check_scene(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
@@ -357,7 +368,7 @@ ssol_solve
   FOR_EACH(i, 0, nthreads) {
     res = ssf_bsdf_create(scn->dev->allocator, bsdfs+i);
     if(res != RES_OK) goto error;
-    res = ssp_rng_proxy_create_rng(rng_proxy, i, rngs + i);
+    res = ssp_rng_proxy_create_rng(rng_proxy, (size_t)i, rngs + i);
     if(res != RES_OK) goto error;
   }
 
@@ -404,7 +415,7 @@ ssol_solve
       struct ssol_material* mtl;
 
       if(point_is_receiver(&pt)) {
-        const res_T res_local = point_dump(&pt, i, depth, output);
+        const res_T res_local = point_dump(&pt, (size_t)i, depth, output);
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);
           break;
@@ -470,7 +481,7 @@ ssol_solve
     estimator->missing.weight += mc_missings[i].weight;
     estimator->missing.sqr_weight += mc_missings[i].sqr_weight;
   }
-  estimator->realisation_count += nrealisations;
+  estimator->realisation_count += realisations_count;
 
 exit:
   if(view_rt) S3D(scene_view_ref_put(view_rt));
