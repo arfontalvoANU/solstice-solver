@@ -517,6 +517,10 @@ shape_create
     res = RES_MEM_ERR;
     goto error;
   }
+  SSOL(device_ref_get(dev));
+  shape->dev = dev;
+  shape->type = type;
+  ref_init(&shape->ref);
 
   /* Create the s3d_shape to ray-trace */
   res = s3d_shape_create_mesh(dev->s3d, &shape->shape_rt);
@@ -528,11 +532,6 @@ shape_create
   /* Create the s3d_shape to sample */
   res = s3d_shape_create_mesh(dev->s3d, &shape->shape_samp);
   if(res != RES_OK) goto error;
-
-  SSOL(device_ref_get(dev));
-  shape->dev = dev;
-  ref_init(&shape->ref);
-  shape->type = type;
 
 exit:
   if(out_shape) *out_shape = shape;
