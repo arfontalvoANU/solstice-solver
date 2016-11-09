@@ -17,6 +17,7 @@
 #include "test_ssol_utils.h"
 
 #include <rsys/logger.h>
+#include <rsys/double3.h>
 
 int
 main(int argc, char** argv)
@@ -29,6 +30,7 @@ main(int argc, char** argv)
   struct ssol_sun* sun;
   double dir0[3] = { 0, 0, 0 };
   double dir[3] = { 1, 0, 0 };
+  double dni;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -65,10 +67,20 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
+  CHECK(ssol_sun_get_direction(NULL, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, dir0), RES_OK);
+  CHECK(d3_eq(dir, dir0), 1);
+
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+
+  CHECK(ssol_sun_get_dni(NULL, &dni), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
+  CHECK(dni, 1000);
 
   CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
@@ -104,10 +116,20 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
+  CHECK(ssol_sun_get_direction(NULL, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, dir0), RES_OK);
+  CHECK(d3_eq(dir, dir0), 1);
+
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+
+  CHECK(ssol_sun_get_dni(NULL, &dni), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
+  CHECK(dni, 1000);
 
   CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
@@ -143,10 +165,20 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
+  CHECK(ssol_sun_get_direction(NULL, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, dir0), RES_OK);
+  CHECK(d3_eq(dir, dir0), 1);
+
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+
+  CHECK(ssol_sun_get_dni(NULL, &dni), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
+  CHECK(dni, 1000);
 
   CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
