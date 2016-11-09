@@ -326,7 +326,7 @@ ssol_solve
 
   /* CL compiler supports OpenMP parallel loop whose indices are signed. The
    * following line ensures that the unsigned number of realisations does not
-   * overflow the reaisation index */
+   * overflow the realisation index */
   if(realisations_count > INT_MAX) {
     res = RES_BAD_ARG;
     goto error;
