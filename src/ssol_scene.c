@@ -192,7 +192,9 @@ ssol_scene_clear(struct ssol_scene* scene)
   htable_instance_clear(&scene->instances_samp);
   S3D(scene_clear(scene->scn_rt));
   S3D(scene_clear(scene->scn_samp));
-  if(scene->sun) ssol_scene_detach_sun(scene, scene->sun);
+  if (scene->sun) ssol_scene_detach_sun(scene, scene->sun);
+  if (scene->atmosphere)
+    ssol_scene_detach_atmosphere(scene, scene->atmosphere);
   return RES_OK;
 }
 
