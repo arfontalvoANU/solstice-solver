@@ -34,9 +34,9 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_shape* shape;
   struct ssol_vertex_data attribs[3];
-  struct ssol_punched_surface punched_surface;
-  struct ssol_carving carving;
-  struct ssol_quadric quadric;
+  struct ssol_punched_surface punched_surface = SSOL_PUNCHED_SURFACE_NULL;
+  struct ssol_carving carving = SSOL_CARVING_NULL;
+  struct ssol_quadric quadric = SSOL_QUADRIC_DEFAULT;
   double polygon[] = {
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
   };

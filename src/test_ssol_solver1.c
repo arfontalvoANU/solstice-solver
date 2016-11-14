@@ -43,7 +43,7 @@ main(int argc, char** argv)
   struct ssol_vertex_data attribs[1];
   struct ssol_material* m_mtl;
   struct ssol_material* v_mtl;
-  struct ssol_mirror_shader shader;
+  struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
   struct ssol_object* m_object;
   struct ssol_object* t_object;
   struct ssol_instance* heliostat;

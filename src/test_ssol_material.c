@@ -29,7 +29,7 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_material* material;
-  struct ssol_mirror_shader shader;
+  struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
