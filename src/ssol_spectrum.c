@@ -127,8 +127,7 @@ ssol_spectrum_create
     goto error;
   }
 
-  spectrum = (struct ssol_spectrum*)MEM_CALLOC
-  (dev->allocator, 1, sizeof(struct ssol_spectrum));
+  spectrum = MEM_CALLOC(dev->allocator, 1, sizeof(struct ssol_spectrum));
   if(!spectrum) {
     res = RES_MEM_ERR;
     goto error;
