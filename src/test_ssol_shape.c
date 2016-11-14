@@ -33,7 +33,7 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_shape* shape;
-  struct ssol_vertex_data attribs[3];
+  struct ssol_vertex_data attribs[3] = { SSOL_VERTEX_DATA_NULL__, SSOL_VERTEX_DATA_NULL__, SSOL_VERTEX_DATA_NULL__ };
   struct ssol_punched_surface punched_surface = SSOL_PUNCHED_SURFACE_NULL;
   struct ssol_carving carving = SSOL_CARVING_NULL;
   struct ssol_quadric quadric = SSOL_QUADRIC_DEFAULT;

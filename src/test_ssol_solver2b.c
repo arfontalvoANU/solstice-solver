@@ -50,7 +50,7 @@ main(int argc, char** argv)
   struct ssp_rng* rng;
   struct ssol_scene* scene;
   struct ssol_shape* rect;
-  struct ssol_vertex_data attribs[1];
+  struct ssol_vertex_data attribs[1] = { SSOL_VERTEX_DATA_NULL__ };
   struct ssol_shape* quad_square;
   struct ssol_shape* quad_rect;
   struct ssol_carving carving = SSOL_CARVING_NULL;

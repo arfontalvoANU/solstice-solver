@@ -40,7 +40,7 @@ main(int argc, char** argv)
   struct ssp_rng* rng;
   struct ssol_scene* scene;
   struct ssol_shape* square;
-  struct ssol_vertex_data attribs[1];
+  struct ssol_vertex_data attribs[1] = { SSOL_VERTEX_DATA_NULL__ };
   struct ssol_material* m_mtl;
   struct ssol_material* v_mtl;
   struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
