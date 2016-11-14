@@ -16,6 +16,8 @@
 #ifndef TEST_SSOL_MATERIALS_H
 #define TEST_SSOL_MATERIALS_H
 
+struct ssol_device;
+
 static void
 get_shader_normal
 (struct ssol_device* dev,
