@@ -120,15 +120,18 @@ rcmake_setup_devel(solstice-solver SolSolver ${VERSION} solstice/ssol_version.h)
 if(NOT NO_TEST)
   function(new_test _name)
     add_executable(${_name}
-      ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
-      ${SSOL_SOURCE_DIR}/test_ssol_materials.h
-      ${SSOL_SOURCE_DIR}/test_ssol_utils.h
-      ${SSOL_SOURCE_DIR}/test_ssol_utils.c
-      ${SSOL_SOURCE_DIR}/${_name}.c)
-    target_link_libraries(${_name} solstice-solver RSys Star3D StarSP)
+            ${SSOL_SOURCE_DIR}/${_name}.c)
+    target_link_libraries(${_name}
+      solstice-solver solstice-test RSys Star3D StarSP)
     add_test(${_name} ${_name})
     rcmake_set_test_runtime_dirs(${_name} _runtime_dirs)
   endfunction()
+
+  add_library(solstice-test STATIC
+    ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
+    ${SSOL_SOURCE_DIR}/test_ssol_materials.h
+    ${SSOL_SOURCE_DIR}/test_ssol_utils.h
+    ${SSOL_SOURCE_DIR}/test_ssol_utils.c)
 
   new_test(test_ssol_atmosphere)
   new_test(test_ssol_device)
