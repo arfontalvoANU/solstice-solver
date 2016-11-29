@@ -28,8 +28,9 @@ main(int argc, char** argv)
   struct ssol_spectrum* spectrum;
   struct ssol_spectrum* spectrum2;
   struct ssol_sun* sun;
-  double dir0[3] = { 0, 0, 0 };
+  const double dir0[3] = { 0, 0, 0 };
   double dir[3] = { 1, 0, 0 };
+  double tmp[3];
   double dni;
   (void) argc, (void) argv;
 
@@ -67,10 +68,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
-  CHECK(ssol_sun_get_direction(NULL, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(NULL, tmp), RES_BAD_ARG);
   CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
-  CHECK(ssol_sun_get_direction(sun, dir0), RES_OK);
-  CHECK(d3_eq(dir, dir0), 1);
+  CHECK(ssol_sun_get_direction(sun, tmp), RES_OK);
+  CHECK(d3_eq(dir, tmp), 1);
 
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
@@ -116,10 +117,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
-  CHECK(ssol_sun_get_direction(NULL, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(NULL, tmp), RES_BAD_ARG);
   CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
-  CHECK(ssol_sun_get_direction(sun, dir0), RES_OK);
-  CHECK(d3_eq(dir, dir0), 1);
+  CHECK(ssol_sun_get_direction(sun, tmp), RES_OK);
+  CHECK(d3_eq(dir, tmp), 1);
 
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
@@ -165,10 +166,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
   CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
 
-  CHECK(ssol_sun_get_direction(NULL, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(NULL, tmp), RES_BAD_ARG);
   CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
-  CHECK(ssol_sun_get_direction(sun, dir0), RES_OK);
-  CHECK(d3_eq(dir, dir0), 1);
+  CHECK(ssol_sun_get_direction(sun, tmp), RES_OK);
+  CHECK(d3_eq(dir, tmp), 1);
 
   CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
