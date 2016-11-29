@@ -149,7 +149,7 @@ ssol_sun_set_dni(struct ssol_sun* sun, const double dni)
 res_T
 ssol_sun_get_dni(const struct ssol_sun* sun, double* dni)
 {
-  if (!sun || dni <= 0)
+  if (!sun || !dni)
     return RES_BAD_ARG;
   *dni = sun->dni;
   return RES_OK;
