@@ -60,6 +60,7 @@ set(SSOL_FILES_SRC
   ssol_material.c
   ssol_object.c
   ssol_instance.c
+  ssol_param_buffer.c
   ssol_ranst_sun_dir.c
   ssol_ranst_sun_wl.c
   ssol_scene.c

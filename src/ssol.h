@@ -52,6 +52,7 @@ struct ssol_image;
 struct ssol_material;
 struct ssol_object;
 struct ssol_instance;
+struct ssol_param_buffer;
 struct ssol_scene;
 struct ssol_shape;
 struct ssol_spectrum;
@@ -504,6 +505,40 @@ SSOL_API res_T
 ssol_instance_get_id
   (const struct ssol_instance* instance,
    uint32_t* id);
+
+/*******************************************************************************
+ * Param buffer API
+ ******************************************************************************/
+SSOL_API res_T
+ssol_param_buffer_create
+  (struct ssol_device* dev,
+   struct ssol_param_buffer** buf);
+
+SSOL_API res_T
+ssol_param_buffer_ref_get
+  (struct ssol_param_buffer* buf);
+
+SSOL_API res_T
+ssol_param_buffer_ref_put
+  (struct ssol_param_buffer* buf);
+
+SSOL_API res_T
+ssol_param_buffer_set
+  (struct ssol_param_buffer* buf,
+   const char* name,
+   const size_t size, /* In Bytes */
+   const size_t alignment, /* Must be a power of 2 in [1, 64] */
+   const void* parameter);
+
+SSOL_API res_T
+ssol_param_buffer_get
+  (struct ssol_param_buffer* buf,
+   const char* name,
+   const void** parameter);
+
+SSOL_API res_T
+ssol_param_buffer_clear
+  (struct ssol_param_buffer* buf);
 
 /*******************************************************************************
  * Spectrum API - Collection of wavelengths with their associated data.
