@@ -27,6 +27,12 @@ struct param {
   size_t offset; /* In Bytes */
 };
 
+/* Declare the raw buffer */
+#define DARRAY_NAME byte
+#define DARRAY_DATA char
+#define DARRAY_ALIGNMENT DEFAULT_ALIGNMENT
+#include <rsys/dynamic_array.h>
+
 /* Define the hash table that maps the name of a parameter to its offset in the
  * raw parameter buffer */
 #define HTABLE_NAME param
@@ -41,9 +47,7 @@ struct param {
 #include <rsys/hash_table.h>
 
 struct ssol_param_buffer {
-  /* TODO ensure that the buffer array is aligned on DEFAULT_ALIGNMENT, i.e.
-   * provide a DARRAY_ALIGNMENT attribute on the dynamic array generic API */
-  struct darray_char buffer;
+  struct darray_byte buffer;
   struct htable_param params;
 
   ref_T ref;
@@ -60,7 +64,7 @@ param_buffer_release(ref_T* ref)
   struct ssol_device* dev;
   ASSERT(ref);
   buf = CONTAINER_OF(ref, struct ssol_param_buffer, ref);
-  darray_char_release(&buf->buffer);
+  darray_byte_release(&buf->buffer);
   htable_param_release(&buf->params);
   dev = buf->dev;
   MEM_RM(dev->allocator, buf);
@@ -91,9 +95,10 @@ ssol_param_buffer_create
   buf->dev = dev;
   ref_init(&buf->ref);
   htable_param_init(dev->allocator, &buf->params);
-  darray_char_init(dev->allocator, &buf->buffer);
+  darray_byte_init(dev->allocator, &buf->buffer);
 
 exit:
+  if(out_buf) *out_buf = buf;
   return res;
 error:
   if(buf) {
@@ -133,15 +138,13 @@ ssol_param_buffer_set
   struct str key;
   res_T res = RES_OK;
 
-  str_init(buf->dev->allocator, &key);
-
   if(!buf || !name || name[0] == '\0' || !size || !IS_POW2(alignment)
   || alignment > DEFAULT_ALIGNMENT || !parameter) {
-    res = RES_BAD_ARG;
-    goto error;
+    return RES_BAD_ARG;
   }
 
-  bufsz = darray_char_size_get(&buf->buffer);
+  str_init(buf->dev->allocator, &key);
+  bufsz = darray_byte_size_get(&buf->buffer);
 
   res = str_set(&key, name);
   if(res != RES_OK) goto error;
@@ -149,8 +152,14 @@ ssol_param_buffer_set
   pparam = htable_param_find(&buf->params, &key);
 
   if(pparam) { /* Update a previously set parameter */
-    char* dst = darray_char_data_get(&buf->buffer) + pparam->offset;
+    char* dst = darray_byte_data_get(&buf->buffer) + pparam->offset;
     if(pparam->size < size || !IS_ALIGNED(dst, alignment)) {
+      log_error(buf->dev,
+"%s: could not update the parameter `%s'. Incompatible size/alignment: \n"
+"src size = %lu; src alignment = %lu; dst size = %lu; dst address = 0x%lx.\n",
+        FUNC_NAME, name,
+        (unsigned long)size, (unsigned long)alignment,
+        (unsigned long)pparam->size, (long)dst);
       res = RES_BAD_ARG;
       goto error;
     }
@@ -165,10 +174,10 @@ ssol_param_buffer_set
     param.offset = ALIGN_SIZE(bufsz, alignment);
     param.size = size;
 
-    res = darray_char_resize(&buf->buffer, param.offset + param.size);
+    res = darray_byte_resize(&buf->buffer, param.offset + param.size);
     if(res != RES_OK) goto error;
 
-    dst = darray_char_data_get(&buf->buffer) + param.offset;
+    dst = darray_byte_data_get(&buf->buffer) + param.offset;
     ASSERT(IS_ALIGNED(dst, alignment));
     memcpy(dst, parameter, param.size);
 
@@ -181,8 +190,41 @@ exit:
   return res;
 error:
   if(bufsz != SIZE_MAX) {
-    CHECK(darray_char_resize(&buf->buffer, bufsz), RES_OK);
+    CHECK(darray_byte_resize(&buf->buffer, bufsz), RES_OK);
   }
+  goto exit;
+}
+
+res_T
+ssol_param_buffer_get
+  (struct ssol_param_buffer* buf,
+   const char* name,
+   const void** parameter)
+{
+  struct param* pparam;
+  struct str key;
+  res_T res = RES_OK;
+
+
+  if(!buf || !name || !parameter) {
+    return RES_BAD_ARG;
+  }
+
+  str_init(buf->dev->allocator, &key);
+  res = str_set(&key, name);
+  if(res != RES_OK) goto error;
+
+  pparam = htable_param_find(&buf->params, &key);
+  if(!pparam) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
+  *parameter = darray_byte_cdata_get(&buf->buffer) + pparam->offset;
+
+exit:
+  str_release(&key);
+  return res;
+error:
   goto exit;
 }
 
@@ -190,7 +232,7 @@ res_T
 ssol_param_buffer_clear(struct ssol_param_buffer* buf)
 {
   if(!buf) return RES_BAD_ARG;
-  darray_char_clear(&buf->buffer);
+  darray_byte_clear(&buf->buffer);
   htable_param_clear(&buf->params);
   return RES_OK;
 }
