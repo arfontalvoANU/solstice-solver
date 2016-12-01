@@ -54,12 +54,12 @@ mirror_shade
   shader = &mtl->data.mirror;
 
   /* Fetch material attribs */
-  shader->normal(mtl->dev, wavelength, fragment->pos, fragment->Ng,
-    fragment->Ns, fragment->uv, fragment->dir, normal);
-  shader->reflectivity(mtl->dev, wavelength, fragment->pos, fragment->Ng,
-    fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
-  shader->roughness(mtl->dev, wavelength, fragment->pos, fragment->Ng,
-    fragment->Ns, fragment->uv, fragment->dir, &roughness);
+  shader->normal(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, normal);
+  shader->reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
+  shader->roughness(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &roughness);
 
   /* Setup the fresnel term */
   res = ssf_fresnel_create(mtl->dev->allocator, &ssf_fresnel_constant, &fresnel);
@@ -107,6 +107,7 @@ material_release(ref_T* ref)
   struct ssol_material* material = CONTAINER_OF(ref, struct ssol_material, ref);
   ASSERT(ref);
   dev = material->dev;
+  if(material->buf) SSOL(param_buffer_ref_put(material->buf));
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, material);
   SSOL(device_ref_put(dev));
@@ -183,6 +184,16 @@ ssol_material_ref_put(struct ssol_material* material)
     return RES_BAD_ARG;
   ASSERT(material->type < MATERIAL_TYPES_COUNT__);
   ref_put(&material->ref, material_release);
+  return RES_OK;
+}
+
+res_T
+ssol_material_set_param_buffer
+  (struct ssol_material* mtl, struct ssol_param_buffer* buf)
+{
+  if(!mtl || !buf) return RES_BAD_ARG;
+  SSOL(param_buffer_ref_get(buf));
+  mtl->buf = buf;
   return RES_OK;
 }
 

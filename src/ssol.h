@@ -189,6 +189,7 @@ static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
+   struct ssol_param_buffer* buf,
    const double wavelength, /* In nanometer */
    const double P[3], /* World space position */
    const double Ng[3], /* World space geometry normal */
@@ -429,6 +430,11 @@ ssol_material_ref_get
 SSOL_API res_T
 ssol_material_ref_put
   (struct ssol_material* mtl);
+
+SSOL_API res_T
+ssol_material_set_param_buffer
+  (struct ssol_material* mtl,
+   struct ssol_param_buffer* buf);
 
 SSOL_API res_T
 ssol_mirror_set_shader

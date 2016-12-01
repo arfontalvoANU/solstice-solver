@@ -47,6 +47,7 @@ struct ssol_material {
     struct ssol_mirror_shader mirror;
   } data;
 
+  struct ssol_param_buffer* buf;
   struct ssol_device* dev;
   ref_T ref;
 };

@@ -19,9 +19,6 @@
 
 #include <rsys/logger.h>
 
-/*******************************************************************************
- * Test main program
- ******************************************************************************/
 int
 main(int argc, char** argv)
 {
@@ -30,6 +27,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_material* material;
   struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
+  struct ssol_param_buffer* pbuf = NULL;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -52,6 +50,8 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_material_ref_put(material), RES_OK);
 
+  CHECK(ssol_param_buffer_create(dev, &pbuf), RES_OK);
+
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
   shader.roughness = get_shader_roughness;
@@ -60,6 +60,11 @@ main(int argc, char** argv)
   CHECK(ssol_mirror_set_shader(material, NULL), RES_BAD_ARG);
   CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
   CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
+
+  CHECK(ssol_material_set_param_buffer(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_set_param_buffer(material, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_set_param_buffer(NULL, pbuf), RES_BAD_ARG);
+  CHECK(ssol_material_set_param_buffer(material, pbuf), RES_OK);
 
   shader.normal = NULL;
   CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
@@ -80,6 +85,7 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
 
   CHECK(ssol_material_ref_put(material), RES_OK);
+  CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
