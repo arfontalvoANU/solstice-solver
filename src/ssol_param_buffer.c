@@ -152,7 +152,7 @@ ssol_param_buffer_set
   pparam = htable_param_find(&buf->params, &key);
 
   if(pparam) { /* Update a previously set parameter */
-    char* dst = darray_byte_data_get(&buf->buffer) + pparam->offset;
+    dst = darray_byte_data_get(&buf->buffer) + pparam->offset;
     if(pparam->size < size || !IS_ALIGNED(dst, alignment)) {
       log_error(buf->dev,
 "%s: could not update the parameter `%s'. Incompatible size/alignment: \n"
