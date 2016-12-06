@@ -50,7 +50,7 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_material_ref_put(material), RES_OK);
 
-  CHECK(ssol_param_buffer_create(dev, &pbuf), RES_OK);
+  CHECK(ssol_param_buffer_create(dev, 32, &pbuf), RES_OK);
 
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;

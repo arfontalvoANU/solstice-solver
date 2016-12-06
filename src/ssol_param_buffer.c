@@ -17,7 +17,6 @@
 #include "ssol_device_c.h"
 
 #include <rsys/dynamic_array.h>
-#include <rsys/hash_table.h>
 #include <rsys/str.h>
 
 #define DEFAULT_ALIGNMENT 64
@@ -33,22 +32,10 @@ struct param {
 #define DARRAY_ALIGNMENT DEFAULT_ALIGNMENT
 #include <rsys/dynamic_array.h>
 
-/* Define the hash table that maps the name of a parameter to its offset in the
- * raw parameter buffer */
-#define HTABLE_NAME param
-#define HTABLE_KEY struct str
-#define HTABLE_DATA struct param
-#define HTABLE_KEY_FUNCTOR_INIT str_init
-#define HTABLE_KEY_FUNCTOR_RELEASE str_release
-#define HTABLE_KEY_FUNCTOR_COPY str_copy
-#define HTABLE_KEY_FUNCTOR_COPY_AND_RELEASE str_copy_and_release
-#define HTABLE_KEY_FUNCTOR_HASH str_hash
-#define HTABLE_KEY_FUNCTOR_EQ str_eq
-#include <rsys/hash_table.h>
-
 struct ssol_param_buffer {
-  struct darray_byte buffer;
-  struct htable_param params;
+  char* pool;
+  size_t capacity;
+  size_t size;
 
   ref_T ref;
   struct ssol_device* dev;
@@ -64,9 +51,8 @@ param_buffer_release(ref_T* ref)
   struct ssol_device* dev;
   ASSERT(ref);
   buf = CONTAINER_OF(ref, struct ssol_param_buffer, ref);
-  darray_byte_release(&buf->buffer);
-  htable_param_release(&buf->params);
   dev = buf->dev;
+  if(buf->pool) MEM_RM(dev->allocator, buf->pool);
   MEM_RM(dev->allocator, buf);
   SSOL(device_ref_put(dev));
 }
@@ -76,12 +62,14 @@ param_buffer_release(ref_T* ref)
  ******************************************************************************/
 res_T
 ssol_param_buffer_create
-  (struct ssol_device* dev, struct ssol_param_buffer** out_buf)
+  (struct ssol_device* dev,
+   const size_t capacity,
+   struct ssol_param_buffer** out_buf)
 {
   struct ssol_param_buffer* buf = NULL;
   res_T res = RES_OK;
 
-  if(!dev || !out_buf) {
+  if(!dev || !capacity || !out_buf) {
     res = RES_BAD_ARG;
     goto error;
   }
@@ -94,8 +82,13 @@ ssol_param_buffer_create
   SSOL(device_ref_get(dev));
   buf->dev = dev;
   ref_init(&buf->ref);
-  htable_param_init(dev->allocator, &buf->params);
-  darray_byte_init(dev->allocator, &buf->buffer);
+  buf->capacity = capacity;
+  buf->size = 0;
+  buf->pool = MEM_ALLOC_ALIGNED(dev->allocator, capacity, DEFAULT_ALIGNMENT);
+  if(!buf->pool) {
+    res = RES_MEM_ERR;
+    goto error;
+  }
 
 exit:
   if(out_buf) *out_buf = buf;
@@ -124,116 +117,44 @@ ssol_param_buffer_ref_put(struct ssol_param_buffer* buf)
   return RES_OK;
 }
 
-res_T
-ssol_param_buffer_set
+void*
+ssol_param_buffer_allocate
   (struct ssol_param_buffer* buf,
-   const char* name,
    const size_t size, /* In Bytes */
-   const size_t alignment, /* Must be a power of 2 in [1, 64] */
-   const void* parameter)
+   const size_t align) /* Must be a power of 2 in [1, 64] */
 {
-  struct param* pparam;
-  char* dst;
-  size_t bufsz = SIZE_MAX;
-  struct str key;
-  res_T res = RES_OK;
+  size_t offset;
+  void* mem = NULL;
 
-  if(!buf || !name || name[0] == '\0' || !size || !IS_POW2(alignment)
-  || alignment > DEFAULT_ALIGNMENT || !parameter) {
-    return RES_BAD_ARG;
-  }
+  if(!buf || !size || !IS_POW2(align) || align > DEFAULT_ALIGNMENT)
+    goto error;
 
-  str_init(buf->dev->allocator, &key);
-  bufsz = darray_byte_size_get(&buf->buffer);
-
-  res = str_set(&key, name);
-  if(res != RES_OK) goto error;
-
-  pparam = htable_param_find(&buf->params, &key);
-
-  if(pparam) { /* Update a previously set parameter */
-    dst = darray_byte_data_get(&buf->buffer) + pparam->offset;
-    if(pparam->size < size || !IS_ALIGNED(dst, alignment)) {
-      log_error(buf->dev,
-"%s: could not update the parameter `%s'. Incompatible size/alignment: \n"
-"src size = %lu; src alignment = %lu; dst size = %lu; dst address = 0x%lx.\n",
-        FUNC_NAME, name,
-        (unsigned long)size, (unsigned long)alignment,
-        (unsigned long)pparam->size, (long)dst);
-      res = RES_BAD_ARG;
-      goto error;
-    }
-    if(MEM_AREA_OVERLAP(parameter, size, dst, size)) {
-      memmove(dst, parameter, size);
-    } else {
-      memcpy(dst, parameter, size);
-    }
-  } else { /* Setup a new parameter */
-    struct param param;
-
-    param.offset = ALIGN_SIZE(bufsz, alignment);
-    param.size = size;
-
-    res = darray_byte_resize(&buf->buffer, param.offset + param.size);
-    if(res != RES_OK) goto error;
-
-    dst = darray_byte_data_get(&buf->buffer) + param.offset;
-    ASSERT(IS_ALIGNED(dst, alignment));
-    memcpy(dst, parameter, param.size);
-
-    res = htable_param_set(&buf->params, &key, &param);
-    if(res != RES_OK) goto error;
-  }
+  offset = ALIGN_SIZE(buf->size, align);
+  if(offset + size > buf->capacity) goto error;
+  
+  mem = buf->pool + offset;
+  ASSERT(IS_ALIGNED(mem, align));
+  buf->size = offset + size;
 
 exit:
-  str_release(&key);
-  return res;
+  return mem;
 error:
-  if(bufsz != SIZE_MAX) {
-    CHECK(darray_byte_resize(&buf->buffer, bufsz), RES_OK);
-  }
+  mem = NULL;
   goto exit;
 }
 
-res_T
-ssol_param_buffer_get
-  (struct ssol_param_buffer* buf,
-   const char* name,
-   const void** parameter)
+void*
+ssol_param_buffer_get(struct ssol_param_buffer* buf)
 {
-  struct param* pparam;
-  struct str key;
-  res_T res = RES_OK;
-
-
-  if(!buf || !name || !parameter) {
-    return RES_BAD_ARG;
-  }
-
-  str_init(buf->dev->allocator, &key);
-  res = str_set(&key, name);
-  if(res != RES_OK) goto error;
-
-  pparam = htable_param_find(&buf->params, &key);
-  if(!pparam) {
-    res = RES_BAD_ARG;
-    goto error;
-  }
-  *parameter = darray_byte_cdata_get(&buf->buffer) + pparam->offset;
-
-exit:
-  str_release(&key);
-  return res;
-error:
-  goto exit;
+  ASSERT(buf);
+  return buf->size ? buf->pool : NULL;
 }
 
 res_T
 ssol_param_buffer_clear(struct ssol_param_buffer* buf)
 {
   if(!buf) return RES_BAD_ARG;
-  darray_byte_clear(&buf->buffer);
-  htable_param_clear(&buf->params);
+  buf->size = 0;
   return RES_OK;
 }
 

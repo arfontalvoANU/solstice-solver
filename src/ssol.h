@@ -518,6 +518,7 @@ ssol_instance_get_id
 SSOL_API res_T
 ssol_param_buffer_create
   (struct ssol_device* dev,
+   const size_t capacity,
    struct ssol_param_buffer** buf);
 
 SSOL_API res_T
@@ -528,19 +529,16 @@ SSOL_API res_T
 ssol_param_buffer_ref_put
   (struct ssol_param_buffer* buf);
 
-SSOL_API res_T
-ssol_param_buffer_set
+SSOL_API void*
+ssol_param_buffer_allocate
   (struct ssol_param_buffer* buf,
-   const char* name,
-   const size_t size, /* In Bytes */
-   const size_t alignment, /* Must be a power of 2 in [1, 64] */
-   const void* parameter);
+   const size_t size,
+   const size_t alignment); /* Power of 2 in [1, 64] */
 
-SSOL_API res_T
+/* Retrieve the address of the first allocated parameter */
+SSOL_API void*
 ssol_param_buffer_get
-  (struct ssol_param_buffer* buf,
-   const char* name,
-   const void** parameter);
+  (struct ssol_param_buffer* buf);
 
 SSOL_API res_T
 ssol_param_buffer_clear
