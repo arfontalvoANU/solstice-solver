@@ -97,7 +97,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
   CHECK(ssol_estimator_create(dev, &estimator), RES_OK);
 
-  /* create scene content */
+  /* Create scene content */
 
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
@@ -151,16 +151,15 @@ main(int argc, char** argv)
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, 
     sqrt((SQR(400*DNI_cos) / 100 - SQR(4*DNI_cos)) / (double)count), 20), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
 
-  /* free data */
-
+  /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
   CHECK(ssol_instance_ref_put(target), RES_OK);
   CHECK(ssol_object_ref_put(m_object), RES_OK);

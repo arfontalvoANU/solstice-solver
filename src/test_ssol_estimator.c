@@ -64,10 +64,12 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
-  CHECK(ssol_estimator_get_status(NULL, STATUS_MISSING, &status), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_TYPES_COUNT__, &status), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, NULL), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  #define GET_STATUS ssol_estimator_get_status
+  CHECK(GET_STATUS(NULL, SSOL_STATUS_MISSING, &status), RES_BAD_ARG);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_TYPES_COUNT__, &status), RES_BAD_ARG);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, NULL), RES_BAD_ARG);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  #undef GET_STATUS
 
   CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);
   CHECK(ssol_estimator_get_count(estimator, NULL), RES_BAD_ARG);
@@ -78,8 +80,6 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
 
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
-
-  /* free data */
 
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);

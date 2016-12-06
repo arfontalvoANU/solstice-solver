@@ -239,10 +239,10 @@ struct ssol_estimator_status {
 };
 
 /* the always-ON indicators (MC computations) */
-enum status_type {
-  STATUS_SHADOW,
-  STATUS_MISSING,
-  STATUS_TYPES_COUNT__
+enum ssol_status_type {
+  SSOL_STATUS_SHADOW,
+  SSOL_STATUS_MISSING,
+  SSOL_STATUS_TYPES_COUNT__
 };
 
 /*
@@ -670,8 +670,8 @@ ssol_estimator_create
 SSOL_API res_T
 ssol_estimator_get_status
   (const struct ssol_estimator* estimator,
-    enum status_type type,
-    struct ssol_estimator_status* status);
+   const enum ssol_status_type type,
+   struct ssol_estimator_status* status);
 
 SSOL_API res_T
 ssol_estimator_get_count

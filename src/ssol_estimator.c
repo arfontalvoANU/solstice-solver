@@ -97,20 +97,16 @@ ssol_estimator_ref_put
 res_T
 ssol_estimator_get_status
   (const struct ssol_estimator* estimator,
-   enum status_type type,
+   const enum ssol_status_type type,
    struct ssol_estimator_status* status)
 {
   const struct mc_data* data;
-  if (!estimator || type >= STATUS_TYPES_COUNT__ || !status)
+  if (!estimator || type >= SSOL_STATUS_TYPES_COUNT__ || !status)
     return RES_BAD_ARG;
 
   switch (type) {
-    case STATUS_SHADOW:
-      data = &estimator->shadow;
-      break;
-    case STATUS_MISSING:
-      data = &estimator->missing;
-      break;
+    case SSOL_STATUS_SHADOW: data = &estimator->shadow; break;
+    case SSOL_STATUS_MISSING: data = &estimator->missing; break;
     default: FATAL("Unreachable code.\n"); break;
   }
   status->N = estimator->realisation_count;

@@ -160,16 +160,15 @@ main(int argc, char** argv)
   CHECK(eq_eps(std1, 0, 1), 1);
   CHECK(m1, m2);
   CHECK(std1, std2);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
 
-  /* free data */
-
+  /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
   CHECK(ssol_instance_ref_put(target1), RES_OK);
   CHECK(ssol_instance_ref_put(target2), RES_OK);

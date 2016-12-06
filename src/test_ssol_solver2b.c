@@ -197,16 +197,15 @@ main(int argc, char** argv)
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std,
     sqrt((SQR(4 * DNI_cos) / 2 - SQR(2 * DNI_cos)) / (double)count), 1e-3), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
 
-  /* free data */
-
+  /* Free data */
   CHECK(ssol_instance_ref_put(heliostat1), RES_OK);
   CHECK(ssol_instance_ref_put(heliostat2), RES_OK);
   CHECK(ssol_instance_ref_put(secondary), RES_OK);

@@ -24,7 +24,7 @@ option(NO_TEST "Do not build tests" OFF)
 # Check dependencies
 ################################################################################
 find_package(RCMake 0.2.3 REQUIRED)
-find_package(RSys 0.3 REQUIRED)
+find_package(RSys 0.4 REQUIRED)
 find_package(Star3D 0.4 REQUIRED)
 find_package(StarCPR REQUIRED)
 find_package(StarSF 0.0 REQUIRED)

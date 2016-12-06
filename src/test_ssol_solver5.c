@@ -149,16 +149,15 @@ main(int argc, char** argv)
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);
   CHECK(eq_eps(std, 0, 1), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_SHADOW, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, STATUS_MISSING, &status), RES_OK);
+  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
 
-  /* free data */
-
+  /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
   CHECK(ssol_instance_ref_put(target), RES_OK);
   CHECK(ssol_object_ref_put(m_object), RES_OK);
