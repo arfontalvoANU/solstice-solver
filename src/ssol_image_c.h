@@ -19,13 +19,23 @@
 #include <rsys/ref_count.h>
 
 struct ssol_image {
-  size_t width;
-  size_t height;
+  char* mem;
+  size_t size[2];
+  size_t pitch; /* Size in Bytes between 2 consecutive Row */
   enum ssol_pixel_format format;
 
   struct ssol_device* dev;
   ref_T ref;
 };
+
+static INLINE size_t
+sizeof_pixel_format(const enum ssol_pixel_format format)
+{
+  switch(format) {
+    case SSOL_PIXEL_DOUBLE3: return sizeof(double[3]);
+    default: FATAL("Unreachable code.\n");
+  }
+}
 
 #endif /* SSOL_IMAGE_C_H */
 

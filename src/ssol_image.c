@@ -17,9 +17,11 @@
 #include "ssol_image_c.h"
 #include "ssol_device_c.h"
 
-#include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/rsys.h>
+
+#include <string.h>
 
 /*******************************************************************************
  * Helper functions
@@ -32,6 +34,7 @@ image_release(ref_T* ref)
   ASSERT(ref);
   dev = image->dev;
   ASSERT(dev && dev->allocator);
+  if(image->mem) MEM_RM(image->dev->allocator, image->mem);
   MEM_RM(image->dev->allocator, image);
   SSOL(device_ref_put(dev));
 }
@@ -47,13 +50,12 @@ ssol_image_create
   struct ssol_image* image = NULL;
   res_T res = RES_OK;
 
-  if (!dev || !out_image) {
+  if(!dev || !out_image) {
     return RES_BAD_ARG;
   }
 
-  image = (struct ssol_image*)MEM_CALLOC
-  (dev->allocator, 1, sizeof(struct ssol_image));
-  if (!image) {
+  image = MEM_CALLOC(dev->allocator, 1, sizeof(struct ssol_image));
+  if(!image) {
     res = RES_MEM_ERR;
     goto error;
   }
@@ -63,10 +65,10 @@ ssol_image_create
   ref_init(&image->ref);
 
 exit:
-  if (out_image) *out_image = image;
+  if(out_image) *out_image = image;
   return res;
 error:
-  if (image) {
+  if(image) {
     SSOL(image_ref_put(image));
     image = NULL;
   }
@@ -76,8 +78,7 @@ error:
 res_T
 ssol_image_ref_get(struct ssol_image* image)
 {
-  if (!image)
-    return RES_BAD_ARG;
+  if(!image) return RES_BAD_ARG;
   ref_get(&image->ref);
   return RES_OK;
 }
@@ -85,30 +86,75 @@ ssol_image_ref_get(struct ssol_image* image)
 res_T
 ssol_image_ref_put(struct ssol_image* image)
 {
-  if (!image)
-    return RES_BAD_ARG;
+  if(!image) return RES_BAD_ARG;
   ref_put(&image->ref, image_release);
   return RES_OK;
 }
 
 res_T
 ssol_image_setup
-  (struct ssol_image* image,
+  (struct ssol_image* img,
    const size_t width,
    const size_t height,
-   const enum ssol_pixel_format format)
+   const enum ssol_pixel_format fmt)
 {
-  if(!image
-  || width <= 0
-  || height <= 0
-  || format < 0
-  || (unsigned)format >= SSOL_PIXEL_FORMATS_COUNT__)
+  size_t pitch;
+  void* mem;
+
+  if(!img || width <= 0 || height <= 0
+  || (unsigned)fmt >= SSOL_PIXEL_FORMATS_COUNT__) {
+    return RES_BAD_ARG;
+  }
+
+  pitch = width * sizeof_pixel_format(fmt);
+  mem = MEM_ALLOC_ALIGNED(img->dev->allocator, pitch*height, 16);
+  if(!mem) return RES_MEM_ERR;
+
+  if(img->mem) {
+    MEM_RM(img->dev->allocator, img->mem);
+  }
+  img->mem = mem;
+  img->pitch = pitch;
+  img->size[0] = width;
+  img->size[1] = height;
+  img->format = fmt;
+  return RES_OK;
+}
+
+res_T
+ssol_image_write
+  (void* image,
+   const size_t origin[2],
+   const size_t size[2],
+   const enum ssol_pixel_format fmt,
+   const void* pixels)
+{
+  struct ssol_image* img = image;
+  const char* src_row = pixels;
+  size_t src_pitch;
+  size_t src_ix;
+  size_t dst_iy;
+  size_t Bpp;
+
+  if(UNLIKELY(!image || !origin || !size || !pixels))
+    return RES_BAD_ARG;
+  if(UNLIKELY(fmt != img->format || !img->mem))
     return RES_BAD_ARG;
 
-  image->width = width;
-  image->height = height;
-  image->format = format;
+  if(UNLIKELY((origin[0] + size[0]) > img->size[0]))
+    return RES_BAD_ARG;
+  if(UNLIKELY((origin[1] + size[1]) > img->size[1]))
+    return RES_BAD_ARG;
 
+  Bpp = sizeof_pixel_format(img->format);
+  src_pitch = size[0] * Bpp;
+  src_ix = origin[0] * Bpp;
+
+  FOR_EACH(dst_iy, origin[1], origin[1] + size[1]) {
+    const size_t dst_irow = dst_iy * img->pitch + src_ix;
+    memcpy(img->mem + dst_irow, src_row, src_pitch);
+    src_row += src_pitch;
+  }
   return RES_OK;
 }
 

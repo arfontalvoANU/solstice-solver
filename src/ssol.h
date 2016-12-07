@@ -245,6 +245,14 @@ enum ssol_status_type {
   SSOL_STATUS_TYPES_COUNT__
 };
 
+typedef res_T
+(*ssol_write_pixels_T)
+  (void* context, /* Image data */
+   const size_t origin[2], /* 2D coordinates of the 1st pixel to write */
+   const size_t size[2], /* Number of pixels in X and Y to write */
+   const enum ssol_pixel_format fmt, /* Format of the submitted pixel */
+   const void* pixels); /* List of row ordered pixels */
+
 /*
  * All the ssol structures are ref counted. Once created with the appropriated
  * `ssol_<TYPE>_create' function, the caller implicitly owns the created data,
@@ -312,6 +320,15 @@ ssol_image_map
 SSOL_API res_T
 ssol_image_unmap
   (const struct ssol_image* image);
+
+/* Helper function that matches the `ssol_write_pixels_T' functor type */
+SSOL_API res_T
+ssol_image_write
+  (void* image,
+   const size_t origin[2],
+   const size_t size[2],
+   const enum ssol_pixel_format fmt,
+   const void* pixels);
 
 /*******************************************************************************
  * Scene API - Opaque abstraction of the virtual environment. It contains a
@@ -583,9 +600,9 @@ ssol_sun_create_pillbox
   (struct ssol_device* dev,
    struct ssol_sun** sun);
 
-/* The sun disk intensity is controlled by a circumsolar ratio.
- * From the paper "Sunshape distributions for terrestrial solar simulations".
- * D. Buie, A.G. Monger, C.J. Dey */
+/* The sun disk intensity is controlled by a circumsolar ratio. From the paper
+ * "Sunshape distributions for terrestrial solar simulations". D. Buie, A.G.
+ * Monger, C.J. Dey */
 SSOL_API res_T
 ssol_sun_create_buie
   (struct ssol_device* dev,
