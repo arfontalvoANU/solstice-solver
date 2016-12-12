@@ -122,6 +122,35 @@ ssol_image_setup
 }
 
 res_T
+ssol_image_get_layout
+  (const struct ssol_image* img, struct ssol_image_layout* layout)
+{
+  if(!img || !layout) return RES_BAD_ARG;
+  layout->row_pitch = img->pitch;
+  layout->offset = 0;
+  layout->size = img->size[0] * img->size[1];
+  layout->width = img->size[0];
+  layout->height = img->size[1];
+  layout->pixel_format = img->format;
+  return RES_OK;
+}
+
+res_T
+ssol_image_map(const struct ssol_image* img, void** mem)
+{
+  if(!img || !mem) return RES_BAD_ARG;
+  *mem = img->mem;
+  return RES_OK;
+}
+
+res_T ssol_image_unmap(const struct ssol_image* img)
+{
+  if(!img) return RES_BAD_ARG;
+  /* Do nothing */
+  return RES_OK;
+}
+
+res_T
 ssol_image_write
   (void* image,
    const size_t origin[2],
