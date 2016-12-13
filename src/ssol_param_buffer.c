@@ -26,12 +26,6 @@ struct param {
   size_t offset; /* In Bytes */
 };
 
-/* Declare the raw buffer */
-#define DARRAY_NAME byte
-#define DARRAY_DATA char
-#define DARRAY_ALIGNMENT DEFAULT_ALIGNMENT
-#include <rsys/dynamic_array.h>
-
 struct ssol_param_buffer {
   char* pool;
   size_t capacity;
