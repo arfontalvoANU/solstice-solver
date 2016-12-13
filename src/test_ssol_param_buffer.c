@@ -51,8 +51,8 @@ main(int argc, char** argv)
 
   CHECK(ssol_param_buffer_get(pbuf), NULL);
 
-  sz = sizeof(const char*);
-  al = ALIGNOF(const char*);
+  sz = sizeof(intptr_t);
+  al = ALIGNOF(intptr_t);
   CHECK(mem = ssol_param_buffer_allocate(NULL, 0, 0), NULL);
   CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, 0), NULL);
   CHECK(mem = ssol_param_buffer_allocate(NULL, sz, 0), NULL);
@@ -62,11 +62,11 @@ main(int argc, char** argv)
   CHECK(mem = ssol_param_buffer_allocate(NULL, sz, al), NULL);
   NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al), NULL);
 
-  *(const char**)mem = __FILE__;
-  CHECK(*(const char**)ssol_param_buffer_get(pbuf), __FILE__);
+  *(intptr_t*)mem = 0xDECAFBAD;
+  CHECK(*(intptr_t*)ssol_param_buffer_get(pbuf), 0xDECAFBAD);
 
-  *(const char**)mem = FUNC_NAME;
-  CHECK(*(const char**)ssol_param_buffer_get(pbuf), FUNC_NAME);
+  *(intptr_t*)mem = 0XDEADBEEF;
+  CHECK(*(intptr_t*)ssol_param_buffer_get(pbuf), 0XDEADBEEF);
 
   CHECK(ssol_param_buffer_clear(NULL), RES_BAD_ARG);
   CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
