@@ -56,6 +56,7 @@ set(SSOL_FILES_SRC
   ssol_atmosphere.c
   ssol_camera.c
   ssol_device.c
+  ssol_draw.c
   ssol_estimator.c
   ssol_image.c
   ssol_material.c

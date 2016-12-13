@@ -446,7 +446,7 @@ ssol_solve
       }
 
       /* Trace the next ray */
-      ray_data.scn = scn,
+      ray_data.scn = scn;
       ray_data.prim_from = pt.prim;
       ray_data.inst_from = pt.inst;
       ray_data.side_from = pt.side;
