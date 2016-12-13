@@ -54,6 +54,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
   ssol_atmosphere.c
+  ssol_camera.c
   ssol_device.c
   ssol_estimator.c
   ssol_image.c
@@ -75,6 +76,7 @@ set(SSOL_FILES_INC_API
 set(SSOL_FILES_INC
   ssol_atmosphere_c.h
   ssol_c.h
+  ssol_camera.h
   ssol_device_c.h
   ssol_estimator_c.h
   ssol_image_c.h

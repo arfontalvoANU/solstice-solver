@@ -47,6 +47,7 @@ struct ssp_rng;
 
 /* Opaque Solstice solver types */
 struct ssol_atmosphere;
+struct ssol_camera;
 struct ssol_device;
 struct ssol_image;
 struct ssol_material;
@@ -283,6 +284,40 @@ ssol_device_ref_get
 SSOL_API res_T
 ssol_device_ref_put
   (struct ssol_device* dev);
+
+/*******************************************************************************
+ * Camera API
+ ******************************************************************************/
+SSOL_API res_T
+ssol_camera_create
+  (struct ssol_device* de,
+   struct ssol_camera** cam);
+
+SSOL_API res_T
+ssol_camera_ref_get
+  (struct ssol_camera* cam);
+
+SSOL_API res_T
+ssol_camera_ref_put
+  (struct ssol_camera* cam);
+
+/* Width/height projection ratio */
+SSOL_API res_T
+ssol_camera_set_proj_ratio
+  (struct ssol_camera* cam,
+   const double proj_ratio);
+
+SSOL_API res_T
+ssol_camera_set_fov /* Horizontal field of view */
+  (struct ssol_camera* cam,
+   const double fov); /* In radian */
+
+SSOL_API res_T
+ssol_camera_look_at
+  (struct ssol_camera* cam,
+   const double position[3],
+   const double target[3],
+   const double up[3]);
 
 /*******************************************************************************
  * Image API
