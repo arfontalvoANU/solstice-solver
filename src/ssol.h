@@ -254,6 +254,15 @@ typedef res_T
    const enum ssol_pixel_format fmt, /* Format of the submitted pixel */
    const void* pixels); /* List of row ordered pixels */
 
+static FINLINE size_t
+ssol_sizeof_pixel_format(const enum ssol_pixel_format format)
+{
+  switch(format) {
+    case SSOL_PIXEL_DOUBLE3: return sizeof(double[3]);
+    default: FATAL("Unreachable code.\n");
+  }
+}
+
 /*
  * All the ssol structures are ref counted. Once created with the appropriated
  * `ssol_<TYPE>_create' function, the caller implicitly owns the created data,

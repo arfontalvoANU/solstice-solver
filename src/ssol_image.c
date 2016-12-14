@@ -106,7 +106,7 @@ ssol_image_setup
     return RES_BAD_ARG;
   }
 
-  pitch = width * sizeof_pixel_format(fmt);
+  pitch = width * ssol_sizeof_pixel_format(fmt);
   mem = MEM_ALLOC_ALIGNED(img->dev->allocator, pitch*height, 16);
   if(!mem) return RES_MEM_ERR;
 
@@ -175,7 +175,7 @@ ssol_image_write
   if(UNLIKELY((origin[1] + size[1]) > img->size[1]))
     return RES_BAD_ARG;
 
-  Bpp = sizeof_pixel_format(img->format);
+  Bpp = ssol_sizeof_pixel_format(img->format);
   src_pitch = size[0] * Bpp;
   src_ix = origin[0] * Bpp;
 

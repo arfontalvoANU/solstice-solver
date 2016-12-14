@@ -28,14 +28,5 @@ struct ssol_image {
   ref_T ref;
 };
 
-static INLINE size_t
-sizeof_pixel_format(const enum ssol_pixel_format format)
-{
-  switch(format) {
-    case SSOL_PIXEL_DOUBLE3: return sizeof(double[3]);
-    default: FATAL("Unreachable code.\n");
-  }
-}
-
 #endif /* SSOL_IMAGE_C_H */
 
