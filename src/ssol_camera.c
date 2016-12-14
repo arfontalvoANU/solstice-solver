@@ -137,6 +137,7 @@ ssol_camera_look_at
   f3_set(cam->axis_x, x);
   f3_mulf(cam->axis_y, y, cam->rcp_proj_ratio);
   f3_mulf(cam->axis_z, z, img_plane_depth);
+  f3_set(cam->position, posf);
   return RES_OK;
 }
 
