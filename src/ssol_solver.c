@@ -205,7 +205,15 @@ point_shade
 
   /* TODO ensure that if `prim' was sampled, then the surface fragment setup
    * remains valid in *all* situations, i.e. even though the point primitive
-   * comes from a sampling operation */
+   * comes from a sampling operation.
+   *
+   * NOTE VF: actually a fragment generated from a RT or a sampled primitive is
+   * the same. Indeed it may be inconsistent only if the two kind of primitives
+   * does not have the same set of parameters. For triangulated meshes, the RT
+   * and sampled shape are the same and ths shared the same attribs. For
+   * punched surfaces, no attribs are defined on both representation.
+   * Consequently, it seems that there is no specific work to do to ensure the
+   * `surface_fragment_setup' consistency. */
   surface_fragment_setup(&frag, pt->pos, pt->dir, pt->N, &pt->prim, pt->uv);
 
   /* Shade the surface fragment */
