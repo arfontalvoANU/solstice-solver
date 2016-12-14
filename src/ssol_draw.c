@@ -23,6 +23,8 @@
 #include <rsys/math.h>
 #include <star/s3d.h>
 
+#include <omp.h>
+
 #define TILE_SIZE 32 /* definition in X & Y of a tile */
 STATIC_ASSERT(IS_POW2(TILE_SIZE), TILE_SIZE_must_be_a_power_of_2);
 
@@ -148,11 +150,11 @@ ssol_draw
   res = s3d_scene_view_create(scn->scn_rt, S3D_TRACE, &view);
   if(res != RES_OK) goto error;
 
-  /* TODO parallelize the rendering */
-  FOR_EACH(mcode, 0, (int64_t)ntiles) {
+  #pragma omp parallel for schedule(dynamic, 1/*chunck size*/)
+  for(mcode=0; mcode<(int64_t)ntiles; ++mcode) {
     size_t tile_org[2];
     size_t tile_sz[2];
-    int ithread = 0;
+    int ithread = omp_get_thread_num();
     double* pixels;
     res_T res_local;
 
