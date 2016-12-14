@@ -404,7 +404,7 @@ ssol_solve
       continue;
     }
 
-    /* Setup the ray as if it starts from the curreunt point position in order to handle
+    /* Setup the ray as if it starts from the current point position in order to handle
      * the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
     f3_set_d3(dir, pt.dir);

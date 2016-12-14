@@ -48,27 +48,26 @@ struct quadric_mesh_context {
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
-static INLINE res_T
+static INLINE int
 check_plane(const struct ssol_quadric_plane* plane)
 {
-  return !plane ? RES_BAD_ARG : RES_OK;
+  return plane != NULL;
 }
 
-static INLINE res_T
+static INLINE int
 check_parabol(const struct ssol_quadric_parabol* parabol)
 {
-  return !parabol || parabol->focal <= 0 ? RES_BAD_ARG : RES_OK;
+  return parabol && parabol->focal > 0;
 }
 
-static INLINE res_T
+static INLINE int
 check_parabolic_cylinder
   (const struct ssol_quadric_parabolic_cylinder* parabolic_cylinder)
 {
-  return !parabolic_cylinder || parabolic_cylinder->focal <= 0
-    ? RES_BAD_ARG : RES_OK;
+  return parabolic_cylinder && parabolic_cylinder->focal > 0;
 }
 
-static INLINE res_T
+static INLINE int
 check_quadric(const struct ssol_quadric* quadric)
 {
   if(!quadric) return RES_BAD_ARG;
@@ -80,49 +79,43 @@ check_quadric(const struct ssol_quadric* quadric)
       return check_parabol(&quadric->data.parabol);
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
       return check_parabolic_cylinder(&quadric->data.parabolic_cylinder);
-    default: return RES_BAD_ARG;
+    default: return 0;
   }
 }
 
-static INLINE res_T
+static INLINE int
 check_carving(const struct ssol_carving* polygon)
 {
-  if(!polygon || !polygon->get || polygon->nb_vertices <= 0)
-    return RES_BAD_ARG;
-  /* we don't check that the polygon defines a not empty area in such case, the
+  /* We don't check that the polygon defines a not empty area in such case, the
    * quadric is valid but can have zero surface */
-  return RES_OK;
+  return polygon && polygon->get && polygon->nb_vertices > 0;
 }
 
-static INLINE res_T
+static INLINE int
 check_punched_surface(const struct ssol_punched_surface* punched_surface)
 {
   size_t i;
-  res_T res = RES_OK;
 
   if(!punched_surface
   || punched_surface->nb_carvings == 0
   || !punched_surface->carvings
-  || !punched_surface->quadric)
-    return RES_BAD_ARG;
-
-  res = check_quadric(punched_surface->quadric);
-  if(res != RES_OK) return res;
+  || !punched_surface->quadric
+  || !check_quadric(punched_surface->quadric))
+    return 0;
 
   FOR_EACH(i, 0, punched_surface->nb_carvings) {
-    res = check_carving(&punched_surface->carvings[i]);
-    if(res != RES_OK) return res;
+    if(!check_carving(&punched_surface->carvings[i]))
+      return 0;
   }
-  /* we don't check that carvings define a non empty area
-   * in such case, the quadric is valid but has zero surface */
-  return RES_OK;
+  /* We don't check that carvings define a non empty area in such case, the
+   * quadric is valid but has zero surface */
+  return 1;
 }
 
-static INLINE res_T
+static INLINE int
 check_shape(const struct ssol_shape* shape)
 {
-  return !shape || !shape->dev || (unsigned)shape->type >= SHAPE_TYPES_COUNT__
-    ? RES_BAD_ARG : RES_OK;
+  return shape && shape->dev && (unsigned)shape->type < SHAPE_TYPES_COUNT__;
 }
 
 static INLINE enum scpr_operation
@@ -883,7 +876,7 @@ punched_shape_trace_ray
   double N_local[3];
   double dst; /* Hit distance */
   int valid;
-  ASSERT(shape && transform && pos && pos_quadric && N_quadric); 
+  ASSERT(shape && transform && pos && pos_quadric && N_quadric);
   ASSERT(shape->type == SHAPE_PUNCHED);
 
   /* Compute world<->quadric space transformations */
@@ -968,9 +961,9 @@ ssol_punched_surface_setup
   darray_double_init(shape->dev->allocator, &coords);
   darray_size_t_init(shape->dev->allocator, &ids);
 
-  if((res = check_shape(shape)) != RES_OK) goto error;
-  if((res = check_punched_surface(psurf)) != RES_OK) goto error;
-  if(shape->type != SHAPE_PUNCHED) {
+  if(!check_shape(shape)
+  || !check_punched_surface(psurf)
+  || shape->type != SHAPE_PUNCHED) {
     res = RES_BAD_ARG;
     goto error;
   }
@@ -1051,15 +1044,13 @@ ssol_mesh_setup
   res_T res = RES_OK;
   unsigned i;
 
-  if((res = check_shape(shape)) != RES_OK)
-    goto error;
-
-  if(shape->type != SHAPE_MESH || !get_indices) {
-    res = RES_BAD_ARG;
-    goto error;
-  }
-
-  if(!ntris || !nverts || !attribs || !nattribs) {
+  if(!check_shape(shape)
+  || shape->type != SHAPE_MESH
+  || !get_indices
+  || !ntris
+  || !nverts
+  || !attribs
+  || !nattribs) {
     res = RES_BAD_ARG;
     goto error;
   }
