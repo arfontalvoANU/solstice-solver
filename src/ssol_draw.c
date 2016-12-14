@@ -91,13 +91,14 @@ draw_tile
     ipix[1] = morton2D_decode((uint32_t)(mcode>>1));
     if(ipix[1] >= size[1]) continue;
 
+    pixel = pixels + (ipix[1]*size[0] + ipix[0])*3/*#channels*/;
+
     ipix[0] = ipix[0] + origin[0];
     ipix[1] = ipix[1] + origin[1];
     samp[0] = ((float)ipix[0] + 0.5f) * pix_sz[0];
     samp[1] = ((float)ipix[1] + 0.5f) * pix_sz[1];
 
     camera_ray(cam, samp, org, dir);
-    pixel = pixels + (ipix[1]*size[0] + ipix[0])*3/*#channels*/;
 
     Li(scn, view, org, dir, pixel);
   }

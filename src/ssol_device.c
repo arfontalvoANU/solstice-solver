@@ -41,7 +41,6 @@ log_msg
   }
 }
 
-
 static void
 device_release(ref_T* ref)
 {
