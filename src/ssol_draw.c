@@ -16,6 +16,8 @@
 #include "ssol.h"
 #include "ssol_c.h"
 #include "ssol_camera.h"
+#include "ssol_device_c.h"
+#include "ssol_scene_c.h"
 
 #include <rsys/double3.h>
 #include <rsys/math.h>
@@ -55,7 +57,7 @@ Li(struct ssol_scene* scn,
   if(S3D_HIT_NONE(&hit)) {
     d3_splat(val, 0);
   } else {
-    float N[3];
+    float N[3]={0};
     f3_normalize(N, hit.normal);
     d3_splat(val, fabs(f3_dot(N, dir)));
   }
@@ -104,7 +106,7 @@ draw_tile
 /*******************************************************************************
  * Exported function
  ******************************************************************************/
-static res_T /* FIXME */
+res_T
 ssol_draw
   (struct ssol_scene* scn,
    struct ssol_camera* cam,
@@ -113,15 +115,25 @@ ssol_draw
    ssol_write_pixels_T writer,
    void* data)
 {
-  struct s3d_scene_view* view = NULL; /* TODO */
+  struct s3d_scene_view* view = NULL;
+  struct darray_byte* tiles = NULL;
   int64_t mcode; /* Morton code of a tile */
   float pix_sz[2];
   size_t ntiles_x, ntiles_y, ntiles;
+  size_t i;
   ATOMIC res = RES_OK;
 
-  if(!scn || !cam || !writer || !data) {
+  if(!scn || !cam || !width || !height || !writer) {
     res = RES_BAD_ARG;
     goto error;
+  }
+
+  tiles = darray_tile_data_get(&scn->dev->tiles);
+  ASSERT(darray_tile_size_get(&scn->dev->tiles) == scn->dev->nthreads);
+  FOR_EACH(i, 0, scn->dev->nthreads) {
+    const size_t sizeof_tile = TILE_SIZE * TILE_SIZE * sizeof(double[3]);
+    res = darray_byte_resize(tiles+i, sizeof_tile);
+    if(res != RES_OK) goto error;
   }
 
   ntiles_x = (width + (TILE_SIZE-1)/*ceil*/)/TILE_SIZE;
@@ -132,10 +144,15 @@ ssol_draw
   pix_sz[0] = 1.f / (float)width;
   pix_sz[1] = 1.f / (float)height;
 
+  res = s3d_scene_view_create(scn->scn_rt, S3D_TRACE, &view);
+  if(res != RES_OK) goto error;
+
+  /* TODO parallelize the rendering */
   FOR_EACH(mcode, 0, (int64_t)ntiles) {
     size_t tile_org[2];
     size_t tile_sz[2];
-    double* pixels = NULL; /* TODO */
+    int ithread = 0;
+    double* pixels;
     res_T res_local;
 
     if(ATOMIC_GET(&res) != RES_OK) continue;
@@ -150,6 +167,8 @@ ssol_draw
     tile_sz[0] = MMIN(TILE_SIZE, width - tile_org[0]);
     tile_sz[1] = MMIN(TILE_SIZE, height- tile_org[1]);
 
+    pixels = (double*)darray_byte_data_get(tiles+ithread);
+
     draw_tile(scn, view, cam, tile_org, tile_sz, pix_sz, pixels);
 
     res_local = writer(data, tile_org, tile_sz, SSOL_PIXEL_DOUBLE3, pixels);
@@ -160,7 +179,9 @@ ssol_draw
   }
 
 exit:
+  if(view) S3D(scene_view_ref_put(view));
   return (res_T)res;
 error:
   goto exit;
 }
+

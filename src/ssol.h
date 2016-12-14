@@ -758,6 +758,15 @@ ssol_solve
    FILE* output,
    struct ssol_estimator* estimator);
 
+SSOL_API res_T
+ssol_draw
+  (struct ssol_scene* scn,
+   struct ssol_camera* cam,
+   const size_t width, /* #pixels in X */
+   const size_t height, /* #pixels in Y */
+   ssol_write_pixels_T writer,
+   void* writer_data);
+
 END_DECLS
 
 #endif /* SSOL_H */

@@ -16,9 +16,23 @@
 #ifndef SSOL_DEVICE_C_H
 #define SSOL_DEVICE_C_H
 
+#include <rsys/dynamic_array.h>
 #include <rsys/free_list.h>
 #include <rsys/ref_count.h>
 #include <star/s3d.h>
+
+#define DARRAY_NAME byte
+#define DARRAY_DATA char
+#define DARRAY_ALIGNMENT 16
+#include <rsys/dynamic_array.h>
+
+#define DARRAY_NAME tile
+#define DARRAY_DATA struct darray_byte
+#define DARRAY_FUNCTOR_INIT darray_byte_init
+#define DARRAY_FUNCTOR_RELEASE darray_byte_release
+#define DARRAY_FUNCTOR_COPY darray_byte_copy
+#define DARRAY_FUNCTOR_COPY_AND_RELEASE darray_byte_copy_and_release
+#include <rsys/dynamic_array.h>
 
 struct scpr_mesh;
 
@@ -27,6 +41,9 @@ struct ssol_device {
   struct mem_allocator* allocator;
   unsigned nthreads;
   int verbose;
+
+  /* Per thread draw tile used by the draw function */
+  struct darray_tile tiles;
 
   struct s3d_device* s3d;
   struct scpr_mesh* scpr_mesh; /* Use to clip quadric mesh */

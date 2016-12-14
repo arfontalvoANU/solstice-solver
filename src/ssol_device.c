@@ -48,6 +48,7 @@ device_release(ref_T* ref)
   struct ssol_device* dev;
   ASSERT(ref);
   dev = CONTAINER_OF(ref, struct ssol_device, ref);
+  darray_tile_release(&dev->tiles);
   if(dev->s3d) S3D(device_ref_put(dev->s3d));
   if(dev->scpr_mesh) SCPR(mesh_ref_put(dev->scpr_mesh));
   MEM_RM(dev->allocator, dev);
@@ -80,11 +81,15 @@ ssol_device_create
     goto error;
   }
   ref_init(&dev->ref);
+  darray_tile_init(allocator, &dev->tiles);
   dev->logger = logger ? logger : LOGGER_DEFAULT;
   dev->allocator = allocator;
   dev->verbose = verbose;
   dev->nthreads = MMIN(nthreads_hint, (unsigned)omp_get_num_procs());
   omp_set_num_threads((int)dev->nthreads);
+
+  res = darray_tile_resize(&dev->tiles, dev->nthreads);
+  if(res != RES_OK) goto error;
 
   res = s3d_device_create(logger, mem_allocator, verbose, &dev->s3d);
   if(res != RES_OK) goto error;
