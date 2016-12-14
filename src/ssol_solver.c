@@ -119,7 +119,7 @@ point_init
     pt->side = SSOL_FRONT;
   } else {
     pt->side = SSOL_BACK;
-    d3_minus(pt->N, pt->N);
+    d3_minus(pt->N, pt->N); /* Force the normal to look forward dir */
   }
 
   /* Initialise the ray data to avoid self intersection */
@@ -185,7 +185,7 @@ point_update_from_hit
     pt->side = SSOL_FRONT;
   } else {
     pt->side = SSOL_BACK;
-    d3_minus(pt->N, pt->N);
+    d3_minus(pt->N, pt->N); /* Force the normal to look forward dir */
   }
 }
 

@@ -304,6 +304,9 @@ surface_fragment_setup
   char has_texcoord, has_normal;
   ASSERT(fragment && pos && dir && primitive && uv);
 
+  /* Assume that the submitted normal look forward the incoming dir */
+  ASSERT(d3_dot(normal, dir) <= 0);
+
   /* Setup the incoming direction */
   d3_set(fragment->dir, dir);
 
@@ -349,7 +352,11 @@ surface_fragment_setup
     }
     d3_set_f3(fragment->Ns, attr.value);
     d3_normalize(fragment->Ns, fragment->Ns);
-    /* FIXME: flip normal if backface??? */
+
+    /* Ensure that the fetched shading normal look forward the incoming dir */
+    if(d3_dot(dir, fragment->Ns) > 0) {
+      d3_minus(fragment->Ns, fragment->Ns);
+    }
   }
 }
 
