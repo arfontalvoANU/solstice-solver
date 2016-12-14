@@ -34,6 +34,46 @@
  * Helper functions
  ******************************************************************************/
 static res_T
+matte_shade
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   struct ssf_bsdf* bsdf)
+{
+  struct ssf_bxdf* brdf = NULL;
+  const struct ssol_matte_shader* shader;
+  double normal[3];
+  double reflectivity;
+  res_T res;
+  ASSERT(mtl && fragment && mtl->type == MATERIAL_MATTE);
+  ASSERT(bsdf);
+
+  shader = &mtl->data.matte;
+
+  /* Fetch material attribs */
+  shader->normal(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, normal);
+  shader->reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
+
+  /* Setup the BRDF */
+  res = ssf_bxdf_create(mtl->dev->allocator, &ssf_lambertian_reflection, &brdf);
+  if(res != RES_OK) goto error;
+  res = ssf_lambertian_reflection_setup(brdf, reflectivity);
+  if(res != RES_OK) goto error;
+
+  /* Setup the BSDF */
+  res = ssf_bsdf_add(bsdf, brdf, 1.0);
+  if(res != RES_OK) goto error;
+
+exit:
+  if(brdf) SSF(bxdf_ref_put(brdf));
+  return res;
+error:
+  goto exit;
+}
+
+static res_T
 mirror_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
@@ -113,15 +153,21 @@ material_release(ref_T* ref)
   SSOL(device_ref_put(dev));
 }
 
-static INLINE res_T
-shader_ok(const struct ssol_mirror_shader* shader)
+static INLINE int
+check_shader_mirror(const struct ssol_mirror_shader* shader)
 {
-  if(!shader
-  || !shader->normal
-  || !shader->reflectivity
-  || !shader->roughness)
-    return RES_BAD_ARG;
-  return RES_OK;
+  return shader
+      && shader->normal
+      && shader->reflectivity
+      && shader->roughness;
+}
+
+static INLINE int
+check_shader_matte(const struct ssol_matte_shader* shader)
+{
+  return shader
+      && shader->normal
+      && shader->reflectivity;
 }
 
 /*******************************************************************************
@@ -205,16 +251,33 @@ ssol_material_create_mirror
 }
 
 res_T
+ssol_material_create_matte
+  (struct ssol_device* dev, struct ssol_material** out_material)
+{
+  return ssol_material_create(dev, out_material, MATERIAL_MATTE);
+}
+
+res_T
 ssol_mirror_set_shader
   (struct ssol_material* material, const struct ssol_mirror_shader* shader)
 {
   if(!material
   || material->type != MATERIAL_MIRROR
-  || shader_ok(shader) != RES_OK)
+  || !check_shader_mirror(shader))
     return RES_BAD_ARG;
-
   material->data.mirror = *shader;
+  return RES_OK;
+}
 
+res_T
+ssol_matte_set_shader
+  (struct ssol_material* material, const struct ssol_matte_shader* shader)
+{
+  if(!material
+  || material->type != MATERIAL_MATTE
+  || !check_shader_matte(shader))
+    return RES_BAD_ARG;
+  material->data.matte = *shader;
   return RES_OK;
 }
 
@@ -302,6 +365,9 @@ material_shade
 
   /* Specific material shading */
   switch(mtl->type) {
+    case MATERIAL_MATTE:
+      res = matte_shade(mtl, fragment, wavelength, bsdf);
+      break;
     case MATERIAL_MIRROR:
       res = mirror_shade(mtl, fragment, wavelength, bsdf);
       break;

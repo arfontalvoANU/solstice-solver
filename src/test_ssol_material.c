@@ -26,7 +26,8 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_material* material;
-  struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
+  struct ssol_mirror_shader mirror = SSOL_MIRROR_SHADER_NULL;
+  struct ssol_matte_shader matte = SSOL_MATTE_SHADER_NULL;
   struct ssol_param_buffer* pbuf = NULL;
   (void) argc, (void) argv;
 
@@ -52,31 +53,31 @@ main(int argc, char** argv)
 
   CHECK(ssol_param_buffer_create(dev, 32, &pbuf), RES_OK);
 
-  shader.normal = get_shader_normal;
-  shader.reflectivity = get_shader_reflectivity;
-  shader.roughness = get_shader_roughness;
+  mirror.normal = get_shader_normal;
+  mirror.reflectivity = get_shader_reflectivity;
+  mirror.roughness = get_shader_roughness;
 
-  CHECK(ssol_mirror_set_shader(NULL, &shader), RES_BAD_ARG);
+  CHECK(ssol_mirror_set_shader(NULL, &mirror), RES_BAD_ARG);
   CHECK(ssol_mirror_set_shader(material, NULL), RES_BAD_ARG);
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_OK);
+  CHECK(ssol_mirror_set_shader(material, &mirror), RES_OK);
+  CHECK(ssol_mirror_set_shader(material, &mirror), RES_OK);
 
   CHECK(ssol_material_set_param_buffer(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_material_set_param_buffer(material, NULL), RES_BAD_ARG);
   CHECK(ssol_material_set_param_buffer(NULL, pbuf), RES_BAD_ARG);
   CHECK(ssol_material_set_param_buffer(material, pbuf), RES_OK);
 
-  shader.normal = NULL;
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.normal = get_shader_normal;
+  mirror.normal = NULL;
+  CHECK(ssol_mirror_set_shader(material, &mirror), RES_BAD_ARG);
+  mirror.normal = get_shader_normal;
 
-  shader.reflectivity = NULL;
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.reflectivity = get_shader_reflectivity;
+  mirror.reflectivity = NULL;
+  CHECK(ssol_mirror_set_shader(material, &mirror), RES_BAD_ARG);
+  mirror.reflectivity = get_shader_reflectivity;
 
-  shader.roughness = NULL;
-  CHECK(ssol_mirror_set_shader(material, &shader), RES_BAD_ARG);
-  shader.roughness = get_shader_roughness;
+  mirror.roughness = NULL;
+  CHECK(ssol_mirror_set_shader(material, &mirror), RES_BAD_ARG);
+  mirror.roughness = get_shader_roughness;
 
   CHECK(ssol_material_ref_put(material), RES_OK);
 
@@ -87,6 +88,25 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(material), RES_OK);
   CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
 
+  CHECK(ssol_material_create_matte(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_matte(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_matte(NULL, &material), RES_BAD_ARG);
+  CHECK(ssol_material_create_matte(dev, &material), RES_OK);
+
+  matte.normal = get_shader_normal;
+  matte.reflectivity = get_shader_reflectivity;
+  CHECK(ssol_matte_set_shader(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_matte_set_shader(material, NULL), RES_BAD_ARG);
+  CHECK(ssol_matte_set_shader(NULL, &matte), RES_BAD_ARG);
+  CHECK(ssol_matte_set_shader(material, &matte), RES_OK);
+
+  matte.normal = NULL;
+  CHECK(ssol_matte_set_shader(material, &matte), RES_BAD_ARG);
+  matte.normal = get_shader_normal;
+  matte.reflectivity = NULL;
+  CHECK(ssol_matte_set_shader(material, &matte), RES_BAD_ARG);
+
+  CHECK(ssol_material_ref_put(material), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   logger_release(&logger);

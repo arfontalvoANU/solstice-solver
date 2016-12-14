@@ -199,7 +199,7 @@ typedef void
    const double w[3], /* Incoming direction. Point toward the surface */
    double* val); /* Returned value */
 
-/* Material descriptors */
+/* Mirror material shader */
 struct ssol_mirror_shader {
   ssol_shader_getter_T normal;
   ssol_shader_getter_T reflectivity;
@@ -208,6 +208,15 @@ struct ssol_mirror_shader {
 #define SSOL_MIRROR_SHADER_NULL__ { NULL, NULL, NULL }
 static const struct ssol_mirror_shader SSOL_MIRROR_SHADER_NULL =
   SSOL_MIRROR_SHADER_NULL__;
+
+/* Matte material shader */
+struct ssol_matte_shader {
+  ssol_shader_getter_T normal;
+  ssol_shader_getter_T reflectivity;
+};
+#define SSOL_MATTE_SHADER_NULL__ { NULL, NULL }
+static const struct ssol_matte_shader SSOL_MATTE_SHADER_NULL =
+  SSOL_MATTE_SHADER_NULL__;
 
 /* The type of data produced on receiver hits as ssol_solve() write them on its
  * FILE* argument */
@@ -480,6 +489,11 @@ ssol_material_create_mirror
    struct ssol_material** mtl);
 
 SSOL_API res_T
+ssol_material_create_matte
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
 ssol_material_create_virtual
   (struct ssol_device* dev,
    struct ssol_material** mtl);
@@ -501,6 +515,11 @@ SSOL_API res_T
 ssol_mirror_set_shader
   (struct ssol_material* mtl,
    const struct ssol_mirror_shader* shader);
+
+SSOL_API res_T
+ssol_matte_set_shader
+  (struct ssol_material* mtl,
+   const struct ssol_matte_shader* shader);
 
 /*******************************************************************************
  * Object API - Opaque abstraction of a geometry with its associated properties.
