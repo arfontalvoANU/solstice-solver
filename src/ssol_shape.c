@@ -537,20 +537,6 @@ error:
   goto exit;
 }
 
-static INLINE double
-inject_same_sign(const double x, const double src)
-{
-  union { uint64_t i64; double d; } ucast;
-  uint64_t sign, value;
-
-  ucast.d = src;
-  sign = ucast.i64 & 0x8000000000000000;
-  ucast.d = x;
-  value = ucast.i64 & 0x7FFFFFFFFFFFFFFF;
-  ucast.i64 = sign | value;
-  return ucast.d;
-}
-
 /* Solve a 2nd degree equation
  * hint is used to select among the 2 solutions (if applies)
  * the selected solution is then the closest to hint positive value */
@@ -562,44 +548,31 @@ quadric_solve_second
    const double hint,
    double* dist)
 {
+  double t = -1;
   ASSERT(dist);
-  if(a != 0) {
-    /* Standard case: 2nd degree */
+  if(a == 0) {
+    if(b != 0) t = -c / b; /* Degenerated case: 1st degree only */
+  } else {
     const double delta = b * b - 4 * a * c;
-    if(delta > 0) {
-      const double sqrt_delta = sqrt(delta);
-      /* Precise formula */
-      const double t1 = (-b - inject_same_sign(sqrt_delta, b)) / (2 * b);
-      const double t2 = c / (a * t1);
-      if(t1 < 0 && t2 < 0) return 0; /* no positive solution */
-      if(t1 < 0) {
-        *dist = t2; /* t2 is the only positive solution */
-        return 1;
-      }
-      if(t2 < 0) {
-        *dist = t1; /* t1 is the only positive solution */
-        return 1;
-      }
-      /* Both t1 and t2 are positive: choose the closest value to hint */
-      *dist = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
-      return 1;
-    } else if(delta == 0) {
-      const double t = -b / (2 * a);
-      if(t < 0) return 0; /* no positive solution */
-      *dist = t;
-      return 1;
+
+    if(delta == 0) {
+      t = -b / (2*a);
     } else {
-      return 0;
+      const double sqrt_delta = sqrt(delta);
+      const double t1 = (-b - sqrt_delta) / (2 * a);
+      const double t2 = (-b + sqrt_delta) / (2 * a);
+      if(t1 >= 0 && t2 < 0) {
+        t = t1;
+      } else if(t1 < 0 && t2 >= 0) {
+        t = t2;
+      } else if(t1 >= 0 && t2 >= 0) {
+        /* Choose the closest value to hint */
+        t = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
+      }
     }
-  } else if(b != 0) {
-    /* degenerated case: 1st degree only */
-    const double t = -c / b;
-    if(t < 0) return 0; /* no positive solution */
-    *dist = t;
-    return 1;
   }
-  /* fully degenerated case: cannot determine dist */
-  return 0;
+  *dist = t;
+  return t >= 0;
 }
 
 static FINLINE void
@@ -674,7 +647,7 @@ quadric_parabol_intersect_local
    double grad[3],
    double* dist) /* in/out: */
 {
-  /* Define x^2 + y^2 - 4 focal z = 0 */
+  /* Define x^2 + y^2 - 4*focal*z = 0 */
   double dst;
   const double a = dir[0] * dir[0] + dir[1] * dir[1];
   const double b =
