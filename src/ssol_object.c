@@ -199,7 +199,7 @@ ssol_object_clear(struct ssol_object* obj)
 
   n = darray_shaded_shape_size_get(&obj->shaded_shapes);
   FOR_EACH(i, 0, n) {
-    struct shaded_shape* s = darray_shaded_shape_data_get(&obj->shaded_shapes);
+    struct shaded_shape* s = darray_shaded_shape_data_get(&obj->shaded_shapes)+i;
     SSOL(shape_ref_put(s->shape));
     SSOL(material_ref_put(s->mtl_front));
     SSOL(material_ref_put(s->mtl_back));

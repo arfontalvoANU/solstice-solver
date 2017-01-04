@@ -25,6 +25,7 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_shape* shape;
+  struct ssol_shape* shape2;
   struct ssol_material* mtl;
   struct ssol_material* mtl2;
   struct ssol_object* object;
@@ -42,6 +43,7 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_virtual(dev, &mtl), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &mtl2), RES_OK);
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
+  CHECK(ssol_shape_create_punched_surface(dev, &shape2), RES_OK);
 
   CHECK(ssol_object_create(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_object_create(dev, NULL), RES_BAD_ARG);
@@ -64,6 +66,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(object, NULL, mtl, mtl), RES_BAD_ARG);
   CHECK(ssol_object_add_shaded_shape(NULL, shape, mtl, mtl), RES_BAD_ARG);
   CHECK(ssol_object_add_shaded_shape(object, shape, mtl, mtl), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(object, shape2, mtl2, mtl2), RES_OK);
 
   CHECK(ssol_object_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_object_ref_get(object), RES_OK);
@@ -80,6 +83,7 @@ main(int argc, char** argv)
 
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
+  CHECK(ssol_shape_ref_put(shape2), RES_OK);
   CHECK(ssol_material_ref_put(mtl), RES_OK);
   CHECK(ssol_material_ref_put(mtl2), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
