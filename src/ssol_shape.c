@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
+#define POSIX_C_SOURCE 200112L
+
 #include "ssol.h"
 #include "ssol_c.h"
 #include "ssol_device_c.h"
@@ -536,10 +538,10 @@ error:
   }
   goto exit;
 }
-
+	
 /* Solve a 2nd degree equation
  * hint is used to select among the 2 solutions (if applies)
- * the selected solution is then the closest to hint positive value */
+ * the selected solution is then the closest to hint */
 static int
 quadric_solve_second
   (const double a,
@@ -548,31 +550,37 @@ quadric_solve_second
    const double hint,
    double* dist)
 {
-  double t = -1;
   ASSERT(dist);
-  if(a == 0) {
-    if(b != 0) t = -c / b; /* Degenerated case: 1st degree only */
-  } else {
+  ASSERT(hint >= 0);
+  if (a != 0) {
+    /* Standard case: 2nd degree */
     const double delta = b * b - 4 * a * c;
-
-    if(delta == 0) {
-      t = -b / (2*a);
-    } else {
+    if (delta > 0) {
       const double sqrt_delta = sqrt(delta);
-      const double t1 = (-b - sqrt_delta) / (2 * a);
-      const double t2 = (-b + sqrt_delta) / (2 * a);
-      if(t1 >= 0 && t2 < 0) {
-        t = t1;
-      } else if(t1 < 0 && t2 >= 0) {
-        t = t2;
-      } else if(t1 >= 0 && t2 >= 0) {
-        /* Choose the closest value to hint */
-        t = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
-      }
+      /* Precise formula */
+      const double t1 = (-b - copysign(sqrt_delta, b)) / (2 * a);
+      const double t2 = c / (a * t1);
+      /* Choose the closest value to hint */
+      *dist = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
+      return 1;
+    }
+    else if (delta == 0) {
+      const double t = -b / (2 * a);
+      *dist = t;
+      return 1;
+    }
+    else {
+      return 0;
     }
   }
-  *dist = t;
-  return t >= 0;
+  else if (b != 0) {
+    /* degenerated case: 1st degree only */
+    const double t = -c / b;
+    *dist = t;
+    return 1;
+  }
+  /* fully degenerated case: cannot determine dist */
+  return 0;
 }
 
 static FINLINE void
@@ -616,6 +624,7 @@ static FINLINE int
 quadric_plane_intersect_local
   (const double org[3],
    const double dir[3],
+   const double hint,
    double pt[3],
    double grad[3],
    double* dist)
@@ -626,7 +635,7 @@ quadric_plane_intersect_local
   const double c = org[2];
   double tmp[3];
   double dst;
-  int sol = quadric_solve_second(a, b, c, 0, &dst);
+  int sol = quadric_solve_second(a, b, c, hint, &dst);
 
   if(!sol) return 0;
   d3_add(tmp, org, d3_muld(tmp, dir, dst));
@@ -753,7 +762,7 @@ punched_shape_intersect_local
   /* Hits on quadrics must be recomputed more accurately */
   switch (shape->quadric.type) {
     case SSOL_QUADRIC_PLANE:
-      hit = quadric_plane_intersect_local(org, dir, pt, N, dist);
+      hit = quadric_plane_intersect_local(org, dir, hint, pt, N, dist);
       break;
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
       hit = quadric_parabolic_cylinder_intersect_local
