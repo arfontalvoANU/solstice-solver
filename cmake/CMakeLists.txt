@@ -111,6 +111,7 @@ set_target_properties(solstice-solver PROPERTIES
   COMPILE_FLAGS ${OpenMP_C_FLAGS}
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR})
+rcmake_copy_runtime_libraries(solstice-solver)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   set_target_properties(solstice-solver PROPERTIES LINK_FLAGS ${OpenMP_C_FLAGS})
