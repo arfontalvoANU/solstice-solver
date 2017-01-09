@@ -16,8 +16,6 @@
 #ifndef SSOL_ESTIMATOR_C_H
 #define SSOL_ESTIMATOR_C_H
 
-#include <star/smc.h>
-
 #include <rsys/ref_count.h>
 
 /* Monte carlo data */

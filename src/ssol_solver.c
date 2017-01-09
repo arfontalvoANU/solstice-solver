@@ -41,6 +41,7 @@
 #include <star/ssf.h>
 #include <star/ssp.h>
 
+#include <limits.h>
 #include <omp.h>
 
 struct point {
