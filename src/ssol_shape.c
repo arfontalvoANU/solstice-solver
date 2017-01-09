@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
-#define POSIX_C_SOURCE 200112L
+#define _POSIX_C_SOURCE 200112L /* copysign support */
 
 #include "ssol.h"
 #include "ssol_c.h"
@@ -34,6 +34,7 @@
 #include <star/scpr.h>
 
 #include <limits.h> /* UINT_MAX constant */
+#include <math.h> /* copysign function */
 
 struct mesh_context {
   const double* coords;
@@ -538,10 +539,9 @@ error:
   }
   goto exit;
 }
-	
-/* Solve a 2nd degree equation
- * hint is used to select among the 2 solutions (if applies)
- * the selected solution is then the closest to hint */
+
+/* Solve a 2nd degree equation. "hint" is used to select among the 2 solutions
+ * (if applies) the selected solution is then the closest to hint */
 static int
 quadric_solve_second
   (const double a,
@@ -550,37 +550,27 @@ quadric_solve_second
    const double hint,
    double* dist)
 {
-  ASSERT(dist);
-  ASSERT(hint >= 0);
-  if (a != 0) {
-    /* Standard case: 2nd degree */
-    const double delta = b * b - 4 * a * c;
-    if (delta > 0) {
+  double t = -1;
+  ASSERT(dist && hint >= 0);
+
+  if(a == 0) {
+    if(b != 0) t = -c / b; /* Degenerated case: 1st degree only */
+  } else { /* Standard case: 2nd degree */
+    const double delta = b*b - 4*a*c;
+
+    if(delta == 0) {
+      t = -b / (2*a);
+    } else {
       const double sqrt_delta = sqrt(delta);
       /* Precise formula */
-      const double t1 = (-b - copysign(sqrt_delta, b)) / (2 * a);
-      const double t2 = c / (a * t1);
+      const double t1 = (-b - copysign(sqrt_delta, b)) / (2*a);
+      const double t2 = c / (a*t1);
       /* Choose the closest value to hint */
-      *dist = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
-      return 1;
-    }
-    else if (delta == 0) {
-      const double t = -b / (2 * a);
-      *dist = t;
-      return 1;
-    }
-    else {
-      return 0;
+      t = fabs(t1 - hint) < fabs(t2 - hint) ? t1 : t2;
     }
   }
-  else if (b != 0) {
-    /* degenerated case: 1st degree only */
-    const double t = -c / b;
-    *dist = t;
-    return 1;
-  }
-  /* fully degenerated case: cannot determine dist */
-  return 0;
+  *dist = t;
+  return t >= 0;
 }
 
 static FINLINE void
