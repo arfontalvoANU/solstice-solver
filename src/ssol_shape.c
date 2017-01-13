@@ -955,7 +955,7 @@ ssol_punched_surface_setup
         / (4.0 * psurf->quadric->data.parabol.focal);
       z[1] = (upper[0] * upper[0] + upper[1] * upper[1])
         / (4.0 * psurf->quadric->data.parabol.focal);
-      nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
+      nslices = MMIN(50, (size_t)(3 + sqrt(MMAX(z[0], z[1])) * 6));
       break;
     }
     case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
@@ -964,7 +964,7 @@ ssol_punched_surface_setup
         (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
       z[1] = (upper[1] * upper[1]) /
         (4.0 * psurf->quadric->data.parabolic_cylinder.focal);
-      nslices = MMIN(50, (size_t)(1 + MMAX(z[0], z[1]) * 4));
+      nslices = MMIN(50, (size_t)(3 + sqrt(MMAX(z[0], z[1])) * 6));
       break;
     }
     default: FATAL("Unreachable code\n"); break;
