@@ -802,9 +802,9 @@ punched_shape_project_point
   ASSERT(shape->type == SHAPE_PUNCHED);
 
   /* Compute world<->quadric space transformations */
-  d33_muld33(R, shape->quadric.transform, transform);
-  d33_muld3 (T, shape->quadric.transform, transform+9);
-  d3_add(T, shape->quadric.transform + 9, T);
+  d33_muld33(R, transform, shape->quadric.transform);
+  d33_muld3(T, transform, shape->quadric.transform+9);
+  d3_add(T, T, transform + 9);
   d33_invtrans(R_invtrans, R);
   d3_minus(T_inv, T);
 
@@ -848,9 +848,9 @@ punched_shape_trace_ray
   ASSERT(shape->type == SHAPE_PUNCHED);
 
   /* Compute world<->quadric space transformations */
-  d33_muld33(R, shape->quadric.transform, transform);
-  d33_muld3 (T, shape->quadric.transform, transform+9);
-  d3_add(T, shape->quadric.transform + 9, T);
+  d33_muld33(R, transform, shape->quadric.transform);
+  d33_muld3(T, transform, shape->quadric.transform+9);
+  d3_add(T, T, transform + 9);
   d33_invtrans(R_invtrans, R);
   d3_minus(T_inv, T);
 
