@@ -36,7 +36,7 @@ struct ssol_scene;
 struct ssol_sun;
 
 struct ssol_scene {
-  /* Map the instantiated RT/Samp S3D shape id to its SSOL intrance */
+  /* Map the instantiated RT/Samp S3D shape id to its SSOL instance */
   struct htable_instance instances_rt;
   struct htable_instance instances_samp;
 
@@ -45,6 +45,8 @@ struct ssol_scene {
 
   struct ssol_sun* sun; /* Sun of the scene */
   struct ssol_atmosphere* atmosphere; /* Atmosphere of the scene */
+
+  int nb_receivers;
 
   struct ssol_device* dev;
   ref_T ref;

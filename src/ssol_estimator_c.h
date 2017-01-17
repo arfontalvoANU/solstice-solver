@@ -17,6 +17,9 @@
 #define SSOL_ESTIMATOR_C_H
 
 #include <rsys/ref_count.h>
+#include <rsys/dynamic_array.h>
+
+struct mem_allocator;
 
 /* Monte carlo data */
 struct mc_data {
@@ -29,13 +32,30 @@ struct mc_data {
 #define MC_DATA_NULL__ { 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
+static INLINE void 
+init_mc_data
+  (struct mem_allocator* alloc,
+   struct mc_data* data)
+{
+  (void)alloc;
+  ASSERT(data);
+  CLEAR_MC_DATA(*data);
+}
+
+/* Define the darray_receiver data structure */
+#define DARRAY_NAME receiver
+#define DARRAY_DATA struct mc_data
+#define DARRAY_FUNCTOR_INIT init_mc_data
+#include <rsys/dynamic_array.h>
+
 struct ssol_estimator {
   size_t realisation_count;
   size_t failed_count;
   /* the implicit MC computations */
   struct mc_data shadow;
   struct mc_data missing;
-  /* 2 global MC per receiver: one for P, one for cos effect losses */
+  /* 1 global MC per receiver */
+  struct darray_receiver global_receiver;
 
   struct ssol_device* dev;
   ref_T ref;

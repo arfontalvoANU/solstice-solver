@@ -20,13 +20,23 @@
 #include <rsys/list.h>
 #include <rsys/ref_count.h>
 
+#define MC_RESULT_IDX_NONE -1
+
+static FINLINE int
+side_idx(const enum ssol_side_flag side)
+{
+  ASSERT(side == SSOL_FRONT || side == SSOL_BACK);
+    return side == SSOL_FRONT ? 0 : 1;
+}
+
 struct ssol_instance {
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
   double transform[12]; /* Column major 4x3 affine transformation */
+  int mc_result_idx[2]; /* index of the global MC results for possible receptors */
   int receiver_mask; /* Combination of ssol_face_flag */
-  int sample; /* Define whether or not the instance is sampled or not */
+  int sample; /* Define whether or not the instance should be sampled */
 
   struct fid id; /* Unique identifier */
 

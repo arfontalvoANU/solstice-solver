@@ -16,6 +16,7 @@
 #include "ssol.h"
 #include "ssol_estimator_c.h"
 #include "ssol_device_c.h"
+#include "ssol_instance_c.h"
 
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
@@ -34,6 +35,7 @@ estimator_release(ref_T* ref)
     CONTAINER_OF(ref, struct ssol_estimator, ref);
   ASSERT(ref);
   dev = estimator->dev;
+  darray_receiver_release(&estimator->global_receiver);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -60,6 +62,8 @@ ssol_estimator_create
     res = RES_MEM_ERR;
     goto error;
   }
+
+  darray_receiver_init(dev->allocator, &estimator->global_receiver);
 
   SSOL(device_ref_get(dev));
   estimator->dev = dev;
@@ -94,6 +98,7 @@ ssol_estimator_ref_put
   ref_put(&estimator->ref, estimator_release);
   return RES_OK;
 }
+
 res_T
 ssol_estimator_get_status
   (const struct ssol_estimator* estimator,
@@ -114,6 +119,34 @@ ssol_estimator_get_status
   status->E = data->weight / (double)status->N;
   status->V = data->sqr_weight / (double)status->N - status->E * status->E;
   status->SE = (status->V > 0) ? sqrt(status->V / (double)status->N) : 0;
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_receiver_status
+  (const struct ssol_estimator* estimator,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side,
+   struct ssol_estimator_status* status)
+{
+  const struct mc_data* data;
+  uint32_t idx = 0;
+  if (!estimator || !instance || !status
+    || (side != SSOL_BACK && side != SSOL_FRONT))
+    return RES_BAD_ARG;
+
+  /* check if a receiver is defined for this instance/side */
+  idx = instance->mc_result_idx[side_idx(side)];
+  if (idx == MC_RESULT_IDX_NONE)
+    return RES_BAD_ARG;
+
+  ASSERT(idx < estimator->global_receiver.size);
+  data = estimator->global_receiver.data + idx;
+  status->N = estimator->realisation_count;
+  status->Nf = estimator->failed_count;
+  status->E = data->weight / (double) status->N;
+  status->V = data->sqr_weight / (double) status->N - status->E * status->E;
+  status->SE = (status->V > 0) ? sqrt(status->V / (double) status->N) : 0;
   return RES_OK;
 }
 

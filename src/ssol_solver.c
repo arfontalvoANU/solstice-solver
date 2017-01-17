@@ -301,6 +301,15 @@ check_scene(const struct ssol_scene* scene, const char* caller)
   return RES_OK;
 }
 
+static FINLINE int
+get_rcv_idx(const struct point* pt)
+{
+  ASSERT(pt);
+  if (pt->inst->receiver_mask & pt->side)
+    return pt->inst->mc_result_idx[side_idx(pt->side)];
+  return MC_RESULT_IDX_NONE;
+}
+
 /*******************************************************************************
  * Exported functions
  ******************************************************************************/
@@ -321,10 +330,12 @@ ssol_solve
   struct ssp_rng_proxy* rng_proxy = NULL;
   struct mc_data* mc_shadows = NULL;
   struct mc_data* mc_missings = NULL;
+  struct mc_data* mc_global_receivers = NULL;
   float sampled_area = 0;
   int nthreads = 0;
   int nrealisations = 0;
-  int i = 0;
+  int nb_receivers = 0;
+  int i = 0, j =0;
   ATOMIC res = RES_OK;
   ASSERT(nrealisations <= INT_MAX);
 
@@ -341,6 +352,7 @@ ssol_solve
     goto error;
   }
   nrealisations = (int)realisations_count;
+  nthreads = (int) scn->dev->nthreads;
 
   res = check_scene(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
@@ -352,28 +364,35 @@ ssol_solve
   if(res != RES_OK) goto error;
   S3D(scene_view_compute_area(view_samp, &sampled_area));
 
+  /* allocate room for per-receiver global MC data */
+  nb_receivers = scn->nb_receivers;
+  res = darray_receiver_resize(&estimator->global_receiver, nb_receivers);
+  if (res != RES_OK) goto error;
+
   /* Create a RNG proxy from the submitted RNG state */
   res = ssp_rng_proxy_create_from_rng
-    (scn->dev->allocator, rng_state, scn->dev->nthreads, &rng_proxy);
+    (scn->dev->allocator, rng_state, nthreads, &rng_proxy);
   if(res != RES_OK) goto error;
 
   /* Create per thread data structures */
-  #define CREATE(Data) {                                                       \
+  #define CREATEN(Data,N) {                                                    \
     ASSERT(!(Data));                                                           \
-    if(!sa_add((Data), scn->dev->nthreads)) {                                  \
+    if(!sa_add((Data), nthreads)) {                                            \
       res = RES_BAD_ARG;                                                       \
       goto error;                                                              \
     }                                                                          \
-    memset((Data), 0, sizeof((Data)[0])*scn->dev->nthreads);                   \
+    memset((Data), 0, sizeof((Data)[0])*N*nthreads);                           \
   } (void)0
+  #define CREATE(Data) CREATEN(Data,1)
   CREATE(rngs);
   CREATE(bsdfs);
   CREATE(mc_shadows);
   CREATE(mc_missings);
+  CREATEN(mc_global_receivers, nb_receivers);
   #undef CREATE
+  #undef CREATEN
 
   /* Setup per thread data structures */
-  nthreads = (int)scn->dev->nthreads;
   FOR_EACH(i, 0, nthreads) {
     res = ssf_bsdf_create(scn->dev->allocator, bsdfs+i);
     if(res != RES_OK) goto error;
@@ -389,6 +408,7 @@ ssol_solve
     struct ssf_bsdf* bsdf;
     struct mc_data* shadow;
     struct mc_data* missing;
+    struct mc_data* global_receiver;
     float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
     size_t depth = 0;
@@ -402,6 +422,7 @@ ssol_solve
     bsdf = bsdfs[ithread];
     shadow = mc_shadows + ithread;
     missing = mc_missings + ithread;
+    global_receiver = mc_global_receivers + ithread * nb_receivers;
 
     /* Find a new starting point of the radiative random walk */
     is_lit = point_init(&pt, scn, sampled_area, view_samp, view_rt,
@@ -425,10 +446,21 @@ ssol_solve
 
       if(point_is_receiver(&pt)) {
         const res_T res_local = point_dump(&pt, (size_t)i, depth, output);
+        int rcv_idx = MC_RESULT_IDX_NONE;
+        struct mc_data* global_recv = NULL;
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);
           break;
         }
+        rcv_idx = get_rcv_idx(&pt);
+        if (rcv_idx == MC_RESULT_IDX_NONE) {
+          ATOMIC_SET(&res, res_local);
+          break;
+        }
+        ASSERT(rcv_idx < nb_receivers);
+        global_recv = &global_receiver[rcv_idx];
+        global_recv->weight += pt.weight;
+        global_recv->sqr_weight += pt.weight*pt.weight;
         hit_a_receiver = 1;
       }
 
@@ -484,11 +516,19 @@ ssol_solve
   }
 
   /* Merge per thread estimations */
+  ASSERT(estimator->global_receiver.size <= nb_receivers);
   FOR_EACH(i, 0, nthreads) {
     estimator->shadow.weight += mc_shadows[i].weight;
     estimator->shadow.sqr_weight += mc_shadows[i].sqr_weight;
     estimator->missing.weight += mc_missings[i].weight;
     estimator->missing.sqr_weight += mc_missings[i].sqr_weight;
+    FOR_EACH(j, 0, nb_receivers) {
+      const int idx = i * nb_receivers + j;
+      estimator->global_receiver.data[j].weight
+        += mc_global_receivers[idx].weight;
+      estimator->global_receiver.data[j].sqr_weight
+        += mc_global_receivers[idx].sqr_weight;
+    }
   }
   estimator->realisation_count += realisations_count;
 
@@ -508,6 +548,7 @@ exit:
   }
   sa_release(mc_shadows);
   sa_release(mc_missings);
+  sa_release(mc_global_receivers);
   return (res_T)res;
 error:
   goto exit;

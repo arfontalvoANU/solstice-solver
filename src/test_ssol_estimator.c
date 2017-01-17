@@ -38,6 +38,10 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssp_rng* rng;
   struct ssol_estimator* estimator;
+  struct ssol_instance* inst;
+  struct ssol_material* v_mtl;
+  struct ssol_shape* shape;
+  struct ssol_object* object;
   struct ssol_estimator_status status;
   size_t count;
 
@@ -71,6 +75,21 @@ main(int argc, char** argv)
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   #undef GET_STATUS
 
+  #define GET_RCV_STATUS ssol_estimator_get_receiver_status
+  CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
+  CHECK(ssol_object_create(dev, &object), RES_OK);
+  CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(object, shape, v_mtl, v_mtl), RES_OK);
+  CHECK(ssol_object_instantiate(object, &inst), RES_OK);
+  CHECK(ssol_instance_set_receiver(inst, SSOL_FRONT), RES_OK);
+  CHECK(GET_RCV_STATUS(NULL, inst, SSOL_BACK, &status), RES_BAD_ARG);
+  CHECK(GET_RCV_STATUS(estimator, NULL, SSOL_BACK, &status), RES_BAD_ARG);
+  CHECK(GET_RCV_STATUS(estimator, inst, 0, &status), RES_BAD_ARG);
+  CHECK(GET_RCV_STATUS(estimator, inst, SSOL_BACK, NULL), RES_BAD_ARG);
+  /* we cannot check that a status is available for the front face
+     solve has been succesfully called */
+  #undef GET_RCV_STATUS
+
   CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);
   CHECK(ssol_estimator_get_count(estimator, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
@@ -79,6 +98,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_failed_count(estimator, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
 
+  CHECK(ssol_material_ref_put(v_mtl), RES_OK);
+  CHECK(ssol_object_ref_put(object), RES_OK);
+  CHECK(ssol_shape_ref_put(shape), RES_OK);
+  CHECK(ssol_instance_ref_put(inst), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);

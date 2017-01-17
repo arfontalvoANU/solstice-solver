@@ -282,7 +282,7 @@ scene_create_s3d_views
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
   int has_sampled = 0;
-  int has_receiver = 0;
+  int cpt_receiver = 0;
   res_T res = RES_OK;
   ASSERT(scn && out_view_rt && out_view_samp);
 
@@ -297,8 +297,21 @@ scene_create_s3d_views
     unsigned id;
     htable_instance_iterator_next(&it);
 
-    if(inst->receiver_mask) {
-      has_receiver = 1;
+    if (inst->receiver_mask & SSOL_FRONT) {
+      ASSERT(SSOL_FRONT == 1 || SSOL_FRONT == 2);
+      if (cpt_receiver == INT_MAX) {
+        res = RES_BAD_ARG;
+        goto error;
+      }
+      inst->mc_result_idx[side_idx(SSOL_FRONT)] = cpt_receiver++;
+    }
+    if (inst->receiver_mask & SSOL_BACK) {
+      ASSERT(SSOL_BACK == 1 || SSOL_BACK == 2);
+      if (cpt_receiver == INT_MAX) {
+        res = RES_BAD_ARG;
+        goto error;
+      }
+      inst->mc_result_idx[side_idx(SSOL_BACK)] = cpt_receiver++;
     }
 
     if(!inst->sample) continue;
@@ -327,7 +340,7 @@ scene_create_s3d_views
     goto error;
   }
 
-  if(!has_receiver) {
+  if(!cpt_receiver) {
     log_warning(scn->dev, "No receiver is defined.\n");
   }
 
@@ -337,6 +350,7 @@ scene_create_s3d_views
   if(res != RES_OK) goto error;
 
 exit:
+  scn->nb_receivers = cpt_receiver;
   *out_view_rt = view_rt;
   *out_view_samp = view_samp;
   return res;

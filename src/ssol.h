@@ -754,6 +754,13 @@ ssol_estimator_get_status
    struct ssol_estimator_status* status);
 
 SSOL_API res_T
+ssol_estimator_get_receiver_status
+  (const struct ssol_estimator* estimator,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side,
+   struct ssol_estimator_status* status);
+
+SSOL_API res_T
 ssol_estimator_get_count
   (const struct ssol_estimator* estimator,
    size_t* count);
