@@ -86,8 +86,9 @@ main(int argc, char** argv)
   CHECK(GET_RCV_STATUS(estimator, NULL, SSOL_BACK, &status), RES_BAD_ARG);
   CHECK(GET_RCV_STATUS(estimator, inst, 0, &status), RES_BAD_ARG);
   CHECK(GET_RCV_STATUS(estimator, inst, SSOL_BACK, NULL), RES_BAD_ARG);
-  /* we cannot check that a status is available for the front face
-     solve has been succesfully called */
+  /* we cannot get a status before solve has been succesfully called */
+  CHECK(GET_RCV_STATUS(estimator, inst, SSOL_BACK, &status), RES_BAD_ARG);
+  CHECK(GET_RCV_STATUS(estimator, inst, SSOL_FRONT, &status), RES_BAD_ARG);
   #undef GET_RCV_STATUS
 
   CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);
