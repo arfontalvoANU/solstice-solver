@@ -577,7 +577,7 @@ ssol_instance_set_transform
 SSOL_API res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const int mask); /* Combination of ssol_face_flags */
+   const int mask); /* Combination of ssol_side_flag */
 
 /* Define whether or not the instance is sampled or not. By default an instance
  * is sampled. */
