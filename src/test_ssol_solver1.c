@@ -202,6 +202,8 @@ main(int argc, char** argv)
   /* Can sample any geometry; variance is high */
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
+#define GET_STATUS ssol_estimator_get_status
+#define GET_RCV_STATUS ssol_estimator_get_receiver_status
   CHECK(ssol_estimator_clear(estimator), RES_OK);
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
@@ -219,16 +221,20 @@ main(int argc, char** argv)
   dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / (double)count);
   CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
   /* Target was sampled but shadowed by secondary */
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, m, 2 * dbl), 1);
   CHECK(status.N, count);
   CHECK(status.Nf, fcount);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, m, 2*status.SE), 1);
   CHECK(status.N, count);
   CHECK(status.Nf, fcount);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
 
   /* Sample primary mirror only; variance is low */
   CHECK(ssol_instance_sample(target, 0), RES_OK);
@@ -244,12 +250,16 @@ main(int argc, char** argv)
   logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
 
   /* Check atmosphere model; with no absorption result is unchanged */
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
@@ -271,12 +281,16 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
 
   /* Check atmosphere model; with absorption power decreases */
   ka[0] = ka[1] = ka[2] = 0.1;
@@ -297,12 +311,16 @@ main(int argc, char** argv)
 #define K (exp(-0.1 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
 
   /* Check a monochromatic sun */
   CHECK(ssol_spectrum_setup(spectrum, &mono, intensities, 1), RES_OK);
@@ -325,12 +343,18 @@ main(int argc, char** argv)
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+#undef GET_STATUS
+#undef GET_RCV_STATUS
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

@@ -281,8 +281,6 @@ scene_create_s3d_views
   struct htable_instance_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
-  int has_sampled = 0;
-  int cpt_receiver = 0;
   res_T res = RES_OK;
   ASSERT(scn && out_view_rt && out_view_samp);
 
@@ -297,29 +295,8 @@ scene_create_s3d_views
     unsigned id;
     htable_instance_iterator_next(&it);
 
-    if (inst->receiver_mask & SSOL_FRONT) {
-      ASSERT(SSOL_FRONT == 1 || SSOL_FRONT == 2);
-      if (cpt_receiver == INT_MAX) {
-        res = RES_BAD_ARG;
-        goto error;
-      }
-      inst->mc_result_idx[side_idx(SSOL_FRONT)] = cpt_receiver++;
-    }
-    if (inst->receiver_mask & SSOL_BACK) {
-      ASSERT(SSOL_BACK == 1 || SSOL_BACK == 2);
-      if (cpt_receiver == INT_MAX) {
-        res = RES_BAD_ARG;
-        goto error;
-      }
-      inst->mc_result_idx[side_idx(SSOL_BACK)] = cpt_receiver++;
-    }
-
     if(!inst->sample) continue;
-
-    /* FIXME: should not sample virtual (material) instance
-       as material is used to compute output dir */
-    has_sampled = 1;
-
+    
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
     if(res != RES_OK) goto error;
@@ -334,23 +311,12 @@ scene_create_s3d_views
      * by the scene on its attachment */
   }
 
-  if(!has_sampled) {
-    log_error(scn->dev, "No solstice instance to sample.\n");
-    res = RES_BAD_ARG;
-    goto error;
-  }
-
-  if(!cpt_receiver) {
-    log_warning(scn->dev, "No receiver is defined.\n");
-  }
-
   res = s3d_scene_view_create(scn->scn_rt, S3D_TRACE, &view_rt);
   if(res != RES_OK) goto error;
   res = s3d_scene_view_create(scn->scn_samp, S3D_SAMPLE, &view_samp);
   if(res != RES_OK) goto error;
 
 exit:
-  scn->nb_receivers = cpt_receiver;
   *out_view_rt = view_rt;
   *out_view_samp = view_samp;
   return res;

@@ -139,6 +139,8 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 20000
+#define GET_STATUS ssol_estimator_get_status
+#define GET_RCV_STATUS ssol_estimator_get_receiver_status
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
@@ -151,13 +153,19 @@ main(int argc, char** argv)
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, 
     sqrt((SQR(400*DNI_cos) / 100 - SQR(4*DNI_cos)) / (double)count), 20), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+#undef GET_STATUS
+#undef GET_RCV_STATUS
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

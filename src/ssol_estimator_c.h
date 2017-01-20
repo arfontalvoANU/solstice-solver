@@ -17,9 +17,16 @@
 #define SSOL_ESTIMATOR_C_H
 
 #include <rsys/ref_count.h>
-#include <rsys/dynamic_array.h>
+#include <rsys/hash_table.h>
 
 struct mem_allocator;
+
+static FINLINE int
+side_idx(const enum ssol_side_flag side)
+{
+  ASSERT(side == SSOL_FRONT || side == SSOL_BACK);
+  return side == SSOL_FRONT ? 0 : 1;
+}
 
 /* Monte carlo data */
 struct mc_data {
@@ -27,26 +34,38 @@ struct mc_data {
   double sqr_weight;
 };
 
-#define CLEAR_MC_DATA(d) ((d).weight=0,(d).sqr_weight=0)
-
 #define MC_DATA_NULL__ { 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
+#define CLEAR_MC_DATA(d) ((d).weight=0,(d).sqr_weight=0)
+
+struct mc_data_2 {
+  struct mc_data front;
+  struct mc_data back;
+};
+
+#define MC_DATA2_NULL__ { MC_DATA_NULL__, MC_DATA_NULL__ }
+static const struct mc_data_2 MC_DATA2_NULL = MC_DATA2_NULL__;
+
+#define CLEAR_MC_DATA2(d) (CLEAR_MC_DATA((d).front),CLEAR_MC_DATA((d).back))
+
 static INLINE void 
-init_mc_data
+init_mc_data2
   (struct mem_allocator* alloc,
-   struct mc_data* data)
+    struct mc_data_2* data)
 {
   (void)alloc;
   ASSERT(data);
-  CLEAR_MC_DATA(*data);
+  CLEAR_MC_DATA2(*data);
 }
 
-/* Define the darray_receiver data structure */
-#define DARRAY_NAME receiver
-#define DARRAY_DATA struct mc_data
-#define DARRAY_FUNCTOR_INIT init_mc_data
-#include <rsys/dynamic_array.h>
+/* Define the htable_receiver data structure */
+struct ssol_instance;
+#define HTABLE_NAME receiver
+#define HTABLE_KEY const struct ssol_instance*
+#define HTABLE_DATA struct mc_data_2
+#define HTABLE_FUNCTOR_INIT init_mc_data2
+#include <rsys/hash_table.h>
 
 struct ssol_estimator {
   size_t realisation_count;
@@ -55,10 +74,27 @@ struct ssol_estimator {
   struct mc_data shadow;
   struct mc_data missing;
   /* 1 global MC per receiver */
-  struct darray_receiver global_receiver;
+  struct htable_receiver global_receivers;
 
   struct ssol_device* dev;
   ref_T ref;
 };
+
+res_T
+estimator_create_global_receivers
+  (struct ssol_estimator* estimator,
+   struct ssol_scene* scene);
+
+const struct mc_data*
+get_receiver_cdata
+  (const struct htable_receiver* receivers,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side);
+
+struct mc_data*
+  get_receiver_data
+  (struct htable_receiver* receivers,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side);
 
 #endif /* SSOL_ESTIMATOR_C_H */

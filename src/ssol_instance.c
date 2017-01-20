@@ -78,8 +78,6 @@ ssol_object_instantiate
   instance->dev = dev;
   instance->object = object;
   instance->sample = 1;
-  instance->mc_result_idx[side_idx(SSOL_FRONT)] = MC_RESULT_IDX_NONE;
-  instance->mc_result_idx[side_idx(SSOL_BACK)] = MC_RESULT_IDX_NONE;
   d33_set_identity(instance->transform);
   d3_splat(instance->transform + 9, 0);
 
