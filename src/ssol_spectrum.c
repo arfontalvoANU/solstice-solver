@@ -169,27 +169,28 @@ ssol_spectrum_ref_put(struct ssol_spectrum* spectrum)
 SSOL_API res_T
 ssol_spectrum_setup
   (struct ssol_spectrum* spectrum,
-   const double* wavelengths,
-   const double* data,
-   const size_t nwavelength)
+   void (*get)(const size_t iwlen, double* wlen, double* data, void* ctx),
+   const size_t nwlens,
+   void* ctx)
 {
-  res_T res = RES_OK;
+  double* wavelengths;
+  double* intensities;
   size_t i;
-  if(!spectrum || !nwavelength || !wavelengths || !data) {
+  res_T res = RES_OK;
+
+  if(!spectrum || !nwlens || !get) {
     res = RES_BAD_ARG;
     goto error;
   }
 
-  res = darray_double_resize(&spectrum->wavelengths, nwavelength);
+  res = darray_double_resize(&spectrum->wavelengths, nwlens);
+  if(res != RES_OK) goto error;
+  res = darray_double_resize(&spectrum->intensities, nwlens);
   if(res != RES_OK) goto error;
 
-  res = darray_double_resize(&spectrum->intensities, nwavelength);
-  if(res != RES_OK) goto error;
-
-  FOR_EACH(i, 0, nwavelength) {
-    spectrum->wavelengths.data[i] = wavelengths[i];
-    spectrum->intensities.data[i] = data[i];
-  }
+  wavelengths = darray_double_data_get(&spectrum->wavelengths);
+  intensities = darray_double_data_get(&spectrum->intensities);
+  FOR_EACH(i, 0, nwlens) get(i, wavelengths+i, intensities+i, ctx);
 
 exit:
   return res;

@@ -75,6 +75,17 @@ set_1(struct common* common, const double pos[3])
   SSOL(instance_ref_put(heliostat));
 }
 
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  double wavelengths[3] = { 1, 2, 3 };
+  double intensities[3] = { 1, 0.8, 1 };
+  CHECK(i < 3, 1);
+  (void)ctx;
+  *wlen = wavelengths[i];
+  *data = intensities[i];
+}
+
 /*******************************************************************************
  * Test main program
  ******************************************************************************/
@@ -105,8 +116,6 @@ main(int argc, char** argv)
   struct ssol_estimator_status status;
   double sun_dir[3];
   double target_pos[3];
-  double wavelengths[3] = { 1, 2, 3 };
-  double intensities[3] = { 1, 0.8, 1 };
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
   FILE* tmp;
@@ -127,7 +136,7 @@ main(int argc, char** argv)
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   d3(sun_dir, 1, 0, -1);
   d3_normalize(sun_dir, sun_dir);

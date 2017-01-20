@@ -38,9 +38,17 @@
 #include <star/s3d.h>
 #include <star/ssp.h>
 
-/*******************************************************************************
- * Test main program
- ******************************************************************************/
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  double wavelengths[3] = { 1, 2, 3 };
+  double intensities[3] = { 1, 0.8, 1 };
+  CHECK(i < 3, 1);
+  (void)ctx;
+  *wlen = wavelengths[i];
+  *data = intensities[i];
+}
+
 int
 main(int argc, char** argv)
 {
@@ -71,8 +79,6 @@ main(int argc, char** argv)
   struct ssol_estimator* estimator;
   struct ssol_estimator_status status;
   double dir[3];
-  double wavelengths[3] = { 1, 2, 3 };
-  double intensities[3] = { 1, 0.8, 1 };
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
   double transform3[12]; /* 3x4 column major matrix */
@@ -108,7 +114,7 @@ main(int argc, char** argv)
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
@@ -124,7 +130,7 @@ main(int argc, char** argv)
   attribs[0].get = get_position;
   CHECK(ssol_mesh_setup(rect, RECT_NTRIS__, get_ids,
     RECT_NVERTS__, attribs, 1, (void*) &RECT_DESC__), RES_OK);
-  
+
   CHECK(ssol_shape_create_punched_surface(dev, &quad_rect), RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
@@ -182,7 +188,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
-  
+
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 50000
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);

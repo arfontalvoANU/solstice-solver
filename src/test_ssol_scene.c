@@ -18,6 +18,17 @@
 
 #include <rsys/logger.h>
 
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  double wavelengths[3] = { 10, 20, 30 };
+  double intensities[3] = { 1, 2.1, 1.5 };
+  CHECK(i < 3, 1);
+  (void)ctx;
+  *wlen = wavelengths[i];
+  *data = intensities[i];
+}
+
 int
 main(int argc, char** argv)
 {
@@ -35,8 +46,6 @@ main(int argc, char** argv)
   struct ssol_spectrum* spectrum;
   struct ssol_atmosphere* atm;
   struct ssol_atmosphere* atm2;
-  double wavelengths[3] = { 10, 20, 30 };
-  double data[3] = { 1, 2.1, 1.5 };
   double transform[12];
   (void) argc, (void) argv;
 
@@ -110,7 +119,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_sun(scene2, sun), RES_OK);
 
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorption(atm, spectrum), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm2), RES_OK);

@@ -107,6 +107,14 @@ struct ssol_vertex_data {
      void* ctx); /* Pointer toward user data */
 };
 
+struct ssol_spectrum_desc {
+  double (*get)
+    (const unsigned iwavelength,
+     double* wavelength,
+     double* data,
+     void* ctx); /* Pointer toward user data */
+};
+
 /* Invalid vertex data */
 #define SSOL_VERTEX_DATA_NULL__ { SSOL_ATTRIBS_COUNT__, NULL }
 static const struct ssol_vertex_data SSOL_VERTEX_DATA_NULL =
@@ -643,9 +651,9 @@ ssol_spectrum_ref_put
 SSOL_API res_T
 ssol_spectrum_setup
   (struct ssol_spectrum* spectrum,
-   const double* wavelengths,
-   const double* data, /* Per wavelength data */
-   const size_t nwavelength);
+   void (*get)(const size_t iwlen, double* wlen, double* data, void* ctx),
+   const size_t nwlens,
+   void* ctx);
 
 /*******************************************************************************
  * Sun API - Describe a sun model.

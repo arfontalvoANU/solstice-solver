@@ -28,12 +28,25 @@
 #include <star/s3d.h>
 #include <star/ssp.h>
 
-/*******************************************************************************
- * Test main program
- ******************************************************************************/
+struct spectrum_desc {
+  const double* wavelengths;
+  const double* intensities;
+  size_t count;
+};
+
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  const struct spectrum_desc* desc = ctx;
+  CHECK(i < desc->count, 1);
+  *wlen = desc->wavelengths[i];
+  *data = desc->intensities[i];
+}
+
 int
 main(int argc, char** argv)
 {
+  struct spectrum_desc desc = {0};
   struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
@@ -58,8 +71,8 @@ main(int argc, char** argv)
   struct ssol_estimator_status status;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
-  double mismatch[3] = { 1.5, 3.5 };
   double intensities[3] = { 1, 0.8, 1 };
+  double mismatch[3] = { 1.5, 3.5, 0 };
   double ka[3] = { 0, 0, 0 };
   double mono = 1.21;
   double transform1[12]; /* 3x4 column major matrix */
@@ -93,8 +106,12 @@ main(int argc, char** argv)
     (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
+
+  desc.wavelengths = wavelengths;
+  desc.intensities = intensities;
+  desc.count = 3;
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, &desc), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
@@ -189,8 +206,11 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
 
   /* Spectra mismatch */
+  desc.wavelengths = mismatch;
+  desc.wavelengths = ka;
+  desc.count = 2;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, mismatch, ka, 2), RES_OK);
+  CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
@@ -252,8 +272,11 @@ main(int argc, char** argv)
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* Check atmosphere model; with no absorption result is unchanged */
+  desc.wavelengths = wavelengths;
+  desc.intensities = ka;
+  desc.count = 3;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(abs, get_wlen, 3, &desc), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
@@ -281,7 +304,7 @@ main(int argc, char** argv)
   /* Check atmosphere model; with absorption power decreases */
   ka[0] = ka[1] = ka[2] = 0.1;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(abs, get_wlen, 3, &desc), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
@@ -305,7 +328,10 @@ main(int argc, char** argv)
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
 
   /* Check a monochromatic sun */
-  CHECK(ssol_spectrum_setup(spectrum, &mono, intensities, 1), RES_OK);
+  desc.wavelengths = &mono;
+  desc.intensities = intensities;
+  desc.count = 1;
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 1, &desc), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun_mono), RES_OK);
   CHECK(ssol_sun_set_direction(sun_mono, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun_mono, spectrum), RES_OK);
@@ -313,7 +339,10 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun_mono), RES_OK);
   ka[1] = 0.2;
-  CHECK(ssol_spectrum_setup(abs, wavelengths, ka, 2), RES_OK);
+  desc.wavelengths = wavelengths;
+  desc.intensities = ka;
+  desc.count = 2;
+  CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_estimator_clear(estimator), RES_OK);
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);

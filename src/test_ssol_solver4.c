@@ -33,9 +33,17 @@
 #include <star/s3d.h>
 #include <star/ssp.h>
 
-/*******************************************************************************
- * Test main program
- ******************************************************************************/
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  double wavelengths[3] = { 1, 2, 3 };
+  double intensities[3] = { 1, 0.8, 1 };
+  CHECK(i < 3, 1);
+  (void)ctx;
+  *wlen = wavelengths[i];
+  *data = intensities[i];
+}
+
 int
 main(int argc, char** argv)
 {
@@ -63,8 +71,6 @@ main(int argc, char** argv)
   struct ssol_estimator* estimator;
   struct ssol_estimator_status status;
   double dir[3];
-  double wavelengths[3] = { 1, 2, 3 };
-  double intensities[3] = { 1, 0.8, 1 };
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
   FILE* tmp;
@@ -89,7 +95,7 @@ main(int argc, char** argv)
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, intensities, 3), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);

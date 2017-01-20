@@ -18,6 +18,26 @@
 
 #include <rsys/logger.h>
 
+struct spectrum_desc {
+  double wavelengths[3];
+  double data[3];
+};
+
+static int wlens_count = 0;
+
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  struct spectrum_desc* desc = ctx;
+  CHECK(i < 3, 1);
+  NCHECK(wlen, NULL);
+  NCHECK(data, NULL);
+  NCHECK(ctx, NULL);
+  *wlen = desc->wavelengths[i];
+  *data = desc->data[i];
+  ++wlens_count;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -25,8 +45,7 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_spectrum* spectrum;
-  double wavelengths[3] = { 10, 20, 30 };
-  double data[3] = { 1, 2.1, 1.5 };
+  struct spectrum_desc desc;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -49,12 +68,23 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
 
-  CHECK(ssol_spectrum_setup(NULL, wavelengths, data, 3), RES_BAD_ARG);
-  CHECK(ssol_spectrum_setup(spectrum, NULL, data, 3), RES_BAD_ARG);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, NULL, 3), RES_BAD_ARG);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 0), RES_BAD_ARG);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, wavelengths, data, 3), RES_OK);
+  desc.wavelengths[0] = 10;
+  desc.wavelengths[1] = 20;
+  desc.wavelengths[2] = 30;
+  desc.data[0] = 1;
+  desc.data[1] = 2.1;
+  desc.data[2] = 1.5;
+
+  CHECK(ssol_spectrum_setup(NULL, NULL, 0, &desc), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, NULL, 0, &desc), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(NULL, get_wlen, 0, &desc), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 0, &desc), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(NULL, NULL, 3, &desc), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(spectrum, NULL, 3, &desc), RES_BAD_ARG);
+  CHECK(ssol_spectrum_setup(NULL, get_wlen, 3, &desc), RES_BAD_ARG);
+  CHECK(wlens_count, 0);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, &desc), RES_OK);
+  CHECK(wlens_count, 3);
 
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
 
