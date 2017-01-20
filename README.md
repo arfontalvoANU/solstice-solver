@@ -28,7 +28,7 @@ variable the install directories of its dependencies.
 
 Solstice-Solver is developed by [|Meso|Star>](http://www.meso-star.com) for the
 [National Center for Scientific Research](http://www.cnrs.fr/index.php) (CNRS).
-It is a free software copyright (C) CNRS 2016 and it is released under the
+It is a free software copyright (C) CNRS 2016-2017 and it is released under the
 [OSI](http://opensource.org)-approved GPL v3+ license. You are welcome to
 redistribute it under certain conditions; refer to the COPYING file for
 details.
