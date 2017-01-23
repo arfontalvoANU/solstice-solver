@@ -798,7 +798,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
-   FILE* output,
+   FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator* estimator);
 
 SSOL_API res_T
