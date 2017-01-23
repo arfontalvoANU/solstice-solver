@@ -354,23 +354,23 @@ ssol_solve
   if(res != RES_OK) goto error;
   S3D(scene_view_compute_area(view_samp, &sampled_area));
 
-  /* create per-receiver global MC data */
+  /* Create per-receiver global MC data */
   res = estimator_create_global_receivers(estimator, scn);
   if (res != RES_OK) goto error;
 
   /* Create a RNG proxy from the submitted RNG state */
   res = ssp_rng_proxy_create_from_rng
-    (scn->dev->allocator, rng_state, nthreads, &rng_proxy);
+    (scn->dev->allocator, rng_state, scn->dev->nthreads, &rng_proxy);
   if(res != RES_OK) goto error;
 
   /* Create per thread data structures */
   #define CREATE(Data) {                                                       \
     ASSERT(!(Data));                                                           \
-    if(!sa_add((Data), nthreads)) {                                            \
+    if(!sa_add((Data), scn->dev->nthreads)) {                                  \
       res = RES_BAD_ARG;                                                       \
       goto error;                                                              \
     }                                                                          \
-    memset((Data), 0, sizeof((Data)[0])*nthreads);                             \
+    memset((Data), 0, sizeof((Data)[0])*scn->dev->nthreads);                   \
   } (void)0
   CREATE(rngs);
   CREATE(bsdfs);
@@ -436,15 +436,15 @@ ssol_solve
 
       if(point_is_receiver(&pt)) {
         const res_T res_local = point_dump(&pt, (size_t)i, depth, output);
-        struct mc_data* global_recv = NULL;
+        struct mc_data* mc_rcv = NULL;
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);
           break;
         }
-        global_recv = get_receiver_data(global_receiver, pt.inst, pt.side);
-        ASSERT(global_recv != NULL);
-        global_recv->weight += pt.weight;
-        global_recv->sqr_weight += pt.weight*pt.weight;
+        mc_rcv = estimator_get_receiver_data(global_receiver, pt.inst, pt.side);
+        ASSERT(mc_rcv);
+        mc_rcv->weight += pt.weight;
+        mc_rcv->sqr_weight += pt.weight*pt.weight;
         hit_a_receiver = 1;
       }
 

@@ -43,17 +43,6 @@ estimator_release(ref_T* ref)
   SSOL(device_ref_put(dev));
 }
 
-static res_T
-register_receiver
-  (struct ssol_estimator* estimator,
-   const struct ssol_instance* instance)
-{
-  const struct mc_data_2 d = MC_DATA2_NULL__;
-  if (htable_receiver_find(&estimator->global_receivers, &instance))
-    return RES_OK;
-  return htable_receiver_set(&estimator->global_receivers, &instance, &d);
-}
-
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
@@ -66,22 +55,23 @@ estimator_create_global_receivers
   int has_sampled = 0;
   int has_receiver = 0;
   ASSERT(scene && estimator);
-  
+
   htable_instance_begin(&scene->instances_rt, &it);
   htable_instance_end(&scene->instances_rt, &end);
 
   while (!htable_instance_iterator_eq(&it, &end)) {
-    struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
+    const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     htable_instance_iterator_next(&it);
 
     if (inst->receiver_mask) {
-      res_T res = register_receiver(estimator, inst);
+      res_T res = htable_receiver_set
+        (&estimator->global_receivers, &inst, &MC_DATA2_NULL);
       if (res != RES_OK) return res;
       has_receiver = 1;
     }
 
-    /* FIXME: should not sample virtual (material) instance
-       as material is used to compute output dir */
+    /* FIXME: should not sample virtual (material) instance as material is used
+     * to compute output dir */
     if (inst->sample)
       has_sampled = 1;
   }
@@ -97,33 +87,6 @@ estimator_create_global_receivers
 
   return RES_OK;
 }
-
-#define GET_RCV_DTA(r, i, s) \
-  struct mc_data_2* d___;\
-  if (!(i->receiver_mask & s)) return NULL;\
-  d___ = htable_receiver_find(r, &i);\
-  if (!d___) return NULL;\
-  return s == SSOL_FRONT ? &d___->front : &d___->back
-
-const struct mc_data*
-get_receiver_cdata
-  (const struct htable_receiver* receivers,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side)
-{
-  const GET_RCV_DTA((struct htable_receiver*)receivers, instance, side);
-}
-
-struct mc_data*
-get_receiver_data
-  (struct htable_receiver* receivers,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side)
-{
-  GET_RCV_DTA(receivers, instance, side);
-}
-
-#undef GET_RCV_DTA
 
 /*******************************************************************************
  * Exported ssol_estimator functions
@@ -208,33 +171,32 @@ ssol_estimator_get_status
 
 res_T
 ssol_estimator_get_receiver_status
-  (const struct ssol_estimator* estimator,
+  (struct ssol_estimator* estimator,
    const struct ssol_instance* instance,
    const enum ssol_side_flag side,
    struct ssol_estimator_status* status)
 {
   const struct mc_data* rcv_data = NULL;
   if (!estimator || !instance || !status
-    || (side != SSOL_BACK && side != SSOL_FRONT))
+  || (side != SSOL_BACK && side != SSOL_FRONT))
     return RES_BAD_ARG;
 
-  /* check if a receiver is defined for this instance/side */
-  rcv_data = get_receiver_cdata(&estimator->global_receivers, instance, side);
-  if (rcv_data == NULL)
-    return RES_BAD_ARG;
+  /* Check if a receiver is defined for this instance/side */
+  rcv_data = estimator_get_receiver_data
+    (&estimator->global_receivers, instance, side);
+  if(rcv_data == NULL) return RES_BAD_ARG;
 
   status->N = estimator->realisation_count;
   status->Nf = estimator->failed_count;
-  status->E = rcv_data->weight / (double) status->N;
-  status->V = rcv_data->sqr_weight / (double) status->N - status->E * status->E;
-  status->SE = (status->V > 0) ? sqrt(status->V / (double) status->N) : 0;
+  status->E = rcv_data->weight / (double)status->N;
+  status->V = rcv_data->sqr_weight / (double)status->N - status->E * status->E;
+  status->SE = (status->V > 0) ? sqrt(status->V / (double)status->N) : 0;
   return RES_OK;
 }
 
 res_T
 ssol_estimator_get_count
-(const struct ssol_estimator* estimator,
-  size_t* count)
+  (const struct ssol_estimator* estimator, size_t* count)
 {
   if (!estimator || !count) return RES_BAD_ARG;
   *count = estimator->realisation_count;
@@ -243,8 +205,7 @@ ssol_estimator_get_count
 
 res_T
 ssol_estimator_get_failed_count
-(const struct ssol_estimator* estimator,
-  size_t* count)
+  (const struct ssol_estimator* estimator, size_t* count)
 {
   if (!estimator || !count) return RES_BAD_ARG;
   *count = estimator->failed_count;
@@ -252,27 +213,23 @@ ssol_estimator_get_failed_count
 }
 
 res_T
-ssol_estimator_clear
-(struct ssol_estimator* estimator)
+ssol_estimator_clear(struct ssol_estimator* estimator)
 {
   struct htable_receiver_iterator it, end;
   if (!estimator)
     return RES_BAD_ARG;
 
   estimator->realisation_count = 0;
-  CLEAR_MC_DATA(estimator->shadow);
-  CLEAR_MC_DATA(estimator->missing);
+  estimator->shadow = MC_DATA_NULL;
+  estimator->missing = MC_DATA_NULL;
 
   htable_receiver_begin(&estimator->global_receivers, &it);
   htable_receiver_end(&estimator->global_receivers, &end);
   while (!htable_receiver_iterator_eq(&it, &end)) {
     struct mc_data_2* estimator_data = htable_receiver_iterator_data_get(&it);
-    ASSERT(estimator_data);
     htable_receiver_iterator_next(&it);
-    CLEAR_MC_DATA2(*estimator_data);
+    *estimator_data = MC_DATA2_NULL;
   }
-
   return RES_OK;
 }
-
 

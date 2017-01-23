@@ -37,8 +37,6 @@ struct mc_data {
 #define MC_DATA_NULL__ { 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
-#define CLEAR_MC_DATA(d) ((d).weight=0,(d).sqr_weight=0)
-
 struct mc_data_2 {
   struct mc_data front;
   struct mc_data back;
@@ -47,16 +45,14 @@ struct mc_data_2 {
 #define MC_DATA2_NULL__ { MC_DATA_NULL__, MC_DATA_NULL__ }
 static const struct mc_data_2 MC_DATA2_NULL = MC_DATA2_NULL__;
 
-#define CLEAR_MC_DATA2(d) (CLEAR_MC_DATA((d).front),CLEAR_MC_DATA((d).back))
-
-static INLINE void 
+static INLINE void
 init_mc_data2
   (struct mem_allocator* alloc,
     struct mc_data_2* data)
 {
   (void)alloc;
   ASSERT(data);
-  CLEAR_MC_DATA2(*data);
+  *data = MC_DATA2_NULL;
 }
 
 /* Define the htable_receiver data structure */
@@ -85,16 +81,18 @@ estimator_create_global_receivers
   (struct ssol_estimator* estimator,
    struct ssol_scene* scene);
 
-const struct mc_data*
-get_receiver_cdata
-  (const struct htable_receiver* receivers,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side);
-
-struct mc_data*
-  get_receiver_data
+static FINLINE struct mc_data*
+estimator_get_receiver_data
   (struct htable_receiver* receivers,
    const struct ssol_instance* instance,
-   const enum ssol_side_flag side);
+   const enum ssol_side_flag side)
+{
+  struct mc_data_2* data2;
+  ASSERT(receivers && instance);
+  if(!(instance->receiver_mask & (int)side)) return NULL;
+  data2 = htable_receiver_find(receivers, &instance);
+  if(!data2) return NULL;
+  return side == SSOL_FRONT ? &data2->front : &data2->back;
+}
 
 #endif /* SSOL_ESTIMATOR_C_H */
