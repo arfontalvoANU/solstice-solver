@@ -312,6 +312,7 @@ ssol_solve
    FILE* output,
    struct ssol_estimator* estimator)
 {
+  struct htable_receiver_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
   struct ranst_sun_dir* ran_sun_dir = NULL;
@@ -321,6 +322,7 @@ ssol_solve
   struct ssp_rng_proxy* rng_proxy = NULL;
   struct mc_data* mc_shadows = NULL;
   struct mc_data* mc_missings = NULL;
+  struct htable_receiver* mc_rcvs = NULL;
   float sampled_area = 0;
   int nthreads = 0;
   int nrealisations = 0;
@@ -335,12 +337,13 @@ ssol_solve
 
   /* CL compiler supports OpenMP parallel loop whose indices are signed. The
    * following line ensures that the unsigned number of realisations does not
-   * overflow the realisation index */
+   * overflow the realisation index. */
   if(realisations_count > INT_MAX) {
     res = RES_BAD_ARG;
     goto error;
   }
   nrealisations = (int)realisations_count;
+  nthreads = (int) scn->dev->nthreads;
 
   res = check_scene(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
@@ -351,6 +354,10 @@ ssol_solve
   res = sun_create_distributions(scn->sun, &ran_sun_dir, &ran_sun_wl);
   if(res != RES_OK) goto error;
   S3D(scene_view_compute_area(view_samp, &sampled_area));
+
+  /* Create per-receiver global MC data */
+  res = estimator_create_global_receivers(estimator, scn);
+  if (res != RES_OK) goto error;
 
   /* Create a RNG proxy from the submitted RNG state */
   res = ssp_rng_proxy_create_from_rng
@@ -370,14 +377,17 @@ ssol_solve
   CREATE(bsdfs);
   CREATE(mc_shadows);
   CREATE(mc_missings);
+  CREATE(mc_rcvs);
   #undef CREATE
 
   /* Setup per thread data structures */
-  nthreads = (int)scn->dev->nthreads;
   FOR_EACH(i, 0, nthreads) {
     res = ssf_bsdf_create(scn->dev->allocator, bsdfs+i);
     if(res != RES_OK) goto error;
     res = ssp_rng_proxy_create_rng(rng_proxy, (size_t)i, rngs + i);
+    if(res != RES_OK) goto error;
+    htable_receiver_init(scn->dev->allocator, mc_rcvs + i);
+    res = htable_receiver_copy(mc_rcvs + i, &estimator->global_receivers);
     if(res != RES_OK) goto error;
   }
 
@@ -389,6 +399,7 @@ ssol_solve
     struct ssf_bsdf* bsdf;
     struct mc_data* shadow;
     struct mc_data* missing;
+    struct htable_receiver* receiver;
     float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
     size_t depth = 0;
@@ -402,6 +413,7 @@ ssol_solve
     bsdf = bsdfs[ithread];
     shadow = mc_shadows + ithread;
     missing = mc_missings + ithread;
+    receiver = mc_rcvs + ithread;
 
     /* Find a new starting point of the radiative random walk */
     is_lit = point_init(&pt, scn, sampled_area, view_samp, view_rt,
@@ -425,10 +437,15 @@ ssol_solve
 
       if(point_is_receiver(&pt)) {
         const res_T res_local = point_dump(&pt, (size_t)i, depth, output);
+        struct mc_data* mc_rcv = NULL;
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);
           break;
         }
+        mc_rcv = estimator_get_receiver_data(receiver, pt.inst, pt.side);
+        ASSERT(mc_rcv);
+        mc_rcv->weight += pt.weight;
+        mc_rcv->sqr_weight += pt.weight*pt.weight;
         hit_a_receiver = 1;
       }
 
@@ -490,6 +507,23 @@ ssol_solve
     estimator->missing.weight += mc_missings[i].weight;
     estimator->missing.sqr_weight += mc_missings[i].sqr_weight;
   }
+
+  /* Merge per thread estimations */
+  htable_receiver_begin(&estimator->global_receivers, &it);
+  htable_receiver_end(&estimator->global_receivers, &end);
+  while (!htable_receiver_iterator_eq(&it, &end)) {
+    struct mc_data_2* estimator_data = htable_receiver_iterator_data_get(&it);
+    const struct ssol_instance* key = *htable_receiver_iterator_key_get(&it);
+    htable_receiver_iterator_next(&it);
+    FOR_EACH(i, 0, nthreads) {
+      /* Sum both sides, even if no receiver is defined to avoid tests */
+      struct mc_data_2* thread_data = htable_receiver_find(mc_rcvs + i, &key);
+      estimator_data->front.weight += thread_data->front.weight;
+      estimator_data->front.sqr_weight += thread_data->front.sqr_weight;
+      estimator_data->back.weight += thread_data->back.weight;
+      estimator_data->back.sqr_weight += thread_data->back.sqr_weight;
+    }
+  }
   estimator->realisation_count += realisations_count;
 
 exit:
@@ -505,6 +539,10 @@ exit:
   if(rngs) {
     FOR_EACH(i, 0, nthreads) if(rngs[i]) SSP(rng_ref_put(rngs[i]));
     sa_release(rngs);
+  }
+  if(mc_rcvs) {
+    FOR_EACH(i, 0, nthreads) htable_receiver_release(mc_rcvs + i);
+    sa_release(mc_rcvs);
   }
   sa_release(mc_shadows);
   sa_release(mc_missings);

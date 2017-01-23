@@ -26,7 +26,7 @@ struct ssol_instance {
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
   double transform[12]; /* Column major 4x3 affine transformation */
   int receiver_mask; /* Combination of ssol_face_flag */
-  int sample; /* Define whether or not the instance is sampled or not */
+  int sample; /* Define whether or not the instance should be sampled */
 
   struct fid id; /* Unique identifier */
 

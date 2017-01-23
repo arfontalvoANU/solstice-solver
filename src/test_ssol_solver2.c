@@ -186,6 +186,10 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
+#define GET_STATUS ssol_estimator_get_status
+#define GET_RCV_STATUS ssol_estimator_get_receiver_status
+  CHECK(GET_RCV_STATUS(estimator, heliostat2, SSOL_BACK, &status), RES_BAD_ARG);
+  CHECK(GET_RCV_STATUS(estimator, heliostat2, SSOL_FRONT, &status), RES_BAD_ARG);
   CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
@@ -197,12 +201,25 @@ main(int argc, char** argv)
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_status(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
+  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  CHECK(GET_RCV_STATUS(estimator, heliostat1, SSOL_BACK, &status), RES_BAD_ARG);
+  CHECK(GET_RCV_STATUS(estimator, heliostat1, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(heliostat1) = %g +/- %g", status.E, status.SE);
+  CHECK(GET_RCV_STATUS(estimator, heliostat2, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(heliostat2) = %g +/- %g", status.E, status.SE);
+  CHECK(GET_RCV_STATUS(estimator, secondary, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(secondary) = %g +/- %g", status.E, status.SE);
+  CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  CHECK(eq_eps(status.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+#undef GET_STATUS
+#undef GET_RCV_STATUS
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat1), RES_OK);
