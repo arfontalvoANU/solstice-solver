@@ -254,6 +254,7 @@ point_dump
   struct ssol_receiver_data out;
   size_t n;
 
+  if (!stream) return RES_OK;
   out.realization_id = irealisation;
   out.date = 0; /* TODO */
   out.segment_id = (uint32_t)isegment;
@@ -330,7 +331,7 @@ ssol_solve
   ATOMIC res = RES_OK;
   ASSERT(nrealisations <= INT_MAX);
 
-  if(!scn || !rng_state || !realisations_count || !output || !estimator) {
+  if(!scn || !rng_state || !realisations_count || !estimator) {
     res = RES_BAD_ARG;
     goto error;
   }
