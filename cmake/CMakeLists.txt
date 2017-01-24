@@ -139,6 +139,7 @@ if(NOT NO_TEST)
     ${SSOL_SOURCE_DIR}/test_ssol_utils.c)
 
   new_test(test_ssol_atmosphere)
+  new_test(test_ssol_by_receiver_integration)
   new_test(test_ssol_camera)
   new_test(test_ssol_device)
   new_test(test_ssol_draw)
