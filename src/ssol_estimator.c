@@ -64,10 +64,12 @@ estimator_create_global_receivers
     htable_instance_iterator_next(&it);
 
     if (inst->receiver_mask) {
-      res_T res = htable_receiver_set
-        (&estimator->global_receivers, &inst, &MC_DATA2_NULL);
-      if (res != RES_OK) return res;
       has_receiver = 1;
+      if (!htable_receiver_find(&estimator->global_receivers, &inst)) {
+        res_T res = htable_receiver_set
+        (&estimator->global_receivers, &inst, &MC_DATA2_NULL);
+        if (res != RES_OK) return res;
+      }
     }
 
     /* FIXME: should not sample virtual (material) instance as material is used
