@@ -97,8 +97,6 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_estimator_create(dev, &estimator1), RES_OK);
-  CHECK(ssol_estimator_create(dev, &estimator2), RES_OK);
 
   /* Create scene content */
 
@@ -142,16 +140,17 @@ main(int argc, char** argv)
 #define N__ 10000
 #define S_DNI_cos (4 * 1000 * cos(PI / 4))
 #define GET_RCV_STATUS ssol_estimator_get_receiver_status
-  CHECK(ssol_solve(scene, rng, N__, NULL, estimator1), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
   CHECK(eq_eps(status.E, S_DNI_cos, S_DNI_cos * 2e-1), 1);
-  CHECK(ssol_solve(scene, rng, 8 * N__, NULL, estimator2), RES_OK);
+  CHECK(ssol_solve(scene, rng, 8 * N__, NULL, &estimator2), RES_OK);
   CHECK(GET_RCV_STATUS(estimator2, target, SSOL_FRONT, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, S_DNI_cos, S_DNI_cos * 5e-2), 1);
-  CHECK(ssol_solve(scene, rng, 3 * N__, NULL, estimator1), RES_OK);
+  CHECK(ssol_estimator_ref_put(estimator1), RES_OK);
+  CHECK(ssol_solve(scene, rng, 3 * N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
   CHECK(eq_eps(status.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);

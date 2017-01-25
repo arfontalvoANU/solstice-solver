@@ -29,6 +29,35 @@
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static res_T
+create_per_receiver_mc_data
+  (struct ssol_estimator* estimator,
+   struct ssol_scene* scene)
+{
+  struct htable_instance_iterator it, end;
+  res_T res = RES_OK;
+  ASSERT(scene && estimator);
+
+  htable_instance_begin(&scene->instances_rt, &it);
+  htable_instance_end(&scene->instances_rt, &end);
+
+  while(!htable_instance_iterator_eq(&it, &end)) {
+    const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
+    htable_instance_iterator_next(&it);
+
+    if(!inst->receiver_mask) continue;
+
+    res = htable_receiver_set
+      (&estimator->global_receivers, &inst, &MC_DATA2_NULL);
+    if(res != RES_OK) goto error;
+  }
+exit:
+  return res;
+error:
+  htable_receiver_clear(&estimator->global_receivers);
+  goto exit;
+}
+
 static void
 estimator_release(ref_T* ref)
 {
@@ -44,92 +73,8 @@ estimator_release(ref_T* ref)
 }
 
 /*******************************************************************************
- * Local functions
+ * Exported function
  ******************************************************************************/
-res_T
-estimator_create_global_receivers
-  (struct ssol_estimator* estimator,
-   struct ssol_scene* scene)
-{
-  struct htable_instance_iterator it, end;
-  int has_sampled = 0;
-  int has_receiver = 0;
-  ASSERT(scene && estimator);
-
-  htable_instance_begin(&scene->instances_rt, &it);
-  htable_instance_end(&scene->instances_rt, &end);
-
-  while (!htable_instance_iterator_eq(&it, &end)) {
-    const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
-    htable_instance_iterator_next(&it);
-
-    if (inst->receiver_mask) {
-      has_receiver = 1;
-      if (!htable_receiver_find(&estimator->global_receivers, &inst)) {
-        res_T res = htable_receiver_set
-        (&estimator->global_receivers, &inst, &MC_DATA2_NULL);
-        if (res != RES_OK) return res;
-      }
-    }
-
-    /* FIXME: should not sample virtual (material) instance as material is used
-     * to compute output dir */
-    if (inst->sample)
-      has_sampled = 1;
-  }
-
-  if(!has_sampled) {
-    log_error(scene->dev, "No solstice instance to sample.\n");
-    return RES_BAD_ARG;
-  }
-
-  if(!has_receiver) {
-    log_warning(scene->dev, "No receiver is defined.\n");
-  }
-
-  return RES_OK;
-}
-
-/*******************************************************************************
- * Exported ssol_estimator functions
- ******************************************************************************/
-res_T
-ssol_estimator_create
-(struct ssol_device* dev,
-  struct ssol_estimator** out_estimator)
-{
-  struct ssol_estimator* estimator = NULL;
-  res_T res = RES_OK;
-
-  if (!dev || !out_estimator) {
-    res = RES_BAD_ARG;
-    goto error;
-  }
-
-  estimator = MEM_CALLOC(dev->allocator, 1, sizeof(struct ssol_estimator));
-  if (!estimator) {
-    res = RES_MEM_ERR;
-    goto error;
-  }
-
-  htable_receiver_init(dev->allocator, &estimator->global_receivers);
-
-  SSOL(device_ref_get(dev));
-  estimator->dev = dev;
-  ref_init(&estimator->ref);
-
-exit:
-  if (out_estimator) *out_estimator = estimator;
-  return res;
-
-error:
-  if (estimator) {
-    SSOL(estimator_ref_put(estimator));
-    estimator = NULL;
-  }
-  goto exit;
-}
-
 res_T
 ssol_estimator_ref_get
 (struct ssol_estimator* estimator)
@@ -214,24 +159,47 @@ ssol_estimator_get_failed_count
   return RES_OK;
 }
 
+/*******************************************************************************
+ * Local function
+ ******************************************************************************/
 res_T
-ssol_estimator_clear(struct ssol_estimator* estimator)
+estimator_create
+  (struct ssol_device* dev,
+   struct ssol_scene* scene,
+   struct ssol_estimator** out_estimator)
 {
-  struct htable_receiver_iterator it, end;
-  if (!estimator)
-    return RES_BAD_ARG;
+  struct ssol_estimator* estimator = NULL;
+  res_T res = RES_OK;
 
-  estimator->realisation_count = 0;
-  estimator->shadow = MC_DATA_NULL;
-  estimator->missing = MC_DATA_NULL;
-
-  htable_receiver_begin(&estimator->global_receivers, &it);
-  htable_receiver_end(&estimator->global_receivers, &end);
-  while (!htable_receiver_iterator_eq(&it, &end)) {
-    struct mc_data_2* estimator_data = htable_receiver_iterator_data_get(&it);
-    htable_receiver_iterator_next(&it);
-    *estimator_data = MC_DATA2_NULL;
+  if (!dev || !scene || !out_estimator) {
+    res = RES_BAD_ARG;
+    goto error;
   }
-  return RES_OK;
+
+  estimator = MEM_CALLOC(dev->allocator, 1, sizeof(struct ssol_estimator));
+  if(!estimator) {
+    res = RES_MEM_ERR;
+    goto error;
+  }
+
+  htable_receiver_init(dev->allocator, &estimator->global_receivers);
+  SSOL(device_ref_get(dev));
+  estimator->dev = dev;
+  ref_init(&estimator->ref);
+
+  res = create_per_receiver_mc_data(estimator, scene);
+  if(res != RES_OK) goto error;
+
+exit:
+  if(out_estimator) *out_estimator = estimator;
+  return res;
+
+error:
+  if(estimator) {
+    SSOL(estimator_ref_put(estimator));
+    estimator = NULL;
+  }
+  goto exit;
 }
+
 

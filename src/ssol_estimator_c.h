@@ -76,10 +76,11 @@ struct ssol_estimator {
   ref_T ref;
 };
 
-res_T
-estimator_create_global_receivers
-  (struct ssol_estimator* estimator,
-   struct ssol_scene* scene);
+extern LOCAL_SYM res_T
+estimator_create
+  (struct ssol_device* dev,
+   struct ssol_scene* scene,
+   struct ssol_estimator** estimator);
 
 static FINLINE struct mc_data*
 estimator_get_receiver_data

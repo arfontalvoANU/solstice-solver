@@ -281,6 +281,8 @@ scene_create_s3d_views
   struct htable_instance_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
+  int has_sampled = 0;
+  int has_receiver = 0;
   res_T res = RES_OK;
   ASSERT(scn && out_view_rt && out_view_samp);
 
@@ -295,8 +297,16 @@ scene_create_s3d_views
     unsigned id;
     htable_instance_iterator_next(&it);
 
+    if(inst->receiver_mask) {
+      has_receiver = 1;
+    }
+
     if(!inst->sample) continue;
-    
+
+    /* FIXME: should not sample virtual (material) instance
+       as material is used to compute output dir */
+    has_sampled = 1;
+
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
     if(res != RES_OK) goto error;
@@ -309,6 +319,16 @@ scene_create_s3d_views
 
     /* Do not get a reference onto the instance since it was already referenced
      * by the scene on its attachment */
+  }
+
+  if(!has_sampled) {
+    log_error(scn->dev, "No solstice instance to sample.\n");
+    res = RES_BAD_ARG;
+    goto error;
+  }
+
+  if(!has_receiver) {
+    log_warning(scn->dev, "No receiver is defined.\n");
   }
 
   res = s3d_scene_view_create(scn->scn_rt, S3D_TRACE, &view_rt);

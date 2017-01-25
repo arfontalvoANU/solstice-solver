@@ -101,7 +101,6 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_estimator_create(dev, &estimator), RES_OK);
 
   /* create scene content */
 
@@ -147,7 +146,7 @@ main(int argc, char** argv)
 #define N__ 10000
 #define GET_STATUS ssol_estimator_get_status
 #define GET_RCV_STATUS ssol_estimator_get_receiver_status
-  CHECK(ssol_solve(scene, rng, N__, tmp, estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);

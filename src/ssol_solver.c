@@ -211,7 +211,7 @@ point_shade
    * NOTE VF: actually a fragment generated from a RT or a sampled primitive is
    * the same. Indeed it may be inconsistent only if the two kind of primitives
    * does not have the same set of parameters. For triangulated meshes, the RT
-   * and sampled shape are the same and ths shared the same attribs. For
+   * and sampled shape are the same and thus shared the same attribs. For
    * punched surfaces, no attribs are defined on both representation.
    * Consequently, it seems that there is no specific work to do to ensure the
    * `surface_fragment_setup' consistency. */
@@ -312,7 +312,7 @@ ssol_solve
    struct ssp_rng* rng_state,
    const size_t realisations_count,
    FILE* output,
-   struct ssol_estimator* estimator)
+   struct ssol_estimator** out_estimator)
 {
   struct htable_receiver_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
@@ -325,6 +325,7 @@ ssol_solve
   struct mc_data* mc_shadows = NULL;
   struct mc_data* mc_missings = NULL;
   struct htable_receiver* mc_rcvs = NULL;
+  struct ssol_estimator* estimator = NULL;
   float sampled_area = 0;
   int nthreads = 0;
   int nrealisations = 0;
@@ -332,7 +333,7 @@ ssol_solve
   ATOMIC res = RES_OK;
   ASSERT(nrealisations <= INT_MAX);
 
-  if(!scn || !rng_state || !realisations_count || !estimator) {
+  if(!scn || !rng_state || !realisations_count || !out_estimator) {
     res = RES_BAD_ARG;
     goto error;
   }
@@ -357,8 +358,8 @@ ssol_solve
   if(res != RES_OK) goto error;
   S3D(scene_view_compute_area(view_samp, &sampled_area));
 
-  /* Create per-receiver global MC data */
-  res = estimator_create_global_receivers(estimator, scn);
+  /* Create the estimator */
+  res = estimator_create(scn->dev, scn, &estimator);
   if (res != RES_OK) goto error;
 
   /* Create a RNG proxy from the submitted RNG state */
@@ -558,8 +559,13 @@ exit:
   }
   sa_release(mc_shadows);
   sa_release(mc_missings);
+  if(out_estimator) *out_estimator = estimator;
   return (res_T)res;
 error:
+  if(estimator) {
+    SSOL(estimator_ref_put(estimator));
+    estimator = NULL;
+  }
   goto exit;
 }
 

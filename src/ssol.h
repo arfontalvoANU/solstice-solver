@@ -751,9 +751,12 @@ ssol_atmosphere_set_uniform_absorption
 * Estimator API - Describe the state of a simulation.
 ******************************************************************************/
 SSOL_API res_T
-ssol_estimator_create
-  (struct ssol_device* dev,
-   struct ssol_estimator** estimator);
+ssol_estimator_ref_get
+  (struct ssol_estimator* estimator);
+
+SSOL_API res_T
+ssol_estimator_ref_put
+  (struct ssol_estimator* estimator);
 
 SSOL_API res_T
 ssol_estimator_get_status
@@ -778,18 +781,6 @@ ssol_estimator_get_failed_count
   (const struct ssol_estimator* estimator,
    size_t* count);
 
-SSOL_API res_T
-ssol_estimator_clear
-  (struct ssol_estimator* estimator);
-
-SSOL_API res_T
-ssol_estimator_ref_get
-  (struct ssol_estimator* estimator);
-
-SSOL_API res_T
-ssol_estimator_ref_put
-  (struct ssol_estimator* estimator);
-
 /*******************************************************************************
  * Miscellaneous functions
  ******************************************************************************/
@@ -799,7 +790,7 @@ ssol_solve
    struct ssp_rng* rng,
    const size_t realisations_count,
    FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
-   struct ssol_estimator* estimator);
+   struct ssol_estimator** estimator);
 
 SSOL_API res_T
 ssol_draw
