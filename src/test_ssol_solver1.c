@@ -120,14 +120,14 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
   CHECK(ssol_estimator_create(dev, &estimator), RES_OK);
 
-  CHECK(ssol_solve(NULL, rng, 10, stdout, estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, NULL, 10, stdout, estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 0, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(NULL, rng, 10, NULL, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, NULL, 10, NULL, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 0, NULL, estimator), RES_BAD_ARG);
   CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, stdout, NULL), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, NULL), RES_BAD_ARG);
 
   /* No geometry */
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
 
   /* Create scene content */
 
@@ -162,13 +162,13 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 1, stdout, estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 1, NULL, estimator), RES_OK);
 
   /* No geometry to sample */
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
   CHECK(ssol_instance_sample(heliostat, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
 
   CHECK(ssol_instance_sample(target, 1), RES_OK);
   CHECK(ssol_instance_sample(secondary, 1), RES_OK);
@@ -176,7 +176,7 @@ main(int argc, char** argv)
 
   /* No attached sun */
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   /* Sun with no spectrum */
@@ -184,7 +184,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
@@ -193,14 +193,14 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
 
   /* No receiver in scene */
   CHECK(ssol_instance_set_receiver(heliostat, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(target, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
@@ -214,7 +214,7 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, stdout, estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, estimator), RES_BAD_ARG);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);

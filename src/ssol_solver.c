@@ -391,6 +391,16 @@ ssol_solve
     htable_receiver_init(scn->dev->allocator, mc_rcvs + i);
     res = htable_receiver_copy(mc_rcvs + i, &estimator->global_receivers);
     if(res != RES_OK) goto error;
+    htable_receiver_begin(mc_rcvs + i, &it);
+    htable_receiver_end(mc_rcvs + i, &end);
+    while (!htable_receiver_iterator_eq(&it, &end)) {
+      struct mc_data_2* estimator_data = htable_receiver_iterator_data_get(&it);
+      estimator_data->front.weight = 0;
+      estimator_data->front.sqr_weight = 0;
+      estimator_data->back.weight = 0;
+      estimator_data->back.sqr_weight = 0;
+      htable_receiver_iterator_next(&it);
+    }
   }
 
   #pragma omp parallel for schedule(static)
