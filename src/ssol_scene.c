@@ -303,8 +303,8 @@ scene_create_s3d_views
 
     if(!inst->sample) continue;
 
-    /* FIXME: should not sample virtual (material) instance
-       as material is used to compute output dir */
+    /* Note that geometries with virtual material can be sampled without risk
+     * since the solver avoid to shade them and simply pursue the primary ray */
     has_sampled = 1;
 
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
