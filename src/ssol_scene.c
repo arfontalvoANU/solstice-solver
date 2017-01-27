@@ -407,9 +407,13 @@ hit_filter_function
       if(dst >= FLT_MAX) {
         /* No projection is found => the ray does not intersect the quadric */
         return 1;
-      } else {
-        hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
-        if(inst == rdata->inst_from) {
+      } else if(inst == rdata->inst_from) {
+
+        if(hit->distance <= rdata->range_min) {
+          /* Handle RT numerical imprecision, the hit is below the lower bound
+           * of the ray range. */
+          return 1;
+        } else {
           /* If the intersected instance is the one from which the ray starts,
            * ensure that the ray does not intersect the opposite side of the
            * quadric */
