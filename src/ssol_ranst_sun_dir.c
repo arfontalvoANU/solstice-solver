@@ -248,7 +248,7 @@ ran_pillbox_get
   ssp_ran_uniform_disk(rng, ran->state.pillbox.radius, pt);
   pt[2] = 1;
   d33_muld3(dir, ran->state.pillbox.basis, pt);
-  d3_normalize(dir, pt);
+  d3_normalize(dir, dir);
   return dir;
 }
 
