@@ -227,8 +227,8 @@ ran_buie_get
   cosPhi = cos(phi);
   sinPhi = sin(phi);
   dir[0] = sinTheta * sinPhi;
-  dir[1] = -cosTheta;
-  dir[2] = sinTheta * cosPhi;
+  dir[1] = sinTheta * cosPhi;
+  dir[2] = cosTheta;
   d33_muld3(dir, ran->state.buie.basis, dir);
   return dir;
 }
