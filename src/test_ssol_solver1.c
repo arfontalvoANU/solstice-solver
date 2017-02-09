@@ -54,12 +54,12 @@ main(int argc, char** argv)
   struct ssol_scene* scene;
   struct ssol_shape* square;
   struct ssol_vertex_data attribs[1] = { SSOL_VERTEX_DATA_NULL__ };
-  struct ssol_material* m_mtl;
+  struct ssol_material *m_mtl, *m_mtl2;
   struct ssol_material* v_mtl;
   struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
-  struct ssol_object* m_object;
+  struct ssol_object *m_object, *m_object2;
   struct ssol_object* t_object;
-  struct ssol_instance* heliostat;
+  struct ssol_instance *heliostat, *heliostat2;
   struct ssol_instance* secondary;
   struct ssol_instance* target;
   struct ssol_sun* sun;
@@ -81,6 +81,7 @@ main(int argc, char** argv)
   size_t count, fcount;
   FILE* tmp = NULL;
   double m, std;
+  double a_m, a_std;
   uint32_t r_id;
 
   (void) argc, (void) argv;
@@ -258,7 +259,7 @@ main(int argc, char** argv)
   CHECK(fclose(tmp), 0);
   CHECK(ssol_estimator_get_failed_count(estimator, &fcount), RES_OK);
   CHECK(fcount, 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", m, std);
 #define COS cos(PI / 4)
 #define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, 2*std)), 1);
@@ -267,13 +268,15 @@ main(int argc, char** argv)
   CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
   /* Target was sampled but shadowed by secondary */
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 2 * dbl), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 2 * dbl), 1);
   CHECK(status.N, count);
   CHECK(status.Nf, fcount);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 2*status.SE), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 2*status.irradiance.SE), 1);
   CHECK(status.N, count);
   CHECK(status.Nf, fcount);
   CHECK(GET_RCV_STATUS(NULL, NULL, SSOL_BACK, NULL), RES_BAD_ARG);
@@ -292,9 +295,10 @@ main(int argc, char** argv)
   CHECK(GET_RCV_STATUS(estimator, NULL, SSOL_FRONT, &status), RES_BAD_ARG);
   CHECK(GET_RCV_STATUS(NULL, target, SSOL_FRONT, &status), RES_BAD_ARG);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Sample primary mirror only; variance is low */
@@ -307,19 +311,22 @@ main(int argc, char** argv)
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Check atmosphere model; with no absorption result is unchanged */
@@ -338,26 +345,44 @@ main(int argc, char** argv)
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", m, std);
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
-  /* Check atmosphere model; with absorption power decreases */
-  ka[0] = ka[1] = ka[2] = 0.1;
+  /* Check atmosphere model and imperfect mirror: there are losses */
+  CHECK(ssol_scene_detach_instance(scene, heliostat), RES_OK);
+
+  CHECK(ssol_material_create_mirror(dev, &m_mtl2), RES_OK);
+  shader.normal = get_shader_normal;
+  shader.reflectivity = get_shader_reflectivity_2;
+  shader.roughness = get_shader_roughness;
+  CHECK(ssol_mirror_set_shader(m_mtl2, &shader), RES_OK);
+
+  CHECK(ssol_object_create(dev, &m_object2), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(m_object2, square, m_mtl2, m_mtl2), RES_OK);
+  CHECK(ssol_object_instantiate(m_object2, &heliostat2), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat2, SSOL_FRONT), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, heliostat2), RES_OK);
+
+#define KA 0.03
+  ka[0] = ka[1] = ka[2] = KA;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
   CHECK(ssol_spectrum_setup(abs, get_wlen, 3, &desc), RES_OK);
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
@@ -368,23 +393,34 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
+  CHECK(pp_sum(tmp, (int32_t)r_id, count, &a_m, &a_std), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
-#define K (exp(-0.1 * 4 * sqrt(2)))
-  CHECK(eq_eps(m, 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, std)), 1);
-  CHECK(eq_eps(std, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", a_m, a_std);
+#define K (exp(-KA * 4 * sqrt(2)))
+  CHECK(eq_eps(a_m, REFLECTIVITY * 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, a_std)), 1);
+  CHECK(eq_eps(a_std, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target)                = %g +/- %g (%.2g %%)", 
+    status.irradiance.E, status.irradiance.SE, 100 * status.irradiance.E / m);
+  logger_print(&logger, LOG_OUTPUT, "Atmospheric Loss(target)  = %g +/- %g (%.2g %%)", 
+    status.absorptivity_loss.E, status.absorptivity_loss.SE, 100 * status.absorptivity_loss.E / m);
+  logger_print(&logger, LOG_OUTPUT, "Reflectivity Loss(target) = %g +/- %g (%.2g %%)",
+    status.reflectivity_loss.E, status.reflectivity_loss.SE, 100 * status.reflectivity_loss.E / m);
+  CHECK(eq_eps(status.irradiance.E, a_m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, a_std, 1e-4), 1);
+  CHECK(eq_eps(status.irradiance.E + status.absorptivity_loss.E + status.reflectivity_loss.E, m, 1e-8), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
+
+  CHECK(ssol_scene_detach_instance(scene, heliostat2), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
   /* Check a monochromatic sun */
   desc.wavelengths = &mono;
@@ -397,7 +433,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun_mono, 1000), RES_OK);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun_mono), RES_OK);
-  ka[1] = 0.2;
+  ka[1] = 0.2; ka[0] = ka[2] = 0.1;
   desc.wavelengths = wavelengths;
   desc.intensities = ka;
   desc.count = 2;
@@ -408,24 +444,30 @@ main(int argc, char** argv)
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", m, std);
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
   CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g",
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g",
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std, 1e-4), 1);
 #undef GET_STATUS
 #undef GET_RCV_STATUS
 
   /* Free data */
+  CHECK(ssol_instance_ref_put(heliostat2), RES_OK);
+  CHECK(ssol_object_ref_put(m_object2), RES_OK);
+  CHECK(ssol_material_ref_put(m_mtl2), RES_OK);
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
   CHECK(ssol_instance_ref_put(secondary), RES_OK);
   CHECK(ssol_instance_ref_put(target), RES_OK);

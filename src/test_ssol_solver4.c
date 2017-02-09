@@ -161,27 +161,27 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, (int32_t)r_id1, count, &m1, &std1), RES_OK);
   CHECK(pp_sum(tmp, (int32_t)r_id2, count, &m2, &std2), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m1, std1);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g\n", m1, std1);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m1, 400 * DNI_cos, 400 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std1, 0, 1), 1);
   CHECK(m1, m2);
   CHECK(std1, std2);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
   CHECK(GET_RCV_STATUS(estimator, target1, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target1) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m1, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std1, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target1) = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m1, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std1, 1e-4), 1);
   CHECK(GET_RCV_STATUS(estimator, target2, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target2) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m2, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std2, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target2) = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m2, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std2, 1e-4), 1);
 #undef GET_STATUS
 #undef GET_RCV_STATUS
 

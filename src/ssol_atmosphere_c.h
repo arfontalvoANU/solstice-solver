@@ -42,7 +42,7 @@ struct ssol_atmosphere {
 };
 
 extern LOCAL_SYM double
-compute_atmosphere_attenuation
+compute_atmosphere_transmissivity
   (const struct ssol_atmosphere* atmosphere,
    const double distance,
    const double wavelength);

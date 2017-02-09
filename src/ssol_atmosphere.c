@@ -123,7 +123,7 @@ ssol_atmosphere_set_uniform_absorption
  * Local functions
  ******************************************************************************/
 double
-compute_atmosphere_attenuation
+compute_atmosphere_transmissivity
   (const struct ssol_atmosphere* atmosphere,
    const double distance,
    const double wavelength)

@@ -247,11 +247,17 @@ struct ssol_receiver_data {
   /* TODO Add the geometry and primitive identifier */
 };
 
+struct ssol_mc_result {
+  double E; /* Expectation */
+  double V; /* Variance */
+  double SE; /* Standard error, i.e. sqrt(Expectation / N) */
+};
+
 /* result for MC simulations */
 struct ssol_estimator_status {
-  double E; /* Expected value */
-  double V; /* Variance */
-  double SE; /* Standard error, i.e. sqrt(V / N) */
+  struct ssol_mc_result irradiance;
+  struct ssol_mc_result absorptivity_loss;
+  struct ssol_mc_result reflectivity_loss;
   size_t N; /* Samples count */
   size_t Nf; /* Failed samples count */
 };

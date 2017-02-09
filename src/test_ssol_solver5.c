@@ -152,21 +152,21 @@ main(int argc, char** argv)
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nP = %g +/- %g\n", m, std);
+  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g\n", m, std);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);
   CHECK(eq_eps(std, 0, 1), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, 0, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, m, 1e-8), 1);
-  CHECK(eq_eps(status.SE, std, 1e-4), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.SE, std, 1e-4), 1);
 #undef GET_STATUS
 #undef GET_RCV_STATUS
 

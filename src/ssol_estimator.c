@@ -48,7 +48,7 @@ create_per_receiver_mc_data
     if(!inst->receiver_mask) continue;
 
     res = htable_receiver_set
-      (&estimator->global_receivers, &inst, &MC_DATA2_NULL);
+      (&estimator->global_receivers, &inst, &MC_RECV_DATA_NULL);
     if(res != RES_OK) goto error;
   }
 exit:
@@ -110,9 +110,19 @@ ssol_estimator_get_status
   }
   status->N = estimator->realisation_count;
   status->Nf = estimator->failed_count;
-  status->E = data->weight / (double)status->N;
-  status->V = data->sqr_weight / (double)status->N - status->E * status->E;
-  status->SE = (status->V > 0) ? sqrt(status->V / (double)status->N) : 0;
+  status->irradiance.E = data->weight / (double)status->N;
+  status->irradiance.V
+    = data->sqr_weight / (double)status->N
+      - status->irradiance.E * status->irradiance.E;
+  status->irradiance.SE
+    = (status->irradiance.V > 0)
+      ? sqrt(status->irradiance.V / (double)status->N) : 0;
+  status->absorptivity_loss.E = 0;
+  status->absorptivity_loss.V = 0;
+  status->absorptivity_loss.SE = 0;
+  status->reflectivity_loss.E = 0;
+  status->reflectivity_loss.V = 0;
+  status->reflectivity_loss.SE = 0;
   return RES_OK;
 }
 
@@ -123,21 +133,39 @@ ssol_estimator_get_receiver_status
    const enum ssol_side_flag side,
    struct ssol_estimator_status* status)
 {
-  const struct mc_data* rcv_data = NULL;
+  const struct mc_per_receiver_1side_data* data = NULL;
   if (!estimator || !instance || !status
   || (side != SSOL_BACK && side != SSOL_FRONT))
     return RES_BAD_ARG;
 
   /* Check if a receiver is defined for this instance/side */
-  rcv_data = estimator_get_receiver_data
+  data = estimator_get_receiver_data
     (&estimator->global_receivers, instance, side);
-  if(rcv_data == NULL) return RES_BAD_ARG;
+  if(data == NULL) return RES_BAD_ARG;
 
   status->N = estimator->realisation_count;
   status->Nf = estimator->failed_count;
-  status->E = rcv_data->weight / (double)status->N;
-  status->V = rcv_data->sqr_weight / (double)status->N - status->E * status->E;
-  status->SE = (status->V > 0) ? sqrt(status->V / (double)status->N) : 0;
+  status->irradiance.E = data->irradiance.weight / (double)status->N;
+  status->irradiance.V
+    = data->irradiance.sqr_weight / (double)status->N
+      - status->irradiance.E * status->irradiance.E;
+  status->irradiance.SE
+    = (status->irradiance.V > 0) ?
+      sqrt(status->irradiance.V / (double)status->N) : 0;
+  status->absorptivity_loss.E = data->absorptivity_loss.weight / (double) status->N;
+  status->absorptivity_loss.V
+    = data->absorptivity_loss.sqr_weight / (double) status->N
+      - status->absorptivity_loss.E * status->absorptivity_loss.E;
+  status->absorptivity_loss.SE
+    = (status->absorptivity_loss.V > 0) ?
+      sqrt(status->absorptivity_loss.V / (double) status->N) : 0;
+  status->reflectivity_loss.E = data->reflectivity_loss.weight / (double) status->N;
+  status->reflectivity_loss.V
+    = data->reflectivity_loss.sqr_weight / (double) status->N
+    - status->reflectivity_loss.E * status->reflectivity_loss.E;
+  status->reflectivity_loss.SE
+    = (status->reflectivity_loss.V > 0) ?
+    sqrt(status->reflectivity_loss.V / (double) status->N) : 0;
   return RES_OK;
 }
 

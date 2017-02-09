@@ -37,30 +37,43 @@ struct mc_data {
 #define MC_DATA_NULL__ { 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
-struct mc_data_2 {
-  struct mc_data front;
-  struct mc_data back;
+struct mc_per_receiver_1side_data {
+  struct mc_data irradiance;
+  struct mc_data absorptivity_loss;
+  struct mc_data reflectivity_loss;
 };
 
-#define MC_DATA2_NULL__ { MC_DATA_NULL__, MC_DATA_NULL__ }
-static const struct mc_data_2 MC_DATA2_NULL = MC_DATA2_NULL__;
+#define MC_RECV_1SIDE_DATA_NULL__ { MC_DATA_NULL__, MC_DATA_NULL__,  MC_DATA_NULL__ }
+
+static const struct mc_per_receiver_1side_data 
+MC_RECV_1SIDE_DATA_NULL = MC_RECV_1SIDE_DATA_NULL__;
+
+struct mc_per_receiver_data {
+  struct mc_per_receiver_1side_data front;
+  struct mc_per_receiver_1side_data back;
+};
+
+#define MC_RECV_DATA_NULL__ { MC_RECV_1SIDE_DATA_NULL__, MC_RECV_1SIDE_DATA_NULL__ }
+
+static const struct mc_per_receiver_data 
+MC_RECV_DATA_NULL = MC_RECV_DATA_NULL__;
 
 static INLINE void
-init_mc_data2
+init_mc_per_recv_data
   (struct mem_allocator* alloc,
-    struct mc_data_2* data)
+    struct mc_per_receiver_data* data)
 {
   (void)alloc;
   ASSERT(data);
-  *data = MC_DATA2_NULL;
+  *data = MC_RECV_DATA_NULL;
 }
 
 /* Define the htable_receiver data structure */
 struct ssol_instance;
 #define HTABLE_NAME receiver
 #define HTABLE_KEY const struct ssol_instance*
-#define HTABLE_DATA struct mc_data_2
-#define HTABLE_FUNCTOR_INIT init_mc_data2
+#define HTABLE_DATA struct mc_per_receiver_data
+#define HTABLE_FUNCTOR_INIT init_mc_per_recv_data
 #include <rsys/hash_table.h>
 
 struct ssol_estimator {
@@ -82,18 +95,18 @@ estimator_create
    struct ssol_scene* scene,
    struct ssol_estimator** estimator);
 
-static FINLINE struct mc_data*
+static FINLINE struct mc_per_receiver_1side_data*
 estimator_get_receiver_data
   (struct htable_receiver* receivers,
    const struct ssol_instance* instance,
    const enum ssol_side_flag side)
 {
-  struct mc_data_2* data2;
+  struct mc_per_receiver_data* data;
   ASSERT(receivers && instance);
   if(!(instance->receiver_mask & (int)side)) return NULL;
-  data2 = htable_receiver_find(receivers, &instance);
-  if(!data2) return NULL;
-  return side == SSOL_FRONT ? &data2->front : &data2->back;
+  data = htable_receiver_find(receivers, &instance);
+  if(!data) return NULL;
+  return side == SSOL_FRONT ? &data->front : &data->back;
 }
 
 #endif /* SSOL_ESTIMATOR_C_H */

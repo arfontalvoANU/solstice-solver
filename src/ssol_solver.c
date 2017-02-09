@@ -53,9 +53,16 @@ struct point {
   double dir[3];
   float uv[2];
   double wl; /* Sampled wavelength */
-  double weight;
+  double weight; /* actual weight */
+  double absorptivity_loss; /* weight with no amospheric effets */
+  double reflectivity_loss; /* weight with no reflectivity effets */
   enum ssol_side_flag side;
 };
+
+
+#define POINT_NULL__ { NULL, NULL, S3D_PRIMITIVE_NULL__, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0}, 0, 0, 0, 0, SSOL_FRONT }
+static const struct point POINT_NULL = POINT_NULL__;
+
 
 /*******************************************************************************
  * Helper functions
@@ -100,6 +107,7 @@ point_init
 
   /* Initialise the Monte Carlo weight */
   pt->weight = scn->sun->dni * sampled_area * fabs(d3_dot(pt->N, pt->dir));
+  pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Retrieve the sampled instance and shaded shape */
   pt->inst = *htable_instance_find(&scn->instances_samp, &pt->prim.inst_id);
@@ -201,7 +209,7 @@ point_shade
   (struct point* pt, struct ssf_bsdf* bsdf, struct ssp_rng* rng, double dir[3])
 {
   struct surface_fragment frag;
-  double wi[3], pdf;
+  double wi[3], pdf, r;
   res_T res;
 
   /* TODO ensure that if `prim' was sampled, then the surface fragment setup
@@ -226,7 +234,11 @@ point_shade
    * directions point outward the surface => negate incoming dir */
   d3_minus(wi, pt->dir);
 
-  pt->weight *= ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
+  r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
+  ASSERT(0 <= r && r <= 1);
+  pt->reflectivity_loss += (1 - r) * pt->weight;
+  pt->weight *= r;
+
   return RES_OK;
 }
 
@@ -395,11 +407,8 @@ ssol_solve
     htable_receiver_begin(mc_rcvs + i, &it);
     htable_receiver_end(mc_rcvs + i, &end);
     while (!htable_receiver_iterator_eq(&it, &end)) {
-      struct mc_data_2* estimator_data = htable_receiver_iterator_data_get(&it);
-      estimator_data->front.weight = 0;
-      estimator_data->front.sqr_weight = 0;
-      estimator_data->back.weight = 0;
-      estimator_data->back.sqr_weight = 0;
+      struct mc_per_receiver_data* estimator_data = htable_receiver_iterator_data_get(&it);
+      *estimator_data = MC_RECV_DATA_NULL;
       htable_receiver_iterator_next(&it);
     }
   }
@@ -450,15 +459,19 @@ ssol_solve
 
       if(point_is_receiver(&pt)) {
         const res_T res_local = point_dump(&pt, (size_t)i, depth, output);
-        struct mc_data* mc_rcv = NULL;
+        struct mc_per_receiver_1side_data* data = NULL;
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);
           break;
         }
-        mc_rcv = estimator_get_receiver_data(receiver, pt.inst, pt.side);
-        ASSERT(mc_rcv);
-        mc_rcv->weight += pt.weight;
-        mc_rcv->sqr_weight += pt.weight*pt.weight;
+        data = estimator_get_receiver_data(receiver, pt.inst, pt.side);
+        ASSERT(data);
+        data->irradiance.weight += pt.weight;
+        data->irradiance.sqr_weight += pt.weight*pt.weight;
+        data->absorptivity_loss.weight += pt.absorptivity_loss;
+        data->absorptivity_loss.sqr_weight += pt.absorptivity_loss * pt.absorptivity_loss;
+        data->reflectivity_loss.weight += pt.reflectivity_loss;
+        data->reflectivity_loss.sqr_weight += pt.reflectivity_loss * pt.reflectivity_loss;
         hit_a_receiver = 1;
       }
 
@@ -477,6 +490,7 @@ ssol_solve
           ATOMIC_SET(&res, res_local);
           break;
         }
+        if (pt.weight == 0) break;
 
         /* Setup new ray parameters */
         f2(range, 0, FLT_MAX);
@@ -499,8 +513,11 @@ ssol_solve
 
       /* Take into account the atmosphere attenuation along the new ray */
       if(scn->atmosphere) {
-        pt.weight *= compute_atmosphere_attenuation
-          (scn->atmosphere, hit.distance, pt.wl);
+        double transmissivity =
+          compute_atmosphere_transmissivity(scn->atmosphere, hit.distance, pt.wl);
+        ASSERT(0 < transmissivity && transmissivity <= 1);
+        pt.absorptivity_loss += (1 - transmissivity) * pt.weight;
+        pt.weight *= transmissivity;
       }
 
       /* Update the point */
@@ -525,16 +542,40 @@ ssol_solve
   htable_receiver_begin(&estimator->global_receivers, &it);
   htable_receiver_end(&estimator->global_receivers, &end);
   while (!htable_receiver_iterator_eq(&it, &end)) {
-    struct mc_data_2* estimator_data = htable_receiver_iterator_data_get(&it);
+    struct mc_per_receiver_data* estimator_data
+      = htable_receiver_iterator_data_get(&it);
     const struct ssol_instance* key = *htable_receiver_iterator_key_get(&it);
     htable_receiver_iterator_next(&it);
     FOR_EACH(i, 0, nthreads) {
       /* Sum both sides, even if no receiver is defined to avoid tests */
-      struct mc_data_2* thread_data = htable_receiver_find(mc_rcvs + i, &key);
-      estimator_data->front.weight += thread_data->front.weight;
-      estimator_data->front.sqr_weight += thread_data->front.sqr_weight;
-      estimator_data->back.weight += thread_data->back.weight;
-      estimator_data->back.sqr_weight += thread_data->back.sqr_weight;
+      struct mc_per_receiver_data* thread_data
+        = htable_receiver_find(mc_rcvs + i, &key);
+      estimator_data->front.irradiance.weight
+        += thread_data->front.irradiance.weight;
+      estimator_data->front.irradiance.sqr_weight
+        += thread_data->front.irradiance.sqr_weight;
+      estimator_data->back.irradiance.weight
+        += thread_data->back.irradiance.weight;
+      estimator_data->back.irradiance.sqr_weight
+        += thread_data->back.irradiance.sqr_weight;
+
+      estimator_data->front.absorptivity_loss.weight
+        += thread_data->front.absorptivity_loss.weight;
+      estimator_data->front.absorptivity_loss.sqr_weight
+        += thread_data->front.absorptivity_loss.sqr_weight;
+      estimator_data->back.absorptivity_loss.weight
+        += thread_data->back.absorptivity_loss.weight;
+      estimator_data->back.absorptivity_loss.sqr_weight
+        += thread_data->back.absorptivity_loss.sqr_weight;
+
+      estimator_data->front.reflectivity_loss.weight
+        += thread_data->front.reflectivity_loss.weight;
+      estimator_data->front.reflectivity_loss.sqr_weight
+        += thread_data->front.reflectivity_loss.sqr_weight;
+      estimator_data->back.reflectivity_loss.weight
+        += thread_data->back.reflectivity_loss.weight;
+      estimator_data->back.reflectivity_loss.sqr_weight
+        += thread_data->back.reflectivity_loss.sqr_weight;
     }
   }
   estimator->realisation_count += realisations_count;

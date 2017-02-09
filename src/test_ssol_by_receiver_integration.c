@@ -142,18 +142,21 @@ main(int argc, char** argv)
 #define GET_RCV_STATUS ssol_estimator_get_receiver_status
   CHECK(ssol_solve(scene, rng, N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
-  CHECK(eq_eps(status.E, S_DNI_cos, S_DNI_cos * 2e-1), 1);
+  CHECK(eq_eps(status.irradiance.E, S_DNI_cos, S_DNI_cos * 2e-1), 1);
   CHECK(ssol_solve(scene, rng, 8 * N__, NULL, &estimator2), RES_OK);
   CHECK(GET_RCV_STATUS(estimator2, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, S_DNI_cos, S_DNI_cos * 5e-2), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, S_DNI_cos, S_DNI_cos * 5e-2), 1);
   CHECK(ssol_estimator_ref_put(estimator1), RES_OK);
   CHECK(ssol_solve(scene, rng, 3 * N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "P(target) = %g +/- %g", status.E, status.SE);
-  CHECK(eq_eps(status.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
 #undef N__
 #undef S_DNI_cos
 #undef GET_RCV_STATUS
