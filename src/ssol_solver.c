@@ -59,10 +59,8 @@ struct point {
   enum ssol_side_flag side;
 };
 
-
 #define POINT_NULL__ { NULL, NULL, S3D_PRIMITIVE_NULL__, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0}, 0, 0, 0, 0, SSOL_FRONT }
 static const struct point POINT_NULL = POINT_NULL__;
-
 
 /*******************************************************************************
  * Helper functions
@@ -329,6 +327,7 @@ ssol_solve
   struct htable_receiver_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
+  struct s3d_scene_view* view_prim = NULL;
   struct ranst_sun_dir* ran_sun_dir = NULL;
   struct ranst_sun_wl* ran_sun_wl = NULL;
   struct ssf_bsdf** bsdfs = NULL;
@@ -338,7 +337,7 @@ ssol_solve
   struct mc_data* mc_missings = NULL;
   struct htable_receiver* mc_rcvs = NULL;
   struct ssol_estimator* estimator = NULL;
-  float sampled_area = 0;
+  float area;
   int nthreads = 0;
   int nrealisations = 0;
   int i = 0;
@@ -364,15 +363,18 @@ ssol_solve
   if(res != RES_OK) goto error;
 
   /* Create data structures shared by all threads */
-  res = scene_create_s3d_views(scn, &view_rt, &view_samp);
+  res = scene_create_s3d_views(scn, &view_rt, &view_samp, &view_prim);
   if(res != RES_OK) goto error;
   res = sun_create_distributions(scn->sun, &ran_sun_dir, &ran_sun_wl);
   if(res != RES_OK) goto error;
-  S3D(scene_view_compute_area(view_samp, &sampled_area));
 
   /* Create the estimator */
   res = estimator_create(scn->dev, scn, &estimator);
   if (res != RES_OK) goto error;
+  S3D(scene_view_compute_area(view_samp, &area));
+  estimator->sampled_area = area;
+  S3D(scene_view_compute_area(view_prim, &area));
+  estimator->primary_area = area;
 
   /* Create a RNG proxy from the submitted RNG state */
   res = ssp_rng_proxy_create_from_rng
@@ -438,7 +440,7 @@ ssol_solve
     receiver = mc_rcvs + ithread;
 
     /* Find a new starting point of the radiative random walk */
-    is_lit = point_init(&pt, scn, sampled_area, view_samp, view_rt,
+    is_lit = point_init(&pt, scn, estimator->sampled_area, view_samp, view_rt,
       ran_sun_dir, ran_sun_wl, rng);
 
     if(!is_lit) { /* The starting point is not lit */
@@ -582,7 +584,8 @@ ssol_solve
 
 exit:
   if(view_rt) S3D(scene_view_ref_put(view_rt));
-  if(view_samp) S3D(scene_view_ref_put(view_samp));
+  if (view_samp) S3D(scene_view_ref_put(view_samp));
+  if (view_prim) S3D(scene_view_ref_put(view_prim));
   if(ran_sun_dir) ranst_sun_dir_ref_put(ran_sun_dir);
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));

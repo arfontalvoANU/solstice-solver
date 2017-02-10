@@ -42,6 +42,7 @@ struct ssol_scene {
 
   struct s3d_scene* scn_rt; /* S3D scene to ray trace */
   struct s3d_scene* scn_samp; /* S3D scene to sample */
+  struct s3d_scene* scn_prim; /* S3D scene of primary objects */
 
   struct ssol_sun* sun; /* Sun of the scene */
   struct ssol_atmosphere* atmosphere; /* Atmosphere of the scene */
@@ -50,13 +51,14 @@ struct ssol_scene {
   ref_T ref;
 };
 
-/* Create the Star-3D views of the RT and sampling scenes. Return an error if
- * the sampling scene is empty. */
+/* Create the Star-3D views of the RT, sampling, and primary items scenes.
+ * Return an error if the sampling scene is empty. */
 extern LOCAL_SYM res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,
    struct s3d_scene_view** view_rt,
-   struct s3d_scene_view** view_samp);
+   struct s3d_scene_view** view_samp,
+   struct s3d_scene_view** out_view_prim);
 
 #endif /* SSOL_SCENE_C_H */
 

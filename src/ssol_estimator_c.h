@@ -84,6 +84,8 @@ struct ssol_estimator {
   struct mc_data missing;
   /* 1 global MC per receiver */
   struct htable_receiver global_receivers;
+  /* areas */
+  double sampled_area, primary_area;
 
   struct ssol_device* dev;
   ref_T ref;
