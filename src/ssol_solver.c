@@ -59,7 +59,18 @@ struct point {
   enum ssol_side_flag side;
 };
 
-#define POINT_NULL__ { NULL, NULL, S3D_PRIMITIVE_NULL__, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0}, 0, 0, 0, 0, SSOL_FRONT }
+#define POINT_NULL__ {                                                         \
+  NULL, /* Instance */                                                         \
+  NULL, /* Shaded shape */                                                     \
+  S3D_PRIMITIVE_NULL__, /* Primitive */                                        \
+  {0, 0, 0}, /* Normal */                                                      \
+  {0, 0, 0}, /* Position */                                                    \
+  {0, 0, 0}, /* Direction */                                                   \
+  {0, 0}, /* UV */                                                             \
+  0, /* Wavelength */                                                          \
+  0, 0, 0, /* MC weights */                                                    \
+  SSOL_FRONT /* Side */                                                        \
+}
 static const struct point POINT_NULL = POINT_NULL__;
 
 /*******************************************************************************
@@ -552,40 +563,24 @@ ssol_solve
       /* Sum both sides, even if no receiver is defined to avoid tests */
       struct mc_per_receiver_data* thread_data
         = htable_receiver_find(mc_rcvs + i, &key);
-      estimator_data->front.irradiance.weight
-        += thread_data->front.irradiance.weight;
-      estimator_data->front.irradiance.sqr_weight
-        += thread_data->front.irradiance.sqr_weight;
-      estimator_data->back.irradiance.weight
-        += thread_data->back.irradiance.weight;
-      estimator_data->back.irradiance.sqr_weight
-        += thread_data->back.irradiance.sqr_weight;
-
-      estimator_data->front.absorptivity_loss.weight
-        += thread_data->front.absorptivity_loss.weight;
-      estimator_data->front.absorptivity_loss.sqr_weight
-        += thread_data->front.absorptivity_loss.sqr_weight;
-      estimator_data->back.absorptivity_loss.weight
-        += thread_data->back.absorptivity_loss.weight;
-      estimator_data->back.absorptivity_loss.sqr_weight
-        += thread_data->back.absorptivity_loss.sqr_weight;
-
-      estimator_data->front.reflectivity_loss.weight
-        += thread_data->front.reflectivity_loss.weight;
-      estimator_data->front.reflectivity_loss.sqr_weight
-        += thread_data->front.reflectivity_loss.sqr_weight;
-      estimator_data->back.reflectivity_loss.weight
-        += thread_data->back.reflectivity_loss.weight;
-      estimator_data->back.reflectivity_loss.sqr_weight
-        += thread_data->back.reflectivity_loss.sqr_weight;
+      #define ACCUM_WEIGHT(Name) {                                             \
+        estimator_data->front.Name.weight += thread_data->front.Name.weight;   \
+        estimator_data->back.Name.weight += thread_data->front.Name.weight;    \
+        estimator_data->front.Name.sqr_weight += thread_data->front.Name.sqr_weight;\
+        estimator_data->back.Name.sqr_weight += thread_data->front.Name.sqr_weight;\
+      } (void)0
+      ACCUM_WEIGHT(irradiance);
+      ACCUM_WEIGHT(absorptivity_loss);
+      ACCUM_WEIGHT(reflectivity_loss);
+      #undef ACCUM_WEIGHT
     }
   }
   estimator->realisation_count += realisations_count;
 
 exit:
   if(view_rt) S3D(scene_view_ref_put(view_rt));
-  if (view_samp) S3D(scene_view_ref_put(view_samp));
-  if (view_prim) S3D(scene_view_ref_put(view_prim));
+  if(view_samp) S3D(scene_view_ref_put(view_samp));
+  if(view_prim) S3D(scene_view_ref_put(view_prim));
   if(ran_sun_dir) ranst_sun_dir_ref_put(ran_sun_dir);
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));

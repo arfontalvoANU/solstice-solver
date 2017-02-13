@@ -44,8 +44,8 @@ scene_release(ref_T* ref)
   ASSERT(dev && dev->allocator);
   SSOL(scene_clear(scene));
   if(scene->scn_rt) S3D(scene_ref_put(scene->scn_rt));
-  if (scene->scn_samp) S3D(scene_ref_put(scene->scn_samp));
-  if (scene->scn_prim) S3D(scene_ref_put(scene->scn_prim));
+  if(scene->scn_samp) S3D(scene_ref_put(scene->scn_samp));
+  if(scene->scn_prim) S3D(scene_ref_put(scene->scn_prim));
   if(scene->sun) SSOL(sun_ref_put(scene->sun));
   if(scene->atmosphere) SSOL(atmosphere_ref_put(scene->atmosphere));
   htable_instance_release(&scene->instances_rt);
@@ -83,7 +83,7 @@ ssol_scene_create
   res = s3d_scene_create(dev->s3d, &scene->scn_rt);
   if(res != RES_OK) goto error;
   res = s3d_scene_create(dev->s3d, &scene->scn_samp);
-  if (res != RES_OK) goto error;
+  if(res != RES_OK) goto error;
   res = s3d_scene_create(dev->s3d, &scene->scn_prim);
   if(res != RES_OK) goto error;
 
@@ -320,7 +320,7 @@ scene_create_s3d_views
 
     /* Attach the instantiated s3d raytraced shape to the s3d primary scene */
     res = s3d_scene_attach_shape(scn->scn_prim, inst->shape_rt);
-    if (res != RES_OK) goto error;
+    if(res != RES_OK) goto error;
 
     /* Register the instantiated s3d sampling shape */
     S3D(shape_get_id(inst->shape_samp, &id));

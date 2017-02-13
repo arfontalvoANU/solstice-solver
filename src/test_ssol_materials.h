@@ -16,11 +16,13 @@
 #ifndef TEST_SSOL_MATERIALS_H
 #define TEST_SSOL_MATERIALS_H
 
+#include <rsys/rsys.h>
+
 #define REFLECTIVITY 0.87
 
 struct ssol_device;
 
-static void
+static INLINE void
 get_shader_normal
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
@@ -37,7 +39,7 @@ get_shader_normal
   FOR_EACH(i, 0, 3) val[i] = Ns[i];
 }
 
-static void
+static INLINE void
 get_shader_reflectivity
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
@@ -54,24 +56,24 @@ get_shader_reflectivity
   *val = 1;
 }
 
-static void
+static INLINE void
 get_shader_reflectivity_2
-(struct ssol_device* dev,
-  struct ssol_param_buffer* buf,
-  const double wavelength,
-  const double P[3],
-  const double Ng[3],
-  const double Ns[3],
-  const double uv[2],
-  const double w[3],
-  double* val)
+  (struct ssol_device* dev,
+   struct ssol_param_buffer* buf,
+   const double wavelength,
+   const double P[3],
+   const double Ng[3],
+   const double Ns[3],
+   const double uv[2],
+   const double w[3],
+   double* val)
 {
   (void) dev, (void) buf, (void) wavelength;
   (void) P, (void) Ng, (void) Ns, (void) uv, (void) w;
   *val = REFLECTIVITY;
 }
 
-static void
+static INLINE void
 get_shader_roughness
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
@@ -87,6 +89,5 @@ get_shader_roughness
   (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
   *val = 0;
 }
-
 
 #endif /* TEST_SSOL_MATERIALS_H */
