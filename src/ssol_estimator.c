@@ -123,6 +123,9 @@ ssol_estimator_get_status
   status->reflectivity_loss.E = 0;
   status->reflectivity_loss.V = 0;
   status->reflectivity_loss.SE = 0;
+  status->cos_loss.E = 0;
+  status->cos_loss.V = 0;
+  status->cos_loss.SE = 0;
   return RES_OK;
 }
 
@@ -166,6 +169,13 @@ ssol_estimator_get_receiver_status
   status->reflectivity_loss.SE
     = (status->reflectivity_loss.V > 0) ?
     sqrt(status->reflectivity_loss.V / (double) status->N) : 0;
+  status->cos_loss.E = data->cos_loss.weight / (double) status->N;
+  status->cos_loss.V
+    = data->cos_loss.sqr_weight / (double) status->N
+    - status->cos_loss.E * status->cos_loss.E;
+  status->cos_loss.SE
+    = (status->cos_loss.V > 0) ?
+    sqrt(status->cos_loss.V / (double) status->N) : 0;
   return RES_OK;
 }
 

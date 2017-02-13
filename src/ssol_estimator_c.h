@@ -41,9 +41,11 @@ struct mc_per_receiver_1side_data {
   struct mc_data irradiance;
   struct mc_data absorptivity_loss;
   struct mc_data reflectivity_loss;
+  struct mc_data cos_loss;
 };
 
-#define MC_RECV_1SIDE_DATA_NULL__ { MC_DATA_NULL__, MC_DATA_NULL__,  MC_DATA_NULL__ }
+#define MC_RECV_1SIDE_DATA_NULL__ {\
+  MC_DATA_NULL__, MC_DATA_NULL__,  MC_DATA_NULL__,  MC_DATA_NULL__ }
 
 static const struct mc_per_receiver_1side_data 
 MC_RECV_1SIDE_DATA_NULL = MC_RECV_1SIDE_DATA_NULL__;

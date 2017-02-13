@@ -261,7 +261,8 @@ main(int argc, char** argv)
   CHECK(fcount, 0);
   logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", m, std);
 #define COS cos(PI / 4)
-#define DNI_cos (1000 * COS)
+#define DNI 1000 
+#define DNI_cos (DNI * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, 2*std)), 1);
 #define SQR(x) ((x)*(x))
   dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / (double)count);
@@ -397,7 +398,8 @@ main(int argc, char** argv)
   CHECK(fclose(tmp), 0);
   logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g", a_m, a_std);
 #define K (exp(-KA * 4 * sqrt(2)))
-  CHECK(eq_eps(a_m, REFLECTIVITY * 4 * K * DNI_cos, MMAX(4 * K * DNI_cos * 1e-1, a_std)), 1);
+  CHECK(eq_eps(a_m, REFLECTIVITY * 4 * K * DNI_cos, 
+    MMAX(4 * K * DNI_cos * 1e-1, a_std)), 1);
   CHECK(eq_eps(a_std, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", 
@@ -408,15 +410,27 @@ main(int argc, char** argv)
     status.irradiance.E, status.irradiance.SE);
   CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Ir(target)                = %g +/- %g (%.2g %%)", 
+  logger_print(&logger, LOG_OUTPUT, 
+    "Ir(target)                = %g +/- %g (%.2g %%)", 
     status.irradiance.E, status.irradiance.SE, 100 * status.irradiance.E / m);
-  logger_print(&logger, LOG_OUTPUT, "Atmospheric Loss(target)  = %g +/- %g (%.2g %%)", 
-    status.absorptivity_loss.E, status.absorptivity_loss.SE, 100 * status.absorptivity_loss.E / m);
-  logger_print(&logger, LOG_OUTPUT, "Reflectivity Loss(target) = %g +/- %g (%.2g %%)",
-    status.reflectivity_loss.E, status.reflectivity_loss.SE, 100 * status.reflectivity_loss.E / m);
+  logger_print(&logger, LOG_OUTPUT, 
+    "Atmospheric Loss(target)  = %g +/- %g (%.2g %%)", 
+    status.absorptivity_loss.E, status.absorptivity_loss.SE, 
+    100 * status.absorptivity_loss.E / m);
+  logger_print(&logger, LOG_OUTPUT, 
+    "Reflectivity Loss(target) = %g +/- %g (%.2g %%)",
+    status.reflectivity_loss.E, status.reflectivity_loss.SE, 
+    100 * status.reflectivity_loss.E / m);
+  logger_print(&logger, LOG_OUTPUT, 
+    "Cos Loss(target)          = %g +/- %g (%.2g %%)",
+    status.cos_loss.E, status.cos_loss.SE, 100 * status.cos_loss.E / m);
   CHECK(eq_eps(status.irradiance.E, a_m, 1e-8), 1);
   CHECK(eq_eps(status.irradiance.SE, a_std, 1e-4), 1);
-  CHECK(eq_eps(status.irradiance.E + status.absorptivity_loss.E + status.reflectivity_loss.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.E + status.absorptivity_loss.E 
+    + status.reflectivity_loss.E, m, 1e-8), 1);
+  CHECK(eq_eps(status.irradiance.E + status.absorptivity_loss.E
+    + status.reflectivity_loss.E + status.cos_loss.E, 4 * DNI, 1e-8), 1);
+  CHECK(eq_eps(status.cos_loss.E / (4 * DNI), 1 -  COS, 1e-8), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_scene_detach_instance(scene, heliostat2), RES_OK);

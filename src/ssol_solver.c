@@ -54,8 +54,9 @@ struct point {
   float uv[2];
   double wl; /* Sampled wavelength */
   double weight; /* actual weight */
-  double absorptivity_loss; /* weight with no amospheric effets */
-  double reflectivity_loss; /* weight with no reflectivity effets */
+  double absorptivity_loss;
+  double reflectivity_loss;
+  double cos_loss;
   enum ssol_side_flag side;
 };
 
@@ -92,6 +93,7 @@ point_init
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
   float dir[3], pos[3], range[2] = { 0, FLT_MAX };
+  double cos_sun;
   size_t id;
 
   /* Sample a point into the scene view */
@@ -115,7 +117,9 @@ point_init
   ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
 
   /* Initialise the Monte Carlo weight */
-  pt->weight = scn->sun->dni * sampled_area * fabs(d3_dot(pt->N, pt->dir));
+  cos_sun = fabs(d3_dot(pt->N, pt->dir));
+  pt->weight = scn->sun->dni * sampled_area * cos_sun;
+  pt->cos_loss = scn->sun->dni * sampled_area * (1 - cos_sun);
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Retrieve the sampled instance and shaded shape */
@@ -485,6 +489,8 @@ ssol_solve
         data->absorptivity_loss.sqr_weight += pt.absorptivity_loss * pt.absorptivity_loss;
         data->reflectivity_loss.weight += pt.reflectivity_loss;
         data->reflectivity_loss.sqr_weight += pt.reflectivity_loss * pt.reflectivity_loss;
+        data->cos_loss.weight += pt.cos_loss;
+        data->cos_loss.sqr_weight += pt.cos_loss * pt.cos_loss;
         hit_a_receiver = 1;
       }
 
@@ -572,6 +578,7 @@ ssol_solve
       ACCUM_WEIGHT(irradiance);
       ACCUM_WEIGHT(absorptivity_loss);
       ACCUM_WEIGHT(reflectivity_loss);
+      ACCUM_WEIGHT(cos_loss);
       #undef ACCUM_WEIGHT
     }
   }

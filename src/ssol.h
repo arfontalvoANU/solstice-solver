@@ -258,6 +258,7 @@ struct ssol_estimator_status {
   struct ssol_mc_result irradiance;
   struct ssol_mc_result absorptivity_loss;
   struct ssol_mc_result reflectivity_loss;
+  struct ssol_mc_result cos_loss;
   size_t N; /* Samples count */
   size_t Nf; /* Failed samples count */
 };
