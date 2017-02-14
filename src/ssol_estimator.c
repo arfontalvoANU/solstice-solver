@@ -30,7 +30,7 @@
  * Helper functions
  ******************************************************************************/
 static res_T
-create_per_receiver_mc_data
+create_per_prim_recv_mc_data
   (struct ssol_estimator* estimator,
    struct ssol_scene* scene)
 {
@@ -45,16 +45,24 @@ create_per_receiver_mc_data
     const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     htable_instance_iterator_next(&it);
 
-    if(!inst->receiver_mask) continue;
+    if (inst->receiver_mask) {
+      res = htable_receiver_set
+        (&estimator->global_receivers, &inst, &MC_RECV_DATA_NULL);
+      if (res != RES_OK) goto error;
+    }
 
-    res = htable_receiver_set
-      (&estimator->global_receivers, &inst, &MC_RECV_DATA_NULL);
-    if(res != RES_OK) goto error;
+    if (inst->sample) {
+      struct mc_per_primary_data data;
+      init_mc_per_prim_data(estimator->global_primaries.allocator, &data);
+      res = htable_primary_set(&estimator->global_primaries, &inst, &data);
+      if (res != RES_OK) goto error;
+    }
   }
 exit:
   return res;
 error:
   htable_receiver_clear(&estimator->global_receivers);
+  htable_primary_clear(&estimator->global_primaries);
   goto exit;
 }
 
@@ -67,6 +75,7 @@ estimator_release(ref_T* ref)
   ASSERT(ref);
   dev = estimator->dev;
   htable_receiver_release(&estimator->global_receivers);
+  htable_primary_release(&estimator->global_primaries);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -77,7 +86,7 @@ estimator_release(ref_T* ref)
  ******************************************************************************/
 res_T
 ssol_estimator_ref_get
-(struct ssol_estimator* estimator)
+  (struct ssol_estimator* estimator)
 {
   if (!estimator) return RES_BAD_ARG;
   ref_get(&estimator->ref);
@@ -85,7 +94,7 @@ ssol_estimator_ref_get
 }
 
 res_T
-ssol_estimator_ref_put
+  ssol_estimator_ref_put
 (struct ssol_estimator* estimator)
 {
   if (!estimator) return RES_BAD_ARG;
@@ -104,8 +113,8 @@ ssol_estimator_get_status
     return RES_BAD_ARG;
 
   switch (type) {
-    case SSOL_STATUS_SHADOW: data = &estimator->shadow; break;
-    case SSOL_STATUS_MISSING: data = &estimator->missing; break;
+    case SSOL_STATUS_SHADOW: data = &estimator->global_shadow; break;
+    case SSOL_STATUS_MISSING: data = &estimator->global_missing; break;
     default: FATAL("Unreachable code.\n"); break;
   }
   status->N = estimator->realisation_count;
@@ -117,15 +126,13 @@ ssol_estimator_get_status
   status->irradiance.SE
     = (status->irradiance.V > 0)
       ? sqrt(status->irradiance.V / (double)status->N) : 0;
-  status->absorptivity_loss.E = 0;
-  status->absorptivity_loss.V = 0;
-  status->absorptivity_loss.SE = 0;
-  status->reflectivity_loss.E = 0;
-  status->reflectivity_loss.V = 0;
-  status->reflectivity_loss.SE = 0;
-  status->cos_loss.E = 0;
-  status->cos_loss.V = 0;
-  status->cos_loss.SE = 0;
+
+  #define CLEAR_MC_FIELD(Field) \
+    status->Field.E = status->Field.V = status->Field.SE = 0
+  CLEAR_MC_FIELD(absorptivity_loss);
+  CLEAR_MC_FIELD(reflectivity_loss);
+  CLEAR_MC_FIELD(cos_loss);
+  #undef CLEAR_MC_FIELD
   return RES_OK;
 }
 
@@ -148,34 +155,74 @@ ssol_estimator_get_receiver_status
 
   status->N = estimator->realisation_count;
   status->Nf = estimator->failed_count;
-  status->irradiance.E = data->irradiance.weight / (double)status->N;
-  status->irradiance.V
-    = data->irradiance.sqr_weight / (double)status->N
-      - status->irradiance.E * status->irradiance.E;
-  status->irradiance.SE
-    = (status->irradiance.V > 0) ?
-      sqrt(status->irradiance.V / (double)status->N) : 0;
-  status->absorptivity_loss.E = data->absorptivity_loss.weight / (double) status->N;
-  status->absorptivity_loss.V
-    = data->absorptivity_loss.sqr_weight / (double) status->N
-      - status->absorptivity_loss.E * status->absorptivity_loss.E;
-  status->absorptivity_loss.SE
-    = (status->absorptivity_loss.V > 0) ?
-      sqrt(status->absorptivity_loss.V / (double) status->N) : 0;
-  status->reflectivity_loss.E = data->reflectivity_loss.weight / (double) status->N;
-  status->reflectivity_loss.V
-    = data->reflectivity_loss.sqr_weight / (double) status->N
-    - status->reflectivity_loss.E * status->reflectivity_loss.E;
-  status->reflectivity_loss.SE
-    = (status->reflectivity_loss.V > 0) ?
-    sqrt(status->reflectivity_loss.V / (double) status->N) : 0;
-  status->cos_loss.E = data->cos_loss.weight / (double) status->N;
-  status->cos_loss.V
-    = data->cos_loss.sqr_weight / (double) status->N
-    - status->cos_loss.E * status->cos_loss.E;
-  status->cos_loss.SE
-    = (status->cos_loss.V > 0) ?
-    sqrt(status->cos_loss.V / (double) status->N) : 0;
+
+  #define SET_MC_FIELD(Field) {\
+    status->Field.E = data->Field.weight / (double)status->N;\
+    status->Field.V\
+      = data->Field.sqr_weight / (double) status->N\
+      - status->Field.E * status->Field.E;\
+    status->Field.SE\
+      = (status->Field.V > 0) ?\
+      sqrt(status->Field.V / (double) status->N) : 0;\
+  } (void) 0
+  SET_MC_FIELD(irradiance);
+  SET_MC_FIELD(absorptivity_loss);
+  SET_MC_FIELD(reflectivity_loss);
+  SET_MC_FIELD(cos_loss);
+  #undef SET_MC_FIELD
+
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_primary_entity_x_receiver_status
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* prim_instance,
+   const struct ssol_instance* recv_instance,
+   const enum ssol_side_flag side,
+   struct ssol_estimator_status* status)
+{
+  struct mc_per_primary_data* prim_data = NULL;
+  struct mc_per_receiver_1side_data* data = NULL;
+  if (!estimator || !prim_instance || !recv_instance || !status
+    || (side != SSOL_BACK && side != SSOL_FRONT))
+    return RES_BAD_ARG;
+
+  /* Check if prim_instance is a primary entity */
+  prim_data = estimator_get_primary_entity_data
+    (&estimator->global_primaries, prim_instance);
+  if (prim_data == NULL) return RES_BAD_ARG;
+
+  /* Check if a receiver is defined for this instance/side */
+  data = estimator_get_prim_recv_data(prim_data, recv_instance, side);
+  if (data == NULL) return RES_BAD_ARG;
+
+  /* realisation count for this primary */
+  status->N = prim_data->nb_samples;
+  status->Nf = prim_data->nb_failed;
+
+  #define CLEAR_MC_FIELD(Field) \
+    status->Field.E = status->Field.V = status->Field.SE = 0
+  #define SET_MC_FIELD(Field) {\
+    if (status->N > 0) {\
+      status->Field.E = data->Field.weight / (double)status->N;\
+      status->Field.V\
+        = data->Field.sqr_weight / (double) status->N\
+        - status->Field.E * status->Field.E;\
+      status->Field.SE\
+        = (status->Field.V > 0) ?\
+        sqrt(status->Field.V / (double) status->N) : 0;\
+    } else {\
+      CLEAR_MC_FIELD(Field);\
+    }\
+  } (void) 0
+  SET_MC_FIELD(irradiance);
+  SET_MC_FIELD(absorptivity_loss);
+  SET_MC_FIELD(reflectivity_loss);
+  SET_MC_FIELD(cos_loss);
+  #undef CLEAR_MC_FIELD
+  #undef SET_MC_FIELD
+
   return RES_OK;
 }
 
@@ -241,11 +288,12 @@ estimator_create
   }
 
   htable_receiver_init(dev->allocator, &estimator->global_receivers);
+  htable_primary_init(dev->allocator, &estimator->global_primaries);
   SSOL(device_ref_get(dev));
   estimator->dev = dev;
   ref_init(&estimator->ref);
 
-  res = create_per_receiver_mc_data(estimator, scene);
+  res = create_per_prim_recv_mc_data(estimator, scene);
   if(res != RES_OK) goto error;
 
 exit:
