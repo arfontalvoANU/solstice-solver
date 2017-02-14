@@ -148,34 +148,17 @@ ssol_estimator_get_receiver_status
 
   status->N = estimator->realisation_count;
   status->Nf = estimator->failed_count;
-  status->irradiance.E = data->irradiance.weight / (double)status->N;
-  status->irradiance.V
-    = data->irradiance.sqr_weight / (double)status->N
-      - status->irradiance.E * status->irradiance.E;
-  status->irradiance.SE
-    = (status->irradiance.V > 0) ?
-      sqrt(status->irradiance.V / (double)status->N) : 0;
-  status->absorptivity_loss.E = data->absorptivity_loss.weight / (double) status->N;
-  status->absorptivity_loss.V
-    = data->absorptivity_loss.sqr_weight / (double) status->N
-      - status->absorptivity_loss.E * status->absorptivity_loss.E;
-  status->absorptivity_loss.SE
-    = (status->absorptivity_loss.V > 0) ?
-      sqrt(status->absorptivity_loss.V / (double) status->N) : 0;
-  status->reflectivity_loss.E = data->reflectivity_loss.weight / (double) status->N;
-  status->reflectivity_loss.V
-    = data->reflectivity_loss.sqr_weight / (double) status->N
-    - status->reflectivity_loss.E * status->reflectivity_loss.E;
-  status->reflectivity_loss.SE
-    = (status->reflectivity_loss.V > 0) ?
-    sqrt(status->reflectivity_loss.V / (double) status->N) : 0;
-  status->cos_loss.E = data->cos_loss.weight / (double) status->N;
-  status->cos_loss.V
-    = data->cos_loss.sqr_weight / (double) status->N
-    - status->cos_loss.E * status->cos_loss.E;
-  status->cos_loss.SE
-    = (status->cos_loss.V > 0) ?
-    sqrt(status->cos_loss.V / (double) status->N) : 0;
+  #define SETUP_MC_STATUS(Name) {                                              \
+    const double N = (double)estimator->realisation_count;                     \
+    status->Name.E = data->Name.weight / N;                                    \
+    status->Name.V = data->Name.sqr_weight/N - status->Name.E*status->Name.E;  \
+    status->Name.SE = status->Name.V > 0 ? sqrt(status->Name.V / N) : 0;       \
+  } (void)0
+  SETUP_MC_STATUS(irradiance);
+  SETUP_MC_STATUS(absorptivity_loss);
+  SETUP_MC_STATUS(reflectivity_loss);
+  SETUP_MC_STATUS(cos_loss);
+  #undef SETUP_MC_STATUS
   return RES_OK;
 }
 
@@ -259,5 +242,4 @@ error:
   }
   goto exit;
 }
-
 

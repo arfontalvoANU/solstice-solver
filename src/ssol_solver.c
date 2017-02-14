@@ -69,7 +69,7 @@ struct point {
   {0, 0, 0}, /* Direction */                                                   \
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
-  0, 0, 0, /* MC weights */                                                    \
+  0, 0, 0, 0, /* MC weights */                                                 \
   SSOL_FRONT /* Side */                                                        \
 }
 static const struct point POINT_NULL = POINT_NULL__;
@@ -233,7 +233,7 @@ point_shade
    * the same. Indeed it may be inconsistent only if the two kind of primitives
    * does not have the same set of parameters. For triangulated meshes, the RT
    * and sampled shape are the same and thus shared the same attribs. For
-   * punched surfaces, no attribs are defined on both representation.
+   * punched surfaces, no attrib is defined on both representation.
    * Consequently, it seems that there is no specific work to do to ensure the
    * `surface_fragment_setup' consistency. */
   surface_fragment_setup(&frag, pt->pos, pt->dir, pt->N, &pt->prim, pt->uv);
@@ -424,7 +424,8 @@ ssol_solve
     htable_receiver_begin(mc_rcvs + i, &it);
     htable_receiver_end(mc_rcvs + i, &end);
     while (!htable_receiver_iterator_eq(&it, &end)) {
-      struct mc_per_receiver_data* estimator_data = htable_receiver_iterator_data_get(&it);
+      struct mc_per_receiver_data* estimator_data =
+        htable_receiver_iterator_data_get(&it);
       *estimator_data = MC_RECV_DATA_NULL;
       htable_receiver_iterator_next(&it);
     }
