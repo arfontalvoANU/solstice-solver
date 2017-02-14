@@ -592,7 +592,8 @@ ssol_instance_set_transform
 SSOL_API res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const int mask); /* Combination of ssol_side_flag */
+   const int mask, /* Combination of ssol_side_flag */
+   const int per_primitive); /* Enable the per primitive integration */
 
 /* Define whether or not the instance is sampled or not. By default an instance
  * is sampled. */

@@ -35,11 +35,14 @@ create_per_receiver_mc_data
    struct ssol_scene* scene)
 {
   struct htable_instance_iterator it, end;
+  struct mc_per_receiver_data mc_rcv_data_null;
   res_T res = RES_OK;
   ASSERT(scene && estimator);
 
   htable_instance_begin(&scene->instances_rt, &it);
   htable_instance_end(&scene->instances_rt, &end);
+
+  mc_per_receiver_data_init(estimator->dev->allocator, &mc_rcv_data_null);
 
   while(!htable_instance_iterator_eq(&it, &end)) {
     const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
@@ -48,7 +51,7 @@ create_per_receiver_mc_data
     if(!inst->receiver_mask) continue;
 
     res = htable_receiver_set
-      (&estimator->global_receivers, &inst, &MC_RECV_DATA_NULL);
+      (&estimator->global_receivers, &inst, &mc_rcv_data_null);
     if(res != RES_OK) goto error;
   }
 exit:

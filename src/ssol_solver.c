@@ -421,14 +421,6 @@ ssol_solve
     htable_receiver_init(scn->dev->allocator, mc_rcvs + i);
     res = htable_receiver_copy(mc_rcvs + i, &estimator->global_receivers);
     if(res != RES_OK) goto error;
-    htable_receiver_begin(mc_rcvs + i, &it);
-    htable_receiver_end(mc_rcvs + i, &end);
-    while (!htable_receiver_iterator_eq(&it, &end)) {
-      struct mc_per_receiver_data* estimator_data =
-        htable_receiver_iterator_data_get(&it);
-      *estimator_data = MC_RECV_DATA_NULL;
-      htable_receiver_iterator_next(&it);
-    }
   }
 
   #pragma omp parallel for schedule(static)
@@ -493,6 +485,17 @@ ssol_solve
         data->cos_loss.weight += pt.cos_loss;
         data->cos_loss.sqr_weight += pt.cos_loss * pt.cos_loss;
         hit_a_receiver = 1;
+
+        if(pt.inst->receiver_per_primitive) {
+          struct mc_data* prim = mc_per_receiver_1side_data_get_primitive_data
+            (data, pt.prim.prim_id);
+          if(!prim) {
+            ATOMIC_SET(&res, RES_MEM_ERR);
+            break;
+          }
+          prim->weight += pt.weight;
+          prim->sqr_weight += pt.weight*pt.weight;
+        }
       }
 
       mtl = point_get_material(&pt);

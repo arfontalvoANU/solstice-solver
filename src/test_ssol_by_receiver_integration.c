@@ -133,7 +133,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, square, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
@@ -144,7 +144,7 @@ main(int argc, char** argv)
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
     status.irradiance.E, status.irradiance.SE);
-  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
   CHECK(eq_eps(status.irradiance.E, S_DNI_cos, S_DNI_cos * 2e-1), 1);
   CHECK(ssol_solve(scene, rng, 8 * N__, NULL, &estimator2), RES_OK);
   CHECK(GET_RCV_STATUS(estimator2, target, SSOL_FRONT, &status), RES_OK);

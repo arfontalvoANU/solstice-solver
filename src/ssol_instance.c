@@ -152,10 +152,14 @@ error:
 }
 
 res_T
-ssol_instance_set_receiver(struct ssol_instance* instance, const int mask)
+ssol_instance_set_receiver
+  (struct ssol_instance* instance,
+   const int mask,
+   const int per_primitive)
 {
   if(!instance) return RES_BAD_ARG;
   instance->receiver_mask = mask;
+  instance->receiver_per_primitive = per_primitive;
   return RES_OK;
 }
 

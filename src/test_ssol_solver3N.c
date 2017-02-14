@@ -205,7 +205,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, square, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
@@ -223,14 +223,17 @@ main(int argc, char** argv)
 #define DNI_cos (1000 * cos(PI / 8))
   CHECK(eq_eps(m, 4 * NX * NY * NZ * DNI_cos, 4 * NX * NY * NZ * DNI_cos * 2e-1), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g",
+    status.irradiance.E, status.irradiance.SE);
   CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g",
+    status.irradiance.E, status.irradiance.SE);
   CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
   CHECK(status.Nf, 0);
   CHECK(GET_RCV_STATUS(estimator, target, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", status.irradiance.E, status.irradiance.SE);
+  logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g",
+    status.irradiance.E, status.irradiance.SE);
   CHECK(eq_eps(status.irradiance.E, m, 1e-6), 1);
   CHECK(eq_eps(status.irradiance.SE, std, 1e-3), 1);
 #undef GET_STATUS

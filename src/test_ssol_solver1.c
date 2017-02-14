@@ -148,11 +148,11 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, &m_object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(m_object, square, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
   CHECK(ssol_object_instantiate(m_object, &secondary), RES_OK);
-  CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_set_transform(secondary, transform1), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
 
@@ -160,7 +160,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, square, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   CHECK(ssol_solve(scene, rng, 1, NULL, &estimator), RES_OK);
@@ -223,13 +223,13 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
 
   /* No receiver in scene */
-  CHECK(ssol_instance_set_receiver(heliostat, 0), RES_OK);
-  CHECK(ssol_instance_set_receiver(secondary, 0), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat, 0, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(secondary, 0, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, 0, 0), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT), RES_OK);
-  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT, 0), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
  /* Spectra mismatch */
@@ -379,7 +379,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, &m_object2), RES_OK);
   CHECK(ssol_object_add_shaded_shape(m_object2, square, m_mtl2, m_mtl2), RES_OK);
   CHECK(ssol_object_instantiate(m_object2, &heliostat2), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat2, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(heliostat2, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat2), RES_OK);
 
 #define KA 0.03
