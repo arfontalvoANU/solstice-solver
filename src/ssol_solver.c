@@ -333,15 +333,14 @@ accum_mc_receivers_1side
   (struct mc_receiver_1side* dst,
    struct mc_receiver_1side* src)
 {
-  struct htable_rcvprim_iterator it, end;
-  const struct mc_receiver_data* mc_src;
-  struct mc_receiver_data* mc_dst;
-  unsigned iprim;
+  const struct mc_primitive_1side* src_mc_prim;
+  struct mc_primitive_1side* dst_mc_prim;
+  size_t i;
   ASSERT(dst && src);
 
   #define ACCUM_WEIGHT(Name) {                                                 \
-    dst->data.Name.weight += src->data.Name.weight;                            \
-    dst->data.Name.sqr_weight += src->data.Name.sqr_weight;                    \
+    dst->Name.weight += src->Name.weight;                                      \
+    dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
   ACCUM_WEIGHT(integrated_irradiance);
   ACCUM_WEIGHT(absorptivity_loss);
@@ -350,23 +349,18 @@ accum_mc_receivers_1side
   #undef ACCUM_WEIGHT
 
   /* Merge the per primitive MC of the integrated irradiance */
-  htable_rcvprim_begin(&src->prims, &it);
-  htable_rcvprim_end(&src->prims, &end);
-  while(!htable_rcvprim_iterator_eq(&it, &end)) {
-    iprim = *htable_rcvprim_iterator_key_get(&it);
-    mc_src = htable_rcvprim_iterator_data_get(&it);
-    mc_dst = mc_receiver_1side_get_mc_primitive(dst, iprim);
-
+  FOR_EACH(i, 0, darray_mc_prim_size_get(&src->mc_prims)) {
+    src_mc_prim = darray_mc_prim_cdata_get(&src->mc_prims) + i;
+    dst_mc_prim = mc_receiver_1side_get_mc_primitive(dst, src_mc_prim->index);
     #define ACCUM_WEIGHT(Name) {                                               \
-      mc_dst->Name.weight += mc_src->Name.weight;                              \
-      mc_dst->Name.sqr_weight += mc_src->Name.sqr_weight;                      \
+      dst_mc_prim->Name.weight += src_mc_prim->Name.weight;                    \
+      dst_mc_prim->Name.sqr_weight += src_mc_prim->Name.sqr_weight;            \
     } (void)0
     ACCUM_WEIGHT(integrated_irradiance);
     ACCUM_WEIGHT(absorptivity_loss);
     ACCUM_WEIGHT(reflectivity_loss);
     ACCUM_WEIGHT(cos_loss);
     #undef ACCUM_WEIGHT
-    htable_rcvprim_iterator_next(&it);
   }
 }
 
@@ -522,8 +516,8 @@ ssol_solve
         }
         mc_rcv1 = estimator_get_mc_receiver(receiver, pt.inst, pt.side);
         #define ACCUM_WEIGHT(Name, W) {                                        \
-          mc_rcv1->data.Name.weight += (W);                                    \
-          mc_rcv1->data.Name.sqr_weight += (W)*(W);                            \
+          mc_rcv1->Name.weight += (W);                                         \
+          mc_rcv1->Name.sqr_weight += (W)*(W);                                 \
         } (void)0
         ACCUM_WEIGHT(integrated_irradiance, pt.weight);
         ACCUM_WEIGHT(absorptivity_loss, pt.absorptivity_loss);
@@ -533,7 +527,7 @@ ssol_solve
         hit_a_receiver = 1;
 
         if(pt.inst->receiver_per_primitive) {
-          struct mc_receiver_data* mc_prim;
+          struct mc_primitive_1side* mc_prim;
           mc_prim = mc_receiver_1side_get_mc_primitive(mc_rcv1, pt.prim.prim_id);
           if(!mc_prim) {
             ATOMIC_SET(&res, RES_MEM_ERR);

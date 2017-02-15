@@ -60,6 +60,7 @@ set(SSOL_FILES_SRC
   ssol_estimator.c
   ssol_image.c
   ssol_material.c
+  ssol_mc_receiver.c
   ssol_object.c
   ssol_instance.c
   ssol_param_buffer.c

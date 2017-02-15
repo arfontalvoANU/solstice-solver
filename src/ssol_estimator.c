@@ -116,37 +116,6 @@ ssol_estimator_get_mc_global
 }
 
 res_T
-ssol_estimator_get_mc_receiver
-  (struct ssol_estimator* estimator,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side,
-   struct ssol_mc_receiver* rcv)
-{
-  const struct mc_receiver_1side* mc_rcv1 = NULL;
-  if(!estimator || !instance || !rcv
-  || (side != SSOL_BACK && side != SSOL_FRONT))
-    return RES_BAD_ARG;
-
-  /* Check if a receiver is defined for this instance/side */
-  mc_rcv1 = estimator_get_mc_receiver(&estimator->mc_receivers, instance, side);
-  if(mc_rcv1 == NULL) return RES_BAD_ARG;
-
-  #define SETUP_MC_RESULT(Name) {                                              \
-    const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &mc_rcv1->data.Name;                          \
-    rcv->Name.E = data->weight / N;                                            \
-    rcv->Name.V = data->sqr_weight/N - rcv->Name.E*rcv->Name.E;                \
-    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
-  } (void)0
-  SETUP_MC_RESULT(integrated_irradiance);
-  SETUP_MC_RESULT(absorptivity_loss);
-  SETUP_MC_RESULT(reflectivity_loss);
-  SETUP_MC_RESULT(cos_loss);
-  #undef SETUP_MC_RESULT
-  return RES_OK;
-}
-
-res_T
 ssol_estimator_get_count
   (const struct ssol_estimator* estimator, size_t* count)
 {

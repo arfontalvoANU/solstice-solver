@@ -264,6 +264,18 @@ struct ssol_mc_receiver {
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
   struct ssol_mc_result cos_loss; /* In W TODO remove this */
+
+  /* Internal data */
+  size_t N__;
+  const void* mc__;
+};
+
+struct ssol_mc_primitive {
+  struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result absorptivity_loss; /* In W */
+  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result cos_loss; /* In W TODO remove this */
+  size_t index; /* Index of the primitive */
 };
 
 typedef res_T
@@ -768,13 +780,6 @@ ssol_estimator_get_mc_global
    struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
-ssol_estimator_get_mc_receiver
-  (struct ssol_estimator* estimator,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side,
-   struct ssol_mc_receiver* status);
-
-SSOL_API res_T
 ssol_estimator_get_count
   (const struct ssol_estimator* estimator,
    size_t* count);
@@ -793,6 +798,27 @@ SSOL_API res_T
 ssol_estimator_get_primary_area
   (const struct ssol_estimator* estimator,
    double* area);
+
+/*******************************************************************************
+ * Per receiver MC estimations
+ ******************************************************************************/
+SSOL_API res_T
+ssol_estimator_get_mc_receiver
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side,
+   struct ssol_mc_receiver* rcv);
+
+SSOL_API res_T
+ssol_mc_receiver_get_mc_primitives_count
+  (const struct ssol_mc_receiver* rcv,
+   size_t* count);
+
+SSOL_API res_T
+ssol_mc_receiver_get_mc_primitive
+  (const struct ssol_mc_receiver* rcv,
+   const size_t i,
+   struct ssol_mc_primitive* prim);
 
 /*******************************************************************************
  * Miscellaneous functions
