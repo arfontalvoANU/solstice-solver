@@ -48,6 +48,7 @@ ssol_estimator_get_mc_receiver
   SETUP_MC_RESULT(cos_loss);
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
+  rcv->N__  = estimator->realisation_count;
   return RES_OK;
 }
 
@@ -82,8 +83,8 @@ ssol_mc_receiver_get_mc_primitive
     const double N = (double)rcv->N__;                                         \
     const struct mc_data* data = &mc_prim1->Name;                              \
     prim->Name.E = data->weight / N;                                           \
-    prim->Name.V = data->sqr_weight/N - rcv->Name.E*rcv->Name.E;               \
-    prim->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;               \
+    prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;             \
+    prim->Name.SE = prim->Name.V > 0 ? sqrt(prim->Name.V / N) : 0;             \
   } (void)0
   SETUP_MC_RESULT(integrated_irradiance);
   SETUP_MC_RESULT(absorptivity_loss);
