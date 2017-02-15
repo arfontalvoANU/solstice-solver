@@ -16,12 +16,9 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 
-#include <rsys/logger.h>
-
 int
 main(int argc, char** argv)
 {
-  struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_spectrum* spectrum;
@@ -31,13 +28,8 @@ main(int argc, char** argv)
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(logger_init(&allocator, &logger), RES_OK);
-  logger_set_stream(&logger, LOG_OUTPUT, log_stream, NULL);
-  logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
-  logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
-
   CHECK(ssol_device_create
-  (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum2), RES_OK);
@@ -63,8 +55,6 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum2), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
-
-  logger_release(&logger);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);

@@ -30,19 +30,19 @@
  * Helper functions
  ******************************************************************************/
 static res_T
-create_per_receiver_mc_data
+create_mc_receivers
   (struct ssol_estimator* estimator,
    struct ssol_scene* scene)
 {
   struct htable_instance_iterator it, end;
-  struct mc_per_receiver_data mc_rcv_data_null;
+  struct mc_receiver mc_rcv_null;
   res_T res = RES_OK;
   ASSERT(scene && estimator);
 
   htable_instance_begin(&scene->instances_rt, &it);
   htable_instance_end(&scene->instances_rt, &end);
 
-  mc_per_receiver_data_init(estimator->dev->allocator, &mc_rcv_data_null);
+  mc_receiver_init(estimator->dev->allocator, &mc_rcv_null);
 
   while(!htable_instance_iterator_eq(&it, &end)) {
     const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
@@ -50,14 +50,13 @@ create_per_receiver_mc_data
 
     if(!inst->receiver_mask) continue;
 
-    res = htable_receiver_set
-      (&estimator->global_receivers, &inst, &mc_rcv_data_null);
+    res = htable_receiver_set(&estimator->mc_receivers, &inst, &mc_rcv_null);
     if(res != RES_OK) goto error;
   }
 exit:
   return res;
 error:
-  htable_receiver_clear(&estimator->global_receivers);
+  htable_receiver_clear(&estimator->mc_receivers);
   goto exit;
 }
 
@@ -69,7 +68,7 @@ estimator_release(ref_T* ref)
     CONTAINER_OF(ref, struct ssol_estimator, ref);
   ASSERT(ref);
   dev = estimator->dev;
-  htable_receiver_release(&estimator->global_receivers);
+  htable_receiver_release(&estimator->mc_receivers);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -97,71 +96,52 @@ ssol_estimator_ref_put
 }
 
 res_T
-ssol_estimator_get_status
+ssol_estimator_get_mc_global
   (const struct ssol_estimator* estimator,
-   const enum ssol_status_type type,
-   struct ssol_estimator_status* status)
+   struct ssol_mc_global* global)
 {
-  const struct mc_data* data;
-  if (!estimator || type >= SSOL_STATUS_TYPES_COUNT__ || !status)
-    return RES_BAD_ARG;
-
-  switch (type) {
-    case SSOL_STATUS_SHADOW: data = &estimator->shadow; break;
-    case SSOL_STATUS_MISSING: data = &estimator->missing; break;
-    default: FATAL("Unreachable code.\n"); break;
-  }
-  status->N = estimator->realisation_count;
-  status->Nf = estimator->failed_count;
-  status->irradiance.E = data->weight / (double)status->N;
-  status->irradiance.V
-    = data->sqr_weight / (double)status->N
-      - status->irradiance.E * status->irradiance.E;
-  status->irradiance.SE
-    = (status->irradiance.V > 0)
-      ? sqrt(status->irradiance.V / (double)status->N) : 0;
-  status->absorptivity_loss.E = 0;
-  status->absorptivity_loss.V = 0;
-  status->absorptivity_loss.SE = 0;
-  status->reflectivity_loss.E = 0;
-  status->reflectivity_loss.V = 0;
-  status->reflectivity_loss.SE = 0;
-  status->cos_loss.E = 0;
-  status->cos_loss.V = 0;
-  status->cos_loss.SE = 0;
+  if(!estimator || !global) return RES_BAD_ARG;
+  #define SETUP_MC_RESULT(Name) {                                              \
+    const double N = (double)estimator->realisation_count;                     \
+    const struct mc_data* data = &estimator->Name;                             \
+    global->Name.E = data->weight / N;                                         \
+    global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
+    global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
+  } (void)0
+  SETUP_MC_RESULT(cos_loss);
+  SETUP_MC_RESULT(shadowed);
+  SETUP_MC_RESULT(missing);
+  #undef SETUP_MC_RESULT
   return RES_OK;
 }
 
 res_T
-ssol_estimator_get_receiver_status
+ssol_estimator_get_mc_receiver
   (struct ssol_estimator* estimator,
    const struct ssol_instance* instance,
    const enum ssol_side_flag side,
-   struct ssol_estimator_status* status)
+   struct ssol_mc_receiver* rcv)
 {
-  const struct mc_per_receiver_1side_data* data = NULL;
-  if (!estimator || !instance || !status
+  const struct mc_receiver_1side* mc_rcv1 = NULL;
+  if(!estimator || !instance || !rcv
   || (side != SSOL_BACK && side != SSOL_FRONT))
     return RES_BAD_ARG;
 
   /* Check if a receiver is defined for this instance/side */
-  data = estimator_get_receiver_data
-    (&estimator->global_receivers, instance, side);
-  if(data == NULL) return RES_BAD_ARG;
+  mc_rcv1 = estimator_get_mc_receiver(&estimator->mc_receivers, instance, side);
+  if(mc_rcv1 == NULL) return RES_BAD_ARG;
 
-  status->N = estimator->realisation_count;
-  status->Nf = estimator->failed_count;
-  #define SETUP_MC_STATUS(Name) {                                              \
+  #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    status->Name.E = data->Name.weight / N;                                    \
-    status->Name.V = data->Name.sqr_weight/N - status->Name.E*status->Name.E;  \
-    status->Name.SE = status->Name.V > 0 ? sqrt(status->Name.V / N) : 0;       \
+    rcv->Name.E = mc_rcv1->Name.weight / N;                                    \
+    rcv->Name.V = mc_rcv1->Name.sqr_weight/N - rcv->Name.E*rcv->Name.E;        \
+    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
   } (void)0
-  SETUP_MC_STATUS(irradiance);
-  SETUP_MC_STATUS(absorptivity_loss);
-  SETUP_MC_STATUS(reflectivity_loss);
-  SETUP_MC_STATUS(cos_loss);
-  #undef SETUP_MC_STATUS
+  SETUP_MC_RESULT(integrated_irradiance);
+  SETUP_MC_RESULT(absorptivity_loss);
+  SETUP_MC_RESULT(reflectivity_loss);
+  SETUP_MC_RESULT(cos_loss);
+  #undef SETUP_MC_RESULT
   return RES_OK;
 }
 
@@ -226,12 +206,12 @@ estimator_create
     goto error;
   }
 
-  htable_receiver_init(dev->allocator, &estimator->global_receivers);
+  htable_receiver_init(dev->allocator, &estimator->mc_receivers);
   SSOL(device_ref_get(dev));
   estimator->dev = dev;
   ref_init(&estimator->ref);
 
-  res = create_per_receiver_mc_data(estimator, scene);
+  res = create_mc_receivers(estimator, scene);
   if(res != RES_OK) goto error;
 
 exit:

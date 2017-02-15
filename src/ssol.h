@@ -253,21 +253,17 @@ struct ssol_mc_result {
   double SE; /* Standard error, i.e. sqrt(Expectation / N) */
 };
 
-/* result for MC simulations */
-struct ssol_estimator_status {
-  struct ssol_mc_result irradiance;
-  struct ssol_mc_result absorptivity_loss;
-  struct ssol_mc_result reflectivity_loss;
-  struct ssol_mc_result cos_loss;
-  size_t N; /* Samples count */
-  size_t Nf; /* Failed samples count */
+struct ssol_mc_global {
+  struct ssol_mc_result cos_loss; /* In W */
+  struct ssol_mc_result shadowed; /* In W */
+  struct ssol_mc_result missing; /* In W */
 };
 
-/* the always-ON indicators (MC computations) */
-enum ssol_status_type {
-  SSOL_STATUS_SHADOW,
-  SSOL_STATUS_MISSING,
-  SSOL_STATUS_TYPES_COUNT__
+struct ssol_mc_receiver {
+  struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result absorptivity_loss; /* In W */
+  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result cos_loss; /* In W */
 };
 
 typedef res_T
@@ -767,17 +763,16 @@ ssol_estimator_ref_put
   (struct ssol_estimator* estimator);
 
 SSOL_API res_T
-ssol_estimator_get_status
+ssol_estimator_get_mc_global
   (const struct ssol_estimator* estimator,
-   const enum ssol_status_type type,
-   struct ssol_estimator_status* status);
+   struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
-ssol_estimator_get_receiver_status
+ssol_estimator_get_mc_receiver
   (struct ssol_estimator* estimator,
    const struct ssol_instance* instance,
    const enum ssol_side_flag side,
-   struct ssol_estimator_status* status);
+   struct ssol_mc_receiver* status);
 
 SSOL_API res_T
 ssol_estimator_get_count

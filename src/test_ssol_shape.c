@@ -21,19 +21,14 @@
 #define HALF_Y 1
 #include "test_ssol_rect_geometry.h"
 
-#include <rsys/logger.h>
-
-/*******************************************************************************
- * Test main program
- ******************************************************************************/
 int
 main(int argc, char** argv)
 {
-  struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_shape* shape;
-  struct ssol_vertex_data attribs[3] = { SSOL_VERTEX_DATA_NULL__, SSOL_VERTEX_DATA_NULL__, SSOL_VERTEX_DATA_NULL__ };
+  struct ssol_vertex_data attribs[3] =
+    {SSOL_VERTEX_DATA_NULL__, SSOL_VERTEX_DATA_NULL__, SSOL_VERTEX_DATA_NULL__};
   struct ssol_punched_surface punched_surface = SSOL_PUNCHED_SURFACE_NULL;
   struct ssol_carving carving = SSOL_CARVING_NULL;
   struct ssol_quadric quadric = SSOL_QUADRIC_DEFAULT;
@@ -45,13 +40,8 @@ main(int argc, char** argv)
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(logger_init(&allocator, &logger), RES_OK);
-  logger_set_stream(&logger, LOG_OUTPUT, log_stream, NULL);
-  logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
-  logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
-
   CHECK(ssol_device_create
-    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_shape_create_mesh(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_shape_create_mesh(dev, NULL), RES_BAD_ARG);
@@ -150,10 +140,7 @@ main(int argc, char** argv)
   quadric.data.parabolic_cylinder.focal = 1;
 
   CHECK(ssol_shape_ref_put(shape), RES_OK);
-
   CHECK(ssol_device_ref_put(dev), RES_OK);
-
-  logger_release(&logger);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
