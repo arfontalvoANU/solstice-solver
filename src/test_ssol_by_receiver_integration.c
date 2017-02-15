@@ -85,8 +85,7 @@ main(int argc, char** argv)
   logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
   logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
 
-  CHECK(ssol_device_create
-  (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHECK(ssol_device_create(&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
@@ -140,6 +139,7 @@ main(int argc, char** argv)
 #define N__ 10000
 #define S_DNI_cos (4 * 1000 * cos(PI / 4))
 #define GET_RCV_STATUS ssol_estimator_get_receiver_status
+#define GET_PRIM_X_RCV_STATUS ssol_estimator_get_primary_entity_x_receiver_status
   CHECK(ssol_solve(scene, rng, N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
@@ -155,6 +155,10 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, 3 * N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &status), RES_OK);
   logger_print(&logger, LOG_OUTPUT, "Ir(target) = %g +/- %g", 
+    status.irradiance.E, status.irradiance.SE);
+  CHECK(eq_eps(status.irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
+  CHECK(GET_PRIM_X_RCV_STATUS(estimator1, heliostat, target, SSOL_FRONT, &status), RES_OK);
+  logger_print(&logger, LOG_OUTPUT, "Ir(heliostat=>target) = %g +/- %g",
     status.irradiance.E, status.irradiance.SE);
   CHECK(eq_eps(status.irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
 #undef N__

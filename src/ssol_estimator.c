@@ -46,14 +46,15 @@ create_per_prim_recv_mc_data
     htable_instance_iterator_next(&it);
 
     if (inst->receiver_mask) {
-      res = htable_receiver_set
-        (&estimator->global_receivers, &inst, &MC_RECV_DATA_NULL);
+      struct mc_per_receiver_data data;
+      init_mc_per_recv_data(estimator->dev->allocator, &data);
+      res = htable_receiver_set(&estimator->global_receivers, &inst, &data);
       if (res != RES_OK) goto error;
     }
 
     if (inst->sample) {
       struct mc_per_primary_data data;
-      init_mc_per_prim_data(estimator->global_primaries.allocator, &data);
+      init_mc_per_prim_data(estimator->dev->allocator, &data);
       res = htable_primary_set(&estimator->global_primaries, &inst, &data);
       if (res != RES_OK) goto error;
     }
@@ -185,17 +186,15 @@ ssol_estimator_get_primary_entity_x_receiver_status
   struct mc_per_primary_data* prim_data = NULL;
   struct mc_per_receiver_1side_data* data = NULL;
   if (!estimator || !prim_instance || !recv_instance || !status
-    || (side != SSOL_BACK && side != SSOL_FRONT))
+    || (side != SSOL_BACK && side != SSOL_FRONT)
+    || !prim_instance->sample
+    || !(recv_instance->receiver_mask & side))
     return RES_BAD_ARG;
 
   /* Check if prim_instance is a primary entity */
   prim_data = estimator_get_primary_entity_data
     (&estimator->global_primaries, prim_instance);
   if (prim_data == NULL) return RES_BAD_ARG;
-
-  /* Check if a receiver is defined for this instance/side */
-  data = estimator_get_prim_recv_data(prim_data, recv_instance, side);
-  if (data == NULL) return RES_BAD_ARG;
 
   /* realisation count for this primary */
   status->N = prim_data->nb_samples;
@@ -216,10 +215,21 @@ ssol_estimator_get_primary_entity_x_receiver_status
       CLEAR_MC_FIELD(Field);\
     }\
   } (void) 0
-  SET_MC_FIELD(irradiance);
-  SET_MC_FIELD(absorptivity_loss);
-  SET_MC_FIELD(reflectivity_loss);
-  SET_MC_FIELD(cos_loss);
+
+  data = estimator_get_prim_recv_data(prim_data, recv_instance, side);
+  if (data) {
+    SET_MC_FIELD(irradiance);
+    SET_MC_FIELD(absorptivity_loss);
+    SET_MC_FIELD(reflectivity_loss);
+    SET_MC_FIELD(cos_loss);
+  }
+  else {
+    /* no recorderd data for this prim/recv couple */
+    CLEAR_MC_FIELD(irradiance);
+    CLEAR_MC_FIELD(absorptivity_loss);
+    CLEAR_MC_FIELD(reflectivity_loss);
+    CLEAR_MC_FIELD(cos_loss);
+  }
   #undef CLEAR_MC_FIELD
   #undef SET_MC_FIELD
 

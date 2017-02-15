@@ -67,14 +67,14 @@ struct mc_per_receiver_data {
 #define MC_RECV_DATA_NULL__ {\
   MC_RECV_1SIDE_DATA_NULL__, MC_RECV_1SIDE_DATA_NULL__ }
 
-static const struct mc_per_receiver_data 
-MC_RECV_DATA_NULL = MC_RECV_DATA_NULL__;
 
 static INLINE void
 init_mc_per_recv_data
   (struct mem_allocator* alloc,
     struct mc_per_receiver_data* data)
 {
+  static const struct mc_per_receiver_data
+    MC_RECV_DATA_NULL = MC_RECV_DATA_NULL__;
   (void)alloc;
   ASSERT(data);
   *data = MC_RECV_DATA_NULL;
@@ -84,6 +84,7 @@ init_mc_per_recv_data
 #define HTABLE_NAME receiver
 #define HTABLE_KEY const struct ssol_instance*
 #define HTABLE_DATA struct mc_per_receiver_data
+#define HTABLE_DATA_FUNCTOR_INIT init_mc_per_recv_data
 #define HTABLE_FUNCTOR_INIT init_mc_per_recv_data
 #include <rsys/hash_table.h>
 #undef HTABLE_NAME
