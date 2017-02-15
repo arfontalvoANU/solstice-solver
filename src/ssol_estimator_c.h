@@ -34,17 +34,25 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 /*******************************************************************************
  * One sided Per receiver MC data
  ******************************************************************************/
-/* Declare the Per primitive receiver hash table */
-#define HTABLE_NAME rcvprim
-#define HTABLE_KEY unsigned
-#define HTABLE_DATA struct mc_data
-#include <rsys/hash_table.h>
-
-struct mc_receiver_1side {
+struct mc_receiver_data {
   struct mc_data integrated_irradiance; /* In W */
   struct mc_data absorptivity_loss; /* In W */
   struct mc_data reflectivity_loss; /* In W */
   struct mc_data cos_loss; /* In W */
+};
+#define MC_RECEIVER_DATA_NULL__ \
+  { MC_DATA_NULL__, MC_DATA_NULL__, MC_DATA_NULL__, MC_DATA_NULL__ }
+static const struct mc_receiver_data MC_RECEIVER_DATA_NULL =
+  MC_RECEIVER_DATA_NULL__;
+
+/* Declare the Per primitive receiver hash table */
+#define HTABLE_NAME rcvprim
+#define HTABLE_KEY unsigned
+#define HTABLE_DATA struct mc_receiver_data
+#include <rsys/hash_table.h>
+
+struct mc_receiver_1side {
+  struct mc_receiver_data data;
   struct htable_rcvprim prims; /* Per primitive MC */
 };
 
@@ -53,10 +61,7 @@ mc_receiver_1side_init
   (struct mem_allocator* allocator, struct mc_receiver_1side* mc)
 {
   ASSERT(mc);
-  mc->integrated_irradiance = MC_DATA_NULL;
-  mc->absorptivity_loss = MC_DATA_NULL;
-  mc->reflectivity_loss = MC_DATA_NULL;
-  mc->cos_loss = MC_DATA_NULL;
+  mc->data = MC_RECEIVER_DATA_NULL;
   htable_rcvprim_init(allocator, &mc->prims);
 }
 
@@ -72,10 +77,7 @@ mc_receiver_1side_copy
   (struct mc_receiver_1side* dst, const struct mc_receiver_1side* src)
 {
   ASSERT(dst && src);
-  dst->integrated_irradiance = src->integrated_irradiance;
-  dst->absorptivity_loss = src->absorptivity_loss;
-  dst->reflectivity_loss = src->reflectivity_loss;
-  dst->cos_loss = src->cos_loss;
+  dst->data = src->data;
   return htable_rcvprim_copy(&dst->prims, &src->prims);
 }
 
@@ -84,24 +86,21 @@ mc_receiver_1side_copy_and_release
   (struct mc_receiver_1side* dst, struct mc_receiver_1side* src)
 {
   ASSERT(dst && src);
-  dst->integrated_irradiance = src->integrated_irradiance;
-  dst->absorptivity_loss = src->absorptivity_loss;
-  dst->reflectivity_loss = src->reflectivity_loss;
-  dst->cos_loss = src->cos_loss;
+  dst->data = src->data;
   return htable_rcvprim_copy_and_release(&dst->prims, &src->prims);
 }
 
-static INLINE struct mc_data*
+static INLINE struct mc_receiver_data*
 mc_receiver_1side_get_mc_primitive
   (struct mc_receiver_1side* mc_rcv, const unsigned iprim)
 {
-  struct mc_data* pmc = NULL;
+  struct mc_receiver_data* pmc = NULL;
   ASSERT(mc_rcv);
 
   pmc = htable_rcvprim_find(&mc_rcv->prims, &iprim);
   if(!pmc) {
-    struct mc_data mc_prim = MC_DATA_NULL;
-    const res_T res = htable_rcvprim_set(&mc_rcv->prims, &iprim, &mc_prim);
+    const res_T res = htable_rcvprim_set
+      (&mc_rcv->prims, &iprim, &MC_RECEIVER_DATA_NULL);
     if(res != RES_OK) goto error;
     pmc = htable_rcvprim_find(&mc_rcv->prims, &iprim);
   }

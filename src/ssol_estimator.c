@@ -133,8 +133,9 @@ ssol_estimator_get_mc_receiver
 
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    rcv->Name.E = mc_rcv1->Name.weight / N;                                    \
-    rcv->Name.V = mc_rcv1->Name.sqr_weight/N - rcv->Name.E*rcv->Name.E;        \
+    const struct mc_data* data = &mc_rcv1->data.Name;                          \
+    rcv->Name.E = data->weight / N;                                            \
+    rcv->Name.V = data->sqr_weight/N - rcv->Name.E*rcv->Name.E;                \
     rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
   } (void)0
   SETUP_MC_RESULT(integrated_irradiance);
