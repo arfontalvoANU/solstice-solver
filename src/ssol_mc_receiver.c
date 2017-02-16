@@ -78,7 +78,7 @@ ssol_mc_receiver_get_mc_primitive
   if(i >= darray_mc_prim_size_get(&mc_rcv1->mc_prims))
     return RES_BAD_ARG;
 
-  mc_prim1 = darray_mc_prim_cdata_get(&mc_rcv1->mc_prims);
+  mc_prim1 = darray_mc_prim_cdata_get(&mc_rcv1->mc_prims) + i;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)rcv->N__;                                         \
     const struct mc_data* data = &mc_prim1->Name;                              \
