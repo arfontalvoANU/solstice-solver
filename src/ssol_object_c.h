@@ -47,6 +47,7 @@ struct ssol_object {
 
   struct s3d_scene* scn_rt; /* RT scene to instantiate */
   struct s3d_scene* scn_samp; /* Sampling scene to instantiate */
+  double scn_rt_area, scn_samp_area;
 
   struct ssol_device* dev;
   ref_T ref;

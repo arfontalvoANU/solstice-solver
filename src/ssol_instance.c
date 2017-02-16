@@ -84,10 +84,12 @@ ssol_object_instantiate
   /* Create the Star-3D instance to ray-trace */
   res = s3d_scene_instantiate(object->scn_rt, &instance->shape_rt);
   if(res != RES_OK) goto error;
+  instance->shape_rt_area = object->scn_rt_area;
 
   /* Create the Star-3D instance to sample */
   res = s3d_scene_instantiate(object->scn_samp, &instance->shape_samp);
   if(res != RES_OK) goto error;
+  instance->shape_samp_area = object->scn_samp_area;
 
 exit:
   if(out_instance) *out_instance = instance;
@@ -181,3 +183,13 @@ ssol_instance_get_id(const struct ssol_instance* instance, uint32_t* id)
   return RES_OK;
 }
 
+res_T
+ssol_instance_get_area
+  (const struct ssol_instance* instance,
+   double* area)
+{
+  if (!instance || !area) return RES_BAD_ARG;;
+  /* the area of the 3D surface */
+  *area = instance->shape_rt_area;
+  return RES_OK;
+}

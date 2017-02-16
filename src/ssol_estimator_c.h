@@ -101,7 +101,7 @@ struct mc_per_primary_data {
   struct mc_data cos_loss;
   struct mc_data shadow_loss;
   double area;
-  double base_sun_cos;
+  double sun_cos;
   size_t nb_samples;
   size_t nb_failed;
   /* by-receptor data for this entity */
@@ -115,7 +115,7 @@ init_mc_per_prim_data
 {
   ASSERT(alloc && data);
   data->area = 0;
-  data->base_sun_cos = 0;
+  data->sun_cos = 0;
   data->cos_loss = MC_DATA_NULL;
   data->shadow_loss = MC_DATA_NULL;
   data->nb_samples = 0;
@@ -132,7 +132,7 @@ release_mc_per_prim_data(struct mc_per_primary_data* data)
 
 #define PRIM_COPY(Dst, Src) {\
   Dst->area = Src->area;\
-  Dst->base_sun_cos = Src->base_sun_cos;\
+  Dst->sun_cos = Src->sun_cos;\
   Dst->nb_failed = Src->nb_failed;\
   Dst->nb_samples = Src->nb_samples;\
   Dst->shadow_loss = Src->shadow_loss;\
@@ -206,7 +206,7 @@ struct ssol_estimator {
   /* per-primary entity MC computations */
   struct htable_primary global_primaries;
   /* scene areas */
-  double sampled_area, primary_area;
+  double primary_area;
 
   struct ssol_device* dev;
   ref_T ref;
@@ -234,8 +234,8 @@ estimator_get_receiver_data
 
 static FINLINE struct mc_per_primary_data*
 estimator_get_primary_entity_data
-(struct htable_primary* primaries,
-  const struct ssol_instance* instance)
+  (struct htable_primary* primaries,
+   const struct ssol_instance* instance)
 {
   struct mc_per_primary_data* data;
   ASSERT(primaries && instance);

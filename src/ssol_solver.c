@@ -121,8 +121,8 @@ point_init
 
   /* Initialise the Monte Carlo weight */
   cos_sun = fabs(d3_dot(pt->N, pt->dir));
-  pt->weight = scn->sun->dni * estimator->sampled_area * cos_sun;
-  pt->cos_loss = scn->sun->dni * estimator->sampled_area * (1 - cos_sun);
+  pt->weight = scn->sun->dni * scn->sampled_area * cos_sun;
+  pt->cos_loss = scn->sun->dni * scn->sampled_area * (1 - cos_sun);
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Retrieve the sampled instance and shaded shape */
@@ -359,7 +359,6 @@ ssol_solve
   struct htable_primary_iterator p_it, p_end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
-  struct s3d_scene_view* view_prim = NULL;
   struct ranst_sun_dir* ran_sun_dir = NULL;
   struct ranst_sun_wl* ran_sun_wl = NULL;
   struct ssf_bsdf** bsdfs = NULL;
@@ -371,7 +370,6 @@ ssol_solve
   struct htable_receiver* mc_rcvs = NULL;
   struct htable_primary* mc_prims = NULL;
   struct ssol_estimator* estimator = NULL;
-  float area;
   int nthreads = 0;
   int64_t nrealisations = 0;
   int i = 0;
@@ -397,23 +395,19 @@ ssol_solve
   if(res != RES_OK) goto error;
 
   /* Create data structures shared by all threads */
-  res = scene_create_s3d_views(scn, &view_rt, &view_samp, &view_prim);
+  res = scene_create_s3d_views(scn, &view_rt, &view_samp);
   if(res != RES_OK) goto error;
   res = sun_create_distributions(scn->sun, &ran_sun_dir, &ran_sun_wl);
   if(res != RES_OK) goto error;
-
-  /* Create the estimator */
-  res = estimator_create(scn->dev, scn, &estimator);
-  if (res != RES_OK) goto error;
-  S3D(scene_view_compute_area(view_samp, &area));
-  estimator->sampled_area = area;
-  S3D(scene_view_compute_area(view_prim, &area));
-  estimator->primary_area = area;
 
   /* Create a RNG proxy from the submitted RNG state */
   res = ssp_rng_proxy_create_from_rng
     (scn->dev->allocator, rng_state, scn->dev->nthreads, &rng_proxy);
   if(res != RES_OK) goto error;
+  
+  /* Create the estimator */
+  res = estimator_create(scn->dev, scn, &estimator);
+  if (res != RES_OK) goto error;
 
   /* Create per thread data structures */
   #define CREATE(Data) {                                                       \
@@ -680,7 +674,6 @@ ssol_solve
 exit:
   if(view_rt) S3D(scene_view_ref_put(view_rt));
   if(view_samp) S3D(scene_view_ref_put(view_samp));
-  if(view_prim) S3D(scene_view_ref_put(view_prim));
   if(ran_sun_dir) ranst_sun_dir_ref_put(ran_sun_dir);
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
