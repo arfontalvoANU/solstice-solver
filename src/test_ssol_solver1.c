@@ -68,6 +68,7 @@ main(int argc, char** argv)
   struct ssol_estimator* estimator;
   struct ssol_mc_global mc_global;
   struct ssol_mc_receiver mc_rcv;
+  struct ssol_mc_primitive mc_prim;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
@@ -77,7 +78,7 @@ main(int argc, char** argv)
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
   double dbl;
-  size_t count, fcount;
+  size_t i, count, fcount;
   FILE* tmp = NULL;
   double m, std;
   double a_m, a_std;
@@ -365,6 +366,7 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
   CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 1), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
@@ -415,10 +417,31 @@ main(int argc, char** argv)
     + mc_rcv.reflectivity_loss.E
     + mc_rcv.cos_loss.E, 4 * DNI, 1e-8), 1);
   CHECK(eq_eps(mc_rcv.cos_loss.E / (4 * DNI), 1 -  COS, 1e-8), 1);
+
+  CHECK(ssol_mc_receiver_get_mc_primitives_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitives_count(&mc_rcv, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitives_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitives_count(&mc_rcv, &count), RES_OK);
+  NCHECK(count,  0);
+
+  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, count, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, count, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, count, &mc_prim), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, count, &mc_prim), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, 0, &mc_prim), RES_BAD_ARG);
+  dbl = 0;
+  FOR_EACH(i, 0, count) {
+    CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, i, &mc_prim), RES_OK);
+    dbl += mc_prim.integrated_irradiance.E;
+  }
+  CHECK(eq_eps(dbl, a_m, 1.e-6), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_scene_detach_instance(scene, heliostat2), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
 
   /* Check a monochromatic sun */
   desc.wavelengths = &mono;
