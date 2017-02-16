@@ -24,6 +24,7 @@ struct ssol_instance {
   struct ssol_object* object; /* Instantiated object */
   struct s3d_shape* shape_rt; /* Instantiated Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Instantiated Star-3D shape to sample */
+  double shape_rt_area, shape_samp_area;
   double transform[12]; /* Column major 4x3 affine transformation */
   int receiver_mask; /* Combination of ssol_side_flag */
   int receiver_per_primitive; /* Enable the per primitive receiver */

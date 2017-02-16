@@ -572,6 +572,12 @@ SSOL_API res_T
 ssol_object_clear
   (struct ssol_object* object);
 
+/* Retrieve the area of the object */
+SSOL_API res_T
+ssol_object_get_area
+  (const struct ssol_object* object,
+   double* area);
+
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as
  * world transformation, material parameters, etc. Note that the object
@@ -615,6 +621,12 @@ SSOL_API res_T
 ssol_instance_get_id
   (const struct ssol_instance* instance,
    uint32_t* id);
+
+/* Retrieve the area of the instance */
+SSOL_API res_T
+ssol_instance_get_area
+  (const struct ssol_instance* instance,
+   double* area);
 
 /*******************************************************************************
  * Param buffer API
@@ -780,6 +792,14 @@ ssol_estimator_get_mc_global
    struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
+ssol_estimator_get_primary_entity_x_receiver_status
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* prim_instance,
+   const struct ssol_instance* recv_instance,
+   const enum ssol_side_flag side,
+   struct ssol_mc_receiver* rcv);
+
+SSOL_API res_T
 ssol_estimator_get_count
   (const struct ssol_estimator* estimator,
    size_t* count);
@@ -788,16 +808,6 @@ SSOL_API res_T
 ssol_estimator_get_failed_count
   (const struct ssol_estimator* estimator,
    size_t* count);
-
-SSOL_API res_T
-ssol_estimator_get_sampled_area
-  (const struct ssol_estimator* estimator,
-   double* area);
-
-SSOL_API res_T
-ssol_estimator_get_primary_area
-  (const struct ssol_estimator* estimator,
-   double* area);
 
 /*******************************************************************************
  * Per receiver MC estimations

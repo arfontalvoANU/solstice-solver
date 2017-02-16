@@ -16,6 +16,7 @@
 #ifndef SSOL_ESTIMATOR_C_H
 #define SSOL_ESTIMATOR_C_H
 
+#include "ssol_device_c.h"
 #include "ssol_instance_c.h"
 
 #include <limits.h>
@@ -228,21 +229,142 @@ mc_receiver_copy_and_release
 #include <rsys/hash_table.h>
 
 /*******************************************************************************
+ * Per primitive MC data
+ ******************************************************************************/
+struct mc_per_primary_data {
+  /* global data for this entity */
+  struct mc_data cos_loss;
+  struct mc_data shadow_loss;
+  double area;
+  double sun_cos;
+  size_t nb_samples;
+  size_t nb_failed;
+  /* by-receptor data for this entity */
+  struct htable_receiver by_receiver;
+};
+
+static INLINE void
+init_mc_per_prim_data
+  (struct mem_allocator* alloc,
+   struct mc_per_primary_data* data)
+{
+  ASSERT(alloc && data);
+  data->area = 0;
+  data->sun_cos = 0;
+  data->cos_loss = MC_DATA_NULL;
+  data->shadow_loss = MC_DATA_NULL;
+  data->nb_samples = 0;
+  data->nb_failed = 0;
+  htable_receiver_init(alloc, &data->by_receiver);
+}
+
+static INLINE void
+release_mc_per_prim_data(struct mc_per_primary_data* data)
+{
+  ASSERT(data);
+  htable_receiver_release(&data->by_receiver);
+}
+
+#define PRIM_COPY(Dst, Src) {\
+  Dst->area = Src->area;\
+  Dst->sun_cos = Src->sun_cos;\
+  Dst->nb_failed = Src->nb_failed;\
+  Dst->nb_samples = Src->nb_samples;\
+  Dst->shadow_loss = Src->shadow_loss;\
+  Dst->cos_loss = Src->cos_loss;\
+} (void)0
+
+static INLINE res_T
+copy_mc_per_prim_data
+  (struct mc_per_primary_data* dst,
+   const struct mc_per_primary_data* src)
+{
+  ASSERT(dst && src);
+  PRIM_COPY(dst, src);
+  return htable_receiver_copy(&dst->by_receiver, &src->by_receiver);
+}
+
+static INLINE res_T
+copy_and_release_mc_per_prim_data
+  (struct mc_per_primary_data* dst,
+   struct mc_per_primary_data* src)
+{
+  ASSERT(dst && src);
+  PRIM_COPY(dst, src);
+  return htable_receiver_copy_and_release(&dst->by_receiver, &src->by_receiver);
+}
+
+static INLINE res_T
+copy_and_clear_mc_per_prim_data
+  (struct mc_per_primary_data* dst,
+   struct mc_per_primary_data* src)
+{
+  ASSERT(dst && src);
+  PRIM_COPY(dst, src);
+  return htable_receiver_copy_and_clear(&dst->by_receiver, &src->by_receiver);
+}
+
+
+static INLINE struct mc_receiver_1side*
+mc_per_primary_get_mc_receiver
+  (struct mc_per_primary_data* primary,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side)
+{
+  struct mc_receiver* mc_rcv = NULL;
+  struct mc_receiver_1side* mc_rcv1 = NULL;
+  struct mc_receiver mc_rcv_null;
+  res_T res = RES_OK;
+  ASSERT(primary && instance);
+  ASSERT(instance->receiver_mask & (int)side);
+ 
+  mc_receiver_init(instance->dev->allocator, &mc_rcv_null);
+
+  mc_rcv = htable_receiver_find(&primary->by_receiver, &instance);
+  if(!mc_rcv) {
+    res = htable_receiver_set(&primary->by_receiver, &instance, &mc_rcv_null);
+    if(res != RES_OK) goto error;
+    mc_rcv = htable_receiver_find(&primary->by_receiver, &instance);
+  }
+  mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
+
+exit:
+  mc_receiver_release(&mc_rcv_null);
+  return mc_rcv1;
+error:
+  mc_rcv1 = NULL;
+  goto exit;
+}
+
+#undef PRIM_COPY
+
+/* Define the htable_primary data structure */
+#define HTABLE_NAME primary
+#define HTABLE_KEY const struct ssol_instance*
+#define HTABLE_DATA struct mc_per_primary_data
+#define HTABLE_DATA_FUNCTOR_INIT init_mc_per_prim_data
+#define HTABLE_DATA_FUNCTOR_RELEASE release_mc_per_prim_data
+#define HTABLE_DATA_FUNCTOR_COPY copy_mc_per_prim_data
+#define HTABLE_DATA_FUNCTOR_COPY_AND_RELEASE copy_and_release_mc_per_prim_data
+#define HTABLE_DATA_FUNCTOR_COPY_AND_CLEAR copy_and_clear_mc_per_prim_data
+#include <rsys/hash_table.h>
+
+/*******************************************************************************
  * Estimator data structure
  ******************************************************************************/
 struct ssol_estimator {
   size_t realisation_count;
   size_t failed_count;
-  /* The implicit MC computations */
+
+  /* Implicit MC computations */
   struct mc_data shadowed;
   struct mc_data missing;
   struct mc_data cos_loss; /* TODO compute it */
 
-  /* Per receiver MC */
-  struct htable_receiver mc_receivers;
+  struct htable_receiver mc_receivers; /* Per receiver MC */
+  struct htable_primary global_primaries; /* Per sampled MC */
 
-  /* areas */
-  double sampled_area, primary_area;
+  double primary_area;
 
   struct ssol_device* dev;
   ref_T ref;
@@ -266,6 +388,28 @@ estimator_get_mc_receiver
   mc_rcv = htable_receiver_find(receivers, &instance);
   if(!mc_rcv) return NULL;
   return side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
+}
+
+static FINLINE struct mc_per_primary_data*
+estimator_get_primary_entity_data
+  (struct htable_primary* primaries,
+   const struct ssol_instance* instance)
+{
+  struct mc_per_primary_data* data;
+  ASSERT(primaries && instance);
+  if (!instance->sample) return NULL;
+  data = htable_primary_find(primaries, &instance);
+  return data;
+}
+
+static FINLINE struct mc_receiver_1side*
+estimator_get_prim_recv_data
+  (struct mc_per_primary_data* primary_data,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side)
+{
+  ASSERT(primary_data && instance);
+  return estimator_get_mc_receiver(&primary_data->by_receiver, instance, side);
 }
 
 #endif /* SSOL_ESTIMATOR_C_H */

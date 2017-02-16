@@ -45,7 +45,6 @@ scene_release(ref_T* ref)
   SSOL(scene_clear(scene));
   if(scene->scn_rt) S3D(scene_ref_put(scene->scn_rt));
   if(scene->scn_samp) S3D(scene_ref_put(scene->scn_samp));
-  if(scene->scn_prim) S3D(scene_ref_put(scene->scn_prim));
   if(scene->sun) SSOL(sun_ref_put(scene->sun));
   if(scene->atmosphere) SSOL(atmosphere_ref_put(scene->atmosphere));
   htable_instance_release(&scene->instances_rt);
@@ -83,8 +82,6 @@ ssol_scene_create
   res = s3d_scene_create(dev->s3d, &scene->scn_rt);
   if(res != RES_OK) goto error;
   res = s3d_scene_create(dev->s3d, &scene->scn_samp);
-  if(res != RES_OK) goto error;
-  res = s3d_scene_create(dev->s3d, &scene->scn_prim);
   if(res != RES_OK) goto error;
 
 exit:
@@ -195,7 +192,6 @@ ssol_scene_clear(struct ssol_scene* scene)
   htable_instance_clear(&scene->instances_samp);
   S3D(scene_clear(scene->scn_rt));
   S3D(scene_clear(scene->scn_samp));
-  S3D(scene_clear(scene->scn_prim));
   if (scene->sun) ssol_scene_detach_sun(scene, scene->sun);
   if (scene->atmosphere)
     ssol_scene_detach_atmosphere(scene, scene->atmosphere);
@@ -280,24 +276,24 @@ res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,
    struct s3d_scene_view** out_view_rt,
-   struct s3d_scene_view** out_view_samp,
-   struct s3d_scene_view** out_view_prim)
+   struct s3d_scene_view** out_view_samp)
 {
   struct htable_instance_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
-  struct s3d_scene_view* view_prim = NULL;
   int has_sampled = 0;
   int has_receiver = 0;
   res_T res = RES_OK;
   ASSERT(scn && out_view_rt && out_view_samp);
 
   S3D(scene_clear(scn->scn_samp));
-  S3D(scene_clear(scn->scn_prim));
   htable_instance_clear(&scn->instances_samp);
 
   htable_instance_begin(&scn->instances_rt, &it);
   htable_instance_end(&scn->instances_rt, &end);
+
+  scn->sampled_area = 0;
+  scn->primary_area = 0;
 
   while (!htable_instance_iterator_eq(&it, &end)) {
     struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
@@ -310,6 +306,9 @@ scene_create_s3d_views
 
     if(!inst->sample) continue;
 
+    scn->sampled_area += inst->shape_samp_area;
+    scn->primary_area += inst->shape_rt_area;
+
     /* Note that geometries with virtual material can be sampled without risk
      * since the solver avoid to shade them and simply pursue the primary ray */
     has_sampled = 1;
@@ -318,9 +317,6 @@ scene_create_s3d_views
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
     if(res != RES_OK) goto error;
 
-    /* Attach the instantiated s3d raytraced shape to the s3d primary scene */
-    res = s3d_scene_attach_shape(scn->scn_prim, inst->shape_rt);
-    if(res != RES_OK) goto error;
 
     /* Register the instantiated s3d sampling shape */
     S3D(shape_get_id(inst->shape_samp, &id));
@@ -346,13 +342,10 @@ scene_create_s3d_views
   if(res != RES_OK) goto error;
   res = s3d_scene_view_create(scn->scn_samp, S3D_SAMPLE, &view_samp);
   if(res != RES_OK) goto error;
-  res = s3d_scene_view_create(scn->scn_prim, S3D_SAMPLE, &view_prim);
-  if (res != RES_OK) goto error;
 
 exit:
   *out_view_rt = view_rt;
   *out_view_samp = view_samp;
-  *out_view_prim = view_prim;
   return res;
 error:
   S3D(scene_clear(scn->scn_samp));
@@ -364,10 +357,6 @@ error:
   if(view_samp) {
     S3D(scene_view_ref_put(view_samp));
     view_samp = NULL;
-  }
-  if (view_prim) {
-    S3D(scene_view_ref_put(view_prim));
-    view_prim = NULL;
   }
   goto exit;
 }

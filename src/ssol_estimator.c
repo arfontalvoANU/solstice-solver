@@ -36,6 +36,7 @@ create_mc_receivers
 {
   struct htable_instance_iterator it, end;
   struct mc_receiver mc_rcv_null;
+  struct mc_per_primary_data mc_samp_null;
   res_T res = RES_OK;
   ASSERT(scene && estimator);
 
@@ -43,20 +44,28 @@ create_mc_receivers
   htable_instance_end(&scene->instances_rt, &end);
 
   mc_receiver_init(estimator->dev->allocator, &mc_rcv_null);
+  init_mc_per_prim_data(estimator->dev->allocator, &mc_samp_null);
 
   while(!htable_instance_iterator_eq(&it, &end)) {
     const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     htable_instance_iterator_next(&it);
 
-    if(!inst->receiver_mask) continue;
-
-    res = htable_receiver_set(&estimator->mc_receivers, &inst, &mc_rcv_null);
-    if(res != RES_OK) goto error;
+    if(inst->receiver_mask) {
+      res = htable_receiver_set(&estimator->mc_receivers, &inst, &mc_rcv_null);
+      if(res != RES_OK) goto error;
+    }
+    if(inst->sample) {
+      res = htable_primary_set(&estimator->global_primaries, &inst, &mc_samp_null);
+      if(res != RES_OK) goto error;
+    }
   }
 exit:
+  mc_receiver_release(&mc_rcv_null);
+  release_mc_per_prim_data(&mc_samp_null);
   return res;
 error:
   htable_receiver_clear(&estimator->mc_receivers);
+  htable_primary_clear(&estimator->global_primaries);
   goto exit;
 }
 
@@ -69,6 +78,7 @@ estimator_release(ref_T* ref)
   ASSERT(ref);
   dev = estimator->dev;
   htable_receiver_release(&estimator->mc_receivers);
+  htable_primary_release(&estimator->global_primaries);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -79,7 +89,7 @@ estimator_release(ref_T* ref)
  ******************************************************************************/
 res_T
 ssol_estimator_ref_get
-(struct ssol_estimator* estimator)
+  (struct ssol_estimator* estimator)
 {
   if (!estimator) return RES_BAD_ARG;
   ref_get(&estimator->ref);
@@ -87,10 +97,9 @@ ssol_estimator_ref_get
 }
 
 res_T
-ssol_estimator_ref_put
-(struct ssol_estimator* estimator)
+ssol_estimator_ref_put(struct ssol_estimator* estimator)
 {
-  if (!estimator) return RES_BAD_ARG;
+  if(!estimator) return RES_BAD_ARG;
   ref_put(&estimator->ref, estimator_release);
   return RES_OK;
 }
@@ -116,6 +125,48 @@ ssol_estimator_get_mc_global
 }
 
 res_T
+ssol_estimator_get_primary_entity_x_receiver_status
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* prim_instance,
+   const struct ssol_instance* recv_instance,
+   const enum ssol_side_flag side,
+   struct ssol_mc_receiver* rcv)
+{
+  struct mc_per_primary_data* prim_data = NULL;
+  struct mc_receiver_1side* mc_rcv1 = NULL;
+  if(!estimator || !prim_instance || !recv_instance || !rcv
+  || (side != SSOL_BACK && side != SSOL_FRONT)
+  || !prim_instance->sample
+  || !(recv_instance->receiver_mask & (int)side))
+    return RES_BAD_ARG;
+
+  /* Check if prim_instance is a primary entity */
+  prim_data = estimator_get_primary_entity_data
+    (&estimator->global_primaries, prim_instance);
+  if(prim_data == NULL) return RES_BAD_ARG;
+
+  /* realisation count for this primary */
+  mc_rcv1 = estimator_get_prim_recv_data(prim_data, recv_instance, side);
+  if(!prim_data->nb_samples || !mc_rcv1) {
+    memset(rcv, 0, sizeof(rcv[0]));
+  } else {
+    #define SETUP_MC_RESULT(Name) {                                            \
+      const double N = (double)prim_data->nb_samples;                          \
+      const struct mc_data* data = &mc_rcv1->Name;                             \
+      rcv->Name.E = data->weight / N;                                          \
+      rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;            \
+      rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;              \
+    } (void)0
+    SETUP_MC_RESULT(integrated_irradiance);
+    SETUP_MC_RESULT(absorptivity_loss);
+    SETUP_MC_RESULT(reflectivity_loss);
+    SETUP_MC_RESULT(cos_loss);
+    #undef SETUP_MC_RESULT
+  }
+  return RES_OK;
+}
+
+res_T
 ssol_estimator_get_count
   (const struct ssol_estimator* estimator, size_t* count)
 {
@@ -130,26 +181,6 @@ ssol_estimator_get_failed_count
 {
   if (!estimator || !count) return RES_BAD_ARG;
   *count = estimator->failed_count;
-  return RES_OK;
-}
-
-res_T
-ssol_estimator_get_sampled_area
-  (const struct ssol_estimator* estimator,
-   double* area)
-{
-  if (!estimator || !area) return RES_BAD_ARG;
-  *area = estimator->sampled_area;
-  return RES_OK;
-}
-
-res_T
-ssol_estimator_get_primary_area
-  (const struct ssol_estimator* estimator,
-   double* area)
-{
-  if (!estimator || !area) return RES_BAD_ARG;
-  *area = estimator->primary_area;
   return RES_OK;
 }
 
@@ -177,6 +208,7 @@ estimator_create
   }
 
   htable_receiver_init(dev->allocator, &estimator->mc_receivers);
+  htable_primary_init(dev->allocator, &estimator->global_primaries);
   SSOL(device_ref_get(dev));
   estimator->dev = dev;
   ref_init(&estimator->ref);

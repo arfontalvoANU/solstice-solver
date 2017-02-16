@@ -32,6 +32,7 @@ struct ssol_shape {
   struct s3d_shape* shape_rt; /* Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Star-3D shape to sample */
   struct ssol_quadric quadric;
+  double shape_rt_area, shape_samp_area;
 
   struct ssol_device* dev;
   ref_T ref;

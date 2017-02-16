@@ -133,6 +133,7 @@ main(int argc, char** argv)
 #define N__ 10000
 #define S_DNI_cos (4 * 1000 * cos(PI / 4))
 #define GET_RCV_STATUS ssol_estimator_get_mc_receiver
+#define GET_PRIM_X_RCV_STATUS ssol_estimator_get_primary_entity_x_receiver_status
   CHECK(ssol_solve(scene, rng, N__, NULL, &estimator1), RES_OK);
   CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
@@ -150,9 +151,10 @@ main(int argc, char** argv)
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
-#undef N__
-#undef S_DNI_cos
-#undef GET_RCV_STATUS
+  CHECK(GET_PRIM_X_RCV_STATUS(estimator1, heliostat, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  printf("Ir(heliostat=>target) = %g +/- %g",
+    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

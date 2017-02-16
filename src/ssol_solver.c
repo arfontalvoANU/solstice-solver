@@ -47,6 +47,7 @@
 struct point {
   const struct ssol_instance* inst;
   const struct shaded_shape* sshape;
+  struct mc_per_primary_data* primary;
   struct s3d_primitive prim;
   double N[3];
   double pos[3];
@@ -63,6 +64,7 @@ struct point {
 #define POINT_NULL__ {                                                         \
   NULL, /* Instance */                                                         \
   NULL, /* Shaded shape */                                                     \
+  NULL, /* Primary data */                                                     \
   S3D_PRIMITIVE_NULL__, /* Primitive */                                        \
   {0, 0, 0}, /* Normal */                                                      \
   {0, 0, 0}, /* Position */                                                    \
@@ -82,7 +84,8 @@ static int
 point_init
   (struct point* pt,
    struct ssol_scene* scn,
-   const double sampled_area,
+   struct htable_primary* prim_data,
+   struct ssol_estimator* estimator,
    struct s3d_scene_view* view_samp,
    struct s3d_scene_view* view_rt,
    struct ranst_sun_dir* ran_sun_dir,
@@ -118,8 +121,8 @@ point_init
 
   /* Initialise the Monte Carlo weight */
   cos_sun = fabs(d3_dot(pt->N, pt->dir));
-  pt->weight = scn->sun->dni * sampled_area * cos_sun;
-  pt->cos_loss = scn->sun->dni * sampled_area * (1 - cos_sun);
+  pt->weight = scn->sun->dni * scn->sampled_area * cos_sun;
+  pt->cos_loss = scn->sun->dni * scn->sampled_area * (1 - cos_sun);
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Retrieve the sampled instance and shaded shape */
@@ -128,6 +131,19 @@ point_init
     (&pt->inst->object->shaded_shapes_samp, &pt->prim.geom_id);
   pt->sshape = darray_shaded_shape_cdata_get
     (&pt->inst->object->shaded_shapes) + id;
+
+  /* store primary entity related weights */
+  pt->primary = estimator_get_primary_entity_data(prim_data, pt->inst);
+  if (!pt->primary) {
+    struct mc_per_primary_data data;
+    init_mc_per_prim_data(estimator->dev->allocator, &data);
+    htable_primary_set(prim_data, &pt->inst, &data);
+    pt->primary = estimator_get_primary_entity_data(prim_data, pt->inst);
+    ASSERT(pt->primary);
+  }
+  pt->primary->cos_loss.weight += pt->cos_loss;
+  pt->primary->cos_loss.sqr_weight += pt->cos_loss * pt->cos_loss;
+  pt->primary->nb_samples++;
 
   /* For punched surface, retrieve the sampled position and normal onto the
    * quadric surface */
@@ -300,27 +316,27 @@ check_scene(const struct ssol_scene* scene, const char* caller)
 {
   ASSERT(scene && caller);
 
-  if (!scene->sun) {
+  if(!scene->sun) {
     log_error(scene->dev, "%s: no sun attached.\n", caller);
     return RES_BAD_ARG;
   }
 
-  if (!scene->sun->spectrum) {
+  if(!scene->sun->spectrum) {
     log_error(scene->dev, "%s: sun's spectrum undefined.\n", caller);
     return RES_BAD_ARG;
   }
 
-  if (scene->sun->dni <= 0) {
+  if(scene->sun->dni <= 0) {
     log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
     return RES_BAD_ARG;
   }
 
-  if (scene->atmosphere) {
+  if(scene->atmosphere) {
     int i;
     ASSERT(scene->atmosphere->type == ATMOS_UNIFORM);
     i = spectrum_includes
       (scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum);
-    if (!i) {
+    if(!i) {
       log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", caller);
       return RES_BAD_ARG;
     }
@@ -328,7 +344,7 @@ check_scene(const struct ssol_scene* scene, const char* caller)
   return RES_OK;
 }
 
-static void
+static res_T
 accum_mc_receivers_1side
   (struct mc_receiver_1side* dst,
    struct mc_receiver_1side* src)
@@ -336,6 +352,7 @@ accum_mc_receivers_1side
   const struct mc_primitive_1side* src_mc_prim;
   struct mc_primitive_1side* dst_mc_prim;
   size_t i;
+  res_T res = RES_OK;
   ASSERT(dst && src);
 
   #define ACCUM_WEIGHT(Name) {                                                 \
@@ -352,6 +369,7 @@ accum_mc_receivers_1side
   FOR_EACH(i, 0, darray_mc_prim_size_get(&src->mc_prims)) {
     src_mc_prim = darray_mc_prim_cdata_get(&src->mc_prims) + i;
     dst_mc_prim = mc_receiver_1side_get_mc_primitive(dst, src_mc_prim->index);
+    if(!dst_mc_prim) goto error;
     #define ACCUM_WEIGHT(Name) {                                               \
       dst_mc_prim->Name.weight += src_mc_prim->Name.weight;                    \
       dst_mc_prim->Name.sqr_weight += src_mc_prim->Name.sqr_weight;            \
@@ -362,6 +380,64 @@ accum_mc_receivers_1side
     ACCUM_WEIGHT(cos_loss);
     #undef ACCUM_WEIGHT
   }
+exit:
+  return res;
+error:
+  goto exit;
+}
+
+static res_T
+accum_mc_per_primary_data
+  (struct mc_per_primary_data* dst,
+   struct mc_per_primary_data* src)
+{
+  struct htable_receiver_iterator it, end;
+  struct mc_receiver mc_rcv_null;
+  res_T res = RES_OK;
+  ASSERT(dst && src);
+
+  mc_receiver_init(NULL, &mc_rcv_null);
+
+  #define ACCUM_WEIGHT(Name) {                                                 \
+    dst->Name.weight += src->Name.weight;                                      \
+    dst->Name.sqr_weight += src->Name.sqr_weight;                              \
+  } (void)0
+  ACCUM_WEIGHT(cos_loss);
+  ACCUM_WEIGHT(shadow_loss);
+  #undef ACCUM_WEIGHT
+
+  dst->nb_samples += src->nb_samples;
+  dst->nb_failed += src->nb_failed;
+
+  /* dst->by_receiver += src->by_receiver; */
+  htable_receiver_begin(&src->by_receiver, &it);
+  htable_receiver_end(&src->by_receiver, &end);
+  while(!htable_receiver_iterator_eq(&it, &end)) {
+    struct mc_receiver* src_mc_rcv = htable_receiver_iterator_data_get(&it);
+    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&it);
+    struct mc_receiver* dst_mc_rcv = htable_receiver_find(&dst->by_receiver, &inst);
+    htable_receiver_iterator_next(&it);
+
+    if(!dst_mc_rcv) {
+      res = htable_receiver_set(&dst->by_receiver, &inst, &mc_rcv_null);
+      if(res != RES_OK) goto error;
+      dst_mc_rcv = htable_receiver_find(&dst->by_receiver, &inst);
+    }
+
+    if(inst->receiver_mask & (int)SSOL_FRONT) {
+      res = accum_mc_receivers_1side(&dst_mc_rcv->front, &src_mc_rcv->front);
+      if(res != RES_OK) goto error;
+    }
+    if(inst->receiver_mask & (int)SSOL_BACK) {
+      res = accum_mc_receivers_1side(&dst_mc_rcv->back, &src_mc_rcv->back);
+      if(res != RES_OK) goto error;
+    }
+  }
+exit:
+  mc_receiver_release(&mc_rcv_null);
+  return res;
+error:
+  goto exit;
 }
 
 /*******************************************************************************
@@ -375,10 +451,10 @@ ssol_solve
    FILE* output,
    struct ssol_estimator** out_estimator)
 {
-  struct htable_receiver_iterator it, end;
+  struct htable_receiver_iterator r_it, r_end;
+  struct htable_primary_iterator p_it, p_end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
-  struct s3d_scene_view* view_prim = NULL;
   struct ranst_sun_dir* ran_sun_dir = NULL;
   struct ranst_sun_wl* ran_sun_wl = NULL;
   struct ssf_bsdf** bsdfs = NULL;
@@ -387,11 +463,12 @@ ssol_solve
   struct mc_data* mc_shadows = NULL;
   struct mc_data* mc_missings = NULL;
   struct mc_data* mc_cos_losses = NULL; /* TODO compute it */
+  size_t* failed_counts = NULL; /* TODO compute it */
   struct htable_receiver* mc_rcvs = NULL;
+  struct htable_primary* mc_prims = NULL;
   struct ssol_estimator* estimator = NULL;
-  float area;
   int nthreads = 0;
-  int nrealisations = 0;
+  int64_t nrealisations = 0;
   int i = 0;
   ATOMIC res = RES_OK;
   ASSERT(nrealisations <= INT_MAX);
@@ -404,7 +481,7 @@ ssol_solve
   /* CL compiler supports OpenMP parallel loop whose indices are signed. The
    * following line ensures that the unsigned number of realisations does not
    * overflow the realisation index. */
-  if(realisations_count > INT_MAX) {
+  if(realisations_count > INT64_MAX) {
     res = RES_BAD_ARG;
     goto error;
   }
@@ -415,23 +492,19 @@ ssol_solve
   if(res != RES_OK) goto error;
 
   /* Create data structures shared by all threads */
-  res = scene_create_s3d_views(scn, &view_rt, &view_samp, &view_prim);
+  res = scene_create_s3d_views(scn, &view_rt, &view_samp);
   if(res != RES_OK) goto error;
   res = sun_create_distributions(scn->sun, &ran_sun_dir, &ran_sun_wl);
   if(res != RES_OK) goto error;
-
-  /* Create the estimator */
-  res = estimator_create(scn->dev, scn, &estimator);
-  if (res != RES_OK) goto error;
-  S3D(scene_view_compute_area(view_samp, &area));
-  estimator->sampled_area = area;
-  S3D(scene_view_compute_area(view_prim, &area));
-  estimator->primary_area = area;
 
   /* Create a RNG proxy from the submitted RNG state */
   res = ssp_rng_proxy_create_from_rng
     (scn->dev->allocator, rng_state, scn->dev->nthreads, &rng_proxy);
   if(res != RES_OK) goto error;
+
+  /* Create the estimator */
+  res = estimator_create(scn->dev, scn, &estimator);
+  if (res != RES_OK) goto error;
 
   /* Create per thread data structures */
   #define CREATE(Data) {                                                       \
@@ -448,6 +521,8 @@ ssol_solve
   CREATE(mc_missings);
   CREATE(mc_cos_losses);
   CREATE(mc_rcvs);
+  CREATE(mc_prims);
+  CREATE(failed_counts);
   #undef CREATE
 
   /* Setup per thread data structures */
@@ -458,6 +533,9 @@ ssol_solve
     if(res != RES_OK) goto error;
     htable_receiver_init(scn->dev->allocator, mc_rcvs + i);
     res = htable_receiver_copy(mc_rcvs + i, &estimator->mc_receivers);
+    if(res != RES_OK) goto error;
+    htable_primary_init(scn->dev->allocator, mc_prims + i);
+    res = htable_primary_copy(mc_prims + i, &estimator->global_primaries);
     if(res != RES_OK) goto error;
   }
 
@@ -470,7 +548,9 @@ ssol_solve
     struct mc_data* shadow;
     struct mc_data* missing;
     struct mc_data* cos_loss;
+    size_t* nfails;
     struct htable_receiver* receiver;
+    struct htable_primary* primary;
     float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
     size_t depth = 0;
@@ -486,12 +566,16 @@ ssol_solve
     cos_loss = mc_cos_losses + ithread;
     missing = mc_missings + ithread;
     receiver = mc_rcvs + ithread;
+    primary = mc_prims + ithread;
+    nfails = failed_counts + ithread;
 
     /* Find a new starting point of the radiative random walk */
-    is_lit = point_init(&pt, scn, estimator->sampled_area, view_samp, view_rt,
+    is_lit = point_init(&pt, scn, primary, estimator, view_samp, view_rt,
       ran_sun_dir, ran_sun_wl, rng);
 
     if(!is_lit) { /* The starting point is not lit */
+      pt.primary->shadow_loss.weight += pt.weight;
+      pt.primary->shadow_loss.sqr_weight += pt.weight;
       shadow->weight += pt.weight;
       shadow->sqr_weight += pt.weight * pt.weight;
       continue;
@@ -514,6 +598,8 @@ ssol_solve
           ATOMIC_SET(&res, res_local);
           break;
         }
+
+        /* Per receiver MC accumulation */
         mc_rcv1 = estimator_get_mc_receiver(receiver, pt.inst, pt.side);
         #define ACCUM_WEIGHT(Name, W) {                                        \
           mc_rcv1->Name.weight += (W);                                         \
@@ -524,8 +610,8 @@ ssol_solve
         ACCUM_WEIGHT(reflectivity_loss, pt.reflectivity_loss);
         ACCUM_WEIGHT(cos_loss, pt.cos_loss);
         #undef ACCUM_WEIGHT
-        hit_a_receiver = 1;
 
+        /* Per primitive receiver MC accumulation */
         if(pt.inst->receiver_per_primitive) {
           struct mc_primitive_1side* mc_prim;
           mc_prim = mc_receiver_1side_get_mc_primitive(mc_rcv1, pt.prim.prim_id);
@@ -543,6 +629,24 @@ ssol_solve
           ACCUM_WEIGHT(cos_loss, pt.cos_loss);
           #undef ACCUM_WEIGHT
         }
+
+        /* Per-primary/receiver MC accumulation */
+        mc_rcv1 = mc_per_primary_get_mc_receiver(pt.primary, pt.inst, pt.side);
+        #define ACCUM_WEIGHT(Name, W) {                                        \
+          mc_rcv1->Name.weight += (W);                                         \
+          mc_rcv1->Name.sqr_weight += (W)*(W);                                 \
+        } (void)0
+        if(!mc_rcv1) {
+          ATOMIC_SET(&res, RES_MEM_ERR);
+          break;
+        }
+        ACCUM_WEIGHT(integrated_irradiance, pt.weight);
+        ACCUM_WEIGHT(absorptivity_loss, pt.absorptivity_loss);
+        ACCUM_WEIGHT(reflectivity_loss, pt.reflectivity_loss);
+        ACCUM_WEIGHT(cos_loss, pt.cos_loss);
+        #undef ACCUM_WEIGHT
+
+        hit_a_receiver = 1;
       }
 
       mtl = point_get_material(&pt);
@@ -600,7 +704,7 @@ ssol_solve
     }
   }
 
-  /* Merge per thread estimations */
+  /* Merge per thread global MC estimations */
   FOR_EACH(i, 0, nthreads) {
     estimator->shadowed.weight += mc_shadows[i].weight;
     estimator->shadowed.sqr_weight += mc_shadows[i].sqr_weight;
@@ -608,32 +712,52 @@ ssol_solve
     estimator->missing.sqr_weight += mc_missings[i].sqr_weight;
     estimator->cos_loss.weight += mc_cos_losses[i].weight;
     estimator->cos_loss.sqr_weight += mc_cos_losses[i].sqr_weight;
+    estimator->failed_count += failed_counts[i];
   }
 
-  /* Merge per thread receiver estimations */
-  htable_receiver_begin(&estimator->mc_receivers, &it);
-  htable_receiver_end(&estimator->mc_receivers, &end);
-  while(!htable_receiver_iterator_eq(&it, &end)) {
-    struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&it);
-    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&it);
-    htable_receiver_iterator_next(&it);
+  /* Merge per thread receiver MC estimations */
+  htable_receiver_begin(&estimator->mc_receivers, &r_it);
+  htable_receiver_end(&estimator->mc_receivers, &r_end);
+  while(!htable_receiver_iterator_eq(&r_it, &r_end)) {
+    struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+    htable_receiver_iterator_next(&r_it);
 
     FOR_EACH(i, 0, nthreads) {
       struct mc_receiver* mc_rcv_thread;
       mc_rcv_thread = htable_receiver_find(mc_rcvs + i, &inst);
 
-      if(inst->receiver_mask & (int)SSOL_FRONT)
-        accum_mc_receivers_1side(&mc_rcv->front, &mc_rcv_thread->front);
-      if(inst->receiver_mask & (int)SSOL_BACK)
-        accum_mc_receivers_1side(&mc_rcv->back, &mc_rcv_thread->back);
+      if(inst->receiver_mask & (int)SSOL_FRONT) {
+        res = accum_mc_receivers_1side(&mc_rcv->front, &mc_rcv_thread->front);
+        if(res != RES_OK) goto error;
+      }
+      if(inst->receiver_mask & (int)SSOL_BACK) {
+        res = accum_mc_receivers_1side(&mc_rcv->back, &mc_rcv_thread->back);
+        if(res != RES_OK) goto error;
+      }
     }
   }
+
+  /* Merge per thread sampled instance MC estimations */
+  htable_primary_begin(&estimator->global_primaries, &p_it);
+  htable_primary_end(&estimator->global_primaries, &p_end);
+  while(!htable_primary_iterator_eq(&p_it, &p_end)) {
+    struct mc_per_primary_data* pri_data = htable_primary_iterator_data_get(&p_it);
+    const struct ssol_instance* key = *htable_primary_iterator_key_get(&p_it);
+    htable_primary_iterator_next(&p_it);
+
+    FOR_EACH(i, 0, nthreads) {
+      struct mc_per_primary_data* th_data = htable_primary_find(mc_prims + i, &key);
+      res = accum_mc_per_primary_data(pri_data, th_data);
+      if(res != RES_OK) goto error;
+    }
+  }
+
   estimator->realisation_count += realisations_count;
 
 exit:
   if(view_rt) S3D(scene_view_ref_put(view_rt));
   if(view_samp) S3D(scene_view_ref_put(view_samp));
-  if(view_prim) S3D(scene_view_ref_put(view_prim));
   if(ran_sun_dir) ranst_sun_dir_ref_put(ran_sun_dir);
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
@@ -649,9 +773,14 @@ exit:
     FOR_EACH(i, 0, nthreads) htable_receiver_release(mc_rcvs + i);
     sa_release(mc_rcvs);
   }
+  if (mc_prims) {
+    FOR_EACH(i, 0, nthreads) htable_primary_release(mc_prims + i);
+    sa_release(mc_prims);
+  }
   sa_release(mc_shadows);
   sa_release(mc_missings);
   sa_release(mc_cos_losses);
+  sa_release(failed_counts);
   if(out_estimator) *out_estimator = estimator;
   return (res_T)res;
 error:

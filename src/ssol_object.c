@@ -137,11 +137,13 @@ ssol_object_add_shaded_shape
   res = s3d_scene_attach_shape(object->scn_rt, shape->shape_rt);
   if(res != RES_OK) goto error;
   mask |= BIT(ATTACH_S3D_RT);
+  object->scn_rt_area += shape->shape_rt_area;
 
   /* Add the shape samp to the sampling scene of the object */
   res = s3d_scene_attach_shape(object->scn_samp, shape->shape_samp);
   if(res != RES_OK) goto error;
   mask |= BIT(ATTACH_S3D_SAMP);
+  object->scn_samp_area += shape->shape_samp_area;
 
   /* Ask for a shaded shape identifier */
   i = darray_shaded_shape_size_get(&object->shaded_shapes);
@@ -207,6 +209,8 @@ ssol_object_clear(struct ssol_object* obj)
   darray_shaded_shape_clear(&obj->shaded_shapes);
   htable_shaded_shape_clear(&obj->shaded_shapes_rt);
   htable_shaded_shape_clear(&obj->shaded_shapes_samp);
+  
+  obj->scn_rt_area = 0;
 
   S3D(scene_clear(obj->scn_rt));
   S3D(scene_clear(obj->scn_samp));
@@ -214,3 +218,13 @@ ssol_object_clear(struct ssol_object* obj)
   return RES_OK;
 }
 
+res_T
+ssol_object_get_area
+(const struct ssol_object* object,
+  double* area)
+{
+  if (!object || !area) return RES_BAD_ARG;;
+  /* the area of the 3D surface */
+  *area = object->scn_rt_area;
+  return RES_OK;
+}

@@ -42,10 +42,11 @@ struct ssol_scene {
 
   struct s3d_scene* scn_rt; /* S3D scene to ray trace */
   struct s3d_scene* scn_samp; /* S3D scene to sample */
-  struct s3d_scene* scn_prim; /* S3D scene of primary objects */
 
   struct ssol_sun* sun; /* Sun of the scene */
   struct ssol_atmosphere* atmosphere; /* Atmosphere of the scene */
+
+  double sampled_area, primary_area; /* scene areas */
 
   struct ssol_device* dev;
   ref_T ref;
@@ -57,8 +58,7 @@ extern LOCAL_SYM res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,
    struct s3d_scene_view** view_rt,
-   struct s3d_scene_view** view_samp,
-   struct s3d_scene_view** out_view_prim);
+   struct s3d_scene_view** view_samp);
 
 #endif /* SSOL_SCENE_C_H */
 
