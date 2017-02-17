@@ -132,26 +132,26 @@ main(int argc, char** argv)
 
 #define N__ 10000
 #define S_DNI_cos (4 * 1000 * cos(PI / 4))
-#define GET_RCV_STATUS ssol_estimator_get_mc_receiver
-#define GET_PRIM_X_RCV_STATUS ssol_estimator_get_primary_entity_x_receiver_status
+#define GET_MC_RCV ssol_estimator_get_mc_receiver
+#define GET_MC_SAMP_X_RCV ssol_estimator_get_mc_sampled_x_receiver
   CHECK(ssol_solve(scene, rng, N__, NULL, &estimator1), RES_OK);
-  CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  CHECK(GET_MC_RCV(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 2e-1), 1);
   CHECK(ssol_solve(scene, rng, 8 * N__, NULL, &estimator2), RES_OK);
-  CHECK(GET_RCV_STATUS(estimator2, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  CHECK(GET_MC_RCV(estimator2, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 5e-2), 1);
   CHECK(ssol_estimator_ref_put(estimator1), RES_OK);
   CHECK(ssol_solve(scene, rng, 3 * N__, NULL, &estimator1), RES_OK);
-  CHECK(GET_RCV_STATUS(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  CHECK(GET_MC_RCV(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
-  CHECK(GET_PRIM_X_RCV_STATUS(estimator1, heliostat, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  CHECK(GET_MC_SAMP_X_RCV(estimator1, heliostat, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(heliostat=>target) = %g +/- %g",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);

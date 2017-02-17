@@ -792,7 +792,7 @@ ssol_estimator_get_mc_global
    struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
-ssol_estimator_get_primary_entity_x_receiver_status
+ssol_estimator_get_mc_sampled_x_receiver
   (struct ssol_estimator* estimator,
    const struct ssol_instance* prim_instance,
    const struct ssol_instance* recv_instance,

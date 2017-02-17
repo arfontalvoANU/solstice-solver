@@ -133,39 +133,38 @@ mc_receiver_1side_copy_and_release
   return RES_OK;
 }
 
-static INLINE struct mc_primitive_1side*
+static INLINE res_T
 mc_receiver_1side_get_mc_primitive
-  (struct mc_receiver_1side* mc_rcv, const unsigned iprim)
+  (struct mc_receiver_1side* mc_rcv,
+   const unsigned iprim,
+   struct mc_primitive_1side** out_mc_prim1)
 {
   unsigned* pui = NULL;
-  struct mc_primitive_1side* mc_prim = NULL;
+  struct mc_primitive_1side* mc_prim1 = NULL;
+  res_T res = RES_OK;
   ASSERT(mc_rcv);
 
   pui = htable_prim2mc_find(&mc_rcv->prim2mc, &iprim);
   if(pui) {
-    mc_prim = darray_mc_prim_data_get(&mc_rcv->mc_prims) + *pui;
+    mc_prim1 = darray_mc_prim_data_get(&mc_rcv->mc_prims) + *pui;
     ASSERT(*pui < darray_mc_prim_size_get(&mc_rcv->mc_prims));
-    ASSERT(mc_prim->index == *pui);
+    ASSERT(mc_prim1->index == *pui);
   } else {
     unsigned ui = (unsigned)darray_mc_prim_size_get(&mc_rcv->mc_prims);
-    res_T res;
 
     res = darray_mc_prim_push_back(&mc_rcv->mc_prims, &MC_PRIMITIVE_1SIDE_NULL);
     if(res != RES_OK) goto error;
-    mc_prim = darray_mc_prim_data_get(&mc_rcv->mc_prims) + ui;
-    mc_prim->index = ui;
+    mc_prim1 = darray_mc_prim_data_get(&mc_rcv->mc_prims) + ui;
+    mc_prim1->index = ui;
 
     res = htable_prim2mc_set(&mc_rcv->prim2mc, &iprim, &ui);
     if(res != RES_OK) goto error;
   }
 
 exit:
-  return mc_prim;
+  *out_mc_prim1 = mc_prim1;
+  return res;
 error:
-  if(pui && mc_prim) {
-    darray_mc_prim_pop_back(&mc_rcv->mc_prims);
-  }
-  mc_prim = NULL;
   goto exit;
 }
 
@@ -229,108 +228,93 @@ mc_receiver_copy_and_release
 #include <rsys/hash_table.h>
 
 /*******************************************************************************
- * Per primitive MC data
+ * Per sampled instance MC data
  ******************************************************************************/
-struct mc_per_primary_data {
-  /* global data for this entity */
+struct mc_sampled {
+  /* Global data for this entity */
   struct mc_data cos_loss;
-  struct mc_data shadow_loss;
+  struct mc_data shadowed;
   double area;
   double sun_cos;
   size_t nb_samples;
-  size_t nb_failed;
-  /* by-receptor data for this entity */
-  struct htable_receiver by_receiver;
+
+  /* By-receptor data for this entity */
+  struct htable_receiver mc_rcvs;
 };
 
 static INLINE void
-init_mc_per_prim_data
-  (struct mem_allocator* alloc,
-   struct mc_per_primary_data* data)
+mc_sampled_init
+  (struct mem_allocator* allocator,
+   struct mc_sampled* samp)
 {
-  ASSERT(alloc && data);
-  data->area = 0;
-  data->sun_cos = 0;
-  data->cos_loss = MC_DATA_NULL;
-  data->shadow_loss = MC_DATA_NULL;
-  data->nb_samples = 0;
-  data->nb_failed = 0;
-  htable_receiver_init(alloc, &data->by_receiver);
+  ASSERT(samp);
+  samp->cos_loss = MC_DATA_NULL;
+  samp->shadowed = MC_DATA_NULL;
+  samp->area = 0;
+  samp->sun_cos = 0;
+  samp->nb_samples = 0;
+  htable_receiver_init(allocator, &samp->mc_rcvs);
 }
 
 static INLINE void
-release_mc_per_prim_data(struct mc_per_primary_data* data)
+mc_sampled_release(struct mc_sampled* samp)
 {
-  ASSERT(data);
-  htable_receiver_release(&data->by_receiver);
-}
-
-#define PRIM_COPY(Dst, Src) {\
-  Dst->area = Src->area;\
-  Dst->sun_cos = Src->sun_cos;\
-  Dst->nb_failed = Src->nb_failed;\
-  Dst->nb_samples = Src->nb_samples;\
-  Dst->shadow_loss = Src->shadow_loss;\
-  Dst->cos_loss = Src->cos_loss;\
-} (void)0
-
-static INLINE res_T
-copy_mc_per_prim_data
-  (struct mc_per_primary_data* dst,
-   const struct mc_per_primary_data* src)
-{
-  ASSERT(dst && src);
-  PRIM_COPY(dst, src);
-  return htable_receiver_copy(&dst->by_receiver, &src->by_receiver);
+  ASSERT(samp);
+  htable_receiver_release(&samp->mc_rcvs);
 }
 
 static INLINE res_T
-copy_and_release_mc_per_prim_data
-  (struct mc_per_primary_data* dst,
-   struct mc_per_primary_data* src)
+mc_sampled_copy(struct mc_sampled* dst, const struct mc_sampled* src)
 {
   ASSERT(dst && src);
-  PRIM_COPY(dst, src);
-  return htable_receiver_copy_and_release(&dst->by_receiver, &src->by_receiver);
+  dst->cos_loss = src->cos_loss;
+  dst->shadowed = src->shadowed;
+  dst->area = src->area;
+  dst->sun_cos = src->sun_cos;
+  dst->nb_samples = src->nb_samples;
+  return htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
 }
 
 static INLINE res_T
-copy_and_clear_mc_per_prim_data
-  (struct mc_per_primary_data* dst,
-   struct mc_per_primary_data* src)
+mc_sampled_copy_and_release(struct mc_sampled* dst, struct mc_sampled* src)
 {
   ASSERT(dst && src);
-  PRIM_COPY(dst, src);
-  return htable_receiver_copy_and_clear(&dst->by_receiver, &src->by_receiver);
+  dst->cos_loss = src->cos_loss;
+  dst->shadowed = src->shadowed;
+  dst->area = src->area;
+  dst->sun_cos = src->sun_cos;
+  dst->nb_samples = src->nb_samples;
+  return htable_receiver_copy_and_release(&dst->mc_rcvs, &src->mc_rcvs);
 }
 
-
-static INLINE struct mc_receiver_1side*
-mc_per_primary_get_mc_receiver
-  (struct mc_per_primary_data* primary,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side)
+static INLINE res_T
+mc_sampled_get_mc_receiver_1side
+  (struct mc_sampled* mc_samp,
+   const struct ssol_instance* inst,
+   const enum ssol_side_flag side,
+   struct mc_receiver_1side** out_mc_rcv1)
 {
   struct mc_receiver* mc_rcv = NULL;
   struct mc_receiver_1side* mc_rcv1 = NULL;
   struct mc_receiver mc_rcv_null;
   res_T res = RES_OK;
-  ASSERT(primary && instance);
-  ASSERT(instance->receiver_mask & (int)side);
- 
-  mc_receiver_init(instance->dev->allocator, &mc_rcv_null);
+  ASSERT(mc_samp && inst);
+  ASSERT(inst->receiver_mask & (int)side);
 
-  mc_rcv = htable_receiver_find(&primary->by_receiver, &instance);
+  mc_receiver_init(inst->dev->allocator, &mc_rcv_null);
+
+  mc_rcv = htable_receiver_find(&mc_samp->mc_rcvs, &inst);
   if(!mc_rcv) {
-    res = htable_receiver_set(&primary->by_receiver, &instance, &mc_rcv_null);
+    res = htable_receiver_set(&mc_samp->mc_rcvs, &inst, &mc_rcv_null);
     if(res != RES_OK) goto error;
-    mc_rcv = htable_receiver_find(&primary->by_receiver, &instance);
+    mc_rcv = htable_receiver_find(&mc_samp->mc_rcvs, &inst);
   }
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
 
 exit:
   mc_receiver_release(&mc_rcv_null);
-  return mc_rcv1;
+  *out_mc_rcv1 = mc_rcv1;
+  return res;
 error:
   mc_rcv1 = NULL;
   goto exit;
@@ -339,14 +323,13 @@ error:
 #undef PRIM_COPY
 
 /* Define the htable_primary data structure */
-#define HTABLE_NAME primary
+#define HTABLE_NAME sampled
 #define HTABLE_KEY const struct ssol_instance*
-#define HTABLE_DATA struct mc_per_primary_data
-#define HTABLE_DATA_FUNCTOR_INIT init_mc_per_prim_data
-#define HTABLE_DATA_FUNCTOR_RELEASE release_mc_per_prim_data
-#define HTABLE_DATA_FUNCTOR_COPY copy_mc_per_prim_data
-#define HTABLE_DATA_FUNCTOR_COPY_AND_RELEASE copy_and_release_mc_per_prim_data
-#define HTABLE_DATA_FUNCTOR_COPY_AND_CLEAR copy_and_clear_mc_per_prim_data
+#define HTABLE_DATA struct mc_sampled
+#define HTABLE_DATA_FUNCTOR_INIT mc_sampled_init
+#define HTABLE_DATA_FUNCTOR_RELEASE mc_sampled_release
+#define HTABLE_DATA_FUNCTOR_COPY mc_sampled_copy
+#define HTABLE_DATA_FUNCTOR_COPY_AND_RELEASE mc_sampled_copy_and_release
 #include <rsys/hash_table.h>
 
 /*******************************************************************************
@@ -362,9 +345,9 @@ struct ssol_estimator {
   struct mc_data cos_loss; /* TODO compute it */
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
-  struct htable_primary global_primaries; /* Per sampled MC */
+  struct htable_sampled mc_sampled; /* Per sampled instance MC */
 
-  double primary_area;
+  double sampled_area;
 
   struct ssol_device* dev;
   ref_T ref;
@@ -376,20 +359,67 @@ estimator_create
    struct ssol_scene* scene,
    struct ssol_estimator** estimator);
 
-static FINLINE struct mc_receiver_1side*
-estimator_get_mc_receiver
+static FINLINE res_T
+get_mc_receiver_1side
   (struct htable_receiver* receivers,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side)
+   const struct ssol_instance* inst,
+   const enum ssol_side_flag side,
+   struct mc_receiver_1side** out_mc_rcv1)
 {
-  struct mc_receiver* mc_rcv;
-  ASSERT(receivers && instance);
-  if(!(instance->receiver_mask & (int)side)) return NULL;
-  mc_rcv = htable_receiver_find(receivers, &instance);
-  if(!mc_rcv) return NULL;
-  return side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
+  struct mc_receiver* mc_rcv = NULL;
+  struct mc_receiver_1side* mc_rcv1 = NULL;
+  struct mc_receiver mc_rcv_null;
+  res_T res = RES_OK;
+  ASSERT(receivers && inst && out_mc_rcv1);
+  ASSERT(inst->receiver_mask & (int)side);
+
+  mc_receiver_init(inst->dev->allocator, &mc_rcv_null);
+
+  mc_rcv = htable_receiver_find(receivers, &inst);
+  if(!mc_rcv) {
+    res = htable_receiver_set(receivers, &inst, &mc_rcv_null);
+    if(res != RES_OK) goto error;
+    mc_rcv = htable_receiver_find(receivers, &inst);
+  }
+
+  mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
+exit:
+  mc_receiver_release(&mc_rcv_null);
+  *out_mc_rcv1 = mc_rcv1;
+  return res;
+error:
+  goto exit;
 }
 
+static FINLINE res_T
+get_mc_sampled
+  (struct htable_sampled* sampled,
+   const struct ssol_instance* inst,
+   struct mc_sampled** out_mc_samp)
+{
+  struct mc_sampled* mc_samp = NULL;
+  struct mc_sampled mc_samp_null;
+  res_T res = RES_OK;
+  ASSERT(sampled && inst && out_mc_samp);
+
+  mc_sampled_init(inst->dev->allocator, &mc_samp_null);
+
+  mc_samp = htable_sampled_find(sampled, &inst);
+  if(!mc_samp) {
+    res = htable_sampled_set(sampled, &inst, &mc_samp_null);
+    if(res != RES_OK) goto error;
+    mc_samp = htable_sampled_find(sampled, &inst);
+  }
+
+exit:
+  mc_sampled_release(&mc_samp_null);
+  *out_mc_samp = mc_samp;
+  return res;
+error:
+  goto exit;
+}
+
+#if 0
 static FINLINE struct mc_per_primary_data*
 estimator_get_primary_entity_data
   (struct htable_primary* primaries,
@@ -411,6 +441,7 @@ estimator_get_prim_recv_data
   ASSERT(primary_data && instance);
   return estimator_get_mc_receiver(&primary_data->by_receiver, instance, side);
 }
+#endif
 
 #endif /* SSOL_ESTIMATOR_C_H */
 

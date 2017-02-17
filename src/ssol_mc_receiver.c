@@ -26,15 +26,22 @@ ssol_estimator_get_mc_receiver
    const enum ssol_side_flag side,
    struct ssol_mc_receiver* rcv)
 {
+  const struct mc_receiver* mc_rcv = NULL;
   const struct mc_receiver_1side* mc_rcv1 = NULL;
+
   if(!estimator || !instance || !rcv
-  || (side != SSOL_BACK && side != SSOL_FRONT))
+  || !(instance->receiver_mask & (int)side))
     return RES_BAD_ARG;
 
-  /* Check if a receiver is defined for this instance/side */
-  mc_rcv1 = estimator_get_mc_receiver(&estimator->mc_receivers, instance, side);
-  if(mc_rcv1 == NULL) return RES_BAD_ARG;
+  memset(rcv, 0, sizeof(rcv[0]));
 
+  mc_rcv = htable_receiver_find(&estimator->mc_receivers, &instance);
+  if(!mc_rcv) {
+    /* The receiver has no MC estimation */
+    return RES_OK;
+  }
+
+  mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
     const struct mc_data* data = &mc_rcv1->Name;                               \
