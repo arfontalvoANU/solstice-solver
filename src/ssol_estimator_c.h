@@ -320,8 +320,6 @@ error:
   goto exit;
 }
 
-#undef PRIM_COPY
-
 /* Define the htable_primary data structure */
 #define HTABLE_NAME sampled
 #define HTABLE_KEY const struct ssol_instance*
@@ -418,30 +416,6 @@ exit:
 error:
   goto exit;
 }
-
-#if 0
-static FINLINE struct mc_per_primary_data*
-estimator_get_primary_entity_data
-  (struct htable_primary* primaries,
-   const struct ssol_instance* instance)
-{
-  struct mc_per_primary_data* data;
-  ASSERT(primaries && instance);
-  if (!instance->sample) return NULL;
-  data = htable_primary_find(primaries, &instance);
-  return data;
-}
-
-static FINLINE struct mc_receiver_1side*
-estimator_get_prim_recv_data
-  (struct mc_per_primary_data* primary_data,
-   const struct ssol_instance* instance,
-   const enum ssol_side_flag side)
-{
-  ASSERT(primary_data && instance);
-  return estimator_get_mc_receiver(&primary_data->by_receiver, instance, side);
-}
-#endif
 
 #endif /* SSOL_ESTIMATOR_C_H */
 

@@ -44,6 +44,108 @@
 #include <limits.h>
 #include <omp.h>
 
+/*******************************************************************************
+ * Thread context
+ ******************************************************************************/
+struct thread_context {
+  struct ssp_rng* rng;
+  struct ssf_bsdf* bsdf;
+  struct mc_data shadowed;
+  struct mc_data missing;
+  struct mc_data cos_loss;
+  struct htable_receiver mc_rcvs;
+  struct htable_sampled mc_samps;
+  struct mem_allocator* allocator;
+};
+
+static void
+thread_context_release(struct thread_context* ctx)
+{
+  ASSERT(ctx);
+  if(ctx->rng) SSP(rng_ref_put(ctx->rng));
+  if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
+  htable_receiver_release(&ctx->mc_rcvs);
+  htable_sampled_release(&ctx->mc_samps);
+}
+
+static res_T
+thread_context_init(struct mem_allocator* allocator, struct thread_context* ctx)
+{
+  res_T res = RES_OK;
+  ASSERT(ctx);
+
+  memset(ctx, 0, sizeof(ctx[0]));
+  htable_receiver_init(allocator, &ctx->mc_rcvs);
+  htable_sampled_init(allocator, &ctx->mc_samps);
+
+  res = ssf_bsdf_create(allocator, &ctx->bsdf);
+  if(res != RES_OK) goto error;
+
+exit:
+  return res;
+error:
+  thread_context_release(ctx);
+  goto exit;
+}
+
+/* Define a copy functor only for consistency since this function will not be
+ * used */
+static res_T
+thread_context_copy
+  (struct thread_context* dst, const struct thread_context* src)
+{
+  res_T res = RES_OK;
+  ASSERT(dst && src);
+  dst->rng = src->rng;
+  dst->bsdf = src->bsdf;
+  dst->shadowed = src->shadowed;
+  dst->missing = src->missing;
+  dst->cos_loss = src->cos_loss;
+  res = htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
+  if(res != RES_OK) return res;
+  res = htable_sampled_copy(&dst->mc_samps, &src->mc_samps);
+  if(res != RES_OK) return res;
+  return RES_OK;
+}
+
+static void
+thread_context_clear(struct thread_context* ctx)
+{
+  ASSERT(ctx);
+  if(ctx->rng) SSP(rng_ref_put(ctx->rng));
+  htable_receiver_clear(&ctx->mc_rcvs);
+  htable_sampled_clear(&ctx->mc_samps);
+}
+
+static res_T
+thread_context_setup
+  (struct thread_context* ctx,
+   struct ssp_rng_proxy* rng_proxy,
+   const size_t ithread)
+{
+  res_T res = RES_OK;
+  ASSERT(rng_proxy && ctx);
+  thread_context_clear(ctx);
+  res = ssp_rng_proxy_create_rng(rng_proxy, ithread, &ctx->rng);
+  if(res != RES_OK) goto error;
+exit:
+  return res;
+error:
+  thread_context_clear(ctx);
+  goto exit;
+}
+
+/* Declare the container of the per thread contexts */
+#define DARRAY_NAME thread_ctx
+#define DARRAY_DATA struct thread_context
+#define DARRAY_FUNCTOR_INIT thread_context_init
+#define DARRAY_FUNCTOR_RELEASE thread_context_release
+#define DARRAY_FUNCTOR_COPY thread_context_copy
+#include <rsys/dynamic_array.h>
+
+/*******************************************************************************
+ * Random walk point
+ ******************************************************************************/
 struct point {
   const struct ssol_instance* inst;
   const struct shaded_shape* sshape;
@@ -76,9 +178,6 @@ struct point {
 }
 static const struct point POINT_NULL = POINT_NULL__;
 
-/*******************************************************************************
- * Helper functions
- ******************************************************************************/
 static res_T
 point_init
   (struct point* pt,
@@ -311,6 +410,9 @@ point_dump
   return n != 1 ? RES_IO_ERR : RES_OK;
 }
 
+/*******************************************************************************
+ * Helper functions
+ ******************************************************************************/
 static FINLINE res_T
 check_scene(const struct ssol_scene* scene, const char* caller)
 {
@@ -438,6 +540,73 @@ error:
   goto exit;
 }
 
+static res_T
+update_mc
+  (const struct point* pt,
+   const size_t irealisation,
+   const size_t ibounce,
+   struct htable_receiver* mc_rcvs,
+   FILE* output)
+{
+  struct mc_receiver_1side* mc_rcv1 = NULL;
+  struct mc_receiver_1side* mc_samp_x_rcv1 = NULL;
+  res_T res = RES_OK;
+  ASSERT(pt && mc_rcvs && point_is_receiver(pt));
+
+  res = point_dump(pt, irealisation, ibounce, output);
+  if(res != RES_OK) goto error;
+
+  /* Per receiver MC accumulation */
+  res = get_mc_receiver_1side(mc_rcvs, pt->inst, pt->side, &mc_rcv1);
+  if(res != RES_OK) goto error;
+
+  #define ACCUM_WEIGHT(Name, W) {                                              \
+    mc_rcv1->Name.weight += (W);                                               \
+    mc_rcv1->Name.sqr_weight += (W)*(W);                                       \
+  } (void)0
+  ACCUM_WEIGHT(integrated_irradiance, pt->weight);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
+  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
+  ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+  #undef ACCUM_WEIGHT
+
+  /* Per-sampled/receiver MC accumulation */
+  res = mc_sampled_get_mc_receiver_1side
+    (pt->mc_samp, pt->inst, pt->side, &mc_samp_x_rcv1);
+  if(res != RES_OK) goto error;
+  #define ACCUM_WEIGHT(Name, W) {                                              \
+    mc_samp_x_rcv1->Name.weight += (W);                                        \
+    mc_samp_x_rcv1->Name.sqr_weight += (W)*(W);                                \
+  } (void)0
+  ACCUM_WEIGHT(integrated_irradiance, pt->weight);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
+  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
+  ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+  #undef ACCUM_WEIGHT
+
+  /* Per primitive receiver MC accumulation */
+  if(pt->inst->receiver_per_primitive) {
+    struct mc_primitive_1side* mc_prim;
+    res = mc_receiver_1side_get_mc_primitive
+      (mc_rcv1, pt->prim.prim_id, &mc_prim);
+    if(res != RES_OK) goto error;
+    #define ACCUM_WEIGHT(Name, W) {                                            \
+      mc_prim->Name.weight += (W);                                             \
+      mc_prim->Name.sqr_weight += (W)*(W);                                     \
+    } (void)0
+    ACCUM_WEIGHT(integrated_irradiance, pt->weight);
+    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
+    ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
+    ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+    #undef ACCUM_WEIGHT
+  }
+
+exit:
+  return res;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  * Exported functions
  ******************************************************************************/
@@ -455,26 +624,19 @@ ssol_solve
   struct s3d_scene_view* view_samp = NULL;
   struct ranst_sun_dir* ran_sun_dir = NULL;
   struct ranst_sun_wl* ran_sun_wl = NULL;
-  struct ssf_bsdf** bsdfs = NULL;
-  struct ssp_rng** rngs = NULL;
-  struct ssp_rng_proxy* rng_proxy = NULL;
-  struct mc_data* mc_shadows = NULL;
-  struct mc_data* mc_missings = NULL;
-  struct mc_data* mc_cos_losses = NULL; /* TODO compute it */
-  size_t* failed_counts = NULL; /* TODO compute it */
-  struct htable_receiver* mc_rcvs = NULL;
-  struct htable_sampled* mc_sampled = NULL;
+  struct darray_thread_ctx thread_ctxs;
   struct ssol_estimator* estimator = NULL;
+  struct ssp_rng_proxy* rng_proxy = NULL;
   int nthreads = 0;
   int64_t nrealisations = 0;
   int i = 0;
   ATOMIC res = RES_OK;
   ASSERT(nrealisations <= INT_MAX);
 
-  if(!scn || !rng_state || !realisations_count || !out_estimator) {
-    res = RES_BAD_ARG;
-    goto error;
-  }
+  if(!scn || !rng_state || !realisations_count || !out_estimator)
+    return RES_BAD_ARG;
+
+  darray_thread_ctx_init(scn->dev->allocator, &thread_ctxs);
 
   /* CL compiler supports OpenMP parallel loop whose indices are signed. The
    * following line ensures that the unsigned number of realisations does not
@@ -505,35 +667,11 @@ ssol_solve
   if (res != RES_OK) goto error;
 
   /* Create per thread data structures */
-  #define CREATE(Data) {                                                       \
-    ASSERT(!(Data));                                                           \
-    if(!sa_add((Data), scn->dev->nthreads)) {                                  \
-      res = RES_BAD_ARG;                                                       \
-      goto error;                                                              \
-    }                                                                          \
-    memset((Data), 0, sizeof((Data)[0])*scn->dev->nthreads);                   \
-  } (void)0
-  CREATE(rngs);
-  CREATE(bsdfs);
-  CREATE(mc_shadows);
-  CREATE(mc_missings);
-  CREATE(mc_cos_losses);
-  CREATE(mc_rcvs);
-  CREATE(mc_sampled);
-  CREATE(failed_counts);
-  #undef CREATE
-
-  /* Setup per thread data structures */
+  res = darray_thread_ctx_resize(&thread_ctxs, scn->dev->nthreads);
+  if(res != RES_OK) goto error;
   FOR_EACH(i, 0, nthreads) {
-    res = ssf_bsdf_create(scn->dev->allocator, bsdfs+i);
-    if(res != RES_OK) goto error;
-    res = ssp_rng_proxy_create_rng(rng_proxy, (size_t)i, rngs + i);
-    if(res != RES_OK) goto error;
-    htable_receiver_init(scn->dev->allocator, mc_rcvs + i);
-    res = htable_receiver_copy(mc_rcvs + i, &estimator->mc_receivers);
-    if(res != RES_OK) goto error;
-    htable_sampled_init(scn->dev->allocator, mc_sampled + i);
-    res = htable_sampled_copy(mc_sampled + i, &estimator->mc_sampled);
+    struct thread_context* ctx = darray_thread_ctx_data_get(&thread_ctxs)+i;
+    res = thread_context_setup(ctx, rng_proxy, (size_t)i);
     if(res != RES_OK) goto error;
   }
 
@@ -541,14 +679,7 @@ ssol_solve
   for(i = 0; i < nrealisations; ++i) {
     struct s3d_hit hit = S3D_HIT_NULL;
     struct point pt;
-    struct ssp_rng* rng;
-    struct ssf_bsdf* bsdf;
-    struct mc_data* shadow;
-    struct mc_data* missing;
-    struct mc_data* cos_loss;
-    size_t* nfails;
-    struct htable_receiver* receiver;
-    struct htable_sampled* sampled;
+    struct thread_context* thread_ctx;
     float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
     size_t depth = 0;
@@ -559,18 +690,11 @@ ssol_solve
     if(ATOMIC_GET(&res) != RES_OK) continue; /* An error occurs */
 
     /* Fetch per thread data */
-    rng = rngs[ithread];
-    bsdf = bsdfs[ithread];
-    shadow = mc_shadows + ithread;
-    cos_loss = mc_cos_losses + ithread;
-    missing = mc_missings + ithread;
-    receiver = mc_rcvs + ithread;
-    sampled = mc_sampled + ithread;
-    nfails = failed_counts + ithread;
+    thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + ithread;
 
     /* Find a new starting point of the radiative random walk */
-    res_local = point_init(&pt, scn, sampled, view_samp, view_rt, ran_sun_dir,
-      ran_sun_wl, rng, &is_lit);
+    res_local = point_init(&pt, scn, &thread_ctx->mc_samps, view_samp, view_rt,
+      ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
@@ -579,8 +703,8 @@ ssol_solve
     if(!is_lit) { /* The starting point is not lit */
       pt.mc_samp->shadowed.weight += pt.weight;
       pt.mc_samp->shadowed.sqr_weight += pt.weight;
-      shadow->weight += pt.weight;
-      shadow->sqr_weight += pt.weight * pt.weight;
+      thread_ctx->shadowed.weight += pt.weight;
+      thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
       continue;
     }
 
@@ -595,68 +719,12 @@ ssol_solve
       struct ssol_material* mtl;
 
       if(point_is_receiver(&pt)) {
-        struct mc_receiver_1side* mc_rcv1 = NULL;
-        struct mc_receiver_1side* mc_samp_x_rcv1 = NULL;
-
-        res_local = point_dump(&pt, (size_t)i, depth, output);
-        if(res_local != RES_OK) {
-          ATOMIC_SET(&res, res_local);
-          break;
-        }
-
-        /* Per receiver MC accumulation */
-        res_local = get_mc_receiver_1side(receiver, pt.inst, pt.side, &mc_rcv1);
-        if(res_local != RES_OK) {
-          ATOMIC_SET(&res, res_local);
-          break;
-        }
-        #define ACCUM_WEIGHT(Name, W) {                                        \
-          mc_rcv1->Name.weight += (W);                                         \
-          mc_rcv1->Name.sqr_weight += (W)*(W);                                 \
-        } (void)0
-        ACCUM_WEIGHT(integrated_irradiance, pt.weight);
-        ACCUM_WEIGHT(absorptivity_loss, pt.absorptivity_loss);
-        ACCUM_WEIGHT(reflectivity_loss, pt.reflectivity_loss);
-        ACCUM_WEIGHT(cos_loss, pt.cos_loss);
-        #undef ACCUM_WEIGHT
-
-        /* Per-primary/receiver MC accumulation */
-        res_local = mc_sampled_get_mc_receiver_1side
-          (pt.mc_samp, pt.inst, pt.side, &mc_samp_x_rcv1);
-        if(res_local != RES_OK) {
-          ATOMIC_SET(&res, res_local);
-          break;
-        }
-        #define ACCUM_WEIGHT(Name, W) {                                        \
-          mc_samp_x_rcv1->Name.weight += (W);                                  \
-          mc_samp_x_rcv1->Name.sqr_weight += (W)*(W);                          \
-        } (void)0
-        ACCUM_WEIGHT(integrated_irradiance, pt.weight);
-        ACCUM_WEIGHT(absorptivity_loss, pt.absorptivity_loss);
-        ACCUM_WEIGHT(reflectivity_loss, pt.reflectivity_loss);
-        ACCUM_WEIGHT(cos_loss, pt.cos_loss);
-        #undef ACCUM_WEIGHT
-
-        /* Per primitive receiver MC accumulation */
-        if(pt.inst->receiver_per_primitive) {
-          struct mc_primitive_1side* mc_prim;
-          res_local = mc_receiver_1side_get_mc_primitive
-            (mc_rcv1, pt.prim.prim_id, &mc_prim);
-          if(res_local) {
-            ATOMIC_SET(&res, res_local);
-            break;
-          }
-          #define ACCUM_WEIGHT(Name, W) {                                      \
-            mc_prim->Name.weight += (W);                                       \
-            mc_prim->Name.sqr_weight += (W)*(W);                               \
-          } (void)0
-          ACCUM_WEIGHT(integrated_irradiance, pt.weight);
-          ACCUM_WEIGHT(absorptivity_loss, pt.absorptivity_loss);
-          ACCUM_WEIGHT(reflectivity_loss, pt.reflectivity_loss);
-          ACCUM_WEIGHT(cos_loss, pt.cos_loss);
-          #undef ACCUM_WEIGHT
-        }
         hit_a_receiver = 1;
+        res_local = update_mc(&pt, (size_t)i, depth, &thread_ctx->mc_rcvs, output);
+        if(res_local != RES_OK) {
+          ATOMIC_SET(&res, res_local);
+          break;
+        }
       }
 
       mtl = point_get_material(&pt);
@@ -669,7 +737,7 @@ ssol_solve
       } else {
         /* Modulate the point weight wrt to its scattering functions and
          * generate an outgoing direction */
-        res_local = point_shade(&pt, bsdf, rng, pt.dir);
+        res_local = point_shade(&pt, thread_ctx->bsdf, thread_ctx->rng, pt.dir);
         if(res_local != RES_OK) {
           ATOMIC_SET(&res, res_local);
           break;
@@ -709,20 +777,23 @@ ssol_solve
     }
 
     if(!hit_a_receiver) {
-      missing->weight += pt.weight;
-      missing->sqr_weight += pt.weight*pt.weight;
+      thread_ctx->missing.weight += pt.weight;
+      thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
     }
   }
 
   /* Merge per thread global MC estimations */
   FOR_EACH(i, 0, nthreads) {
-    estimator->shadowed.weight += mc_shadows[i].weight;
-    estimator->shadowed.sqr_weight += mc_shadows[i].sqr_weight;
-    estimator->missing.weight += mc_missings[i].weight;
-    estimator->missing.sqr_weight += mc_missings[i].sqr_weight;
-    estimator->cos_loss.weight += mc_cos_losses[i].weight;
-    estimator->cos_loss.sqr_weight += mc_cos_losses[i].sqr_weight;
-    estimator->failed_count += failed_counts[i];
+    const struct thread_context* thread_ctx;
+    thread_ctx = darray_thread_ctx_cdata_get(&thread_ctxs)+i;
+    #define ACCUM_WEIGHT(Name) {                                               \
+      estimator->Name.weight += thread_ctx->Name.weight;                       \
+      estimator->Name.sqr_weight += thread_ctx->Name.sqr_weight;               \
+    } (void)0
+    ACCUM_WEIGHT(shadowed);
+    ACCUM_WEIGHT(missing);
+    ACCUM_WEIGHT(cos_loss);
+    #undef ACCUM_WEIGHT
   }
 
   /* Merge per thread receiver MC estimations */
@@ -734,8 +805,12 @@ ssol_solve
     htable_receiver_iterator_next(&r_it);
 
     FOR_EACH(i, 0, nthreads) {
+      struct thread_context* thread_ctx;
       struct mc_receiver* mc_rcv_thread;
-      mc_rcv_thread = htable_receiver_find(mc_rcvs + i, &inst);
+
+      thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + i;
+      mc_rcv_thread = htable_receiver_find(&thread_ctx->mc_rcvs, &inst);
+      if(!mc_rcv_thread) continue; /* Receiver was not visited in this thread */
 
       if(inst->receiver_mask & (int)SSOL_FRONT) {
         res = accum_mc_receivers_1side(&mc_rcv->front, &mc_rcv_thread->front);
@@ -757,7 +832,13 @@ ssol_solve
     htable_sampled_iterator_next(&s_it);
 
     FOR_EACH(i, 0, nthreads) {
-      struct mc_sampled* mc_samp_thread = htable_sampled_find(mc_sampled + i, &inst);
+      struct thread_context* thread_ctx;
+      struct mc_sampled* mc_samp_thread;
+
+      thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + i;
+      mc_samp_thread = htable_sampled_find(&thread_ctx->mc_samps, &inst);
+      if(!mc_samp_thread) continue; /* Instance was not sampled in this thread */
+
       res = accum_mc_sampled(mc_samp, mc_samp_thread);
       if(res != RES_OK) goto error;
     }
@@ -766,31 +847,12 @@ ssol_solve
   estimator->realisation_count += realisations_count;
 
 exit:
+  darray_thread_ctx_release(&thread_ctxs);
   if(view_rt) S3D(scene_view_ref_put(view_rt));
   if(view_samp) S3D(scene_view_ref_put(view_samp));
   if(ran_sun_dir) ranst_sun_dir_ref_put(ran_sun_dir);
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
-  if(bsdfs) {
-    FOR_EACH(i, 0, nthreads) if(bsdfs[i]) SSF(bsdf_ref_put(bsdfs[i]));
-    sa_release(bsdfs);
-  }
-  if(rngs) {
-    FOR_EACH(i, 0, nthreads) if(rngs[i]) SSP(rng_ref_put(rngs[i]));
-    sa_release(rngs);
-  }
-  if(mc_rcvs) {
-    FOR_EACH(i, 0, nthreads) htable_receiver_release(mc_rcvs + i);
-    sa_release(mc_rcvs);
-  }
-  if(mc_sampled) {
-    FOR_EACH(i, 0, nthreads) htable_sampled_release(mc_sampled + i);
-    sa_release(mc_sampled);
-  }
-  sa_release(mc_shadows);
-  sa_release(mc_missings);
-  sa_release(mc_cos_losses);
-  sa_release(failed_counts);
   if(out_estimator) *out_estimator = estimator;
   return (res_T)res;
 error:
