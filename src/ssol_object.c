@@ -111,7 +111,7 @@ ssol_object_add_shaded_shape
    struct ssol_material* front,
    struct ssol_material* back)
 {
-  enum { 
+  enum {
     ATTACH_S3D_RT, ATTACH_S3D_SAMP, REGISTER_RT, REGISTER_SAMP, REGISTER_SHAPE
   };
   struct shaded_shape* shaded_shape;
@@ -209,7 +209,7 @@ ssol_object_clear(struct ssol_object* obj)
   darray_shaded_shape_clear(&obj->shaded_shapes);
   htable_shaded_shape_clear(&obj->shaded_shapes_rt);
   htable_shaded_shape_clear(&obj->shaded_shapes_samp);
-  
+
   obj->scn_rt_area = 0;
 
   S3D(scene_clear(obj->scn_rt));
@@ -219,12 +219,11 @@ ssol_object_clear(struct ssol_object* obj)
 }
 
 res_T
-ssol_object_get_area
-(const struct ssol_object* object,
-  double* area)
+ssol_object_get_area(const struct ssol_object* object, double* area)
 {
   if (!object || !area) return RES_BAD_ARG;;
   /* the area of the 3D surface */
   *area = object->scn_rt_area;
   return RES_OK;
 }
+

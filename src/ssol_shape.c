@@ -426,7 +426,7 @@ mesh_compute_area
   unsigned itri;
   double area = 0;
   (void)nverts;
-  
+
   FOR_EACH(itri, 0, ntris) {
     float v0[3], v1[3], v2[3];
     double E0[3], E1[3], N[3];
@@ -958,6 +958,56 @@ ssol_shape_ref_put(struct ssol_shape* shape)
   if(!shape) return RES_BAD_ARG;
   ref_put(&shape->ref, shape_release);
   return RES_OK;
+}
+
+res_T
+ssol_shape_get_vertices_count
+  (const struct ssol_shape* shape, unsigned* nverts)
+{
+  if(!shape || !nverts) return RES_BAD_ARG;
+  return s3d_mesh_get_vertices_count(shape->shape_rt, nverts);
+}
+
+res_T
+ssol_shape_get_vertex_attrib
+  (const struct ssol_shape* shape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[])
+{
+  struct s3d_attrib s3d_attr;
+  enum s3d_attrib_usage s3d_usage;
+  res_T res = RES_OK;
+
+  if(!shape || (unsigned)usage >= SSOL_ATTRIBS_COUNT__) return RES_BAD_ARG;
+  s3d_usage = ssol_to_s3d_attrib_usage(usage);
+
+  res = s3d_mesh_get_vertex_attrib(shape->shape_rt, ivert, s3d_usage, &s3d_attr);
+  if(res != RES_OK) return res;
+
+  switch(s3d_attr.type) {
+    case S3D_FLOAT3: value[2] = (double)s3d_attr.value[2];
+    case S3D_FLOAT2: value[1] = (double)s3d_attr.value[1];
+    case S3D_FLOAT:  value[0] = (double)s3d_attr.value[0];
+      break;
+    default: FATAL("Unexpected vertex attrib type\n"); break;
+  }
+  return RES_OK;
+}
+
+res_T
+ssol_shape_get_triangles_count(const struct ssol_shape* shape, unsigned* ntris)
+{
+  if(!shape || !ntris) return RES_BAD_ARG;
+  return s3d_mesh_get_triangles_count(shape->shape_rt, ntris);
+}
+
+res_T
+ssol_shape_get_triangle_indices
+  (const struct ssol_shape* shape, const unsigned itri, unsigned ids[3])
+{
+  if(!shape || !ids) return RES_BAD_ARG;
+  return s3d_mesh_get_triangle_indices(shape->shape_rt, itri, ids);
 }
 
 res_T

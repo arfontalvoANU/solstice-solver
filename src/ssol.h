@@ -483,6 +483,29 @@ SSOL_API res_T
 ssol_shape_ref_put
   (struct ssol_shape* shape);
 
+SSOL_API res_T
+ssol_shape_get_vertices_count
+  (const struct ssol_shape* shape,
+   unsigned* nverts);
+
+SSOL_API res_T
+ssol_shape_get_vertex_attrib
+  (const struct ssol_shape* shape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[]);
+
+SSOL_API res_T
+ssol_shape_get_triangles_count
+  (const struct ssol_shape* shape,
+   unsigned* ntris);
+
+SSOL_API res_T
+ssol_shape_get_triangle_indices
+  (const struct ssol_shape* shape,
+   const unsigned itri,
+   unsigned ids[3]);
+
 /* Define a punched surface in local space, i.e. no translation & no orientation */
 SSOL_API res_T
 ssol_punched_surface_setup
