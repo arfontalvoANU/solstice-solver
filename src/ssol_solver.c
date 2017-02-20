@@ -607,6 +607,114 @@ error:
   goto exit;
 }
 
+static res_T
+trace_radiative_path
+  (const size_t path_id, /* Unique id of the radiative path */
+   struct thread_context* thread_ctx,
+   struct ssol_scene* scn,
+   struct s3d_scene_view* view_samp,
+   struct s3d_scene_view* view_rt,
+   struct ranst_sun_dir* ran_sun_dir,
+   struct ranst_sun_wl* ran_sun_wl,
+   FILE* output) /* May be NULL */
+{
+  struct s3d_hit hit = S3D_HIT_NULL;
+  struct point pt;
+  float org[3], dir[3], range[2] = { 0, FLT_MAX };
+  size_t depth = 0;
+  int is_lit = 0;
+  int hit_a_receiver = 0;
+  res_T res = RES_OK;
+  ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
+
+  /* Find a new starting point of the radiative random walk */
+  res = point_init(&pt, scn, &thread_ctx->mc_samps, view_samp, view_rt,
+    ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
+  if(res != RES_OK) goto error;
+
+  if(!is_lit) { /* The starting point is not lit */
+    pt.mc_samp->shadowed.weight += pt.weight;
+    pt.mc_samp->shadowed.sqr_weight += pt.weight;
+    thread_ctx->shadowed.weight += pt.weight;
+    thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
+  } else {
+    /* Setup the ray as if it starts from the current point position in order
+     * to handle the points that start from a virtual material */
+    f3_set_d3(org, pt.pos);
+    f3_set_d3(dir, pt.dir);
+    hit.distance = 0;
+
+    for(;;) { /* Here we go for the radiative random walk */
+      struct ray_data ray_data = RAY_DATA_NULL;
+      struct ssol_material* mtl;
+
+      if(point_is_receiver(&pt)) {
+        hit_a_receiver = 1;
+        res = update_mc(&pt, path_id, depth, &thread_ctx->mc_rcvs, output);
+        if(res != RES_OK) goto error;
+      }
+
+      mtl = point_get_material(&pt);
+      if(mtl->type == MATERIAL_VIRTUAL) {
+        /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
+         * are not updated to ensure that it pursues its traversal without any
+         * accuracy issue */
+        range[0] = nextafterf(hit.distance, FLT_MAX);
+        range[1] = FLT_MAX;
+      } else {
+
+        /* Modulate the point weight wrt to its scattering functions and
+         * generate an outgoing direction */
+        res = point_shade(&pt, thread_ctx->bsdf, thread_ctx->rng, pt.dir);
+        if(res != RES_OK) goto error;
+
+        /* Stop the radiative random walk */
+        if(pt.weight == 0) break;
+
+        /* Setup new ray parameters */
+        f2(range, 0, FLT_MAX);
+        f3_set_d3(org, pt.pos);
+        f3_set_d3(dir, pt.dir);
+      }
+
+      /* Trace the next ray */
+      ray_data.scn = scn;
+      ray_data.prim_from = pt.prim;
+      ray_data.inst_from = pt.inst;
+      ray_data.side_from = pt.side;
+      ray_data.discard_virtual_materials = 0;
+      ray_data.range_min = range[0];
+      ray_data.dst = FLT_MAX;
+      S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
+      if(S3D_HIT_NONE(&hit)) goto error;
+
+      depth += mtl->type != MATERIAL_VIRTUAL;
+
+      /* Take into account the atmosphere attenuation along the new ray */
+      if(scn->atmosphere) {
+        const double transmissivity = compute_atmosphere_transmissivity
+          (scn->atmosphere, hit.distance, pt.wl);
+        ASSERT(0 < transmissivity && transmissivity <= 1);
+        pt.absorptivity_loss += (1 - transmissivity) * pt.weight;
+        pt.weight *= transmissivity;
+      }
+
+      /* Update the point */
+      point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
+    }
+  }
+
+  if(!hit_a_receiver) {
+    thread_ctx->missing.weight += pt.weight;
+    thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
+  }
+
+exit:
+  return res;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  * Exported functions
  ******************************************************************************/
@@ -675,16 +783,11 @@ ssol_solve
     if(res != RES_OK) goto error;
   }
 
+  /* Launch the parallel MC estimation */
   #pragma omp parallel for schedule(static)
   for(i = 0; i < nrealisations; ++i) {
-    struct s3d_hit hit = S3D_HIT_NULL;
-    struct point pt;
     struct thread_context* thread_ctx;
-    float org[3], dir[3], range[2] = { 0, FLT_MAX };
     const int ithread = omp_get_thread_num();
-    size_t depth = 0;
-    int is_lit;
-    int hit_a_receiver = 0;
     res_T res_local;
 
     if(ATOMIC_GET(&res) != RES_OK) continue; /* An error occurs */
@@ -692,93 +795,12 @@ ssol_solve
     /* Fetch per thread data */
     thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + ithread;
 
-    /* Find a new starting point of the radiative random walk */
-    res_local = point_init(&pt, scn, &thread_ctx->mc_samps, view_samp, view_rt,
-      ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
+    /* Execute a MC experiment */
+    res_local = trace_radiative_path((size_t)i, thread_ctx, scn, view_samp,
+      view_rt, ran_sun_dir, ran_sun_wl, output);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
-    }
-
-    if(!is_lit) { /* The starting point is not lit */
-      pt.mc_samp->shadowed.weight += pt.weight;
-      pt.mc_samp->shadowed.sqr_weight += pt.weight;
-      thread_ctx->shadowed.weight += pt.weight;
-      thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
-      continue;
-    }
-
-    /* Setup the ray as if it starts from the current point position in order
-     * to handle the points that start from a virtual material */
-    f3_set_d3(org, pt.pos);
-    f3_set_d3(dir, pt.dir);
-    hit.distance = 0;
-
-    for(;;) { /* Here we go for the radiative random walk */
-      struct ray_data ray_data = RAY_DATA_NULL;
-      struct ssol_material* mtl;
-
-      if(point_is_receiver(&pt)) {
-        hit_a_receiver = 1;
-        res_local = update_mc(&pt, (size_t)i, depth, &thread_ctx->mc_rcvs, output);
-        if(res_local != RES_OK) {
-          ATOMIC_SET(&res, res_local);
-          break;
-        }
-      }
-
-      mtl = point_get_material(&pt);
-      if(mtl->type == MATERIAL_VIRTUAL) {
-        /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
-         * are not updated to ensure that it pursues its traversal without any
-         * accuracy issue */
-        range[0] = nextafterf(hit.distance, FLT_MAX);
-        range[1] = FLT_MAX;
-      } else {
-        /* Modulate the point weight wrt to its scattering functions and
-         * generate an outgoing direction */
-        res_local = point_shade(&pt, thread_ctx->bsdf, thread_ctx->rng, pt.dir);
-        if(res_local != RES_OK) {
-          ATOMIC_SET(&res, res_local);
-          break;
-        }
-        if (pt.weight == 0) break;
-
-        /* Setup new ray parameters */
-        f2(range, 0, FLT_MAX);
-        f3_set_d3(org, pt.pos);
-        f3_set_d3(dir, pt.dir);
-      }
-
-      /* Trace the next ray */
-      ray_data.scn = scn;
-      ray_data.prim_from = pt.prim;
-      ray_data.inst_from = pt.inst;
-      ray_data.side_from = pt.side;
-      ray_data.discard_virtual_materials = 0;
-      ray_data.range_min = range[0];
-      ray_data.dst = FLT_MAX;
-      S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
-      if(S3D_HIT_NONE(&hit)) break;
-
-      depth += mtl->type != MATERIAL_VIRTUAL;
-
-      /* Take into account the atmosphere attenuation along the new ray */
-      if(scn->atmosphere) {
-        double transmissivity =
-          compute_atmosphere_transmissivity(scn->atmosphere, hit.distance, pt.wl);
-        ASSERT(0 < transmissivity && transmissivity <= 1);
-        pt.absorptivity_loss += (1 - transmissivity) * pt.weight;
-        pt.weight *= transmissivity;
-      }
-
-      /* Update the point */
-      point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
-    }
-
-    if(!hit_a_receiver) {
-      thread_ctx->missing.weight += pt.weight;
-      thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
     }
   }
 
