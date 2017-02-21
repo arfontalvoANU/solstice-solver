@@ -15,6 +15,8 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
+
+#define REFLECTIVITY 0.87
 #include "test_ssol_materials.h"
 
 #define HALF_X 1

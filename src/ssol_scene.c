@@ -387,7 +387,7 @@ hit_filter_function
   struct ssol_material* mtl;
   struct ray_data* rdata = ray_data;
   const struct shaded_shape* sshape;
-  enum ssol_side_flag hit_side = 3;
+  enum ssol_side_flag hit_side = SSOL_INVALID_SIDE;
   double pos[3], dir[3], N[3], dst = FLT_MAX;
   size_t id;
   (void)filter_data;
@@ -425,8 +425,10 @@ hit_filter_function
       if(dst >= FLT_MAX) {
         /* No projection is found => the ray does not intersect the quadric */
         return 1;
-      } else if(inst == rdata->inst_from) {
-
+      }
+      else if (inst != rdata->inst_from) {
+        hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
+      } else {
         if(hit->distance <= rdata->range_min) {
           /* Handle RT numerical imprecision, the hit is below the lower bound
            * of the ray range. */
@@ -435,7 +437,6 @@ hit_filter_function
           /* If the intersected instance is the one from which the ray starts,
            * ensure that the ray does not intersect the opposite side of the
            * quadric */
-          hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
           if(hit_side != rdata->side_from) {
             return 1;
           }
@@ -444,7 +445,10 @@ hit_filter_function
       break;
     default: FATAL("Unreachable code.\n"); break;
   }
-
+  ASSERT(hit_side == SSOL_BACK || hit_side == SSOL_FRONT);
+  if (rdata->reversed_ray) {
+    hit_side = (hit_side == SSOL_FRONT) ? SSOL_BACK : SSOL_FRONT;
+  }
   mtl = hit_side == SSOL_FRONT ? sshape->mtl_front : sshape->mtl_back;
   if(mtl->type == MATERIAL_VIRTUAL) {
     /* Discard all virtual materials */

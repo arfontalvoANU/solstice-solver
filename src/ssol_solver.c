@@ -150,6 +150,7 @@ point_init
   ray_data.inst_from = pt->inst;
   ray_data.side_from = pt->side;
   ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
+  ray_data.reversed_ray = 1; /* The ray direction is reversed */
   ray_data.dst = FLT_MAX;
 
   /* Trace a ray toward the sun to check if the sampled point is occluded */
@@ -524,6 +525,7 @@ ssol_solve
       ray_data.inst_from = pt.inst;
       ray_data.side_from = pt.side;
       ray_data.discard_virtual_materials = 0;
+      ray_data.reversed_ray = 0;
       ray_data.range_min = range[0];
       ray_data.dst = FLT_MAX;
       S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
