@@ -16,6 +16,32 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 
+struct scene_ctx {
+  struct ssol_instance* instance;
+  struct ssol_instance* instance2;
+  int instance_found;
+  int instance2_found;
+};
+
+static res_T
+instance_func(struct ssol_instance* inst, void* context)
+{
+  struct scene_ctx* ctx = context;
+  NCHECK(inst, NULL);
+  if(!ctx) return RES_BAD_ARG;
+
+  if(inst == ctx->instance) {
+    CHECK(ctx->instance_found, 0);
+    ctx->instance_found = 1;
+  } else if(inst == ctx->instance2) {
+    CHECK(ctx->instance2_found, 0);
+    ctx->instance2_found = 1;
+  } else {
+    CHECK(0, 1); /* Unreachable code */
+  }
+  return RES_OK;
+}
+
 static void
 get_wlen(const size_t i, double* wlen, double* data, void* ctx)
 {
@@ -36,6 +62,7 @@ main(int argc, char** argv)
   struct ssol_material* material;
   struct ssol_object* object;
   struct ssol_instance* instance;
+  struct ssol_instance* instance2;
   struct ssol_sun* sun;
   struct ssol_sun* sun2;
   struct ssol_scene* scene;
@@ -43,6 +70,7 @@ main(int argc, char** argv)
   struct ssol_spectrum* spectrum;
   struct ssol_atmosphere* atm;
   struct ssol_atmosphere* atm2;
+  struct scene_ctx ctx;
   double transform[12];
   (void) argc, (void) argv;
 
@@ -57,6 +85,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, &object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(object, shape, material, material), RES_OK);
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
+  CHECK(ssol_object_instantiate(object, &instance2), RES_OK);
   CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun2), RES_OK);
@@ -77,11 +106,28 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, instance2), RES_OK);
+
+  ctx.instance = instance;
+  ctx.instance2 = instance2;
+  ctx.instance_found = 0;
+  ctx.instance2_found = 0;
+  CHECK(ssol_scene_for_each_instance(NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(NULL, instance_func, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, instance_func, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(NULL, NULL, &ctx), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, NULL, &ctx), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(NULL, instance_func, &ctx), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, instance_func, &ctx), RES_OK);
+  CHECK(ctx.instance_found, 1);
+  CHECK(ctx.instance2_found, 1);
 
   CHECK(ssol_scene_detach_instance(NULL, instance), RES_BAD_ARG);
   CHECK(ssol_scene_detach_instance(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_detach_instance(scene, instance), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_instance(scene, instance2), RES_OK);
 
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_attach_instance(scene2, instance), RES_OK);
@@ -148,6 +194,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_ref_put(scene2), RES_OK);
 
   CHECK(ssol_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(instance2), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);

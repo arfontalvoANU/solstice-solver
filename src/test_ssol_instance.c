@@ -134,7 +134,6 @@ main(int argc, char** argv)
     CHECK(eq_eps(val[1], val2[1], 1.e-6), 1);
     CHECK(eq_eps(val[2], val2[2], 1.e-6), 1);
   }
-
   CHECK(ssol_instance_get_shaded_shape(instance1, 0, &sshape), RES_OK);
   FOR_EACH(i, 0, count) {
     float valf[3];
@@ -145,7 +144,6 @@ main(int argc, char** argv)
     CHECK((float)val[1], valf[1]);
     CHECK((float)val[2], valf[2]);
   }
-
   #undef GET_ATTR
 
 
