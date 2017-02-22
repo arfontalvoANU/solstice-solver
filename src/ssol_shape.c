@@ -461,7 +461,7 @@ quadric_setup_s3d_shape_rt
    const struct darray_double* coords,
    const struct darray_size_t* ids,
    struct s3d_shape* shape,
-   double * rt_area)
+   double* rt_area)
 {
   struct quadric_mesh_context ctx;
   struct s3d_vertex_data vdata;
@@ -499,9 +499,10 @@ quadric_setup_s3d_shape_rt
 
   res = s3d_mesh_setup_indexed_vertices
     (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
-  if (res != RES_OK) return res;
+  if(res != RES_OK) return res;
+
   *rt_area = mesh_compute_area
-    (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_parabol_get_pos, &ctx);
+    (ntris, quadric_mesh_get_ids, nverts, vdata.get, &ctx);
   return RES_OK;
 }
 

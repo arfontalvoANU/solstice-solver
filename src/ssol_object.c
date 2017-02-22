@@ -221,7 +221,7 @@ ssol_object_clear(struct ssol_object* obj)
 res_T
 ssol_object_get_area(const struct ssol_object* object, double* area)
 {
-  if (!object || !area) return RES_BAD_ARG;;
+  if(!object || !area) return RES_BAD_ARG;;
   /* the area of the 3D surface */
   *area = object->scn_rt_area;
   return RES_OK;
