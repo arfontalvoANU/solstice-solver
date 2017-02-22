@@ -18,8 +18,6 @@
 
 #include <rsys/rsys.h>
 
-#define REFLECTIVITY 0.87
-
 struct ssol_device;
 
 static INLINE void
@@ -56,6 +54,7 @@ get_shader_reflectivity
   *val = 1;
 }
 
+#ifdef REFLECTIVITY 
 static INLINE void
 get_shader_reflectivity_2
   (struct ssol_device* dev,
@@ -72,6 +71,7 @@ get_shader_reflectivity_2
   (void) P, (void) Ng, (void) Ns, (void) uv, (void) w;
   *val = REFLECTIVITY;
 }
+#endif
 
 static INLINE void
 get_shader_roughness

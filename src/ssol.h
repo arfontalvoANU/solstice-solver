@@ -62,7 +62,8 @@ struct ssol_estimator;
 
 enum ssol_side_flag {
   SSOL_FRONT = BIT(0),
-  SSOL_BACK = BIT(1)
+  SSOL_BACK = BIT(1),
+  SSOL_INVALID_SIDE = BIT(2)
 };
 
 enum ssol_clipping_op {

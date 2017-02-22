@@ -35,7 +35,8 @@ struct ray_data {
   struct s3d_primitive prim_from; /* Primitive from which the ray starts */
   const struct ssol_instance* inst_from; /* Instance from which the ray starts */
   enum  ssol_side_flag side_from; /* Primitive side from which the ray starts */
-  int discard_virtual_materials; /* Define if virtual materials are not RT */
+  short discard_virtual_materials; /* Define if virtual materials are not RT */
+  short reversed_ray; /* Define if the ray direction is reversed */
   float range_min;
 
   /* Output data */
@@ -44,7 +45,7 @@ struct ray_data {
 };
 
 static const struct ray_data RAY_DATA_NULL = {
-  NULL, S3D_PRIMITIVE_NULL__, NULL, 0, 0, 0, {0, 0, 0}, 0
+  NULL, S3D_PRIMITIVE_NULL__, NULL, SSOL_INVALID_SIDE, 0, 0, 0, {0, 0, 0}, 0
 };
 
 
