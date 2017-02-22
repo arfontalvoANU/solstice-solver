@@ -152,7 +152,7 @@ main(int argc, char** argv)
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
   CHECK(GET_MC_SAMP_X_RCV(estimator1, heliostat, target, SSOL_FRONT, &mc_rcv), RES_OK);
-  printf("Ir(heliostat=>target) = %g +/- %g",
+  printf("Ir(heliostat=>target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
 

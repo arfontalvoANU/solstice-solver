@@ -193,6 +193,15 @@ ssol_estimator_get_failed_count
   return RES_OK;
 }
 
+res_T
+ssol_estimator_get_sampled_area
+  (const struct ssol_estimator* estimator, double* area)
+{
+  if(!estimator || !area) return RES_BAD_ARG;
+  *area = estimator->sampled_area;
+  return RES_OK;
+}
+
 /*******************************************************************************
  * Local function
  ******************************************************************************/

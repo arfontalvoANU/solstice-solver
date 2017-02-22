@@ -345,6 +345,9 @@ struct ssol_estimator {
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */
 
+  /* Overall area of the sampled instances. Actually this is not the area that
+   * is effectively sampled since an instance may be sampled through a proxy
+   * geometry */
   double sampled_area;
 
   struct ssol_device* dev;

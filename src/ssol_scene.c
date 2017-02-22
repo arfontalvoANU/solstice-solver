@@ -293,7 +293,7 @@ ssol_scene_for_each_instance
     res = RES_BAD_ARG;
     goto error;
   }
-  
+
   htable_instance_begin(&scn->instances_rt, &it);
   htable_instance_end(&scn->instances_rt, &end);
   while(!htable_instance_iterator_eq(&it, &end)) {
@@ -317,15 +317,20 @@ res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,
    struct s3d_scene_view** out_view_rt,
-   struct s3d_scene_view** out_view_samp)
+   struct s3d_scene_view** out_view_samp,
+   double* out_sampled_area,
+   double* out_sampled_area_proxy)
 {
   struct htable_instance_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
   struct s3d_scene_view* view_samp = NULL;
+  double sampled_area = 0;
+  double sampled_area_proxy = 0;
   int has_sampled = 0;
   int has_receiver = 0;
   res_T res = RES_OK;
   ASSERT(scn && out_view_rt && out_view_samp);
+  ASSERT(out_sampled_area && out_sampled_area_proxy);
 
   S3D(scene_clear(scn->scn_samp));
   htable_instance_clear(&scn->instances_samp);
@@ -333,10 +338,7 @@ scene_create_s3d_views
   htable_instance_begin(&scn->instances_rt, &it);
   htable_instance_end(&scn->instances_rt, &end);
 
-  scn->sampled_area = 0;
-  scn->primary_area = 0;
-
-  while (!htable_instance_iterator_eq(&it, &end)) {
+  while(!htable_instance_iterator_eq(&it, &end)) {
     struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     unsigned id;
     htable_instance_iterator_next(&it);
@@ -347,8 +349,8 @@ scene_create_s3d_views
 
     if(!inst->sample) continue;
 
-    scn->sampled_area += inst->shape_samp_area;
-    scn->primary_area += inst->shape_rt_area;
+    sampled_area += inst->shape_rt_area;
+    sampled_area_proxy += inst->shape_samp_area;
 
     /* Note that geometries with virtual material can be sampled without risk
      * since the solver avoid to shade them and simply pursue the primary ray */
@@ -357,7 +359,6 @@ scene_create_s3d_views
     /* Attach the instantiated s3d sampling shape to the s3d sampling scene */
     res = s3d_scene_attach_shape(scn->scn_samp, inst->shape_samp);
     if(res != RES_OK) goto error;
-
 
     /* Register the instantiated s3d sampling shape */
     S3D(shape_get_id(inst->shape_samp, &id));
@@ -387,6 +388,8 @@ scene_create_s3d_views
 exit:
   *out_view_rt = view_rt;
   *out_view_samp = view_samp;
+  *out_sampled_area = sampled_area;
+  *out_sampled_area_proxy = sampled_area_proxy;
   return res;
 error:
   S3D(scene_clear(scn->scn_samp));
@@ -455,8 +458,7 @@ hit_filter_function
       if(dst >= FLT_MAX) {
         /* No projection is found => the ray does not intersect the quadric */
         return 1;
-      }
-      else if (inst != rdata->inst_from) {
+      } else if (inst != rdata->inst_from) {
         hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
       } else {
         if(hit->distance <= rdata->range_min) {
@@ -476,7 +478,7 @@ hit_filter_function
     default: FATAL("Unreachable code.\n"); break;
   }
   ASSERT(hit_side == SSOL_BACK || hit_side == SSOL_FRONT);
-  if (rdata->reversed_ray) {
+  if(rdata->reversed_ray) {
     hit_side = (hit_side == SSOL_FRONT) ? SSOL_BACK : SSOL_FRONT;
   }
   mtl = hit_side == SSOL_FRONT ? sshape->mtl_front : sshape->mtl_back;

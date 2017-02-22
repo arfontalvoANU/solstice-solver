@@ -160,6 +160,12 @@ main(int argc, char** argv)
 
   CHECK(ssol_solve(scene, rng, 1, NULL, &estimator), RES_OK);
 
+  CHECK(ssol_estimator_get_sampled_area(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_area(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_area(NULL, &dbl), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_area(estimator, &dbl), RES_OK);
+  CHECK(eq_eps(dbl, 12, 1.e-6), 1);
+
   CHECK(ssol_estimator_get_count(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_count(estimator, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);

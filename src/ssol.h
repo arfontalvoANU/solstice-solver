@@ -872,6 +872,12 @@ ssol_estimator_get_failed_count
   (const struct ssol_estimator* estimator,
    size_t* count);
 
+/* Retrieve the overall area of the sampled instances */
+SSOL_API res_T
+ssol_estimator_get_sampled_area
+  (const struct ssol_estimator* estimator,
+   double* area);
+
 /*******************************************************************************
  * Per receiver MC estimations
  ******************************************************************************/

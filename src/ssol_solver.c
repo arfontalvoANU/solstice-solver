@@ -181,6 +181,7 @@ static const struct point POINT_NULL = POINT_NULL__;
 static res_T
 point_init
   (struct point* pt,
+   const double sampled_area_proxy,
    struct ssol_scene* scn,
    struct htable_sampled* sampled,
    struct s3d_scene_view* view_samp,
@@ -222,8 +223,8 @@ point_init
 
   /* Initialise the Monte Carlo weight */
   cos_sun = fabs(d3_dot(pt->N, pt->dir));
-  pt->weight = scn->sun->dni * scn->sampled_area * cos_sun;
-  pt->cos_loss = scn->sun->dni * scn->sampled_area * (1 - cos_sun);
+  pt->weight = scn->sun->dni * sampled_area_proxy * cos_sun;
+  pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - cos_sun);
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Retrieve the sampled instance and shaded shape */
@@ -611,6 +612,7 @@ error:
 static res_T
 trace_radiative_path
   (const size_t path_id, /* Unique id of the radiative path */
+   const double sampled_area_proxy, /* Overall area of the sampled geometries */
    struct thread_context* thread_ctx,
    struct ssol_scene* scn,
    struct s3d_scene_view* view_samp,
@@ -629,8 +631,8 @@ trace_radiative_path
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
   /* Find a new starting point of the radiative random walk */
-  res = point_init(&pt, scn, &thread_ctx->mc_samps, view_samp, view_rt,
-    ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
+  res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
+    view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
 
   if(!is_lit) { /* The starting point is not lit */
@@ -737,6 +739,8 @@ ssol_solve
   struct darray_thread_ctx thread_ctxs;
   struct ssol_estimator* estimator = NULL;
   struct ssp_rng_proxy* rng_proxy = NULL;
+  double sampled_area;
+  double sampled_area_proxy;
   int nthreads = 0;
   int64_t nrealisations = 0;
   int i = 0;
@@ -762,7 +766,8 @@ ssol_solve
   if(res != RES_OK) goto error;
 
   /* Create data structures shared by all threads */
-  res = scene_create_s3d_views(scn, &view_rt, &view_samp);
+  res = scene_create_s3d_views(scn, &view_rt, &view_samp, &sampled_area,
+    &sampled_area_proxy);
   if(res != RES_OK) goto error;
   res = sun_create_distributions(scn->sun, &ran_sun_dir, &ran_sun_wl);
   if(res != RES_OK) goto error;
@@ -798,8 +803,8 @@ ssol_solve
     thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + ithread;
 
     /* Execute a MC experiment */
-    res_local = trace_radiative_path((size_t)i, thread_ctx, scn, view_samp,
-      view_rt, ran_sun_dir, ran_sun_wl, output);
+    res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
+      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, output);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
@@ -868,7 +873,8 @@ ssol_solve
     }
   }
 
-  estimator->realisation_count += realisations_count;
+  estimator->realisation_count = realisations_count;
+  estimator->sampled_area = sampled_area;
 
 exit:
   darray_thread_ctx_release(&thread_ctxs);
