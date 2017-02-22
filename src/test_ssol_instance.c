@@ -15,6 +15,12 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
+#include <rsys/double33.h>
+
+#define PLANE_NAME SQUARE
+#define HALF_X 1
+#define HALF_Y 1
+#include "test_ssol_rect_geometry.h"
 
 int
 main(int argc, char** argv)
@@ -26,7 +32,12 @@ main(int argc, char** argv)
   struct ssol_object* object;
   struct ssol_instance* instance;
   struct ssol_instance* instance1;
-  double transform[12];
+  struct ssol_vertex_data attrib = SSOL_VERTEX_DATA_NULL;
+  struct ssol_instantiated_shaded_shape sshape;
+  double transform[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0};
+  double val[3];
+  size_t n;
+  unsigned i, count;
   uint32_t id, id1;
   (void) argc, (void) argv;
 
@@ -37,7 +48,12 @@ main(int argc, char** argv)
 
   CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
 
-  CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
+  attrib.usage = SSOL_POSITION;
+  attrib.get = get_position;
+  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
+  CHECK(ssol_mesh_setup(shape, SQUARE_NTRIS__, get_ids, SQUARE_NVERTS__,
+    &attrib, 1, (void*)&SQUARE_DESC__), RES_OK);
+
   CHECK(ssol_object_create(dev, &object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(object, shape, material, material), RES_OK);
 
@@ -56,7 +72,6 @@ main(int argc, char** argv)
 
   CHECK(ssol_instance_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_instance_ref_put(instance), RES_OK);
-  CHECK(ssol_instance_ref_put(instance1), RES_OK);
 
   CHECK(ssol_instance_set_transform(NULL, transform), RES_BAD_ARG);
   CHECK(ssol_instance_set_transform(instance, NULL), RES_BAD_ARG);
@@ -69,8 +84,73 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(instance, 0), RES_OK);
   CHECK(ssol_instance_sample(instance, 1), RES_OK);
 
-  CHECK(ssol_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_get_shaded_shapes_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shapes_count(instance, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shapes_count(NULL, &n), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shapes_count(instance, &n), RES_OK);
+  CHECK(n, 1);
 
+  CHECK(ssol_instance_get_shaded_shape(NULL, n, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(instance, n, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(NULL, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(instance, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(NULL, n, &sshape), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(instance, n, &sshape), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(NULL, 0, &sshape), RES_BAD_ARG);
+  CHECK(ssol_instance_get_shaded_shape(instance, 0, &sshape), RES_OK);
+
+  CHECK(sshape.shape, shape);
+  CHECK(sshape.mtl_front, material);
+  CHECK(sshape.mtl_back, material);
+
+  CHECK(ssol_shape_get_vertices_count(sshape.shape, &count), RES_OK);
+
+  #define GET_ATTR ssol_instantiated_shaded_shape_get_vertex_attrib
+  CHECK(GET_ATTR(NULL, count, (unsigned)-1, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, count, (unsigned)-1, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, 0, (unsigned)-1, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, 0, (unsigned)-1, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, count, SSOL_POSITION, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, count, SSOL_POSITION, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, 0, SSOL_POSITION, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, 0, SSOL_POSITION, NULL), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, count, (unsigned)-1, val), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, count, (unsigned)-1, val), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, 0, (unsigned)-1, val), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, 0, (unsigned)-1, val), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, count, SSOL_POSITION, val), RES_BAD_ARG);
+  CHECK(GET_ATTR(&sshape, count, SSOL_POSITION, val), RES_BAD_ARG);
+  CHECK(GET_ATTR(NULL, 0, SSOL_POSITION, val), RES_BAD_ARG);
+  FOR_EACH(i, 0, count) {
+    float valf[3];
+    double val2[3];
+
+    CHECK(GET_ATTR(&sshape, i, SSOL_POSITION, val), RES_OK);
+    get_position(i, valf, (void*)&SQUARE_DESC__);
+    d3_set_f3(val2, valf);
+    d33_muld3(val2, transform, val2);
+    d3_add(val2, transform+9, val2);
+    CHECK(eq_eps(val[0], val2[0], 1.e-6), 1);
+    CHECK(eq_eps(val[1], val2[1], 1.e-6), 1);
+    CHECK(eq_eps(val[2], val2[2], 1.e-6), 1);
+  }
+
+  CHECK(ssol_instance_get_shaded_shape(instance1, 0, &sshape), RES_OK);
+  FOR_EACH(i, 0, count) {
+    float valf[3];
+
+    CHECK(GET_ATTR(&sshape, i, SSOL_POSITION, val), RES_OK);
+    get_position(i, valf, (void*)&SQUARE_DESC__);
+    CHECK((float)val[0], valf[0]);
+    CHECK((float)val[1], valf[1]);
+    CHECK((float)val[2], valf[2]);
+  }
+
+  #undef GET_ATTR
+
+
+  CHECK(ssol_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(instance1), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_material_ref_put(material), RES_OK);
