@@ -403,50 +403,46 @@ hit_filter_function
 
   /* Discard self intersection */
   switch(sshape->shape->type) {
-    case SHAPE_MESH:
-      if(hit->distance <= 1.e-6 /* FIXME hack */
+  case SHAPE_MESH:
+    if(hit->distance <= 1.e-6 /* FIXME hack */
       || hit->distance <= rdata->range_min
       || S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from)) {
-        /* Discard self intersection for mesh, i.e. when the intersected
-         * primitive is the primitive from which the ray starts */
-        return 1;
-      } else {
-        /* No self intersection. Define which side of the primitive is hit.
-         * Note that incoming direction points inward the primitive */
-        hit_side = f3_dot(hit->normal, dirf) < 0 ? SSOL_FRONT : SSOL_BACK;
-      }
-      break;
-    case SHAPE_PUNCHED:
-      /* Project the hit position into the punched shape */
-      d3_set_f3(dir, dirf);
-      d3_set_f3(pos, posf);
-      dst = punched_shape_trace_ray(sshape->shape, inst->transform, pos, dir,
-        hit->distance, pos, N);
-      if(dst >= FLT_MAX) {
-        /* No projection is found => the ray does not intersect the quadric */
-        return 1;
-      }
-      else if (inst != rdata->inst_from) {
-        hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
-      } else {
-        if(hit->distance <= rdata->range_min) {
-          /* Handle RT numerical imprecision, the hit is below the lower bound
-           * of the ray range. */
-          return 1;
-        } else {
-          /* If the intersected instance is the one from which the ray starts,
-           * ensure that the ray does not intersect the opposite side of the
-           * quadric */
-          if(hit_side != rdata->side_from) {
-            return 1;
-          }
-        }
-      }
-      break;
-    default: FATAL("Unreachable code.\n"); break;
+      /* Discard self intersection for mesh, i.e. when the intersected
+      * primitive is the primitive from which the ray starts */
+      return 1;
+    }
+    /* No self intersection. Define which side of the primitive is hit.
+    * Note that incoming direction points inward the primitive */
+    hit_side = f3_dot(hit->normal, dirf) < 0 ? SSOL_FRONT : SSOL_BACK;
+    break;
+  case SHAPE_PUNCHED:
+    /* Project the hit position into the punched shape */
+    d3_set_f3(dir, dirf);
+    d3_set_f3(pos, posf);
+    dst = punched_shape_trace_ray(sshape->shape, inst->transform, pos, dir,
+      hit->distance, pos, N);
+    if(dst >= FLT_MAX) {
+      /* No projection is found => the ray does not intersect the quadric */
+      return 1;
+    }
+    if(dst <= rdata->range_min) {
+      /* Handle RT numerical imprecision, the hit is below the lower bound
+      * of the ray range. */
+      return 1;
+    }
+    hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
+    if(inst == rdata->inst_from && hit_side != rdata->side_from) {
+      /* Reversed_ray is intentionally not considered here! */
+      /* The intersected instance is the one from which the ray starts,
+      * ensure that the ray does not intersect the opposite side of the
+      * quadric */
+      return 1;
+    }
+    break;
+  default: FATAL("Unreachable code.\n"); break;
   }
   ASSERT(hit_side == SSOL_BACK || hit_side == SSOL_FRONT);
-  if (rdata->reversed_ray) {
+  if(rdata->reversed_ray) {
     hit_side = (hit_side == SSOL_FRONT) ? SSOL_BACK : SSOL_FRONT;
   }
   mtl = hit_side == SSOL_FRONT ? sshape->mtl_front : sshape->mtl_back;
@@ -454,7 +450,7 @@ hit_filter_function
     /* Discard all virtual materials */
     if(rdata->discard_virtual_materials) return 1;
     /* Discard virtual material that are not receivers */
-    if((inst->receiver_mask&(int)hit_side) == 0) return 1;
+    if((inst->receiver_mask&(int) hit_side) == 0) return 1;
   }
 
   /* Save the nearest intersected quadric point */
@@ -465,4 +461,3 @@ hit_filter_function
 
   return 0;
 }
-
