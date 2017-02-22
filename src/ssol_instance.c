@@ -226,14 +226,8 @@ ssol_instance_get_shaded_shape
   sshape->mtl_front = shaded_shape->mtl_front;
   sshape->mtl_back = shaded_shape->mtl_back;
 
-  if(sshape->shape->type != SHAPE_PUNCHED) {
-    d33_set(sshape->R__, instance->transform);
-    d3_set(sshape->T__, instance->transform+9);
-  } else {
-    d33_muld33(sshape->R__, instance->transform, sshape->shape->quadric.transform);
-    d33_muld3(sshape->T__, instance->transform, sshape->shape->quadric.transform+9);
-    d3_add(sshape->T__, sshape->T__, instance->transform+9);
-  }
+  d33_set(sshape->R__, instance->transform);
+  d3_set(sshape->T__, instance->transform+9);
   d33_invtrans(sshape->R_invtrans__, sshape->R__);
   return RES_OK;
 }
