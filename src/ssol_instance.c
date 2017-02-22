@@ -14,6 +14,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
+#include "ssol_c.h"
 #include "ssol_object_c.h"
 #include "ssol_shape_c.h"
 #include "ssol_instance_c.h"
@@ -197,3 +198,72 @@ ssol_instance_get_area
   *area = instance->shape_rt_area;
   return RES_OK;
 }
+
+res_T
+ssol_instance_get_shaded_shapes_count
+  (const struct ssol_instance* instance, size_t* count)
+{
+  if(!instance || !count) return RES_BAD_ARG;
+  *count = darray_shaded_shape_size_get(&instance->object->shaded_shapes);
+  return RES_OK;
+}
+
+res_T
+ssol_instance_get_shaded_shape
+  (const struct ssol_instance* instance,
+   const size_t ishape,
+   struct ssol_instantiated_shaded_shape* sshape)
+{
+  const struct shaded_shape* shaded_shape;
+
+  if(!instance || !sshape) return RES_BAD_ARG;
+  if(ishape >= darray_shaded_shape_size_get(&instance->object->shaded_shapes))
+    return RES_BAD_ARG;
+
+  shaded_shape = darray_shaded_shape_cdata_get
+    (&instance->object->shaded_shapes) + ishape;
+  sshape->shape = shaded_shape->shape;
+  sshape->mtl_front = shaded_shape->mtl_front;
+  sshape->mtl_back = shaded_shape->mtl_back;
+
+  if(sshape->shape->type != SHAPE_PUNCHED) {
+    d33_set(sshape->R__, instance->transform);
+    d3_set(sshape->T__, instance->transform+9);
+  } else {
+    d33_muld33(sshape->R__, instance->transform, sshape->shape->quadric.transform);
+    d33_muld3(sshape->T__, instance->transform, sshape->shape->quadric.transform+9);
+    d3_add(sshape->T__, sshape->T__, instance->transform+9);
+  }
+  d33_invtrans(sshape->R_invtrans__, sshape->R__);
+  return RES_OK;
+}
+
+res_T
+ssol_instantiated_shaded_shape_get_vertex_attrib
+  (const struct ssol_instantiated_shaded_shape* sshape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[])
+{
+  res_T res = RES_OK;
+
+  if(!sshape || (unsigned)usage >= SSOL_ATTRIBS_COUNT__ || !value)
+    return RES_BAD_ARG;
+
+  res = shape_fetched_raw_vertex_attrib(sshape->shape, ivert, usage, value);
+  if(res != RES_OK) return res;
+
+  /* Transform the fetched attrib */
+  switch(usage) {
+    case SSOL_NORMAL:
+      d33_muld3(value, sshape->R_invtrans__, value);
+      break;
+    case SSOL_POSITION:
+      d33_muld3(value, sshape->R__, value);
+      d3_add(value, sshape->T__, value);
+      break;
+    default: /* Do nothing */ break;
+  }
+  return RES_OK;
+}
+

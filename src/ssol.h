@@ -247,6 +247,21 @@ struct ssol_receiver_data {
   /* TODO Add the geometry and primitive identifier */
 };
 
+struct ssol_instantiated_shaded_shape {
+  struct ssol_shape* shape;
+  struct ssol_material* mtl_front;
+  struct ssol_material* mtl_back;
+
+  /* Internal data */
+  double R__[9];
+  double T__[3];
+  double R_invtrans__[9];
+};
+
+#define SSOL_INSTANTIATED_SHADED_SHAPE_NULL__ { 0 }
+static const struct ssol_instantiated_shaded_shape
+SSOL_INSTANTIATED_SHADED_SHAPE_NULL = SSOL_INSTANTIATED_SHADED_SHAPE_NULL__;
+
 struct ssol_mc_result {
   double E; /* Expectation */
   double V; /* Variance */
@@ -650,6 +665,24 @@ SSOL_API res_T
 ssol_instance_get_area
   (const struct ssol_instance* instance,
    double* area);
+
+SSOL_API res_T
+ssol_instance_get_shaded_shapes_count
+  (const struct ssol_instance* instance,
+   size_t* nshaded_shapes);
+
+SSOL_API res_T
+ssol_instance_get_shaded_shape
+  (const struct ssol_instance* instance,
+   const size_t ishaded_shape,
+   struct ssol_instantiated_shaded_shape* shaded_shape_instance);
+
+SSOL_API res_T
+ssol_instantiated_shaded_shape_get_vertex_attrib
+  (const struct ssol_instantiated_shaded_shape* sshape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[]);
 
 /*******************************************************************************
  * Param buffer API
