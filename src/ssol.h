@@ -476,6 +476,12 @@ ssol_scene_detach_atmosphere
   (struct ssol_scene* scn,
    struct ssol_atmosphere* atm);
 
+SSOL_API res_T
+ssol_scene_for_each_instance
+  (struct ssol_scene* scn,
+   res_T (*func)(struct ssol_instance* instance, void* ctx),
+   void* ctx);
+
 /*******************************************************************************
  * Shape API - Define a geometry that can be generated from a quadric equation
  * or from a triangular mesh.

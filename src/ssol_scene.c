@@ -115,15 +115,18 @@ res_T
 ssol_scene_attach_instance
   (struct ssol_scene* scene, struct ssol_instance* instance)
 {
+  enum { ATTACH_S3D, SET_INSTANCE_RT };
   unsigned id;
   struct ssol_instance** pinst;
+  int mask = 0;
   res_T res;
 
   if(!scene || !instance) return RES_BAD_ARG;
 
   /* Attach the instantiated s3d shape to ray-trace to the RT scene */
   res = s3d_scene_attach_shape(scene->scn_rt, instance->shape_rt);
-  if(res != RES_OK) return res;
+  if(res != RES_OK) goto error;
+  mask |= BIT(ATTACH_S3D);
 
   /* Register the instance against the scene */
   S3D(shape_get_id(instance->shape_rt, &id));
@@ -131,15 +134,26 @@ ssol_scene_attach_instance
   if(pinst) {
     /* already attached */
     ASSERT(*pinst == instance); /* cannot be attached to another instance! */
-    return RES_OK;
+    goto exit;
   }
+
   res = htable_instance_set(&scene->instances_rt, &id, &instance);
-  if(res != RES_OK) {
-    S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
-    return res;
-  }
+  if(res != RES_OK) goto error;
+  mask |= BIT(SET_INSTANCE_RT);
+
   SSOL(instance_ref_get(instance));
-  return RES_OK;
+
+exit:
+  return res;
+error:
+  if(mask & BIT(ATTACH_S3D)) {
+    S3D(scene_detach_shape(scene->scn_rt, instance->shape_rt));
+  }
+  if(mask & BIT(SET_INSTANCE_RT)) {
+    const size_t n = htable_instance_erase(&scene->instances_rt, &id);
+    ASSERT(n == 1); (void)n;
+  }
+  goto exit;
 }
 
 res_T
@@ -192,9 +206,8 @@ ssol_scene_clear(struct ssol_scene* scene)
   htable_instance_clear(&scene->instances_samp);
   S3D(scene_clear(scene->scn_rt));
   S3D(scene_clear(scene->scn_samp));
-  if (scene->sun) ssol_scene_detach_sun(scene, scene->sun);
-  if (scene->atmosphere)
-    ssol_scene_detach_atmosphere(scene, scene->atmosphere);
+  if(scene->sun) SSOL(scene_detach_sun(scene, scene->sun));
+  if(scene->atmosphere) SSOL(scene_detach_atmosphere(scene, scene->atmosphere));
   return RES_OK;
 }
 
@@ -204,13 +217,11 @@ ssol_scene_attach_sun(struct ssol_scene* scene, struct ssol_sun* sun)
   if(!scene || ! sun)
     return RES_BAD_ARG;
   if(sun->scene_attachment || scene->sun) {
-    /* already attached: must be linked together */
+    /* Already attached: must be linked together */
     if(sun->scene_attachment != scene || scene->sun != sun) {
-      /* if not detach first! */
-      return RES_BAD_ARG;
+      return RES_BAD_ARG;  /* If not detach first! */
     } else {
-      /* nothing to change */
-      return RES_OK;
+      return RES_OK; /* Nothing to change */
     }
   }
   /* no previous attachment */
@@ -267,6 +278,36 @@ ssol_scene_detach_atmosphere(struct ssol_scene* scene, struct ssol_atmosphere* a
   scene->atmosphere = NULL;
   SSOL(atmosphere_ref_put(atm));
   return RES_OK;
+}
+
+res_T
+ssol_scene_for_each_instance
+  (struct ssol_scene* scn,
+   res_T (*func)(struct ssol_instance* instance, void* ctx),
+   void* ctx)
+{
+  struct htable_instance_iterator it, end;
+  res_T res = RES_OK;
+
+  if(!scn || !func) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
+  
+  htable_instance_begin(&scn->instances_rt, &it);
+  htable_instance_end(&scn->instances_rt, &end);
+  while(!htable_instance_iterator_eq(&it, &end)) {
+    struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
+    htable_instance_iterator_next(&it);
+
+    res = func(inst, ctx);
+    if(res != RES_OK) goto error;
+  }
+
+exit:
+  return res;
+error:
+  goto exit;
 }
 
 /*******************************************************************************

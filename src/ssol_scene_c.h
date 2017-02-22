@@ -22,7 +22,7 @@
 
 struct ssol_instance;
 
- /* Define the htable_instance data structure */
+/* Define the htable_instance data structure */
 #define HTABLE_NAME instance
 #define HTABLE_KEY unsigned /* S3D object instance identifier */
 #define HTABLE_DATA struct ssol_instance*
