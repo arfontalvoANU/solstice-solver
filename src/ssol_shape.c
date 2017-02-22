@@ -926,6 +926,35 @@ punched_shape_trace_ray
   return dst;
 }
 
+res_T
+shape_fetched_raw_vertex_attrib
+  (const struct ssol_shape* shape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[3])
+{
+  struct s3d_attrib s3d_attr;
+  enum s3d_attrib_usage s3d_usage;
+  res_T res = RES_OK;
+
+  ASSERT(shape && value);
+  s3d_usage = ssol_to_s3d_attrib_usage(usage);
+
+  res = s3d_mesh_get_vertex_attrib
+    (shape->shape_rt, ivert, s3d_usage, &s3d_attr);
+  if(res != RES_OK) return res;
+
+  d3_splat(value, 1);
+  switch(s3d_attr.type) {
+    case S3D_FLOAT3: value[2] = (double)s3d_attr.value[2];
+    case S3D_FLOAT2: value[1] = (double)s3d_attr.value[1];
+    case S3D_FLOAT:  value[0] = (double)s3d_attr.value[0];
+      break;
+    default: FATAL("Unexpected vertex attrib type\n"); break;
+  }
+  return RES_OK;
+}
+
 /*******************************************************************************
  * Exported ssol_shape functions
  ******************************************************************************/
@@ -976,22 +1005,23 @@ ssol_shape_get_vertex_attrib
    const enum ssol_attrib_usage usage,
    double value[])
 {
-  struct s3d_attrib s3d_attr;
-  enum s3d_attrib_usage s3d_usage;
   res_T res = RES_OK;
+  if(!shape || (unsigned)usage >= SSOL_ATTRIBS_COUNT__ || !value)
+    return RES_BAD_ARG;
 
-  if(!shape || (unsigned)usage >= SSOL_ATTRIBS_COUNT__) return RES_BAD_ARG;
-  s3d_usage = ssol_to_s3d_attrib_usage(usage);
-
-  res = s3d_mesh_get_vertex_attrib(shape->shape_rt, ivert, s3d_usage, &s3d_attr);
+  res = shape_fetched_raw_vertex_attrib(shape, ivert, usage, value);
   if(res != RES_OK) return res;
 
-  switch(s3d_attr.type) {
-    case S3D_FLOAT3: value[2] = (double)s3d_attr.value[2];
-    case S3D_FLOAT2: value[1] = (double)s3d_attr.value[1];
-    case S3D_FLOAT:  value[0] = (double)s3d_attr.value[0];
-      break;
-    default: FATAL("Unexpected vertex attrib type\n"); break;
+  /* Transform the fetch attrib */
+  if(shape->type == SHAPE_PUNCHED) {
+    if(usage == SSOL_POSITION) {
+      d33_muld3(value, shape->quadric.transform, value);
+      d3_add(value, shape->quadric.transform + 9, value);
+    } else if(usage == SSOL_NORMAL) {
+      double R_invtrans[9];
+      d33_invtrans(R_invtrans, shape->quadric.transform);
+      d33_muld3(value, R_invtrans, value);
+    }
   }
   return RES_OK;
 }

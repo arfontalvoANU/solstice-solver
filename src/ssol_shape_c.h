@@ -59,5 +59,14 @@ punched_shape_trace_ray
    double pos_quadric[3], /* World space position onto the quadric */
    double N_quadric[3]); /* World space normal onto the quadric */
 
+/* Fetch vertex attrib without any post treatment, i.e. the position and the
+ * normal are not transformed */
+extern LOCAL_SYM res_T
+shape_fetched_raw_vertex_attrib
+  (const struct ssol_shape* shape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[]);
+
 #endif /* SSOL_SHAPE_C_H */
 
