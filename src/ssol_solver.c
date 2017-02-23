@@ -659,7 +659,7 @@ trace_radiative_path
       }
 
       mtl = point_get_material(&pt);
-      if(mtl->type == MATERIAL_VIRTUAL) {
+      if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
         /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
          * are not updated to ensure that it pursues its traversal without any
          * accuracy issue */
@@ -693,7 +693,7 @@ trace_radiative_path
       S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
       if(S3D_HIT_NONE(&hit)) break;
 
-      depth += mtl->type != MATERIAL_VIRTUAL;
+      depth += mtl->type != SSOL_MATERIAL_VIRTUAL;
 
       /* Take into account the atmosphere attenuation along the new ray */
       if(scn->atmosphere) {

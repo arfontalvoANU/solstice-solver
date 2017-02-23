@@ -480,7 +480,7 @@ hit_filter_function
     hit_side = (hit_side == SSOL_FRONT) ? SSOL_BACK : SSOL_FRONT;
   }
   mtl = hit_side == SSOL_FRONT ? sshape->mtl_front : sshape->mtl_back;
-  if(mtl->type == MATERIAL_VIRTUAL) {
+  if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
     /* Discard all virtual materials */
     if(rdata->discard_virtual_materials) return 1;
     /* Discard virtual material that are not receivers */

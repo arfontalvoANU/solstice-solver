@@ -45,7 +45,7 @@ matte_shade
   double normal[3];
   double reflectivity;
   res_T res;
-  ASSERT(mtl && fragment && mtl->type == MATERIAL_MATTE);
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MATTE);
   ASSERT(bsdf);
 
   shader = &mtl->data.matte;
@@ -88,7 +88,7 @@ mirror_shade
   double roughness;
   double reflectivity;
   res_T res;
-  ASSERT(mtl && fragment && mtl->type == MATERIAL_MIRROR);
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MIRROR);
   ASSERT(bsdf);
 
   shader = &mtl->data.mirror;
@@ -177,13 +177,13 @@ static res_T
 ssol_material_create
   (struct ssol_device* dev,
    struct ssol_material** out_material,
-   enum material_type type)
+   enum ssol_material_type type)
 {
   struct ssol_material* material = NULL;
   res_T res = RES_OK;
   if(!dev
   || !out_material
-  || type >= MATERIAL_TYPES_COUNT__) {
+  || type >= SSOL_MATERIAL_TYPES_COUNT__) {
     return RES_BAD_ARG;
   }
 
@@ -218,7 +218,7 @@ ssol_material_ref_get(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(material->type < MATERIAL_TYPES_COUNT__);
+  ASSERT(material->type < SSOL_MATERIAL_TYPES_COUNT__);
   ref_get(&material->ref);
   return RES_OK;
 }
@@ -228,8 +228,17 @@ ssol_material_ref_put(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(material->type < MATERIAL_TYPES_COUNT__);
+  ASSERT(material->type < SSOL_MATERIAL_TYPES_COUNT__);
   ref_put(&material->ref, material_release);
+  return RES_OK;
+}
+
+res_T
+ssol_material_get_type
+  (const struct ssol_material* mtl, enum ssol_material_type* type)
+{
+  if(!mtl || !type) return RES_BAD_ARG;
+  *type = mtl->type;
   return RES_OK;
 }
 
@@ -247,14 +256,14 @@ res_T
 ssol_material_create_mirror
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
-  return ssol_material_create(dev, out_material, MATERIAL_MIRROR);
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_MIRROR);
 }
 
 res_T
 ssol_material_create_matte
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
-  return ssol_material_create(dev, out_material, MATERIAL_MATTE);
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_MATTE);
 }
 
 res_T
@@ -262,7 +271,7 @@ ssol_mirror_set_shader
   (struct ssol_material* material, const struct ssol_mirror_shader* shader)
 {
   if(!material
-  || material->type != MATERIAL_MIRROR
+  || material->type != SSOL_MATERIAL_MIRROR
   || !check_shader_mirror(shader))
     return RES_BAD_ARG;
   material->data.mirror = *shader;
@@ -274,7 +283,7 @@ ssol_matte_set_shader
   (struct ssol_material* material, const struct ssol_matte_shader* shader)
 {
   if(!material
-  || material->type != MATERIAL_MATTE
+  || material->type != SSOL_MATERIAL_MATTE
   || !check_shader_matte(shader))
     return RES_BAD_ARG;
   material->data.matte = *shader;
@@ -285,7 +294,7 @@ res_T
 ssol_material_create_virtual
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
-  return ssol_material_create(dev, out_material, MATERIAL_VIRTUAL);
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_VIRTUAL);
 }
 
 /*******************************************************************************
@@ -372,13 +381,13 @@ material_shade
 
   /* Specific material shading */
   switch(mtl->type) {
-    case MATERIAL_MATTE:
+    case SSOL_MATERIAL_MATTE:
       res = matte_shade(mtl, fragment, wavelength, bsdf);
       break;
-    case MATERIAL_MIRROR:
+    case SSOL_MATERIAL_MIRROR:
       res = mirror_shade(mtl, fragment, wavelength, bsdf);
       break;
-    case MATERIAL_VIRTUAL: /* Nothing to shade */ break;
+    case SSOL_MATERIAL_VIRTUAL: /* Nothing to shade */ break;
     default: FATAL("Unreachable code\n"); break;
   }
   return res;

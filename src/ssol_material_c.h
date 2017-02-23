@@ -34,15 +34,8 @@ struct surface_fragment {
 static const struct surface_fragment SURFACE_FRAGMENT_NULL =
   SURFACE_FRAGMENT_NULL__;
 
-enum material_type {
-  MATERIAL_MATTE,
-  MATERIAL_MIRROR,
-  MATERIAL_VIRTUAL,
-  MATERIAL_TYPES_COUNT__
-};
-
 struct ssol_material {
-  enum material_type type;
+  enum ssol_material_type type;
 
   union {
     struct ssol_matte_shader matte;

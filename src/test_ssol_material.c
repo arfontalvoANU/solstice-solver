@@ -26,6 +26,7 @@ main(int argc, char** argv)
   struct ssol_mirror_shader mirror = SSOL_MIRROR_SHADER_NULL;
   struct ssol_matte_shader matte = SSOL_MATTE_SHADER_NULL;
   struct ssol_param_buffer* pbuf = NULL;
+  enum ssol_material_type type;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -36,6 +37,12 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_mirror(NULL, &material), RES_BAD_ARG);
   CHECK(ssol_material_create_mirror(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_mirror(dev, &material), RES_OK);
+
+  CHECK(ssol_material_get_type(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_get_type(material, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_get_type(NULL, &type), RES_BAD_ARG);
+  CHECK(ssol_material_get_type(material, &type), RES_OK);
+  CHECK(type, SSOL_MATERIAL_MIRROR);
 
   CHECK(ssol_material_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_material_ref_get(material), RES_OK);
@@ -77,6 +84,9 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_virtual(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
 
+  CHECK(ssol_material_get_type(material, &type), RES_OK);
+  CHECK(type, SSOL_MATERIAL_VIRTUAL);
+
   CHECK(ssol_material_ref_put(material), RES_OK);
   CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
 
@@ -84,6 +94,9 @@ main(int argc, char** argv)
   CHECK(ssol_material_create_matte(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_matte(NULL, &material), RES_BAD_ARG);
   CHECK(ssol_material_create_matte(dev, &material), RES_OK);
+
+  CHECK(ssol_material_get_type(material, &type), RES_OK);
+  CHECK(type, SSOL_MATERIAL_MATTE);
 
   matte.normal = get_shader_normal;
   matte.reflectivity = get_shader_reflectivity;
@@ -107,3 +120,4 @@ main(int argc, char** argv)
 
   return 0;
 }
+

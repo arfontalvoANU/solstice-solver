@@ -66,6 +66,13 @@ enum ssol_side_flag {
   SSOL_INVALID_SIDE = BIT(2)
 };
 
+enum ssol_material_type {
+  SSOL_MATERIAL_MATTE,
+  SSOL_MATERIAL_MIRROR,
+  SSOL_MATERIAL_VIRTUAL,
+  SSOL_MATERIAL_TYPES_COUNT__
+};
+
 enum ssol_clipping_op {
   SSOL_AND,
   SSOL_SUB,
@@ -565,6 +572,11 @@ SSOL_API res_T
 ssol_material_create_virtual
   (struct ssol_device* dev,
    struct ssol_material** mtl);
+
+SSOL_API res_T
+ssol_material_get_type
+  (const struct ssol_material* mtl,
+   enum ssol_material_type* type);
 
 SSOL_API res_T
 ssol_material_ref_get
