@@ -626,7 +626,6 @@ trace_radiative_path
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
   size_t depth = 0;
   int is_lit = 0;
-  int hit_a_receiver = 0;
   res_T res = RES_OK;
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
@@ -641,6 +640,8 @@ trace_radiative_path
     thread_ctx->shadowed.weight += pt.weight;
     thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
   } else {
+    int hit_a_receiver = 0;
+
     /* Setup the ray as if it starts from the current point position in order
      * to handle the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
@@ -690,7 +691,7 @@ trace_radiative_path
       ray_data.range_min = range[0];
       ray_data.dst = FLT_MAX;
       S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
-      if(S3D_HIT_NONE(&hit)) goto error;
+      if(S3D_HIT_NONE(&hit)) break;
 
       depth += mtl->type != MATERIAL_VIRTUAL;
 
@@ -706,11 +707,10 @@ trace_radiative_path
       /* Update the point */
       point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
     }
-  }
-
-  if(!hit_a_receiver) {
-    thread_ctx->missing.weight += pt.weight;
-    thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
+    if(!hit_a_receiver) {
+      thread_ctx->missing.weight += pt.weight;
+      thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
+    }
   }
 
 exit:
