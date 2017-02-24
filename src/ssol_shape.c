@@ -638,12 +638,10 @@ quadric_parabol_gradient_local
    const double pt[3],
    double grad[3])
 {
-  double tmp[3];
   ASSERT(quad && pt && grad);
-  tmp[0] = -pt[0];
-  tmp[1] = -pt[1];
-  tmp[2] = 2 * quad->focal;
-  d3_set(grad, tmp);
+  grad[0] = -pt[0];
+  grad[1] = -pt[1];
+  grad[2] = 2 * quad->focal;
 }
 
 static FINLINE void
@@ -652,12 +650,10 @@ quadric_parabolic_cylinder_gradient_local
    const double pt[3],
    double grad[3])
 {
-  double tmp[3];
   ASSERT(quad && pt && grad);
-  tmp[0] = 0;
-  tmp[1] = -pt[1];
-  tmp[2] = 2 * quad->focal;
-  d3_set(grad, tmp);
+  grad[0] = 0;
+  grad[1] = -pt[1];
+  grad[2] = 2 * quad->focal;
 }
 
 static FINLINE int
@@ -665,7 +661,7 @@ quadric_plane_intersect_local
   (const double org[3],
    const double dir[3],
    const double hint,
-   double pt[3],
+   double hit_pt[3],
    double grad[3],
    double* dist)
 {
@@ -673,14 +669,11 @@ quadric_plane_intersect_local
   const double a = 0;
   const double b = dir[2];
   const double c = org[2];
-  double tmp[3];
   double dst;
   int sol = quadric_solve_second(a, b, c, hint, &dst);
 
   if(!sol) return 0;
-  d3_add(tmp, org, d3_muld(tmp, dir, dst));
-
-  d3_set(pt, tmp);
+  d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst));
   quadric_plane_gradient_local(grad);
   *dist = dst;
   return 1;
@@ -692,7 +685,7 @@ quadric_parabol_intersect_local
    const double org[3],
    const double dir[3],
    const double hint,
-   double pt[3],
+   double hit_pt[3],
    double grad[3],
    double* dist) /* in/out: */
 {
@@ -703,12 +696,10 @@ quadric_parabol_intersect_local
     2 * org[0] * dir[0] + 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[0] * org[0] + org[1] * org[1] - 4 * quad->focal * org[2];
   const int sol = quadric_solve_second(a, b, c, hint, &dst);
-  double tmp[3];
 
   if(!sol) return 0;
-  d3_add(tmp, org, d3_muld(tmp, dir, dst));
-  quadric_parabol_gradient_local(quad, tmp, grad);
-  d3_set(pt, tmp);
+  d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst));
+  quadric_parabol_gradient_local(quad, hit_pt, grad);
   *dist = dst;
   return 1;
 }
@@ -719,7 +710,7 @@ quadric_parabolic_cylinder_intersect_local
    const double org[3],
    const double dir[3],
    const double hint,
-   double pt[3],
+   double hit_pt[3],
    double grad[3],
    double* dist)
 {
@@ -728,9 +719,10 @@ quadric_parabolic_cylinder_intersect_local
   const double b = 2 * org[1] * dir[1] - 4 * quad->focal * dir[2];
   const double c = org[1] * org[1] - 4 * quad->focal * org[2];
   const int sol = quadric_solve_second(a, b, c, hint, dist);
+
   if(!sol) return 0;
-  d3_add(pt, org, d3_muld(pt, dir, *dist));
-  quadric_parabolic_cylinder_gradient_local(quad, pt, grad);
+  d3_add(hit_pt, org, d3_muld(hit_pt, dir, *dist));
+  quadric_parabolic_cylinder_gradient_local(quad, hit_pt, grad);
   return 1;
 }
 
@@ -740,10 +732,9 @@ punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
   ASSERT(shape && pt);
   ASSERT(shape->type == SHAPE_PUNCHED);
   switch (shape->quadric.type) {
-    case SSOL_QUADRIC_PLANE: {
+    case SSOL_QUADRIC_PLANE:
       pt[2] = 0;
       break;
-    }
     case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
       const struct ssol_quadric_parabolic_cylinder* quad
         = &shape->quadric.data.parabolic_cylinder;
@@ -879,10 +870,9 @@ double
 punched_shape_trace_ray
   (struct ssol_shape* shape,
    const double transform[12], /* Shape to world space transformation */
-   const double pos[3], /* World space position near of the quadric */
-   const double dir[3], /* World space projection direction */
+   const double org[3], /* World space position near of the ray origin */
+   const double dir[3], /* World space ray direction */
    const double hint_dst, /* Hint on the hit distance */
-   double pos_quadric[3], /* World space position onto the quadric */
    double N_quadric[3]) /* World space normal onto the quadric */
 {
   double R[9]; /* Quadric to world rotation matrix */
@@ -890,11 +880,12 @@ punched_shape_trace_ray
   double T[3]; /* Quadric to world translation vector */
   double T_inv[3]; /* Inverse of T */
   double dir_local[3];
-  double pos_local[3];
+  double org_local[3];
+  double hit_local[3];
   double N_local[3];
   double dst; /* Hit distance */
   int valid;
-  ASSERT(shape && transform && pos && pos_quadric && N_quadric);
+  ASSERT(shape && transform && org && N_quadric);
   ASSERT(shape->type == SHAPE_PUNCHED);
 
   /* Compute world<->quadric space transformations */
@@ -905,21 +896,17 @@ punched_shape_trace_ray
   d3_minus(T_inv, T);
 
   /* Transform pos in quadric space */
-  d3_add(pos_local, pos, T_inv);
-  d3_muld33(pos_local, pos_local, R_invtrans);
+  d3_add(org_local, org, T_inv);
+  d3_muld33(org_local, org_local, R_invtrans);
 
   /* Transform dir in quadric space */
   d3_muld33(dir_local, dir, R_invtrans);
 
   /* Project pos_local onto the quadric and compute its associated normal */
   valid = punched_shape_intersect_local
-    (shape, pos_local, dir_local, hint_dst, pos_local, N_local, &dst);
+    (shape, org_local, dir_local, hint_dst, hit_local, N_local, &dst);
   if(!valid) return INF;
-
-  /* Transform the local position in world space */
-  d33_muld3(pos_quadric, R, pos_local);
-  d3_add(pos_quadric, pos_quadric, T);
-
+  
   /* Transform the quadric normal in world space */
   d33_muld3(N_quadric, R_invtrans, N_local);
   d3_normalize(N_quadric, N_quadric);

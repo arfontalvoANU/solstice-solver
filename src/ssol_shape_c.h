@@ -56,7 +56,6 @@ punched_shape_trace_ray
    const double org[3], /* Ray origin in world space */
    const double dir[3], /* Ray direction in world space */
    const double hint_dst, /* Hint on the hit distance */
-   double pos_quadric[3], /* World space position onto the quadric */
    double N_quadric[3]); /* World space normal onto the quadric */
 
 /* Fetch vertex attrib without any post treatment, i.e. the position and the

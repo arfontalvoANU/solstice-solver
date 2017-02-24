@@ -411,7 +411,7 @@ error:
 int
 hit_filter_function
   (const struct s3d_hit* hit,
-   const float posf[3],
+   const float orgf[3],
    const float dirf[3],
    void* ray_data,
    void* filter_data)
@@ -421,10 +421,10 @@ hit_filter_function
   struct ray_data* rdata = ray_data;
   const struct shaded_shape* sshape;
   enum ssol_side_flag hit_side = SSOL_INVALID_SIDE;
-  double pos[3], dir[3], N[3], dst = FLT_MAX;
+  double org[3], dir[3], N[3], dst = FLT_MAX;
   size_t id;
   (void)filter_data;
-  ASSERT(hit && posf && dirf);
+  ASSERT(hit && orgf && dirf);
 
   /* No ray data => nothing to filter */
   if(!ray_data) return 0;
@@ -451,16 +451,16 @@ hit_filter_function
     case SHAPE_PUNCHED:
       /* Project the hit position into the punched shape */
       d3_set_f3(dir, dirf);
-      d3_set_f3(pos, posf);
-      dst = punched_shape_trace_ray(sshape->shape, inst->transform, pos, dir,
-        hit->distance, pos, N);
+      d3_set_f3(org, orgf);
+      dst = punched_shape_trace_ray(sshape->shape, inst->transform, org, dir,
+        hit->distance, N);
       if(dst >= FLT_MAX) {
         /* No projection is found => the ray does not intersect the quadric */
         return 1;
       }
       if(dst <= rdata->range_min) {
         /* Handle RT numerical imprecision, the hit is below the lower bound
-        * of the ray range. */
+         * of the ray range. */
         return 1;
       }
       hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
