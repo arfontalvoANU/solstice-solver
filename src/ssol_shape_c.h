@@ -26,11 +26,37 @@ enum shape_type {
   SHAPE_TYPES_COUNT__
 };
 
+struct priv_parabol_data {
+  double focal;
+  double _1_4f;
+};
+
+struct priv_hyperbol_data {
+  double _a2_b2;
+  double _1_a2;
+  double abs_b;
+};
+
+struct priv_pcylinder_data {
+  double focal;
+  double _1_4f;
+};
+
+struct priv_quadric_data {
+  enum ssol_quadric_type type;
+  union {
+    struct priv_hyperbol_data hyperbol;
+    struct priv_parabol_data parabol;
+    struct priv_pcylinder_data pcylinder;
+  } data;
+};
+
 struct ssol_shape {
   enum shape_type type;
 
   struct s3d_shape* shape_rt; /* Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Star-3D shape to sample */
+  struct priv_quadric_data priv_quadric;
   struct ssol_quadric quadric;
   double shape_rt_area, shape_samp_area;
 

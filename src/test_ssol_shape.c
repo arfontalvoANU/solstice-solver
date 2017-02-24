@@ -200,6 +200,19 @@ main(int argc, char** argv)
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.data.parabol.focal = 1;
 
+  quadric.type = SSOL_QUADRIC_HYPERBOL;
+  quadric.data.hyperbol.real_focal = 1;
+  quadric.data.hyperbol.img_focal = 1;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  quadric.data.hyperbol.real_focal = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.data.hyperbol.real_focal = 1;
+
+  quadric.data.hyperbol.img_focal = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.data.hyperbol.img_focal = 1;
+
   quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
   quadric.data.parabolic_cylinder.focal = 1;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
