@@ -195,9 +195,9 @@ static FINLINE double hyperbol_z
   (const double p[2],
    const struct priv_hyperbol_data* hyperbol)
 {
-  const double z0 = hyperbol->abs_b + 0.5;
+  const double z0 = hyperbol->g_2 + hyperbol->abs_b;
   const double r2 = p[0] * p[0] + p[1] * p[1];
-  return hyperbol->abs_b * sqrt(1 + r2 * hyperbol->_1_a2) + 0.5 - z0;
+  return hyperbol->abs_b * sqrt(1 + r2 * hyperbol->_1_a2) + hyperbol->g_2 - z0;
 }
 
 static FINLINE double parabol_z
@@ -706,10 +706,10 @@ quadric_hyperbol_gradient_local
 {
   ASSERT(quad && pt && grad);
   {
-    const double z0 = quad->abs_b + 0.5;
+    const double z0 = quad->g_2 + quad->abs_b;
     grad[0] = pt[0];
     grad[1] = pt[1];
-    grad[2] = -(pt[2] + z0 - 0.5) * quad->_a2_b2;
+    grad[2] = -(pt[2] + z0 - quad->g_2) * quad->_a2_b2;
   }
 }
 
@@ -786,13 +786,13 @@ quadric_hyperbol_intersect_local
   double dst;
   const double b2 = quad->abs_b * quad->abs_b;
   const double b2_a2 = b2 * quad->_1_a2;
-  const double z0 = quad->abs_b + 0.5;
+  const double z0 = quad->g_2 + quad->abs_b;
   const double a =
     b2_a2 * (dir[0] * dir[0] + dir[1] * dir[1]) - dir[2] * dir[2];
   const double b =
-    2 * (b2_a2 * (org[0] * dir[0] + org[1] * dir[1]) - (org[2] + z0 - 0.5) * dir[2]);
+    2 * (b2_a2 * (org[0] * dir[0] + org[1] * dir[1]) - (org[2] + z0 - quad->g_2) * dir[2]);
   const double c = b2_a2 * (org[0] * org[0] + org[1] * org[1]) + b2
-    - (org[2] + z0 - 0.5) * (org[2] + z0 - 0.5);
+    - (org[2] + z0 - quad->g_2) * (org[2] + z0 - quad->g_2);
   const int sol = quadric_solve_second(a, b, c, hint, &dst);
 
   if (!sol) return 0;
@@ -1184,11 +1184,13 @@ ssol_punched_surface_setup
       const struct ssol_quadric_hyperbol* hyperbol =
         &psurf->quadric->data.hyperbol;
       struct priv_hyperbol_data* data = &shape->priv_quadric.data.hyperbol;
-      const double f =
-        hyperbol->real_focal / (hyperbol->real_focal + hyperbol->img_focal);
-      const double a2 = (f - f * f);
+      /* re-dimensionalize */
+      const double g = hyperbol->real_focal + hyperbol->img_focal;
+      const double f = hyperbol->real_focal / g;
+      const double a2 =  g * g * (f - f * f);
       double max_z;
-      data->abs_b = fabs(f - 0.5);
+      data->g_2 = g * 0.5;
+      data->abs_b = g * fabs(f - 0.5);
       data->_a2_b2 = a2 / (data->abs_b * data->abs_b);
       data->_1_a2 = 1 / a2;
       max_z = MMAX(hyperbol_z(lower, data), hyperbol_z(upper, data));

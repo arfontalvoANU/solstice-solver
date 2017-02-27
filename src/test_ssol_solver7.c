@@ -19,15 +19,25 @@
 #define REFLECTIVITY 0
 #include "test_ssol_materials.h"
 
-#define PLANE_NAME SMALL
-#define HALF_X 2
-#define HALF_Y 2
+#define TARGET_SZ 2
+#define PLANE_NAME TARGET
+#define HALF_X (TARGET_SZ/2)
+#define HALF_Y (TARGET_SZ/2)
+STATIC_ASSERT((HALF_X * 2 == TARGET_SZ), ONLY_ENVEN_VALUES_FOR_SZ);
 #include "test_ssol_rect_geometry.h"
 
-#define MIRROR_SIDE 10
-#define POLYGON_NAME LARGE
-#define HALF_X (MIRROR_SIDE/2)
-#define HALF_Y (MIRROR_SIDE/2)
+#define HELIOSTAT_SZ 4
+#define POLYGON_NAME HELIOSTAT
+#define HALF_X (HELIOSTAT_SZ/2)
+#define HALF_Y (HELIOSTAT_SZ/2)
+STATIC_ASSERT(HALF_X * 2 == HELIOSTAT_SZ, ONLY_ENVEN_VALUES_FOR_SZ);
+#include "test_ssol_rect2D_geometry.h"
+
+#define HYPERBOL_SZ 24
+#define POLYGON_NAME HYPERBOL
+#define HALF_X (HYPERBOL_SZ/2)
+#define HALF_Y (HYPERBOL_SZ/2)
+STATIC_ASSERT(HALF_X * 2 == HYPERBOL_SZ, ONLY_ENVEN_VALUES_FOR_SZ);
 #include "test_ssol_rect2D_geometry.h"
 
 #include <rsys/double33.h>
@@ -129,8 +139,7 @@ setup_camera(struct ssol_device* dev, struct ssol_camera** camera)
   struct ssol_camera* cam = NULL;
   double proj_ratio = 0;
   res_T res = RES_OK;
-  //double pos[3] = { 25, -50, 15 }, tgt[3] = { 25, 0, 15 }, up[3] = { 0, 0, 1 };
-  double pos[3] = { 59, 0, 0 }, tgt[3] = { 0, 0, 30 }, up[3] = { 0, 0, 1 };
+  double pos[3] = { 50, -120, 50 }, tgt[3] = { 50, 0, 50 }, up[3] = { 0, 0, 1 };
   ASSERT(dev && camera);
 
   res = ssol_camera_create(dev, &cam);
@@ -139,7 +148,7 @@ setup_camera(struct ssol_device* dev, struct ssol_camera** camera)
     goto error;
   }
 
-#define FOV 80.0
+#define FOV 60.0
 
   proj_ratio = WIDTH / HEIGHT;
   res = ssol_camera_set_proj_ratio(cam, proj_ratio);
@@ -272,7 +281,7 @@ main(int argc, char** argv)
   struct ssol_instance* secondary;
   (void) argc, (void) argv;
 
-#define H 20
+#define H 10
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
@@ -283,7 +292,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
-  CHECK(ssol_sun_set_direction(sun, d3(dir, 3, 0, -1)), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
@@ -294,8 +303,8 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, SMALL_NTRIS__, get_ids,
-    SMALL_NVERTS__, attribs, 1, (void*) &SMALL_DESC__), RES_OK);
+  CHECK(ssol_mesh_setup(square, TARGET_NTRIS__, get_ids,
+    TARGET_NVERTS__, attribs, 1, (void*) &TARGET_DESC__), RES_OK);
 
   CHECK(ssol_material_create_mirror(dev, &m_mtl), RES_OK);
   m_shader.normal = get_shader_normal;
@@ -310,12 +319,12 @@ main(int argc, char** argv)
 
   carving1.get = get_polygon_vertices;
   carving1.operation = SSOL_AND;
-  carving1.nb_vertices = LARGE_NVERTS__;
-  carving1.context = &LARGE_EDGES__;
+  carving1.nb_vertices = HELIOSTAT_NVERTS__;
+  carving1.context = &HELIOSTAT_EDGES__;
 
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square1), RES_OK);
   quadric1.type = SSOL_QUADRIC_PARABOL;
-  quadric1.data.parabol.focal = sqrt(1.5 * 1.5 + 3 * 3) * H;
+  quadric1.data.parabol.focal = 10 * sqrt(2) * H;
   punched1.nb_carvings = 1;
   punched1.quadric = &quadric1;
   punched1.carvings = &carving1;
@@ -324,20 +333,20 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(m_object1, quad_square1, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object1, &heliostat), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
-  d33_rotation_yaw(transform, atan(0.5) - 0.5 * PI);
+  d33_rotation_yaw(transform, -0.25 * PI);
   d3_splat(transform + 9, 0);
-  transform[9] = 3 * H; /* target the img focal point of the hyperbol */
+  transform[9] = 10 * H; /* target the img focal point of the hyperbol */
   CHECK(ssol_instance_set_transform(heliostat, transform), RES_OK);
 
   carving2.get = get_polygon_vertices;
   carving2.operation = SSOL_AND;
-  carving2.nb_vertices = LARGE_NVERTS__;
-  carving2.context = &LARGE_EDGES__;
+  carving2.nb_vertices = HYPERBOL_NVERTS__;
+  carving2.context = &HYPERBOL_EDGES__;
 
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square2), RES_OK);
   quadric2.type = SSOL_QUADRIC_HYPERBOL;
-  quadric2.data.hyperbol.real_focal = 1.8 * H;
-  quadric2.data.hyperbol.img_focal = 0.2 * H;
+  quadric2.data.hyperbol.real_focal = 9 * H;
+  quadric2.data.hyperbol.img_focal = 1 * H;
   punched2.nb_carvings = 1;
   punched2.quadric = &quadric2;
   punched2.carvings = &carving2;
@@ -348,7 +357,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, secondary), RES_OK);
   d33_set_identity(transform);
   d3_splat(transform + 9, 0);
-  transform[11] = 1.3 * H;
+  transform[11] = 9 * H;
   CHECK(ssol_instance_set_transform(secondary, transform), RES_OK);
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
 
@@ -364,30 +373,29 @@ main(int argc, char** argv)
   
 #define N__ 10000
 #define DNI_cos (1000 * cos(0))
-#define TOTAL (MIRROR_SIDE * MIRROR_SIDE * DNI_cos)
+#define TOTAL (HELIOSTAT_SZ * HELIOSTAT_SZ * DNI_cos)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(fclose(tmp), 0);
 
-  CHECK(solstice_draw(scene, "full_scene.ppm"), RES_OK);
+  /*CHECK(solstice_draw(scene, "full_scene.ppm"), RES_OK);*/
 
   printf("Total = %g\n", TOTAL);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n",
     mc_global.shadowed.E, mc_global.shadowed.SE);
-  //CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   printf("Missing = %g +/- %g\n",
     mc_global.missing.E, mc_global.missing.SE);
-  //CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
-
+  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
 
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  //CHECK(eq_eps(mc_rcv.integrated_irradiance.E, 100000, 2 * 100000 / sqrt(N__)), 1);
-  //CHECK(eq_eps(status.irradiance.SE, std, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, TOTAL, TOTAL * 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, 0, 1e-4), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

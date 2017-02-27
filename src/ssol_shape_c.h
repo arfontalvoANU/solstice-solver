@@ -32,6 +32,7 @@ struct priv_parabol_data {
 };
 
 struct priv_hyperbol_data {
+  double g_2;
   double _a2_b2;
   double _1_a2;
   double abs_b;
