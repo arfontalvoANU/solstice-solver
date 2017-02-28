@@ -395,6 +395,8 @@ hit_filter_function
 
   /* No ray data => nothing to filter */
   if(!ray_data) return 0;
+  /* Handle numerical imprecision */
+  if(hit->distance <= rdata->range_min) return 1;
 
   /* Retrieve the intersected instance and shaded shape */
   inst = *htable_instance_find(&rdata->scn->instances_rt, &hit->prim.inst_id);
@@ -425,7 +427,7 @@ hit_filter_function
         /* No projection is found => the ray does not intersect the quadric */
         return 1;
       }
-      if(dst <= rdata->range_min) {
+      if((float)dst <= rdata->range_min) {
         /* Handle RT numerical imprecision, the hit is below the lower bound
         * of the ray range. */
         return 1;
