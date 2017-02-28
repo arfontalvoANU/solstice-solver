@@ -574,9 +574,9 @@ ssol_solve
         = htable_receiver_find(mc_rcvs + i, &key);
       #define ACCUM_WEIGHT(Name) {                                             \
         estimator_data->front.Name.weight += thread_data->front.Name.weight;   \
-        estimator_data->back.Name.weight += thread_data->front.Name.weight;    \
+        estimator_data->back.Name.weight += thread_data->back.Name.weight;     \
         estimator_data->front.Name.sqr_weight += thread_data->front.Name.sqr_weight;\
-        estimator_data->back.Name.sqr_weight += thread_data->front.Name.sqr_weight;\
+        estimator_data->back.Name.sqr_weight += thread_data->back.Name.sqr_weight;\
       } (void)0
       ACCUM_WEIGHT(irradiance);
       ACCUM_WEIGHT(absorptivity_loss);
