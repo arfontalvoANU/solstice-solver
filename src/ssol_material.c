@@ -172,9 +172,9 @@ thin_dielectric_shade
 
   /* Setup the BxDF */
   res = ssf_bxdf_create
-    (mtl->dev->allocator, &ssf_thin_transparent_dielectric, &bxdf);
+    (mtl->dev->allocator, &ssf_thin_specular_dielectric, &bxdf);
   if(res != RES_OK) goto error;
-  res = ssf_thin_transparent_dielectric_setup(bxdf, T, eta_i, eta_t, thickness);
+  res = ssf_thin_specular_dielectric_setup(bxdf, T, eta_i, eta_t, thickness);
   if(res != RES_OK) goto error;
 
   /* Setup the BSDF */
