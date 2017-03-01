@@ -841,6 +841,7 @@ punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
       break;
     case SSOL_QUADRIC_HYPERBOL:
       pt[2] = hyperbol_z(pt, &shape->priv_quadric.data.hyperbol);
+      break;
     default: FATAL("Unreachable code\n"); break;
   }
 }
