@@ -40,6 +40,7 @@ struct ssol_material {
   union {
     struct ssol_matte_shader matte;
     struct ssol_mirror_shader mirror;
+    struct ssol_thin_dielectric_shader thin_dielectric;
   } data;
 
   struct ssol_param_buffer* buf;

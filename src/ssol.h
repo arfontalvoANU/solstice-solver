@@ -69,6 +69,7 @@ enum ssol_side_flag {
 enum ssol_material_type {
   SSOL_MATERIAL_MATTE,
   SSOL_MATERIAL_MIRROR,
+  SSOL_MATERIAL_THIN_DIELECTRIC,
   SSOL_MATERIAL_VIRTUAL,
   SSOL_MATERIAL_TYPES_COUNT__
 };
@@ -233,6 +234,17 @@ struct ssol_matte_shader {
 #define SSOL_MATTE_SHADER_NULL__ { NULL, NULL }
 static const struct ssol_matte_shader SSOL_MATTE_SHADER_NULL =
   SSOL_MATTE_SHADER_NULL__;
+
+/* Thin dielectric shader */
+struct ssol_thin_dielectric_shader {
+  ssol_shader_getter_T normal;
+  ssol_shader_getter_T transmissivity;
+  ssol_shader_getter_T thickness;
+  ssol_shader_getter_T refractive_index;
+};
+#define SSOL_THIN_DIELECTRIC_SHADER_NULL__ { NULL, NULL, NULL, NULL }
+static const struct ssol_thin_dielectric_shader
+SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
 
 /* The type of data produced on receiver hits as ssol_solve() write them on its
  * FILE* argument */
@@ -574,6 +586,11 @@ ssol_material_create_virtual
    struct ssol_material** mtl);
 
 SSOL_API res_T
+ssol_material_create_thin_dielectric
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
 ssol_material_get_type
   (const struct ssol_material* mtl,
    enum ssol_material_type* type);
@@ -600,6 +617,11 @@ SSOL_API res_T
 ssol_matte_set_shader
   (struct ssol_material* mtl,
    const struct ssol_matte_shader* shader);
+
+SSOL_API res_T
+ssol_thin_dielectric_set_shader
+  (struct ssol_material* mtl,
+   const struct ssol_thin_dielectric_shader* shader);
 
 /*******************************************************************************
  * Object API - Opaque abstraction of a geometry with its associated properties.
