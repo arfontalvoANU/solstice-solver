@@ -90,4 +90,55 @@ get_shader_roughness
   *val = 0;
 }
 
+static INLINE void
+get_shader_transmissivity
+  (struct ssol_device* dev,
+   struct ssol_param_buffer* buf,
+   const double wavelength,
+   const double P[3],
+   const double Ng[3],
+   const double Ns[3],
+   const double uv[2],
+   const double w[3],
+   double* val)
+{
+  (void)dev, (void)buf, (void)wavelength;
+  (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
+  *val = 1;
+}
+
+static INLINE void
+get_shader_thickness
+  (struct ssol_device* dev,
+   struct ssol_param_buffer* buf,
+   const double wavelength,
+   const double P[3],
+   const double Ng[3],
+   const double Ns[3],
+   const double uv[2],
+   const double w[3],
+   double* val)
+{
+  (void)dev, (void)buf, (void)wavelength;
+  (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
+  *val = 1;
+}
+
+static INLINE void
+get_shader_refractive_index
+  (struct ssol_device* dev,
+   struct ssol_param_buffer* buf,
+   const double wavelength,
+   const double P[3],
+   const double Ng[3],
+   const double Ns[3],
+   const double uv[2],
+   const double w[3],
+   double* val)
+{
+  (void)dev, (void)buf, (void)wavelength;
+  (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
+  *val = 1.5;
+}
+
 #endif /* TEST_SSOL_MATERIALS_H */

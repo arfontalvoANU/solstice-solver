@@ -17,23 +17,15 @@
 #include "test_ssol_utils.h"
 #include "test_ssol_materials.h"
 
-int
-main(int argc, char** argv)
+static void
+test_mirror(struct ssol_device* dev)
 {
-  struct mem_allocator allocator;
-  struct ssol_device* dev;
-  struct ssol_material* material;
   struct ssol_mirror_shader mirror = SSOL_MIRROR_SHADER_NULL;
-  struct ssol_matte_shader matte = SSOL_MATTE_SHADER_NULL;
   struct ssol_param_buffer* pbuf = NULL;
+  struct ssol_material* material;
   enum ssol_material_type type;
-  (void) argc, (void) argv;
 
-  mem_init_proxy_allocator(&allocator, &mem_default_allocator);
-
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
-
+  CHECK(ssol_material_create_mirror(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_mirror(NULL, &material), RES_BAD_ARG);
   CHECK(ssol_material_create_mirror(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_mirror(dev, &material), RES_OK);
@@ -79,16 +71,15 @@ main(int argc, char** argv)
   mirror.roughness = get_shader_roughness;
 
   CHECK(ssol_material_ref_put(material), RES_OK);
-
-  CHECK(ssol_material_create_virtual(NULL, &material), RES_BAD_ARG);
-  CHECK(ssol_material_create_virtual(dev, NULL), RES_BAD_ARG);
-  CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
-
-  CHECK(ssol_material_get_type(material, &type), RES_OK);
-  CHECK(type, SSOL_MATERIAL_VIRTUAL);
-
-  CHECK(ssol_material_ref_put(material), RES_OK);
   CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
+}
+
+static void
+test_matte(struct ssol_device* dev)
+{
+  struct ssol_matte_shader matte = SSOL_MATTE_SHADER_NULL;
+  struct ssol_material* material;
+  enum ssol_material_type type;
 
   CHECK(ssol_material_create_matte(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_material_create_matte(dev, NULL), RES_BAD_ARG);
@@ -112,6 +103,87 @@ main(int argc, char** argv)
   CHECK(ssol_matte_set_shader(material, &matte), RES_BAD_ARG);
 
   CHECK(ssol_material_ref_put(material), RES_OK);
+}
+
+static void
+test_thin_dielectric(struct ssol_device* dev)
+{
+  struct ssol_thin_dielectric_shader thin_dielectric =
+    SSOL_THIN_DIELECTRIC_SHADER_NULL;
+  struct ssol_material* material;
+  enum ssol_material_type type;
+
+  CHECK(ssol_material_create_thin_dielectric(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_thin_dielectric(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_thin_dielectric(NULL, &material), RES_BAD_ARG);
+  CHECK(ssol_material_create_thin_dielectric(dev, &material), RES_OK);
+
+  CHECK(ssol_material_get_type(material, &type), RES_OK);
+  CHECK(type, SSOL_MATERIAL_THIN_DIELECTRIC);
+
+  thin_dielectric.normal = get_shader_normal;
+  thin_dielectric.transmissivity = get_shader_transmissivity;
+  thin_dielectric.thickness = get_shader_thickness;
+  thin_dielectric.refractive_index = get_shader_refractive_index;
+
+  CHECK(ssol_thin_dielectric_set_shader(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_thin_dielectric_set_shader(material, NULL), RES_BAD_ARG);
+  CHECK(ssol_thin_dielectric_set_shader(NULL, &thin_dielectric), RES_BAD_ARG);
+  CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_OK);
+
+  thin_dielectric.normal = NULL;
+  CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
+  thin_dielectric.normal = get_shader_normal;
+
+  thin_dielectric.transmissivity = NULL;
+  CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
+  thin_dielectric.transmissivity = get_shader_transmissivity;
+
+  thin_dielectric.thickness = NULL;
+  CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
+  thin_dielectric.thickness = get_shader_thickness;
+
+  thin_dielectric.refractive_index = NULL;
+  CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
+  thin_dielectric.thickness = get_shader_refractive_index;
+
+  CHECK(ssol_material_ref_put(material), RES_OK);
+}
+
+static void
+test_virtual(struct ssol_device* dev)
+{
+  struct ssol_material* material;
+  enum ssol_material_type type;
+
+  CHECK(ssol_material_create_virtual(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_virtual(NULL, &material), RES_BAD_ARG);
+  CHECK(ssol_material_create_virtual(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
+
+  CHECK(ssol_material_get_type(material, &type), RES_OK);
+  CHECK(type, SSOL_MATERIAL_VIRTUAL);
+
+  CHECK(ssol_material_ref_put(material), RES_OK);
+}
+
+int
+main(int argc, char** argv)
+{
+  struct mem_allocator allocator;
+  struct ssol_device* dev;
+  (void) argc, (void) argv;
+
+  mem_init_proxy_allocator(&allocator, &mem_default_allocator);
+
+  CHECK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+
+  test_mirror(dev);
+  test_matte(dev);
+  test_thin_dielectric(dev);
+  test_virtual(dev);
+
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   check_memory_allocator(&allocator);
