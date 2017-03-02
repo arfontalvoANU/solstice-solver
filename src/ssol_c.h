@@ -45,7 +45,7 @@ struct ray_data {
 };
 
 static const struct ray_data RAY_DATA_NULL = {
-  NULL, S3D_PRIMITIVE_NULL__, NULL, SSOL_INVALID_SIDE, 0, 0, 0, {0, 0, 0}, 0
+  NULL, S3D_PRIMITIVE_NULL__, NULL, SSOL_INVALID_SIDE, 0, 0, 0, {0,0,0}, FLT_MAX
 };
 
 

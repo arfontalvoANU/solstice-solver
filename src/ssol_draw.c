@@ -17,7 +17,9 @@
 #include "ssol_c.h"
 #include "ssol_camera.h"
 #include "ssol_device_c.h"
+#include "ssol_object_c.h"
 #include "ssol_scene_c.h"
+#include "ssol_shape_c.h"
 
 #include <rsys/double3.h>
 #include <rsys/math.h>
@@ -59,8 +61,25 @@ Li(struct ssol_scene* scn,
   if(S3D_HIT_NONE(&hit)) {
     d3_splat(val, 0);
   } else {
+    struct ssol_instance* inst;
+    const struct shaded_shape* sshape;
+    size_t isshape;
     float N[3]={0};
-    f3_normalize(N, hit.normal);
+
+    /* Retrieve the hit shaded shape */
+    inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
+    isshape = *htable_shaded_shape_find
+      (&inst->object->shaded_shapes_rt, &hit.prim.geom_id);
+    sshape = darray_shaded_shape_cdata_get
+      (&inst->object->shaded_shapes) + isshape;
+
+    /* Retrieve and normalized the hit normal */
+    switch(sshape->shape->type) {
+      case SHAPE_MESH: f3_normalize(N, hit.normal); break;
+      case SHAPE_PUNCHED: f3_normalize(N, f3_set_d3(N, ray_data.N)); break;
+      default: FATAL("Unreachable code"); break;
+    }
+    ASSERT(f3_is_normalized(N));
     d3_splat(val, fabs(f3_dot(N, dir)));
   }
 }
