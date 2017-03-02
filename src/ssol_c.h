@@ -41,7 +41,7 @@ struct ray_data {
 
   /* Output data */
   double N[3]; /* Normal of the nearest punched surface point */
-  double dst; /* Hit distance of the nearest punced surface point */
+  double dst; /* Hit distance of the nearest punched surface point */
 };
 
 static const struct ray_data RAY_DATA_NULL = {
