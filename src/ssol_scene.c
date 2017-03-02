@@ -188,6 +188,30 @@ ssol_scene_detach_instance
 }
 
 res_T
+ssol_scene_compute_aabb
+  (const struct ssol_scene* scene, float lower[3], float upper[3])
+{
+  struct s3d_scene_view* view = NULL;
+  res_T res = RES_OK;
+
+  if(!scene || !lower || !upper) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
+
+  res = s3d_scene_view_create(scene->scn_rt, S3D_GET_PRIMITIVE, &view);
+  if(res != RES_OK) goto error;
+  res = s3d_scene_view_get_aabb(view, lower, upper);
+  if(res != RES_OK) goto error;
+
+exit:
+  if(view) S3D(scene_view_ref_put(view));
+  return res;
+error:
+  goto exit;
+}
+
+res_T
 ssol_scene_clear(struct ssol_scene* scene)
 {
   struct htable_instance_iterator it, it_end;
@@ -469,7 +493,7 @@ hit_filter_function
       if(inst == rdata->inst_from && hit_side != rdata->side_from) {
         /* The intersected instance is the one from which the ray starts,
          * ensure that the ray does not intersect the opposite side of the
-         * quadric 
+         * quadric
          *
          * Note that reversed_ray is intentionally not considered here! */
         return 1;
