@@ -151,7 +151,7 @@ thin_dielectric_shade
   const struct ssol_thin_dielectric_shader* shader;
   double N[3];
   double thickness;
-  double T;
+  double absorption;
   const double eta_i = 1.0002772; /* Refractive index of the air */
   double eta_t;
   res_T res = RES_OK;
@@ -166,7 +166,7 @@ thin_dielectric_shade
       fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, Dst)
   FETCH(normal, N);
   FETCH(thickness, &thickness);
-  FETCH(transmissivity, &T);
+  FETCH(absorption, &absorption);
   FETCH(refractive_index, &eta_t);
   #undef FETCH
 
@@ -174,7 +174,8 @@ thin_dielectric_shade
   res = ssf_bxdf_create
     (mtl->dev->allocator, &ssf_thin_specular_dielectric, &bxdf);
   if(res != RES_OK) goto error;
-  res = ssf_thin_specular_dielectric_setup(bxdf, T, eta_i, eta_t, thickness);
+  res = ssf_thin_specular_dielectric_setup
+    (bxdf, absorption, eta_i, eta_t, thickness);
   if(res != RES_OK) goto error;
 
   /* Setup the BSDF */
@@ -210,7 +211,7 @@ check_shader_thin_differential(const struct ssol_thin_dielectric_shader* shader)
 {
   return shader
       && shader->normal
-      && shader->transmissivity
+      && shader->absorption
       && shader->thickness
       && shader->refractive_index;
 }

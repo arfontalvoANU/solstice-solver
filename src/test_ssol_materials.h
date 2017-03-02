@@ -91,7 +91,7 @@ get_shader_roughness
 }
 
 static INLINE void
-get_shader_transmissivity
+get_shader_absorption
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
    const double wavelength,
@@ -104,7 +104,7 @@ get_shader_transmissivity
 {
   (void)dev, (void)buf, (void)wavelength;
   (void)P, (void)Ng, (void)Ns, (void)uv, (void) w;
-  *val = 1;
+  *val = 0;
 }
 
 static INLINE void

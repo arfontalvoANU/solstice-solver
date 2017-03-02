@@ -249,7 +249,7 @@ static const struct ssol_matte_shader SSOL_MATTE_SHADER_NULL =
 /* Thin dielectric shader */
 struct ssol_thin_dielectric_shader {
   ssol_shader_getter_T normal;
-  ssol_shader_getter_T transmissivity;
+  ssol_shader_getter_T absorption;
   ssol_shader_getter_T thickness;
   ssol_shader_getter_T refractive_index;
 };
