@@ -122,7 +122,7 @@ test_thin_dielectric(struct ssol_device* dev)
   CHECK(type, SSOL_MATERIAL_THIN_DIELECTRIC);
 
   thin_dielectric.normal = get_shader_normal;
-  thin_dielectric.transmissivity = get_shader_transmissivity;
+  thin_dielectric.absorption = get_shader_absorption;
   thin_dielectric.thickness = get_shader_thickness;
   thin_dielectric.refractive_index = get_shader_refractive_index;
 
@@ -135,9 +135,9 @@ test_thin_dielectric(struct ssol_device* dev)
   CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
   thin_dielectric.normal = get_shader_normal;
 
-  thin_dielectric.transmissivity = NULL;
+  thin_dielectric.absorption = NULL;
   CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
-  thin_dielectric.transmissivity = get_shader_transmissivity;
+  thin_dielectric.absorption = get_shader_absorption;
 
   thin_dielectric.thickness = NULL;
   CHECK(ssol_thin_dielectric_set_shader(material, &thin_dielectric), RES_BAD_ARG);
