@@ -18,6 +18,7 @@
 #include "test_ssol_geometries.h"
 #include "test_ssol_materials.h"
 
+#include <rsys/float3.h>
 #include <rsys/image.h>
 #include <rsys/math.h>
 
@@ -116,6 +117,8 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
   struct ssol_vertex_data vdata;
   struct desc desc;
+  float lower[3], upper[3];
+  float tmp[3];
 
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
@@ -164,6 +167,10 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   CHECK(ssol_object_ref_put(obj), RES_OK);
 
   CHECK(ssol_material_ref_put(mtl), RES_OK);
+
+  CHECK(ssol_scene_compute_aabb(scn, lower, upper), RES_OK);
+  CHECK(f3_eq_eps(lower, f3(tmp, 0, 0, 0), 1.e-6f), 1);
+  CHECK(f3_eq_eps(upper, f3(tmp, 552.f, 559.f, 548.f), 1.e-6f), 1);
 }
 
 int

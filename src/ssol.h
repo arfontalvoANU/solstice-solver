@@ -480,6 +480,12 @@ ssol_scene_detach_instance
   (struct ssol_scene* scn,
    struct ssol_instance* instance);
 
+SSOL_API res_T
+ssol_scene_compute_aabb
+  (const struct ssol_scene* scn,
+   float lower[3],
+   float upper[3]);
+
 /* Detach all the instances from the scene and release the reference that the
  * scene takes onto them.
  * Also detach the attached sun if any. */
