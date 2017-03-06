@@ -55,7 +55,6 @@ struct thread_context {
   struct mc_data cos_loss;
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
-  struct mem_allocator* allocator;
 };
 
 static void
