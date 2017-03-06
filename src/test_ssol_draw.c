@@ -18,6 +18,7 @@
 #include "test_ssol_geometries.h"
 #include "test_ssol_materials.h"
 
+#include <rsys/double3.h>
 #include <rsys/float3.h>
 #include <rsys/image.h>
 #include <rsys/math.h>
@@ -114,7 +115,7 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   struct ssol_object* obj;
   struct ssol_instance* inst;
   struct ssol_material* mtl;
-  struct ssol_mirror_shader shader = SSOL_MIRROR_SHADER_NULL;
+  struct ssol_matte_shader shader = SSOL_MATTE_SHADER_NULL;
   struct ssol_vertex_data vdata;
   struct desc desc;
   float lower[3], upper[3];
@@ -122,9 +123,8 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
 
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
-  shader.roughness = get_shader_roughness;
-  CHECK(ssol_material_create_mirror(dev, &mtl), RES_OK);
-  CHECK(ssol_mirror_set_shader(mtl, &shader), RES_OK);
+  CHECK(ssol_material_create_matte(dev, &mtl), RES_OK);
+  CHECK(ssol_matte_set_shader(mtl, &shader), RES_OK);
 
   vdata.usage = SSOL_POSITION;
   vdata.get = get_position;
@@ -180,10 +180,12 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_camera* cam;
   struct ssol_scene* scn;
+  struct ssol_sun* sun;
   unsigned char* pixels = NULL;
   const double pos[3] = {278.0, -1000.0, 273.0};
   const double tgt[3] = {278.0, 0.0, 273.0};
   const double up[3] = {0.0, 0.0, 1.0};
+  double dir[3];
   (void)argc, (void)argv;
 
   CHECK(mem_init_proxy_allocator(&allocator, &mem_default_allocator), RES_OK);
@@ -199,6 +201,13 @@ main(int argc, char** argv)
   CHECK(ssol_camera_set_proj_ratio(cam, PROJ_RATIO), RES_OK);
   CHECK(ssol_camera_set_fov(cam, PI/4.0), RES_OK);
   CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_OK);
+
+  d3(dir, 1, 1, -1);
+  d3_normalize(dir, dir);
+  CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_scene_attach_sun(scn, sun), RES_OK);
 
   pixels = MEM_CALLOC(&allocator, HEIGHT, PITCH);
   NCHECK(pixels, NULL);
@@ -242,6 +251,7 @@ main(int argc, char** argv)
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_camera_ref_put(cam), RES_OK);
   CHECK(ssol_scene_ref_put(scn), RES_OK);
+  CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);

@@ -57,6 +57,7 @@ set(SSOL_FILES_SRC
   ssol_camera.c
   ssol_device.c
   ssol_draw.c
+  ssol_draw_pt.c
   ssol_estimator.c
   ssol_image.c
   ssol_material.c
@@ -80,6 +81,7 @@ set(SSOL_FILES_INC
   ssol_c.h
   ssol_camera.h
   ssol_device_c.h
+  ssol_draw_pt.h
   ssol_estimator_c.h
   ssol_image_c.h
   ssol_material_c.h
