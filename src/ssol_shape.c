@@ -191,7 +191,8 @@ quadric_mesh_plane_get_pos(const unsigned ivert, float pos[3], void* ctx)
   f3_set_d3(pos, p);
 }
 
-static FINLINE double hyperbol_z
+static FINLINE double
+hyperbol_z
   (const double p[2],
    const struct priv_hyperbol_data* hyperbol)
 {
@@ -200,7 +201,8 @@ static FINLINE double hyperbol_z
   return hyperbol->abs_b * sqrt(1 + r2 * hyperbol->_1_a2) + hyperbol->g_2 - z0;
 }
 
-static FINLINE double parabol_z
+static FINLINE double
+parabol_z
   (const double p[2],
    const struct priv_parabol_data* parabol)
 {
@@ -208,7 +210,8 @@ static FINLINE double parabol_z
   return r2 * parabol->_1_4f;
 }
 
-static FINLINE double parabolic_cylinder_z
+static FINLINE double
+parabolic_cylinder_z
   (const double p[2],
    const struct priv_pcylinder_data* pcyl)
 {
@@ -590,9 +593,9 @@ quadric_setup_s3d_shape_samp
   vdata.usage = S3D_POSITION;
   vdata.type = S3D_FLOAT3;
   vdata.get = quadric_mesh_plane_get_pos;
-  res =  s3d_mesh_setup_indexed_vertices
+  res = s3d_mesh_setup_indexed_vertices
     (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
-  if (res != RES_OK) return res;
+  if(res != RES_OK) return res;
   *samp_area = mesh_compute_area
     (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_plane_get_pos, &ctx);
   return RES_OK;
@@ -795,7 +798,7 @@ quadric_hyperbol_intersect_local
     - (org[2] + z0 - quad->g_2) * (org[2] + z0 - quad->g_2);
   const int sol = quadric_solve_second(a, b, c, hint, &dst);
 
-  if (!sol) return 0;
+  if(!sol) return 0;
   d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst));
   quadric_hyperbol_gradient_local(quad, hit_pt, grad);
   *dist = dst;
@@ -1010,7 +1013,7 @@ punched_shape_trace_ray
   valid = punched_shape_intersect_local
     (shape, org_local, dir_local, hint_dst, hit_local, N_local, &dst);
   if(!valid) return INF;
-  
+
   /* Transform the quadric normal in world space */
   d33_muld3(N_quadric, R_invtrans, N_local);
   d3_normalize(N_quadric, N_quadric);
@@ -1294,7 +1297,7 @@ ssol_mesh_setup
   res = s3d_mesh_setup_indexed_vertices
     (shape->shape_rt, ntris, get_indices, nverts, attrs, nattribs, data);
   if(res != RES_OK) goto error;
-  shape->shape_rt_area = 
+  shape->shape_rt_area =
     mesh_compute_area(ntris, get_indices, nverts, get_position, data);
 
   /* The Star-3D shape to sample is the same of the one to ray-traced */

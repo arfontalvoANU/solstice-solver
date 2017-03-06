@@ -116,7 +116,7 @@ setup_framebuffer(struct ssol_device* dev, struct ssol_image** framebuffer)
   res = ssol_image_setup(fbuf, WIDTH, HEIGHT, SSOL_PIXEL_DOUBLE3);
   if (res != RES_OK) {
     fprintf(stderr,
-      "Could not set the framebuffer definition to %lux%lu.\n",
+      "Could not set the framebuffer definition to %dx%d.\n",
       WIDTH, HEIGHT);
     goto error;
   }
@@ -187,7 +187,8 @@ error:
   goto exit;
 }
 
-static res_T
+/* TODO Remove this dead code or move and refactor it in the test utilities */
+static INLINE res_T
 solstice_draw(struct ssol_scene* scene, const char* name)
 {
   struct ssol_image_layout layout;
@@ -370,7 +371,7 @@ main(int argc, char** argv)
   d33_set_identity(transform);
   d3_splat(transform + 9, 0);
   CHECK(ssol_instance_set_transform(target, transform), RES_OK);
-  
+
 #define N__ 10000
 #define DNI_cos (1000 * cos(0))
 #define TOTAL (HELIOSTAT_SZ * HELIOSTAT_SZ * DNI_cos)
@@ -416,7 +417,7 @@ main(int argc, char** argv)
   CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
-  
+
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
   CHECK(mem_allocated_size(), 0);
