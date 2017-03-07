@@ -64,5 +64,12 @@ material_shade
    const double wavelength, /* In nanometer */
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
-#endif /* SSOL_MATERIAL_C_H */
+/* Material shading for rendering purposes */
+extern LOCAL_SYM res_T
+material_shade_rendering
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
+#endif /* SSOL_MATERIAL_C_H */

@@ -78,6 +78,7 @@ mirror_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   const int rendering,
    struct ssf_bsdf* bsdf)
 {
   struct ssf_bxdf* brdf = NULL;
@@ -120,8 +121,16 @@ mirror_shade
     res = ssf_beckmann_distribution_setup(distrib, roughness);
     if(res != RES_OK) goto error;
 
-    res = ssf_bxdf_create
-      (mtl->dev->allocator, &ssf_microfacet2_reflection, &brdf);
+    /* Microfacet2 is not well suited for rendering since it cannot be
+     * evaluated and consequently it returns an invalid result for direct
+     * lighting. */
+    if(rendering) {
+      res = ssf_bxdf_create
+        (mtl->dev->allocator, &ssf_microfacet_reflection, &brdf);
+    } else {
+      res = ssf_bxdf_create
+        (mtl->dev->allocator, &ssf_microfacet2_reflection, &brdf);
+    }
     if(res != RES_OK) goto error;
     res = ssf_microfacet_reflection_setup(brdf, fresnel, distrib);
     if(res != RES_OK) goto error;
@@ -187,6 +196,34 @@ exit:
   return res;
 error:
   goto exit;
+}
+
+static INLINE res_T
+shade
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   const int rendering, /* Is material used for rendering */
+   struct ssf_bsdf* bsdf)
+{
+  res_T res = RES_OK;
+  ASSERT(mtl);
+
+  /* Specific material shading */
+  switch(mtl->type) {
+    case SSOL_MATERIAL_MATTE:
+      res = matte_shade(mtl, fragment, wavelength, bsdf);
+      break;
+    case SSOL_MATERIAL_MIRROR:
+      res = mirror_shade(mtl, fragment, wavelength, rendering, bsdf);
+      break;
+    case SSOL_MATERIAL_THIN_DIELECTRIC:
+      res = thin_dielectric_shade(mtl, fragment, wavelength, bsdf);
+      break;
+    case SSOL_MATERIAL_VIRTUAL: /* Nothing to shade */ break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+  return res;
 }
 
 static INLINE int
@@ -455,23 +492,16 @@ material_shade
    const double wavelength, /* In nanometer */
    struct ssf_bsdf* bsdf)
 {
-  res_T res = RES_OK;
-  ASSERT(mtl);
+  return shade(mtl, fragment, wavelength, 0, bsdf);
+}
 
-  /* Specific material shading */
-  switch(mtl->type) {
-    case SSOL_MATERIAL_MATTE:
-      res = matte_shade(mtl, fragment, wavelength, bsdf);
-      break;
-    case SSOL_MATERIAL_MIRROR:
-      res = mirror_shade(mtl, fragment, wavelength, bsdf);
-      break;
-    case SSOL_MATERIAL_THIN_DIELECTRIC:
-      res = thin_dielectric_shade(mtl, fragment, wavelength, bsdf);
-      break;
-    case SSOL_MATERIAL_VIRTUAL: /* Nothing to shade */ break;
-    default: FATAL("Unreachable code\n"); break;
-  }
-  return res;
+res_T
+material_shade_rendering
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   struct ssf_bsdf* bsdf)
+{
+  return shade(mtl, fragment, wavelength, 1, bsdf);
 }
 

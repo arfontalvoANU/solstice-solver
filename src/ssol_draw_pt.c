@@ -131,6 +131,7 @@ Li
   float ray_org[3];
   float ray_dir[3];
   enum ssol_side_flag side;
+  res_T res = RES_OK;
   ASSERT(scn && view && org && dir && val);
 
   ray_data.scn = scn;
@@ -173,7 +174,8 @@ Li
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
     SSF(bsdf_clear(ctx->bsdf));
-    CHECK(material_shade(mtl, &frag, 1/*TODO wavelength*/, ctx->bsdf), RES_OK);
+    res = material_shade_rendering(mtl, &frag, 1/*TODO wavelength*/, ctx->bsdf);
+    CHECK(res, RES_OK);
 
     /* Update the ray */
     ray_data.prim_from = hit.prim;
