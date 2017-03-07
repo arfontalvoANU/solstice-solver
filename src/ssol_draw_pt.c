@@ -171,7 +171,7 @@ Li
       d3_minus(N, N);
     }
 
-    surface_fragment_setup(&frag, o, wi, N, &hit.prim, hit.uv);
+    surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
     SSF(bsdf_clear(ctx->bsdf));
     CHECK(material_shade(mtl, &frag, 1/*TODO wavelength*/, ctx->bsdf), RES_OK);
 
@@ -182,12 +182,12 @@ Li
     f3_mulf(ray_dir, ray_dir, hit.distance);
     f3_add(ray_org, ray_org, ray_dir);
 
+    d3_minus(wo, wo);
     if(scn->sun) {
       L += throughput * sun_lighting
         (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
     }
 
-    d3_minus(wo, wo);
     R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &pdf);
     ASSERT(0 <= R && R <= 1);
     f3_set_d3(ray_dir, wi);
