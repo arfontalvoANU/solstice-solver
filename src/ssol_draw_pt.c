@@ -118,7 +118,6 @@ Li
   struct ssol_material* mtl;
   const struct shaded_shape* sshape;
   struct surface_fragment frag;
-  size_t idepth;
   size_t isshape;
   double throughput = 1.0;
   double wi[3], o[3], uv[3];
@@ -131,6 +130,7 @@ Li
   float ray_org[3];
   float ray_dir[3];
   enum ssol_side_flag side;
+  int russian_roulette = 0;
   res_T res = RES_OK;
   ASSERT(scn && view && org && dir && val);
 
@@ -140,13 +140,12 @@ Li
   f3_set(ray_org, org);
   f3_set(ray_dir, dir);
 
-  FOR_EACH(idepth, 0, 4) {
-
+  for(;;) {
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
-    if(S3D_HIT_NONE(&hit)) {
-      /* TODO background lighting */
-      if(ray_dir[2] > 0) L += throughput;
+
+    if(S3D_HIT_NONE(&hit)) { /* Background lighting */
+      if(ray_dir[2] > 0) L += throughput * 1.e-1;
       break;
     }
 
@@ -194,7 +193,16 @@ Li
     ASSERT(0 <= R && R <= 1);
     f3_set_d3(ray_dir, wi);
 
-    throughput *= R * d3_dot(wi, N);
+    if(!russian_roulette) {
+      russian_roulette = throughput < 0.1;
+    }
+
+    if(!russian_roulette) {
+      throughput *= d3_dot(wi, N) * R;
+    } else {
+      if(ssp_rng_canonical(ctx->rng) >= R) break;
+      throughput *= d3_dot(wi, N);
+    }
   }
   d3_splat(val, L);
 }
