@@ -19,6 +19,7 @@
 #include "ssol_material_c.h"
 #include "ssol_object_c.h"
 #include "ssol_scene_c.h"
+#include "ssol_shape_c.h"
 #include "ssol_sun_c.h"
 
 #include <rsys/double2.h>
@@ -158,11 +159,16 @@ Li
     d3_set_f3(o, ray_org);
     d3_set_f3(wo, ray_dir);
     d2_set_f2(uv, hit.uv);
-    d3_set_f3(N, hit.normal);
-    d3_normalize(N, N);
     d3_normalize(wo, wo);
 
-    if(f3_dot(hit.normal, ray_dir) < 0) {
+    /* Retrieve and normalized the hit normal */
+    switch(sshape->shape->type) {
+      case SHAPE_MESH: d3_normalize(N, d3_set_f3(N, hit.normal)); break;
+      case SHAPE_PUNCHED: d3_normalize(N, ray_data.N); break;
+      default: FATAL("Unreachable code"); break;
+    }
+
+    if(d3_dot(N, wo) < 0) {
       mtl = sshape->mtl_front;
       side = SSOL_FRONT;
     } else {
