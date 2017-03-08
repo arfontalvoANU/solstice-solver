@@ -18,6 +18,8 @@
 #include "ssol_object_c.h"
 #include "ssol_shape_c.h"
 
+#include <star/s3d.h>
+
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>

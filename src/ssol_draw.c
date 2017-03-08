@@ -14,19 +14,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_c.h"
-#include "ssol_camera.h"
 #include "ssol_device_c.h"
-#include "ssol_draw_pt.h"
-#include "ssol_material_c.h"
-#include "ssol_object_c.h"
+#include "ssol_draw.h"
 #include "ssol_scene_c.h"
-#include "ssol_shape_c.h"
-#include "ssol_sun_c.h"
 
-#include <rsys/double2.h>
-#include <rsys/double3.h>
-#include <rsys/math.h>
 #include <star/s3d.h>
 
 #include <omp.h>
@@ -51,61 +42,23 @@ morton2D_decode(const uint32_t u32)
 }
 
 static void
-Li_basic
-  (struct ssol_scene* scn,
-   struct s3d_scene_view* view,
-   const float org[3],
-   const float dir[3],
-   double val[3])
-{
-  const float range[2] = {0, FLT_MAX};
-  struct ray_data ray_data = RAY_DATA_NULL;
-  struct s3d_hit hit;
-  ASSERT(scn && view && org && dir && val);
-
-  ray_data.scn = scn;
-  ray_data.discard_virtual_materials = 1;
-  S3D(scene_view_trace_ray(view, org, dir, range, &ray_data, &hit));
-  if(S3D_HIT_NONE(&hit)) {
-    d3_splat(val, 0);
-  } else {
-    struct ssol_instance* inst;
-    const struct shaded_shape* sshape;
-    size_t isshape;
-    float N[3]={0};
-
-    /* Retrieve the hit shaded shape */
-    inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
-    isshape = *htable_shaded_shape_find
-      (&inst->object->shaded_shapes_rt, &hit.prim.geom_id);
-    sshape = darray_shaded_shape_cdata_get
-      (&inst->object->shaded_shapes) + isshape;
-
-    /* Retrieve and normalized the hit normal */
-    switch(sshape->shape->type) {
-      case SHAPE_MESH: f3_normalize(N, hit.normal); break;
-      case SHAPE_PUNCHED: f3_normalize(N, f3_set_d3(N, ray_data.N)); break;
-      default: FATAL("Unreachable code"); break;
-    }
-    ASSERT(f3_is_normalized(N));
-    d3_splat(val, fabs(f3_dot(N, dir)));
-  }
-}
-
-static void
 draw_tile
   (struct ssol_scene* scn,
-   struct draw_pt_thread_context* ctx,
    struct s3d_scene_view* view,
    const struct ssol_camera* cam,
+   const int ithread,
+   const size_t spp,
    const size_t origin[2], /* Tile origin */
    const size_t size[2], /* Tile definition */
    const float pix_sz[2], /* Normalized size of a pixel in the image plane */
-   double* pixels)
+   double* pixels,
+   pixel_shader_T shader,
+   void* shader_data)
 {
   size_t npixels;
   size_t mcode; /* Morton code of the tile pixel */
-  ASSERT(scn && ctx && view && cam && origin && size && pix_sz && pixels);
+  ASSERT(scn && view && cam && spp && origin && size && pix_sz && pixels);
+  ASSERT(shader);
 
   /* Adjust the #pixels to process them wrt a morton order */
   npixels = round_up_pow2(MMAX(size[0], size[1]));
@@ -124,37 +77,25 @@ draw_tile
     ipix[0] = ipix[0] + origin[0];
     ipix[1] = ipix[1] + origin[1];
 
-#if 0
-    draw_pt(scn, cam, view, ipix, pix_sz, 64, ctx, pixel);
-#else
-    {
-      float samp[2];
-      float ray_org[3], ray_dir[3];
-
-      samp[0] = ((float)ipix[0] + 0.5f) * pix_sz[0];
-      samp[1] = ((float)ipix[1] + 0.5f) * pix_sz[1];
-      camera_ray(cam, samp, ray_org, ray_dir);
-
-      Li_basic(scn, view, ray_org, ray_dir, pixel);
-    }
-#endif
+    shader(scn, cam, view, ithread, ipix, pix_sz, spp, pixel, shader_data);
   }
 }
 
 /*******************************************************************************
- * Exported function
+ * Local function
  ******************************************************************************/
 res_T
-ssol_draw
+draw
   (struct ssol_scene* scn,
-   struct ssol_camera* cam,
+   const struct ssol_camera* cam,
    const size_t width,
    const size_t height,
+   const size_t spp, /* #samples per pixel */
    ssol_write_pixels_T writer,
-   void* data)
+   void* writer_data,
+   pixel_shader_T pixel_shader,
+   void* pixel_shader_data)
 {
-  struct darray_draw_pt_thread_context thread_ctxs;
-  struct ssp_rng_proxy* rng_proxy = NULL;
   struct s3d_scene_view* view = NULL;
   struct darray_byte* tiles = NULL;
   int64_t mcode; /* Morton code of a tile */
@@ -163,31 +104,8 @@ ssol_draw
   size_t i;
   ATOMIC res = RES_OK;
 
-  if(!scn || !cam || !width || !height || !writer)
+  if(!scn || !cam || !width || !height || !spp || !writer || !pixel_shader)
     return RES_BAD_ARG;
-
-  darray_draw_pt_thread_context_init(scn->dev->allocator, &thread_ctxs);
-
-  /* Create a RNG proxy */
-  res = ssp_rng_proxy_create
-    (scn->dev->allocator, &ssp_rng_threefry, scn->dev->nthreads, &rng_proxy);
-  if(res != RES_OK) goto error;
-
-  /* Create the thread contexts */
-  res = darray_draw_pt_thread_context_resize(&thread_ctxs, scn->dev->nthreads);
-  if(res != RES_OK) goto error;
-  FOR_EACH(i, 0, scn->dev->nthreads) {
-    struct draw_pt_thread_context* ctx;
-    struct ssp_rng* rng;
-
-    ctx = darray_draw_pt_thread_context_data_get(&thread_ctxs)+i;
-
-    res = ssp_rng_proxy_create_rng(rng_proxy, i, &rng);
-    if(res != RES_OK) goto error;
-
-    draw_pt_thread_context_setup(ctx, rng);
-    SSP(rng_ref_put(rng));
-  }
 
   tiles = darray_tile_data_get(&scn->dev->tiles);
   ASSERT(darray_tile_size_get(&scn->dev->tiles) == scn->dev->nthreads);
@@ -210,7 +128,6 @@ ssol_draw
 
   #pragma omp parallel for schedule(dynamic, 1/*chunck size*/)
   for(mcode=0; mcode<(int64_t)ntiles; ++mcode) {
-    struct draw_pt_thread_context* ctx;
     size_t tile_org[2];
     size_t tile_sz[2];
     const int ithread = omp_get_thread_num();
@@ -218,8 +135,6 @@ ssol_draw
     res_T res_local;
 
     if(ATOMIC_GET(&res) != RES_OK) continue;
-
-    ctx = darray_draw_pt_thread_context_data_get(&thread_ctxs) + ithread;
 
     tile_org[0] = morton2D_decode((uint32_t)(mcode>>0));
     if(tile_org[0] >= ntiles_x) continue;
@@ -233,9 +148,10 @@ ssol_draw
 
     pixels = (double*)darray_byte_data_get(tiles+ithread);
 
-    draw_tile(scn, ctx, view, cam, tile_org, tile_sz, pix_sz, pixels);
+    draw_tile(scn, view, cam, ithread, spp, tile_org, tile_sz, pix_sz, pixels,
+      pixel_shader, pixel_shader_data);
 
-    res_local = writer(data, tile_org, tile_sz, SSOL_PIXEL_DOUBLE3, pixels);
+    res_local = writer(writer_data, tile_org, tile_sz, SSOL_PIXEL_DOUBLE3, pixels);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
@@ -243,11 +159,10 @@ ssol_draw
   }
 
 exit:
-  darray_draw_pt_thread_context_release(&thread_ctxs);
-  if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
   if(view) S3D(scene_view_ref_put(view));
   return (res_T)res;
 error:
   goto exit;
 }
+
 

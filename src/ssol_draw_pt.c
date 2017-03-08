@@ -15,7 +15,8 @@
 
 #include "ssol_c.h"
 #include "ssol_camera.h"
-#include "ssol_draw_pt.h"
+#include "ssol_device_c.h"
+#include "ssol_draw.h"
 #include "ssol_material_c.h"
 #include "ssol_object_c.h"
 #include "ssol_scene_c.h"
@@ -33,10 +34,23 @@
 /*******************************************************************************
  * Per thread draw_pt context
  ******************************************************************************/
-res_T
-draw_pt_thread_context_init
+struct thread_context {
+  struct ssp_rng* rng;
+  struct ssf_bsdf* bsdf;
+};
+
+static void
+thread_context_release(struct thread_context* ctx)
+{
+  ASSERT(ctx);
+  if(ctx->rng) SSP(rng_ref_put(ctx->rng));
+  if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
+}
+
+static res_T
+thread_context_init
   (struct mem_allocator* allocator,
-   struct draw_pt_thread_context* ctx)
+   struct thread_context* ctx)
 {
   res_T res = RES_OK;
   ASSERT(ctx);
@@ -46,22 +60,13 @@ draw_pt_thread_context_init
 exit:
   return res;
 error:
-  draw_pt_thread_context_release(ctx);
+  thread_context_release(ctx);
   goto exit;
 }
 
-void
-draw_pt_thread_context_release(struct draw_pt_thread_context* ctx)
-{
-  ASSERT(ctx);
-  if(ctx->rng) SSP(rng_ref_put(ctx->rng));
-  if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
-}
-
-
-void
-draw_pt_thread_context_setup
-  (struct draw_pt_thread_context* ctx,
+static void
+thread_context_setup
+  (struct thread_context* ctx,
    struct ssp_rng* rng)
 {
   ASSERT(ctx && rng);
@@ -69,6 +74,13 @@ draw_pt_thread_context_setup
   SSP(rng_ref_get(rng));
   ctx->rng = rng;
 }
+
+/* Declare the container of the per thread contexts */
+#define DARRAY_NAME thread_context
+#define DARRAY_DATA struct thread_context
+#define DARRAY_FUNCTOR_INIT thread_context_init
+#define DARRAY_FUNCTOR_RELEASE thread_context_release
+#include <rsys/dynamic_array.h>
 
 /*******************************************************************************
  * Helper functions
@@ -105,9 +117,8 @@ sun_lighting
 }
 
 static void
-Li
-  (struct ssol_scene* scn,
-   struct draw_pt_thread_context* ctx,
+Li(struct ssol_scene* scn,
+   struct thread_context* ctx,
    struct s3d_scene_view* view,
    const float org[3],
    const float dir[3],
@@ -213,25 +224,28 @@ Li
   d3_splat(val, L);
 }
 
-/*******************************************************************************
- * Local function
- ******************************************************************************/
-void
-draw_pt
+static void
+draw_pixel
   (struct ssol_scene* scn,
    const struct ssol_camera* cam,
    struct s3d_scene_view* view,
+   const int ithread,
    const size_t pix_coords[2], /* Image space pixel coordinates */
    const float pix_sz[2], /* Normalized pixel size */
    const size_t nsamples,
-   struct draw_pt_thread_context* ctx,
-   double pixel[3])
+   double pixel[3],
+   void* data)
 {
+  struct darray_thread_context* thread_ctxs = data;
+  struct thread_context* ctx;
   double L[3];
   size_t isample;
-  ASSERT(scn && cam && pix_coords && pix_sz && nsamples && ctx && pixel);
+  ASSERT(scn && cam && pix_coords && pix_sz && nsamples && pixel && ctx);
+  ASSERT((size_t)ithread < darray_thread_context_size_get(thread_ctxs));
 
+  ctx = darray_thread_context_data_get(thread_ctxs) + ithread;
   d3_splat(pixel, 0);
+
   FOR_EACH(isample, 0, nsamples) {
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];
@@ -249,5 +263,60 @@ draw_pt
     d3_add(pixel, pixel, L);
   }
 
-  d3_divd(pixel, pixel, (double)nsamples);
+  d3_divd(pixel, pixel, (double)nsamples); /* Expected value */
+}
+
+/*******************************************************************************
+ * Exported function
+ ******************************************************************************/
+res_T
+ssol_draw_pt
+  (struct ssol_scene* scn,
+   struct ssol_camera* cam,
+   const size_t width,
+   const size_t height,
+   ssol_write_pixels_T writer,
+   void* data)
+{
+  struct darray_thread_context thread_ctxs;
+  struct ssp_rng_proxy* rng_proxy = NULL;
+  size_t i;
+  res_T res = RES_OK;
+
+  if(!scn)
+    return RES_BAD_ARG;
+
+  darray_thread_context_init(scn->dev->allocator, &thread_ctxs);
+
+  /* Create a RNG proxy */
+  res = ssp_rng_proxy_create
+    (scn->dev->allocator, &ssp_rng_threefry, scn->dev->nthreads, &rng_proxy);
+  if(res != RES_OK) goto error;
+
+  /* Create the thread contexts */
+  res = darray_thread_context_resize(&thread_ctxs, scn->dev->nthreads);
+  if(res != RES_OK) goto error;
+  FOR_EACH(i, 0, scn->dev->nthreads) {
+    struct thread_context* ctx;
+    struct ssp_rng* rng;
+
+    ctx = darray_thread_context_data_get(&thread_ctxs)+i;
+
+    res = ssp_rng_proxy_create_rng(rng_proxy, i, &rng);
+    if(res != RES_OK) goto error;
+
+    thread_context_setup(ctx, rng);
+    SSP(rng_ref_put(rng));
+  }
+
+  /* Invoke the draw process */
+  res = draw(scn, cam, width, height, 4, writer, data, draw_pixel, &thread_ctxs);
+  if(res != RES_OK) goto error;
+
+exit:
+  darray_thread_context_release(&thread_ctxs);
+  if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
+  return (res_T)res;
+error:
+  goto exit;
 }

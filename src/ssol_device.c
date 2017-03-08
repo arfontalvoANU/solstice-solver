@@ -19,6 +19,7 @@
 #include <rsys/logger.h>
 #include <rsys/mem_allocator.h>
 
+#include <star/s3d.h>
 #include <star/scpr.h>
 
 #include <omp.h>
