@@ -194,14 +194,14 @@ Li
     f3_set_d3(ray_dir, wi);
 
     if(!russian_roulette) {
-      russian_roulette = throughput < 0.1;
-    }
-
-    if(!russian_roulette) {
       throughput *= d3_dot(wi, N) * R;
     } else {
       if(ssp_rng_canonical(ctx->rng) >= R) break;
       throughput *= d3_dot(wi, N);
+    }
+
+    if(!russian_roulette) {
+      russian_roulette = throughput < 0.1;
     }
   }
   d3_splat(val, L);
