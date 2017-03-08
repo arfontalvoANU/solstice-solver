@@ -172,6 +172,7 @@ if(NOT NO_TEST)
 
   build_test(test_ssol_draw)
   register_test(test_ssol_draw_draft test_ssol_draw draft)
+  register_test(test_ssol_draw_pt test_ssol_draw pt)
 
 endif()
 

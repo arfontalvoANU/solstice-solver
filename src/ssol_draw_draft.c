@@ -15,13 +15,17 @@
 
 #include "ssol_c.h"
 #include "ssol_camera.h"
+#include "ssol_device_c.h"
 #include "ssol_draw.h"
 #include "ssol_object_c.h"
 #include "ssol_scene_c.h"
 #include "ssol_shape_c.h"
 
 #include <rsys/double3.h>
+#include <rsys/dynamic_array_float.h>
 #include <rsys/float3.h>
+
+#include <star/ssp.h>
 
 #include <float.h>
 
@@ -82,15 +86,31 @@ draw_pixel
    double pixel[3],
    void* ctx)
 {
+  struct darray_float* samples = ctx;
   float samp[2];
   float ray_org[3], ray_dir[3];
-  ASSERT(scn && cam && view && pix_coords && pix_sz && nsamples && pixel);
-  (void)ithread, (void)ctx, (void)nsamples;
+  double sum[3] = {0, 0, 0};
+  size_t i;
+  ASSERT(scn && cam && view && pix_coords && pix_sz && nsamples && pixel && ctx);
+  (void)ithread;
 
-  samp[0] = ((float)pix_coords[0] + 0.5f) * pix_sz[0];
-  samp[1] = ((float)pix_coords[1] + 0.5f) * pix_sz[1];
-  camera_ray(cam, samp, ray_org, ray_dir);
-  Li(scn, view, ray_org, ray_dir, pixel);
+  FOR_EACH(i, 0, nsamples) {
+    double weight[3];
+    const float* r = darray_float_cdata_get(samples) + i*2;
+
+    /* Generate a sample into the pixel */
+    samp[0] = ((float)pix_coords[0] + r[0]) * pix_sz[0];
+    samp[1] = ((float)pix_coords[1] + r[1]) * pix_sz[1];
+
+    /* Generate a ray starting from the pinhole camera and passing through the
+     * pixel sample */
+    camera_ray(cam, samp, ray_org, ray_dir);
+
+    /* Compute the radiance arriving through the sampled camera ray */
+    Li(scn, view, ray_org, ray_dir, weight);
+    d3_add(sum, sum, weight);
+  }
+  d3_divd(pixel, sum, (double)nsamples);
 }
 
 
@@ -103,9 +123,40 @@ ssol_draw_draft
    struct ssol_camera* cam,
    const size_t width,
    const size_t height,
+   const size_t spp,
    ssol_write_pixels_T writer,
    void* data)
 {
-  return draw(scn, cam, width, height, 1, writer, data, draw_pixel, NULL);
+  struct darray_float samples;
+  struct ssp_rng* rng = NULL;
+  size_t i;
+  res_T res = RES_OK;
+
+  if(!scn || !spp) return RES_BAD_ARG;
+
+  darray_float_init(scn->dev->allocator, &samples);
+  res = darray_float_reserve(&samples, spp * 2/*#dimensions*/);
+  if(res != RES_OK) goto error;
+
+  res = ssp_rng_create(scn->dev->allocator, &ssp_rng_threefry, &rng);
+  if(res != RES_OK) goto error;
+
+  /* Generate the pixel samples */
+  FOR_EACH(i, 0, spp) {
+    const float x = ssp_rng_canonical_float(rng);
+    const float y = ssp_rng_canonical_float(rng);
+    darray_float_push_back(&samples, &x);
+    darray_float_push_back(&samples, &y);
+  }
+
+  res = draw(scn, cam, width, height, spp, writer, data, draw_pixel, &samples);
+  if(res != RES_OK) goto error;
+
+exit:
+  darray_float_release(&samples);
+  if(rng) SSP(rng_ref_put(rng));
+  return res;
+error:
+  goto exit;
 }
 

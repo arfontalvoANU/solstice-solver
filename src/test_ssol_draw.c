@@ -25,8 +25,8 @@
 
 #include <string.h>
 
-#define WIDTH 800
-#define HEIGHT 600
+#define WIDTH 256
+#define HEIGHT 256
 #define PITCH (WIDTH*sizeof(unsigned char[3]))
 #define PROJ_RATIO ((double)WIDTH/(double)HEIGHT)
 
@@ -193,6 +193,7 @@ main(int argc, char** argv)
      struct ssol_camera* cam,
      const size_t width,
      const size_t height,
+     const size_t spp,
      ssol_write_pixels_T writer,
      void* data);
   (void)argc, (void)argv;
@@ -206,6 +207,9 @@ main(int argc, char** argv)
     draw_func = ssol_draw_draft;
   } else if(!strcmp(argv[1], "pt")) {
     draw_func = ssol_draw_pt;
+  } else {
+    fprintf(stderr, "Usage: %s <draft|pt>\n", argv[0]);
+    return -1;
   }
 
   CHECK(mem_init_proxy_allocator(&allocator, &mem_default_allocator), RES_OK);
@@ -232,38 +236,70 @@ main(int argc, char** argv)
   pixels = MEM_CALLOC(&allocator, HEIGHT, PITCH);
   NCHECK(pixels, NULL);
 
-  CHECK(draw_func(NULL, NULL, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, HEIGHT, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, HEIGHT, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, HEIGHT, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, HEIGHT, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, write_RGB8, pixels), RES_OK);
+  CHECK(draw_func(NULL, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_OK);
 
   CHECK(image_ppm_write_stream(stdout, WIDTH, HEIGHT, 3, pixels), RES_OK);
 

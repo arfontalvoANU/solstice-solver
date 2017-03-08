@@ -238,15 +238,15 @@ draw_pixel
 {
   struct darray_thread_context* thread_ctxs = data;
   struct thread_context* ctx;
-  double L[3];
+  double sum[3] = {0, 0, 0};
   size_t isample;
-  ASSERT(scn && cam && pix_coords && pix_sz && nsamples && pixel && ctx);
+  ASSERT(scn && cam && pix_coords && pix_sz && nsamples && pixel && data);
   ASSERT((size_t)ithread < darray_thread_context_size_get(thread_ctxs));
 
   ctx = darray_thread_context_data_get(thread_ctxs) + ithread;
-  d3_splat(pixel, 0);
 
   FOR_EACH(isample, 0, nsamples) {
+    double weight[3];
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];
 
@@ -259,11 +259,11 @@ draw_pixel
     camera_ray(cam, samp, ray_org, ray_dir);
 
     /* Compute the radiance arriving through the sampled camera ray */
-    Li(scn, ctx, view, ray_org, ray_dir, L);
-    d3_add(pixel, pixel, L);
+    Li(scn, ctx, view, ray_org, ray_dir, weight);
+    d3_add(sum, sum, weight);
   }
 
-  d3_divd(pixel, pixel, (double)nsamples); /* Expected value */
+  d3_divd(pixel, sum, (double)nsamples);
 }
 
 /*******************************************************************************
@@ -275,6 +275,7 @@ ssol_draw_pt
    struct ssol_camera* cam,
    const size_t width,
    const size_t height,
+   const size_t spp,
    ssol_write_pixels_T writer,
    void* data)
 {
@@ -310,7 +311,7 @@ ssol_draw_pt
   }
 
   /* Invoke the draw process */
-  res = draw(scn, cam, width, height, 4, writer, data, draw_pixel, &thread_ctxs);
+  res = draw(scn, cam, width, height, spp, writer, data, draw_pixel, &thread_ctxs);
   if(res != RES_OK) goto error;
 
 exit:

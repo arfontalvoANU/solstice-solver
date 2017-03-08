@@ -956,6 +956,7 @@ ssol_draw_draft
    struct ssol_camera* cam,
    const size_t width, /* #pixels in X */
    const size_t height, /* #pixels in Y */
+   const size_t spp, /* #samples per pixel */
    ssol_write_pixels_T writer,
    void* writer_data);
 
@@ -965,6 +966,7 @@ ssol_draw_pt
    struct ssol_camera* cam,
    const size_t width, /* #pixels in X */
    const size_t height, /* #pixels in Y */
+   const size_t spp,
    ssol_write_pixels_T writer,
    void* writer_data);
 
