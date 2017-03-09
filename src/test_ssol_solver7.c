@@ -64,78 +64,6 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
   *data = intensities[i];
 }
 
-/* Assume that the pixel format of the src is DOUBLE3 in gray scale while the
- * pixel format of dst is UBYTE */
-static void
-tone_map(const double* src, unsigned char* dst, const size_t count)
-{
-  size_t i;
-  FOR_EACH(i, 0, count) {
-    double val;
-    val = pow(src[i * 3/*#channels*/], 1 / SCREEN_GAMMA);/* Gamma correction */
-    val = CLAMP(val, 0, 1);
-    dst[i] = (unsigned char)((val * 255) + 0.5/*round*/);
-  }
-}
-
-static void
-tone_map_image(const struct ssol_image* img, unsigned char* dst)
-{
-  struct ssol_image_layout layout;
-  size_t irow = 0;
-  void* mem;
-  CHECK(ssol_image_get_layout(img, &layout), RES_OK);
-  CHECK(ssol_image_map(img, &mem), RES_OK);
-  FOR_EACH(irow, 0, layout.height) {
-    const void* src_row = ((char*) mem) + layout.offset + irow * layout.row_pitch;
-    unsigned char* dst_row = dst + irow * layout.width;
-    tone_map(src_row, dst_row, layout.width);
-  }
-}
-
-/* TODO Remove this dead code or move and refactor it in the test utilities */
-static INLINE void
-draw
-  (struct ssol_device* dev,
-   struct ssol_scene* scene,
-   FILE* output)
-{
-  struct ssol_image_layout layout;
-  unsigned char* ubytes = NULL;
-  struct ssol_image* fbuf;
-  struct ssol_camera* cam;
-  const double pos[3] = { 50, -120, 50 };
-  const double tgt[3] = { 50, 0, 50 };
-  const double up[3] = { 0, 0, 1 };
-
-  NCHECK(dev, NULL);
-  NCHECK(scene, NULL);
-  NCHECK(output, NULL);
-
-  CHECK(ssol_image_create(dev, &fbuf), RES_OK);
-  CHECK(ssol_image_setup(fbuf, WIDTH, HEIGHT, SSOL_PIXEL_DOUBLE3), RES_OK);
-
-  CHECK(ssol_image_get_layout(fbuf, &layout), RES_OK);
-  ubytes = mem_alloc(layout.width*layout.height);
-  NCHECK(ubytes, NULL);
-
-  CHECK(ssol_camera_create(dev, &cam), RES_OK);
-  CHECK(ssol_camera_set_proj_ratio(cam, PROJ_RATIO), RES_OK);
-  CHECK(ssol_camera_set_fov(cam, MDEG2RAD(60)), RES_OK);
-  CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_OK);
-
-  CHECK(ssol_draw_draft(scene, cam, layout.width, layout.height, 1,
-    ssol_image_write, fbuf), RES_OK);
-
-  tone_map_image(fbuf, ubytes);
-  CHECK(image_ppm_write_stream
-    (output, (int) layout.width, (int) layout.height, 1, ubytes), RES_OK);
-
-  CHECK(ssol_camera_ref_put(cam), RES_OK);
-  CHECK(ssol_image_ref_put(fbuf), RES_OK);
-  mem_rm(ubytes);
-}
-
 int
 main(int argc, char** argv)
 {
@@ -272,8 +200,6 @@ main(int argc, char** argv)
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(fclose(tmp), 0);
-
-  /*draw(dev, scene, stdout);*/
 
   printf("Total = %g\n", TOTAL);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
