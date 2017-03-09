@@ -217,6 +217,8 @@ Li(struct ssol_scene* scn,
       throughput *= d3_dot(wi, N);
     }
 
+    if(throughput <= 0) break;
+
     if(!russian_roulette) {
       russian_roulette = throughput < 0.1;
     }
