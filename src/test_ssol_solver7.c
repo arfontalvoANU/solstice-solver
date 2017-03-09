@@ -16,6 +16,14 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 
+#include <rsys/mem_allocator.h>
+#include <rsys/image.h>
+
+#define SCREEN_GAMMA 2.2
+#define WIDTH 640
+#define HEIGHT 480
+#define PROJ_RATIO (double)WIDTH/(double)HEIGHT
+
 #define REFLECTIVITY 0
 #include "test_ssol_materials.h"
 
@@ -56,28 +64,17 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
   *data = intensities[i];
 }
 
-#include <rsys/mem_allocator.h>
-#include <rsys/image.h>
-#include "ssol_scene_c.h"
-#include "ssol_device_c.h"
-
-#define SCREEN_GAMMA 2.2
-
-#define HEIGHT 800
-#define WIDTH 1000
-
 /* Assume that the pixel format of the src is DOUBLE3 in gray scale while the
-* pixel format of dst is UBYTE */
+ * pixel format of dst is UBYTE */
 static void
 tone_map(const double* src, unsigned char* dst, const size_t count)
 {
   size_t i;
-  ASSERT(src && dst && count);
   FOR_EACH(i, 0, count) {
     double val;
     val = pow(src[i * 3/*#channels*/], 1 / SCREEN_GAMMA);/* Gamma correction */
     val = CLAMP(val, 0, 1);
-    dst[i] = (unsigned char) ((val * 255) + 0.5/*round*/);
+    dst[i] = (unsigned char)((val * 255) + 0.5/*round*/);
   }
 }
 
@@ -87,12 +84,8 @@ tone_map_image(const struct ssol_image* img, unsigned char* dst)
   struct ssol_image_layout layout;
   size_t irow = 0;
   void* mem;
-  ASSERT(img && dst);
-
-  SSOL(image_get_layout(img, &layout));
-  ASSERT(layout.pixel_format == SSOL_PIXEL_DOUBLE3);
-
-  SSOL(image_map(img, &mem));
+  CHECK(ssol_image_get_layout(img, &layout), RES_OK);
+  CHECK(ssol_image_map(img, &mem), RES_OK);
   FOR_EACH(irow, 0, layout.height) {
     const void* src_row = ((char*) mem) + layout.offset + irow * layout.row_pitch;
     unsigned char* dst_row = dst + irow * layout.width;
@@ -100,148 +93,47 @@ tone_map_image(const struct ssol_image* img, unsigned char* dst)
   }
 }
 
-static res_T
-setup_framebuffer(struct ssol_device* dev, struct ssol_image** framebuffer)
-{
-  struct ssol_image* fbuf = NULL;
-  res_T res = RES_OK;
-  ASSERT(dev && framebuffer);
-
-  res = ssol_image_create(dev, &fbuf);
-  if (res != RES_OK) {
-    fprintf(stderr, "Could not create the rendering framebuffer.\n");
-    goto error;
-  }
-
-  res = ssol_image_setup(fbuf, WIDTH, HEIGHT, SSOL_PIXEL_DOUBLE3);
-  if (res != RES_OK) {
-    fprintf(stderr,
-      "Could not set the framebuffer definition to %dx%d.\n",
-      WIDTH, HEIGHT);
-    goto error;
-  }
-
-exit:
-  *framebuffer = fbuf;
-  return res;
-
-error:
-  if (fbuf) {
-    SSOL(image_ref_put(fbuf));
-    fbuf = NULL;
-  }
-  goto exit;
-}
-
-static res_T
-setup_camera(struct ssol_device* dev, struct ssol_camera** camera)
-{
-  struct ssol_camera* cam = NULL;
-  double proj_ratio = 0;
-  res_T res = RES_OK;
-  double pos[3] = { 50, -120, 50 }, tgt[3] = { 50, 0, 50 }, up[3] = { 0, 0, 1 };
-  ASSERT(dev && camera);
-
-  res = ssol_camera_create(dev, &cam);
-  if (res != RES_OK) {
-    fprintf(stderr, "Could not create the rendering camera.\n");
-    goto error;
-  }
-
-#define FOV 60.0
-
-  proj_ratio = WIDTH / HEIGHT;
-  res = ssol_camera_set_proj_ratio(cam, proj_ratio);
-  if (res != RES_OK) {
-    fprintf(stderr, "Invalid image ratio '%g'.\n", proj_ratio);
-    goto error;
-  }
-
-  res = ssol_camera_set_fov(cam, MDEG2RAD(FOV));
-  if (res != RES_OK) {
-    fprintf(stderr, "Invalid horizontal field of view '%g' degrees.\n", FOV);
-    goto error;
-  }
-
-  res = ssol_camera_look_at(cam, pos, tgt, up);
-  if (res != RES_OK) {
-    fprintf(stderr,
-      "Invalid camera point of view:\n"
-      "  position = %g %g %g\n"
-      "  target = %g %g %g\n"
-      "  up = %g %g %g\n",
-      SPLIT3(pos),
-      SPLIT3(tgt),
-      SPLIT3(up));
-    goto error;
-  }
-
-exit:
-  *camera = cam;
-  return res;
-error:
-  if (cam) {
-    SSOL(camera_ref_put(cam));
-    cam = NULL;
-  }
-  goto exit;
-}
-
 /* TODO Remove this dead code or move and refactor it in the test utilities */
-static INLINE res_T
-solstice_draw(struct ssol_scene* scene, const char* name)
+static INLINE void
+draw
+  (struct ssol_device* dev,
+   struct ssol_scene* scene,
+   FILE* output)
 {
   struct ssol_image_layout layout;
   unsigned char* ubytes = NULL;
-  struct ssol_image* framebuffer;
-  struct ssol_camera* camera;
-  FILE* output; /* Output stream */
-  res_T res = RES_OK;
-  ASSERT(scene && name);
+  struct ssol_image* fbuf;
+  struct ssol_camera* cam;
+  const double pos[3] = { 50, -120, 50 };
+  const double tgt[3] = { 50, 0, 50 };
+  const double up[3] = { 0, 0, 1 };
 
-  output = fopen(name, "w");
-  if (!output) return RES_IO_ERR;
+  NCHECK(dev, NULL);
+  NCHECK(scene, NULL);
+  NCHECK(output, NULL);
 
-  res = setup_framebuffer(scene->dev, &framebuffer);
-  if (res != RES_OK) {
-    fprintf(stderr, "Could not setup the framebuffer.\n");
-    goto error;
-  }
+  CHECK(ssol_image_create(dev, &fbuf), RES_OK);
+  CHECK(ssol_image_setup(fbuf, WIDTH, HEIGHT, SSOL_PIXEL_DOUBLE3), RES_OK);
 
-  SSOL(image_get_layout(framebuffer, &layout));
-  ubytes = MEM_ALLOC(scene->dev->allocator, layout.width*layout.height);
-  if (!ubytes) {
-    fprintf(stderr, "Could not allocate the 8-bits image buffer.\n");
-    res = RES_MEM_ERR;
-    goto error;
-  }
+  CHECK(ssol_image_get_layout(fbuf, &layout), RES_OK);
+  ubytes = mem_alloc(layout.width*layout.height);
+  NCHECK(ubytes, NULL);
 
-  res = setup_camera(scene->dev, &camera);
-  if (res != RES_OK) {
-    fprintf(stderr, "Could not setup the camera.\n");
-    goto error;
-  }
+  CHECK(ssol_camera_create(dev, &cam), RES_OK);
+  CHECK(ssol_camera_set_proj_ratio(cam, PROJ_RATIO), RES_OK);
+  CHECK(ssol_camera_set_fov(cam, MDEG2RAD(60)), RES_OK);
+  CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_OK);
 
-  res = ssol_draw(scene, camera, layout.width,
-    layout.height, ssol_image_write, framebuffer);
-  if (res != RES_OK) {
-    fprintf(stderr, "Rendering error\n");
-    goto error;
-  }
+  CHECK(ssol_draw_draft(scene, cam, layout.width, layout.height, 1,
+    ssol_image_write, fbuf), RES_OK);
 
-  tone_map_image(framebuffer, ubytes);
-  res = image_ppm_write_stream(output, (int) layout.width, (int) layout.height, 1, ubytes);
-  if (res != RES_OK) {
-    fprintf(stderr, "Could not write the rendered image to the output stream.\n");
-    goto error;
-  }
+  tone_map_image(fbuf, ubytes);
+  CHECK(image_ppm_write_stream
+    (output, (int) layout.width, (int) layout.height, 1, ubytes), RES_OK);
 
-exit:
-  if (output) fclose(output);
-  if (ubytes) MEM_RM(scene->dev->allocator, ubytes);
-  return res;
-error:
-  goto exit;
+  CHECK(ssol_camera_ref_put(cam), RES_OK);
+  CHECK(ssol_image_ref_put(fbuf), RES_OK);
+  mem_rm(ubytes);
 }
 
 int
@@ -381,7 +273,7 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(fclose(tmp), 0);
 
-  /*CHECK(solstice_draw(scene, "full_scene.ppm"), RES_OK);*/
+  /*draw(dev, scene, stdout);*/
 
   printf("Total = %g\n", TOTAL);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
