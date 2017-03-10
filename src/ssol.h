@@ -300,7 +300,7 @@ struct ssol_mc_result {
 };
 
 struct ssol_mc_global {
-  struct ssol_mc_result cos_loss; /* In W */
+  struct ssol_mc_result cos_factor;
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
 };
@@ -321,7 +321,6 @@ struct ssol_mc_primitive {
   struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
-  struct ssol_mc_result cos_loss; /* In W TODO remove this */
   size_t index; /* Index of the primitive */
 };
 

@@ -145,14 +145,17 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   printf("Ir = %g +/- %g\n", m, std);
-#define DNI_cos (1000 * cos(0))
+#define COS cos(0)
+#define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);
   CHECK(eq_eps(std, 0, 1), 1);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  /* Cannot assert anything about mean local cos */
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",

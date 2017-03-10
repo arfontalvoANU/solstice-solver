@@ -144,7 +144,8 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   printf("Ir = %g +/- %g\n", m, std);
-#define DNI_cos (1000 * cos(PI / 4))
+#define COS cos(PI / 4)
+#define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 2e-1), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, 
@@ -152,8 +153,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n", 

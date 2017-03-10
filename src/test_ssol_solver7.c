@@ -203,16 +203,16 @@ main(int argc, char** argv)
 
   printf("Total = %g\n", TOTAL);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g\n",
-    mc_global.shadowed.E, mc_global.shadowed.SE);
+  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  printf("Missing = %g +/- %g\n",
-    mc_global.missing.E, mc_global.missing.SE);
+  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
 
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Abs(target1) = %g +/- %g\n",
-    mc_rcv.integrated_absorbed_irradiance.E, mc_rcv.integrated_absorbed_irradiance.SE);
+    mc_rcv.integrated_absorbed_irradiance.E, 
+    mc_rcv.integrated_absorbed_irradiance.SE);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, TOTAL, TOTAL * 1e-4), 1);

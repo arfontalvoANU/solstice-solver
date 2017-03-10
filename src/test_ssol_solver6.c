@@ -183,6 +183,7 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 100000, 2 * 100000/sqrt(N__)), 1);
   CHECK(eq_eps(mc_global.missing.E, 0, 0), 1);
 

@@ -52,7 +52,7 @@ struct thread_context {
   struct ssf_bsdf* bsdf;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data cos_loss;
+  struct mc_data cos_factor;
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
 };
@@ -99,7 +99,7 @@ thread_context_copy
   dst->bsdf = src->bsdf;
   dst->shadowed = src->shadowed;
   dst->missing = src->missing;
-  dst->cos_loss = src->cos_loss;
+  dst->cos_factor = src->cos_factor;
   res = htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
   if(res != RES_OK) return res;
   res = htable_sampled_copy(&dst->mc_samps, &src->mc_samps);
@@ -157,7 +157,7 @@ struct point {
   double wl; /* Sampled wavelength */
   /* MC weights, before and after hit */
   double incoming_weight, weight;
-  double cos_loss; /* loss at the starting point */
+  double cos_factor; /* local cos at the starting point */
   double absorbed_irradiance; /* current hit only */
   double absorptivity_loss_before, absorptivity_loss;
   double reflectivity_loss_before, reflectivity_loss;
@@ -244,6 +244,10 @@ point_init
   if(pt->sshape->shape->type == SHAPE_PUNCHED) {
     punched_shape_project_point
       (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, pt->N);
+    /* Local cos */
+    pt->cos_factor = fabs(d3_dot(pt->N, pt->dir));
+  } else {
+    pt->cos_factor = cos_sun;
   }
   /* use local cos to compute cos_loss */
   cos_sun = fabs(d3_dot(pt->N, pt->dir));
@@ -651,7 +655,7 @@ trace_radiative_path
     Res.weight += (W);                                                        \
     Res.sqr_weight += (W)*(W);                                                \
   } (void)0
-  ACCUM_WEIGHT(thread_ctx->cos_loss, pt.cos_loss);
+  ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
   if(!is_lit) { /* The starting point is not lit */
     ACCUM_WEIGHT(pt.mc_samp->shadowed, pt.weight);
     ACCUM_WEIGHT(thread_ctx->shadowed, pt.weight);
@@ -843,7 +847,7 @@ ssol_solve
     } (void)0
     ACCUM_WEIGHT(shadowed);
     ACCUM_WEIGHT(missing);
-    ACCUM_WEIGHT(cos_loss);
+    ACCUM_WEIGHT(cos_factor);
     #undef ACCUM_WEIGHT
   }
 

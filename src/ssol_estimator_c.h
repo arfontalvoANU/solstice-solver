@@ -336,7 +336,7 @@ struct ssol_estimator {
   /* Implicit MC computations */
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data cos_loss;
+  struct mc_data cos_factor;
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */

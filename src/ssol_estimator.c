@@ -116,7 +116,7 @@ ssol_estimator_get_mc_global
     global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
     global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
   } (void)0
-  SETUP_MC_RESULT(cos_loss);
+  SETUP_MC_RESULT(cos_factor);
   SETUP_MC_RESULT(shadowed);
   SETUP_MC_RESULT(missing);
   #undef SETUP_MC_RESULT
