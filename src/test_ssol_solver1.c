@@ -354,7 +354,7 @@ main(int argc, char** argv)
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
-  CHECK(eq_eps(mc_global.cos_loss.E, (1 - COS)*(4 * DNI), 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Check atmosphere model and imperfect mirror: there are losses */

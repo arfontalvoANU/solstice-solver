@@ -249,9 +249,6 @@ point_init
   } else {
     pt->cos_factor = cos_sun;
   }
-  /* use local cos to compute cos_loss */
-  cos_sun = fabs(d3_dot(pt->N, pt->dir));
-  pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - cos_sun);
 
   /* Define the primitive side on which the point lies */
   if(d3_dot(pt->N, pt->dir) < 0) {
