@@ -657,7 +657,7 @@ trace_radiative_path
 
   if(!is_lit) { /* The starting point is not lit */
     pt.mc_samp->shadowed.weight += pt.weight;
-    pt.mc_samp->shadowed.sqr_weight += pt.weight;
+    pt.mc_samp->shadowed.sqr_weight += pt.weight * pt.weight;
     thread_ctx->shadowed.weight += pt.weight;
     thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
   } else {
