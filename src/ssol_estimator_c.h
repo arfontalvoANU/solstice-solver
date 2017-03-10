@@ -41,11 +41,13 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
  ******************************************************************************/
 #define MC_RECEIVER_DATA                                                       \
   struct mc_data integrated_irradiance; /* In W */                             \
+  struct mc_data integrated_absorbed_irradiance; /* In W */                    \
   struct mc_data absorptivity_loss; /* In W */                                 \
   struct mc_data reflectivity_loss; /* In W */                                 \
   struct mc_data cos_loss; /* In W */
 
 #define MC_RECEIVER_DATA_NULL__                                                \
+  MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__,                                                              \
@@ -84,6 +86,7 @@ mc_receiver_1side_init
 {
   ASSERT(mc);
   mc->integrated_irradiance = MC_DATA_NULL;
+  mc->integrated_absorbed_irradiance = MC_DATA_NULL;
   mc->absorptivity_loss = MC_DATA_NULL;
   mc->reflectivity_loss = MC_DATA_NULL;
   mc->cos_loss = MC_DATA_NULL;
@@ -106,6 +109,7 @@ mc_receiver_1side_copy
   res_T res = RES_OK;
   ASSERT(dst && src);
   dst->integrated_irradiance = src->integrated_irradiance;
+  dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
   dst->cos_loss = src->cos_loss;
@@ -123,6 +127,7 @@ mc_receiver_1side_copy_and_release
   res_T res = RES_OK;
   ASSERT(dst && src);
   dst->integrated_irradiance = src->integrated_irradiance;
+  dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
   dst->cos_loss = src->cos_loss;

@@ -155,10 +155,12 @@ struct point {
   double dir[3];
   float uv[2];
   double wl; /* Sampled wavelength */
-  double weight; /* actual weight */
-  double absorptivity_loss;
-  double reflectivity_loss;
-  double cos_loss;
+  /* MC weights, before and after hit */
+  double incoming_weight, weight;
+  double absorbed_irradiance; /* current hit only */
+  double absorptivity_loss_before, absorptivity_loss;
+  double reflectivity_loss_before, reflectivity_loss;
+  double cos_loss_before, cos_loss;
   enum ssol_side_flag side;
 };
 
@@ -172,7 +174,7 @@ struct point {
   {0, 0, 0}, /* Direction */                                                   \
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
-  0, 0, 0, 0, /* MC weights */                                                 \
+  0, 0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                                  \
   SSOL_FRONT /* Side */                                                        \
 }
 static const struct point POINT_NULL = POINT_NULL__;
@@ -365,10 +367,25 @@ point_shade
 
   r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
   ASSERT(0 <= r && r <= 1);
-  pt->reflectivity_loss += (1 - r) * pt->weight;
-  pt->weight *= r;
+  pt->incoming_weight = pt->weight;
+  pt->absorptivity_loss_before = pt->absorptivity_loss;
+  pt->reflectivity_loss_before = pt->reflectivity_loss;
+  pt->cos_loss_before = pt->cos_loss;
+  pt->absorbed_irradiance = (1 - r) * pt->weight;
+  pt->reflectivity_loss += pt->absorbed_irradiance;
+  pt->weight = pt->incoming_weight - pt->absorbed_irradiance;
 
   return RES_OK;
+}
+
+static FINLINE void
+point_hit_virtual(struct point* pt)
+{
+  pt->absorbed_irradiance = 0;
+  pt->incoming_weight = pt->weight;
+  pt->absorptivity_loss_before = pt->absorptivity_loss;
+  pt->reflectivity_loss_before = pt->reflectivity_loss;
+  pt->cos_loss_before = pt->cos_loss;
 }
 
 static FINLINE int
@@ -463,6 +480,7 @@ accum_mc_receivers_1side
     dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
   ACCUM_WEIGHT(integrated_irradiance);
+  ACCUM_WEIGHT(integrated_absorbed_irradiance);
   ACCUM_WEIGHT(absorptivity_loss);
   ACCUM_WEIGHT(reflectivity_loss);
   ACCUM_WEIGHT(cos_loss);
@@ -479,6 +497,7 @@ accum_mc_receivers_1side
       dst_mc_prim->Name.sqr_weight += src_mc_prim->Name.sqr_weight;            \
     } (void)0
     ACCUM_WEIGHT(integrated_irradiance);
+    ACCUM_WEIGHT(integrated_absorbed_irradiance);
     ACCUM_WEIGHT(absorptivity_loss);
     ACCUM_WEIGHT(reflectivity_loss);
     ACCUM_WEIGHT(cos_loss);
@@ -565,10 +584,11 @@ update_mc
     mc_rcv1->Name.weight += (W);                                               \
     mc_rcv1->Name.sqr_weight += (W)*(W);                                       \
   } (void)0
-  ACCUM_WEIGHT(integrated_irradiance, pt->weight);
-  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
-  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
-  ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+  ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
+  ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
+  ACCUM_WEIGHT(cos_loss, pt->cos_loss_before);
   #undef ACCUM_WEIGHT
 
   /* Per-sampled/receiver MC accumulation */
@@ -579,10 +599,11 @@ update_mc
     mc_samp_x_rcv1->Name.weight += (W);                                        \
     mc_samp_x_rcv1->Name.sqr_weight += (W)*(W);                                \
   } (void)0
-  ACCUM_WEIGHT(integrated_irradiance, pt->weight);
-  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
-  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
-  ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+  ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
+  ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
+  ACCUM_WEIGHT(cos_loss, pt->cos_loss_before);
   #undef ACCUM_WEIGHT
 
   /* Per primitive receiver MC accumulation */
@@ -595,10 +616,11 @@ update_mc
       mc_prim->Name.weight += (W);                                             \
       mc_prim->Name.sqr_weight += (W)*(W);                                     \
     } (void)0
-    ACCUM_WEIGHT(integrated_irradiance, pt->weight);
-    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
-    ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
-    ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+    ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
+    ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
+    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+    ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
+    ACCUM_WEIGHT(cos_loss, pt->cos_loss_before);
     #undef ACCUM_WEIGHT
   }
 
@@ -651,13 +673,28 @@ trace_radiative_path
       struct ray_data ray_data = RAY_DATA_NULL;
       struct ssol_material* mtl;
 
+      /* Compute interaction with material */
+      mtl = point_get_material(&pt);
+      if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
+        point_hit_virtual(&pt);
+      }
+      else {
+        /* Modulate the point weight wrt to its scattering functions and
+         * generate an outgoing direction */
+        res = point_shade(&pt, thread_ctx->bsdf, thread_ctx->rng, pt.dir);
+        if(res != RES_OK) goto error;
+      }
+
       if(point_is_receiver(&pt)) {
         hit_a_receiver = 1;
         res = update_mc(&pt, path_id, depth, &thread_ctx->mc_rcvs, output);
         if(res != RES_OK) goto error;
       }
 
-      mtl = point_get_material(&pt);
+      /* Stop the radiative random walk */
+      if(pt.weight == 0) break;
+
+      /* Setup new ray parameters */
       if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
         /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
          * are not updated to ensure that it pursues its traversal without any
@@ -665,16 +702,6 @@ trace_radiative_path
         range[0] = nextafterf(hit.distance, FLT_MAX);
         range[1] = FLT_MAX;
       } else {
-
-        /* Modulate the point weight wrt to its scattering functions and
-         * generate an outgoing direction */
-        res = point_shade(&pt, thread_ctx->bsdf, thread_ctx->rng, pt.dir);
-        if(res != RES_OK) goto error;
-
-        /* Stop the radiative random walk */
-        if(pt.weight == 0) break;
-
-        /* Setup new ray parameters */
         f2(range, 0, FLT_MAX);
         f3_set_d3(org, pt.pos);
         f3_set_d3(dir, pt.dir);

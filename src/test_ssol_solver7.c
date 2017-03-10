@@ -24,7 +24,7 @@
 #define HEIGHT 480
 #define PROJ_RATIO (double)WIDTH/(double)HEIGHT
 
-#define REFLECTIVITY 0
+#define REFLECTIVITY 0.1
 #include "test_ssol_materials.h"
 
 #define TARGET_SZ 2
@@ -211,9 +211,13 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
 
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  printf("Abs(target1) = %g +/- %g\n",
+    mc_rcv.integrated_absorbed_irradiance.E, mc_rcv.integrated_absorbed_irradiance.SE);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, TOTAL, TOTAL * 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_absorbed_irradiance.E, 
+    (1 - REFLECTIVITY) * TOTAL, (1 - REFLECTIVITY) *TOTAL * 1e-4), 1);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, 0, 1e-4), 1);
 
   /* Free data */

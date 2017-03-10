@@ -166,6 +166,7 @@ ssol_estimator_get_mc_sampled_x_receiver
     rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
   } (void)0
   SETUP_MC_RESULT(integrated_irradiance);
+  SETUP_MC_RESULT(integrated_absorbed_irradiance);
   SETUP_MC_RESULT(absorptivity_loss);
   SETUP_MC_RESULT(reflectivity_loss);
   SETUP_MC_RESULT(cos_loss);
