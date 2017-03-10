@@ -157,10 +157,10 @@ struct point {
   double wl; /* Sampled wavelength */
   /* MC weights, before and after hit */
   double incoming_weight, weight;
+  double cos_loss; /* loss at the starting point */
   double absorbed_irradiance; /* current hit only */
   double absorptivity_loss_before, absorptivity_loss;
   double reflectivity_loss_before, reflectivity_loss;
-  double cos_loss_before, cos_loss;
   enum ssol_side_flag side;
 };
 
@@ -174,7 +174,7 @@ struct point {
   {0, 0, 0}, /* Direction */                                                   \
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
-  0, 0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                                  \
+  0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                                     \
   SSOL_FRONT /* Side */                                                        \
 }
 static const struct point POINT_NULL = POINT_NULL__;
@@ -225,7 +225,6 @@ point_init
   /* Initialise the Monte Carlo weight */
   cos_sun = fabs(d3_dot(pt->N, pt->dir));
   pt->weight = scn->sun->dni * sampled_area_proxy * cos_sun;
-  pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - cos_sun);
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Retrieve the sampled instance and shaded shape */
@@ -238,8 +237,6 @@ point_init
   /* Store sampled entity related weights */
   res = get_mc_sampled(sampled, pt->inst, &pt->mc_samp);
   if(res != RES_OK) goto error;
-  pt->mc_samp->cos_loss.weight += pt->cos_loss;
-  pt->mc_samp->cos_loss.sqr_weight += pt->cos_loss * pt->cos_loss;
   pt->mc_samp->nb_samples++;
 
   /* For punched surface, retrieve the sampled position and normal onto the
@@ -248,6 +245,9 @@ point_init
     punched_shape_project_point
       (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, pt->N);
   }
+  /* use local cos to compute cos_loss */
+  cos_sun = fabs(d3_dot(pt->N, pt->dir));
+  pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - cos_sun);
 
   /* Define the primitive side on which the point lies */
   if(d3_dot(pt->N, pt->dir) < 0) {
@@ -370,7 +370,6 @@ point_shade
   pt->incoming_weight = pt->weight;
   pt->absorptivity_loss_before = pt->absorptivity_loss;
   pt->reflectivity_loss_before = pt->reflectivity_loss;
-  pt->cos_loss_before = pt->cos_loss;
   pt->absorbed_irradiance = (1 - r) * pt->weight;
   pt->reflectivity_loss += pt->absorbed_irradiance;
   pt->weight = pt->incoming_weight - pt->absorbed_irradiance;
@@ -385,7 +384,6 @@ point_hit_virtual(struct point* pt)
   pt->incoming_weight = pt->weight;
   pt->absorptivity_loss_before = pt->absorptivity_loss;
   pt->reflectivity_loss_before = pt->reflectivity_loss;
-  pt->cos_loss_before = pt->cos_loss;
 }
 
 static FINLINE int
@@ -483,7 +481,6 @@ accum_mc_receivers_1side
   ACCUM_WEIGHT(integrated_absorbed_irradiance);
   ACCUM_WEIGHT(absorptivity_loss);
   ACCUM_WEIGHT(reflectivity_loss);
-  ACCUM_WEIGHT(cos_loss);
   #undef ACCUM_WEIGHT
 
   /* Merge the per primitive MC of the integrated irradiance */
@@ -500,7 +497,6 @@ accum_mc_receivers_1side
     ACCUM_WEIGHT(integrated_absorbed_irradiance);
     ACCUM_WEIGHT(absorptivity_loss);
     ACCUM_WEIGHT(reflectivity_loss);
-    ACCUM_WEIGHT(cos_loss);
     #undef ACCUM_WEIGHT
   }
 exit:
@@ -523,7 +519,6 @@ accum_mc_sampled(struct mc_sampled* dst, struct mc_sampled* src)
     dst->Name.weight += src->Name.weight;                                      \
     dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
-  ACCUM_WEIGHT(cos_loss);
   ACCUM_WEIGHT(shadowed);
   #undef ACCUM_WEIGHT
 
@@ -588,7 +583,6 @@ update_mc
   ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
   ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
   ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
-  ACCUM_WEIGHT(cos_loss, pt->cos_loss_before);
   #undef ACCUM_WEIGHT
 
   /* Per-sampled/receiver MC accumulation */
@@ -603,7 +597,6 @@ update_mc
   ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
   ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
   ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
-  ACCUM_WEIGHT(cos_loss, pt->cos_loss_before);
   #undef ACCUM_WEIGHT
 
   /* Per primitive receiver MC accumulation */
@@ -620,7 +613,6 @@ update_mc
     ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
     ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
     ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
-    ACCUM_WEIGHT(cos_loss, pt->cos_loss_before);
     #undef ACCUM_WEIGHT
   }
 
@@ -655,11 +647,15 @@ trace_radiative_path
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
 
+  #define ACCUM_WEIGHT(Res, W) {                                              \
+    Res.weight += (W);                                                        \
+    Res.sqr_weight += (W)*(W);                                                \
+  } (void)0
+  ACCUM_WEIGHT(thread_ctx->cos_loss, pt.cos_loss);
   if(!is_lit) { /* The starting point is not lit */
-    pt.mc_samp->shadowed.weight += pt.weight;
-    pt.mc_samp->shadowed.sqr_weight += pt.weight * pt.weight;
-    thread_ctx->shadowed.weight += pt.weight;
-    thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
+    ACCUM_WEIGHT(pt.mc_samp->shadowed, pt.weight);
+    ACCUM_WEIGHT(thread_ctx->shadowed, pt.weight);
+  #undef ACCUM_WEIGHT
   } else {
     int hit_a_receiver = 0;
 

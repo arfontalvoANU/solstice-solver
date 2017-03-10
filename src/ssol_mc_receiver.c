@@ -53,7 +53,6 @@ ssol_estimator_get_mc_receiver
   SETUP_MC_RESULT(integrated_absorbed_irradiance);
   SETUP_MC_RESULT(absorptivity_loss);
   SETUP_MC_RESULT(reflectivity_loss);
-  SETUP_MC_RESULT(cos_loss);
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__  = estimator->realisation_count;
@@ -98,7 +97,6 @@ ssol_mc_receiver_get_mc_primitive
   SETUP_MC_RESULT(integrated_absorbed_irradiance);
   SETUP_MC_RESULT(absorptivity_loss);
   SETUP_MC_RESULT(reflectivity_loss);
-  SETUP_MC_RESULT(cos_loss);
   #undef SETUP_MC_RESULT
   prim->index = i;
   return RES_OK;

@@ -43,11 +43,9 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
   struct mc_data integrated_irradiance; /* In W */                             \
   struct mc_data integrated_absorbed_irradiance; /* In W */                    \
   struct mc_data absorptivity_loss; /* In W */                                 \
-  struct mc_data reflectivity_loss; /* In W */                                 \
-  struct mc_data cos_loss; /* In W */
+  struct mc_data reflectivity_loss; /* In W */
 
 #define MC_RECEIVER_DATA_NULL__                                                \
-  MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__,                                                              \
@@ -89,7 +87,6 @@ mc_receiver_1side_init
   mc->integrated_absorbed_irradiance = MC_DATA_NULL;
   mc->absorptivity_loss = MC_DATA_NULL;
   mc->reflectivity_loss = MC_DATA_NULL;
-  mc->cos_loss = MC_DATA_NULL;
   htable_prim2mc_init(allocator, &mc->prim2mc);
   darray_mc_prim_init(allocator, &mc->mc_prims);
 }
@@ -112,7 +109,6 @@ mc_receiver_1side_copy
   dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
-  dst->cos_loss = src->cos_loss;
   res = htable_prim2mc_copy(&dst->prim2mc, &src->prim2mc);
   if(res != RES_OK) return res;
   res = darray_mc_prim_copy(&dst->mc_prims, &src->mc_prims);
@@ -130,7 +126,6 @@ mc_receiver_1side_copy_and_release
   dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
-  dst->cos_loss = src->cos_loss;
   res = htable_prim2mc_copy(&dst->prim2mc, &src->prim2mc);
   if(res != RES_OK) return res;
   res = darray_mc_prim_copy(&dst->mc_prims, &src->mc_prims);
@@ -237,7 +232,6 @@ mc_receiver_copy_and_release
  ******************************************************************************/
 struct mc_sampled {
   /* Global data for this entity */
-  struct mc_data cos_loss;
   struct mc_data shadowed;
   double area;
   double sun_cos;
@@ -253,7 +247,6 @@ mc_sampled_init
    struct mc_sampled* samp)
 {
   ASSERT(samp);
-  samp->cos_loss = MC_DATA_NULL;
   samp->shadowed = MC_DATA_NULL;
   samp->area = 0;
   samp->sun_cos = 0;
@@ -272,7 +265,6 @@ static INLINE res_T
 mc_sampled_copy(struct mc_sampled* dst, const struct mc_sampled* src)
 {
   ASSERT(dst && src);
-  dst->cos_loss = src->cos_loss;
   dst->shadowed = src->shadowed;
   dst->area = src->area;
   dst->sun_cos = src->sun_cos;
@@ -284,7 +276,6 @@ static INLINE res_T
 mc_sampled_copy_and_release(struct mc_sampled* dst, struct mc_sampled* src)
 {
   ASSERT(dst && src);
-  dst->cos_loss = src->cos_loss;
   dst->shadowed = src->shadowed;
   dst->area = src->area;
   dst->sun_cos = src->sun_cos;
@@ -345,7 +336,7 @@ struct ssol_estimator {
   /* Implicit MC computations */
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data cos_loss; /* TODO compute it */
+  struct mc_data cos_loss;
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */

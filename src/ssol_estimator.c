@@ -169,7 +169,6 @@ ssol_estimator_get_mc_sampled_x_receiver
   SETUP_MC_RESULT(integrated_absorbed_irradiance);
   SETUP_MC_RESULT(absorptivity_loss);
   SETUP_MC_RESULT(reflectivity_loss);
-  SETUP_MC_RESULT(cos_loss);
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__ = mc_samp->nb_samples;
