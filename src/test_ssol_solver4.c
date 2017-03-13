@@ -167,7 +167,7 @@ main(int argc, char** argv)
   printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
-  /* Cannot assert anything about mean local cos */
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);

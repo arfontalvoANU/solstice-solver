@@ -226,6 +226,7 @@ point_init
   cos_sun = fabs(d3_dot(pt->N, pt->dir));
   pt->weight = scn->sun->dni * sampled_area_proxy * cos_sun;
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
+  pt->cos_factor = cos_sun;
 
   /* Retrieve the sampled instance and shaded shape */
   pt->inst = *htable_instance_find(&scn->instances_samp, &pt->prim.inst_id);
@@ -244,10 +245,6 @@ point_init
   if(pt->sshape->shape->type == SHAPE_PUNCHED) {
     punched_shape_project_point
       (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, pt->N);
-    /* Local cos */
-    pt->cos_factor = fabs(d3_dot(pt->N, pt->dir));
-  } else {
-    pt->cos_factor = cos_sun;
   }
 
   /* Define the primitive side on which the point lies */

@@ -300,7 +300,7 @@ struct ssol_mc_result {
 };
 
 struct ssol_mc_global {
-  struct ssol_mc_result cos_factor;
+  struct ssol_mc_result cos_factor; /* [0 1] */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
 };

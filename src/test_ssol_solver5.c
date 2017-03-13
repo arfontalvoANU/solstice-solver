@@ -155,7 +155,7 @@ main(int argc, char** argv)
   printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
-  /* Cannot assert anything about mean local cos */
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
