@@ -71,6 +71,7 @@ ssol_mc_receiver_get_mc_shape
   mc_rcv1 = rcv->mc__;
   mc->N__ = rcv->N__;
   mc->mc__ = htable_shape2mc_find(&mc_rcv1->shape2mc, &shape);
+  mc->shape__ = shape;
   return RES_OK;
 }
 
@@ -82,8 +83,12 @@ ssol_mc_shape_get_mc_primitive
 {
   struct mc_shape_1side* mc_shape1;
   struct mc_primitive_1side* mc_prim1;
+  unsigned ntris;
 
   if(!shape || !prim) return RES_BAD_ARG;
+
+  SSOL(shape_get_triangles_count(shape->shape__, &ntris));
+  if(i >= ntris) return RES_BAD_ARG;
 
   mc_shape1 = shape->mc__;
   if(!mc_shape1 || !(mc_prim1 = htable_prim2mc_find(&mc_shape1->prim2mc, &i))) {

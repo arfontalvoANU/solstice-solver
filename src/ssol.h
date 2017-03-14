@@ -320,6 +320,7 @@ struct ssol_mc_shape {
   /* Internal data */
   size_t N__;
   void* mc__;
+  const struct ssol_shape* shape__;
 };
 
 struct ssol_mc_primitive {
