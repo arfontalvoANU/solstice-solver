@@ -15,6 +15,7 @@
 
 #include "ssol.h"
 #include "ssol_estimator_c.h"
+#include "ssol_object_c.h"
 
 /*******************************************************************************
  * Exported functions
@@ -56,6 +57,7 @@ ssol_estimator_get_mc_receiver
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__  = estimator->realisation_count;
+  rcv->instance__ = instance;
   return RES_OK;
 }
 
@@ -68,6 +70,7 @@ ssol_mc_receiver_get_mc_shape
   struct mc_receiver_1side* mc_rcv1;
 
   if(!rcv || !shape || !mc) return RES_BAD_ARG;
+  if(!object_has_shape(rcv->instance__->object, shape)) return RES_BAD_ARG;
   mc_rcv1 = rcv->mc__;
   mc->N__ = rcv->N__;
   mc->mc__ = htable_shape2mc_find(&mc_rcv1->shape2mc, &shape);

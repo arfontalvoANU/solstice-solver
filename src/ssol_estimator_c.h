@@ -194,7 +194,7 @@ mc_receiver_1side_get_mc_shape
   struct mc_shape_1side* mc_shape1 = NULL;
   struct mc_shape_1side mc_shape1_null;
   res_T res = RES_OK;
-  ASSERT(mc_rcv && shape && out_mc_prim1);
+  ASSERT(mc_rcv && shape && out_mc_shape1);
 
   mc_shape_1side_init(shape->dev->allocator, &mc_shape1_null);
 

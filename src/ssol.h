@@ -314,6 +314,7 @@ struct ssol_mc_receiver {
   /* Internal data */
   size_t N__;
   void* mc__;
+  const struct ssol_instance* instance__;
 };
 
 struct ssol_mc_shape {

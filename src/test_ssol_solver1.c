@@ -52,6 +52,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssp_rng* rng;
   struct ssol_scene* scene;
+  struct ssol_shape* dummy;
   struct ssol_shape* square;
   struct ssol_vertex_data attribs[1] = { SSOL_VERTEX_DATA_NULL__ };
   struct ssol_material *m_mtl, *m_mtl2;
@@ -129,6 +130,7 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
 
   /* Create scene content */
+  CHECK(ssol_shape_create_mesh(dev, &dummy), RES_OK);
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
@@ -435,6 +437,7 @@ main(int argc, char** argv)
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, NULL, &mc_shape), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, NULL, &mc_shape), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, square, &mc_shape), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, dummy, &mc_shape), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, square, &mc_shape), RES_OK);
 
   CHECK(ssol_shape_get_triangles_count(square, &ntris), RES_OK);
@@ -453,6 +456,7 @@ main(int argc, char** argv)
     CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, (unsigned)i, &mc_prim), RES_OK);
     dbl += mc_prim.integrated_irradiance.E;
   }
+
   CHECK(eq_eps(dbl, a_m, 1.e-6), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
@@ -506,18 +510,19 @@ main(int argc, char** argv)
   CHECK(ssol_instance_ref_put(target), RES_OK);
   CHECK(ssol_object_ref_put(m_object), RES_OK);
   CHECK(ssol_object_ref_put(t_object), RES_OK);
+  CHECK(ssol_shape_ref_put(dummy), RES_OK);
   CHECK(ssol_shape_ref_put(square), RES_OK);
   CHECK(ssol_material_ref_put(m_mtl), RES_OK);
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
-  CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun_mono), RES_OK);
+  CHECK(ssp_rng_ref_put(rng), RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
