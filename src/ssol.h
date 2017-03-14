@@ -318,8 +318,6 @@ struct ssol_mc_receiver {
 
 struct ssol_mc_sampled {
   struct ssol_mc_result shadowed;
-  double area;
-  double sun_cos;
   size_t nb_samples;
 };
 

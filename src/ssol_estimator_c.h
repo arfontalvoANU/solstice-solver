@@ -233,7 +233,6 @@ mc_receiver_copy_and_release
 struct mc_sampled {
   /* Global data for this entity */
   struct mc_data shadowed;
-  double sun_cos;
   size_t nb_samples;
 
   /* By-receptor data for this entity */
@@ -247,7 +246,6 @@ mc_sampled_init
 {
   ASSERT(samp);
   samp->shadowed = MC_DATA_NULL;
-  samp->sun_cos = 0;
   samp->nb_samples = 0;
   htable_receiver_init(allocator, &samp->mc_rcvs);
 }
@@ -264,7 +262,6 @@ mc_sampled_copy(struct mc_sampled* dst, const struct mc_sampled* src)
 {
   ASSERT(dst && src);
   dst->shadowed = src->shadowed;
-  dst->sun_cos = src->sun_cos;
   dst->nb_samples = src->nb_samples;
   return htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
 }
@@ -274,7 +271,6 @@ mc_sampled_copy_and_release(struct mc_sampled* dst, struct mc_sampled* src)
 {
   ASSERT(dst && src);
   dst->shadowed = src->shadowed;
-  dst->sun_cos = src->sun_cos;
   dst->nb_samples = src->nb_samples;
   return htable_receiver_copy_and_release(&dst->mc_rcvs, &src->mc_rcvs);
 }

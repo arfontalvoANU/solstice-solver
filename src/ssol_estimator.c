@@ -220,9 +220,7 @@ ssol_estimator_get_mc_sampled
   if (!estimator || !samp_instance || !sampled) return RES_BAD_ARG;
   mc = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
   if(!mc) return RES_BAD_ARG;
-  sampled->area = samp_instance->shape_rt_area;
   sampled->nb_samples = mc->nb_samples;
-  sampled->sun_cos = mc->sun_cos;
   #define SETUP_MC_RESULT(Name) {                                             \
     const double N = (double)estimator->realisation_count;                    \
     const struct mc_data* data = &mc->Name;                                   \
