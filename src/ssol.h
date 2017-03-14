@@ -313,7 +313,13 @@ struct ssol_mc_receiver {
 
   /* Internal data */
   size_t N__;
-  const void* mc__;
+  void* mc__;
+};
+
+struct ssol_mc_shape {
+  /* Internal data */
+  size_t N__;
+  void* mc__;
 };
 
 struct ssol_mc_primitive {
@@ -940,14 +946,15 @@ ssol_estimator_get_mc_receiver
    struct ssol_mc_receiver* rcv);
 
 SSOL_API res_T
-ssol_mc_receiver_get_mc_primitives_count
-  (const struct ssol_mc_receiver* rcv,
-   size_t* count);
+ssol_mc_receiver_get_mc_shape
+  (struct ssol_mc_receiver* rcv,
+   const struct ssol_shape* shape,
+   struct ssol_mc_shape* mc);
 
 SSOL_API res_T
-ssol_mc_receiver_get_mc_primitive
-  (const struct ssol_mc_receiver* rcv,
-   const size_t i,
+ssol_mc_shape_get_mc_primitive
+  (struct ssol_mc_shape* shape,
+   const unsigned i, /* In [0, ssol_shape_get_triangles_count[ */
    struct ssol_mc_primitive* prim);
 
 /*******************************************************************************

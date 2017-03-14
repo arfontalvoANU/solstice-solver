@@ -70,6 +70,7 @@ main(int argc, char** argv)
   struct ssol_estimator* estimator;
   struct ssol_mc_global mc_global;
   struct ssol_mc_receiver mc_rcv;
+  struct ssol_mc_shape mc_shape;
   struct ssol_mc_primitive mc_prim;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
@@ -85,6 +86,7 @@ main(int argc, char** argv)
   double m, std;
   double a_m, a_std;
   uint32_t r_id;
+  unsigned ntris;
 
   (void) argc, (void) argv;
 
@@ -426,22 +428,29 @@ main(int argc, char** argv)
     + mc_rcv.cos_loss.E, 4 * DNI, 1e-8), 1);
   CHECK(eq_eps(mc_rcv.cos_loss.E / (4 * DNI), 1 -  COS, 1e-8), 1);
 
-  CHECK(ssol_mc_receiver_get_mc_primitives_count(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitives_count(&mc_rcv, NULL), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitives_count(NULL, &count), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitives_count(&mc_rcv, &count), RES_OK);
-  NCHECK(count,  0);
+  CHECK(ssol_mc_receiver_get_mc_shape(NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(NULL, square, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, square, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(NULL, NULL, &mc_shape), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, NULL, &mc_shape), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(NULL, square, &mc_shape), RES_BAD_ARG);
+  CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, square, &mc_shape), RES_OK);
 
-  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, count, NULL), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, count, NULL), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, count, &mc_prim), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, count, &mc_prim), RES_BAD_ARG);
-  CHECK(ssol_mc_receiver_get_mc_primitive(NULL, 0, &mc_prim), RES_BAD_ARG);
+  CHECK(ssol_shape_get_triangles_count(square, &ntris), RES_OK);
+  NCHECK(ntris, 0);
+
+  CHECK(ssol_mc_shape_get_mc_primitive(NULL, ntris, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, ntris, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_shape_get_mc_primitive(NULL, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_mc_shape_get_mc_primitive(NULL, ntris, &mc_prim), RES_BAD_ARG);
+  CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, ntris, &mc_prim), RES_BAD_ARG);
+  CHECK(ssol_mc_shape_get_mc_primitive(NULL, 0, &mc_prim), RES_BAD_ARG);
+
   dbl = 0;
-  FOR_EACH(i, 0, count) {
-    CHECK(ssol_mc_receiver_get_mc_primitive(&mc_rcv, i, &mc_prim), RES_OK);
+  FOR_EACH(i, 0, ntris) {
+    CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, (unsigned)i, &mc_prim), RES_OK);
     dbl += mc_prim.integrated_irradiance.E;
   }
   CHECK(eq_eps(dbl, a_m, 1.e-6), 1);
