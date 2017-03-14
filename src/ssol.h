@@ -318,6 +318,7 @@ struct ssol_mc_receiver {
 
 struct ssol_mc_sampled {
   struct ssol_mc_result shadowed;
+  double n[3]; /* normals */
   size_t nb_samples;
 };
 
@@ -678,6 +679,12 @@ SSOL_API res_T
 ssol_object_get_area
   (const struct ssol_object* object,
    double* area);
+
+/* Retrieve the normal of the object */
+SSOL_API res_T
+ssol_object_get_normal
+  (const struct ssol_object* object,
+   double normal[3]);
 
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as

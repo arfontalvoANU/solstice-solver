@@ -23,6 +23,7 @@
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
+#include <rsys/double3.h>
 
 /*******************************************************************************
  * Helper functions
@@ -164,6 +165,7 @@ ssol_object_add_shaded_shape
   /* Setup the object shaded shape */
   object->scn_rt_area += shape->shape_rt_area;
   object->scn_samp_area += shape->shape_samp_area;
+  d3_add(object->n, object->n, shape->n);
   SSOL(shape_ref_get(shape));
   SSOL(material_ref_get(front));
   SSOL(material_ref_get(back));
@@ -214,6 +216,7 @@ ssol_object_clear(struct ssol_object* obj)
 
   obj->scn_rt_area = 0;
   obj->scn_samp_area = 0;
+  d3_splat(obj->n, 0);
 
   S3D(scene_clear(obj->scn_rt));
   S3D(scene_clear(obj->scn_samp));
@@ -230,3 +233,13 @@ ssol_object_get_area(const struct ssol_object* object, double* area)
   return RES_OK;
 }
 
+res_T
+ssol_object_get_normal
+  (const struct ssol_object* object,
+   double normal[3])
+{
+  if (!object || !normal) return RES_BAD_ARG;;
+  /* the area of the 3D surface */
+  d3_set(normal, object->n);
+  return RES_OK;
+}
