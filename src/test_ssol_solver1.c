@@ -68,6 +68,7 @@ main(int argc, char** argv)
   struct ssol_spectrum* abs;
   struct ssol_atmosphere* atm;
   struct ssol_estimator* estimator;
+  struct ssol_mc_sampled sampled;
   struct ssol_mc_global mc_global;
   struct ssol_mc_receiver mc_rcv;
   struct ssol_mc_primitive mc_prim;
@@ -80,7 +81,7 @@ main(int argc, char** argv)
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
   double dbl;
-  size_t i, count, fcount;
+  size_t i, count, fcount, scount;
   FILE* tmp = NULL;
   double m, std;
   double a_m, a_std;
@@ -178,6 +179,17 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_failed_count(estimator, &fcount), RES_OK);
   CHECK(fcount, 0);
 
+  CHECK(ssol_estimator_get_sampled_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_count(NULL, &scount), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_count(estimator, &scount), RES_OK);
+  CHECK(scount, 3);
+
+  CHECK(ssol_estimator_get_mc_sampled(NULL, heliostat, &sampled), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, NULL, &sampled), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_OK);
+
   CHECK(ssol_estimator_get_mc_global(NULL, &mc_global), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_global(estimator, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
@@ -193,6 +205,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
   CHECK(ssol_instance_sample(heliostat, 0), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
 
   CHECK(ssol_instance_sample(target, 1), RES_OK);
   CHECK(ssol_instance_sample(secondary, 1), RES_OK);
@@ -415,6 +428,11 @@ main(int argc, char** argv)
      mc_rcv.reflectivity_loss.E,
      mc_rcv.reflectivity_loss.SE,
      100 * mc_rcv.reflectivity_loss.E / m);
+
+  CHECK(ssol_estimator_get_sampled_count(estimator, &scount), RES_OK);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat2, &sampled), RES_OK);
+
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, a_m, 1e-8), 1);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, a_std, 1e-4), 1);
   CHECK(eq_eps

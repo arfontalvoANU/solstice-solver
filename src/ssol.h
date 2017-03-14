@@ -316,6 +316,13 @@ struct ssol_mc_receiver {
   const void* mc__;
 };
 
+struct ssol_mc_sampled {
+  struct ssol_mc_result shadowed;
+  double area;
+  double sun_cos;
+  size_t nb_samples;
+};
+
 struct ssol_mc_primitive {
   struct ssol_mc_result integrated_irradiance; /* In W */
   struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
@@ -928,6 +935,17 @@ SSOL_API res_T
 ssol_estimator_get_sampled_area
   (const struct ssol_estimator* estimator,
    double* area);
+
+SSOL_API res_T
+ssol_estimator_get_sampled_count
+  (const struct ssol_estimator* estimator,
+   size_t* count);
+
+SSOL_API res_T
+ssol_estimator_get_mc_sampled
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* samp_instance,
+   struct ssol_mc_sampled* sampled);
 
 /*******************************************************************************
  * Per receiver MC estimations

@@ -143,7 +143,6 @@ ssol_estimator_get_mc_sampled_x_receiver
 
   memset(rcv, 0, sizeof(rcv[0]));
 
-
   mc_samp = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
   if(!mc_samp || !mc_samp->nb_samples) {
     /* The sampled instance has no MC estimation */
@@ -199,6 +198,40 @@ ssol_estimator_get_sampled_area
 {
   if(!estimator || !area) return RES_BAD_ARG;
   *area = estimator->sampled_area;
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_sampled_count
+  (const struct ssol_estimator* estimator, size_t* count)
+{
+  if (!estimator || !count) return RES_BAD_ARG;
+  *count = htable_sampled_size_get(&estimator->mc_sampled);
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_mc_sampled
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* samp_instance,
+   struct ssol_mc_sampled* sampled)
+{
+  struct mc_sampled* mc = NULL;
+  if (!estimator || !samp_instance || !sampled) return RES_BAD_ARG;
+  mc = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
+  if(!mc) return RES_BAD_ARG;
+  sampled->area = samp_instance->shape_rt_area;
+  sampled->nb_samples = mc->nb_samples;
+  sampled->sun_cos = mc->sun_cos;
+  #define SETUP_MC_RESULT(Name) {                                             \
+    const double N = (double)estimator->realisation_count;                    \
+    const struct mc_data* data = &mc->Name;                                   \
+    sampled->Name.E = data->weight / N;                                       \
+    sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
+    sampled->Name.SE = sampled->Name.V > 0 ? sqrt(sampled->Name.V / N) : 0;   \
+  } (void)0
+  SETUP_MC_RESULT(shadowed);
+  #undef SETUP_MC_RESULT
   return RES_OK;
 }
 
