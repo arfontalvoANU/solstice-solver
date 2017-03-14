@@ -149,7 +149,7 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target1, &r_id1), RES_OK);
   CHECK(ssol_instance_get_id(target2, &r_id2), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id1, count, &m1, &std1), RES_OK);
   CHECK(pp_sum(tmp, (int32_t)r_id2, count, &m2, &std2), RES_OK);

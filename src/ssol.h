@@ -921,7 +921,7 @@ ssol_estimator_get_mc_sampled_x_receiver
    struct ssol_mc_receiver* rcv);
 
 SSOL_API res_T
-ssol_estimator_get_count
+ssol_estimator_get_realisation_count
   (const struct ssol_estimator* estimator,
    size_t* count);
 

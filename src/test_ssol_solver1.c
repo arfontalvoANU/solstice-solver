@@ -167,10 +167,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_sampled_area(estimator, &dbl), RES_OK);
   CHECK(eq_eps(dbl, 12, 1.e-6), 1);
 
-  CHECK(ssol_estimator_get_count(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_count(estimator, NULL), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_realisation_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_realisation_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, 1);
 
   CHECK(ssol_estimator_get_failed_count(NULL, NULL), RES_BAD_ARG);
@@ -264,7 +264,7 @@ main(int argc, char** argv)
 #define GET_MC_GLOBAL ssol_estimator_get_mc_global
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -312,7 +312,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -345,7 +345,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -396,7 +396,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &a_m, &a_std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -487,7 +487,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
