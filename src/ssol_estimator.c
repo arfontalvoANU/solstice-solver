@@ -158,7 +158,7 @@ ssol_estimator_get_mc_sampled_x_receiver
 
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
-    const double N = (double)mc_samp->nb_samples;                              \
+    const double N = (double)estimator->realisation_count;                     \
     const struct mc_data* data = &mc_rcv1->Name;                               \
     rcv->Name.E = data->weight / N;                                            \
     rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;              \
