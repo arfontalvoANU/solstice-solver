@@ -40,7 +40,7 @@ instance_func(struct ssol_instance* inst, void* context)
     CHECK(ctx->instance2_found, 0);
     ctx->instance2_found = 1;
   } else {
-    CHECK(0, 1); /* Unreachable code */
+    FATAL("Unreachable code.\n");
   }
   return RES_OK;
 }

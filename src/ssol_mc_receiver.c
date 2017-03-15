@@ -17,6 +17,11 @@
 #include "ssol_estimator_c.h"
 #include "ssol_object_c.h"
 
+#ifdef COMPILER_CL
+  #pragma warning(push)
+  #pragma warning(disable:4706) /* Assignment within a condition */
+#endif
+
 /*******************************************************************************
  * Exported functions
  ******************************************************************************/
@@ -121,4 +126,8 @@ ssol_mc_shape_get_mc_primitive
   }
   return RES_OK;
 }
+
+#ifdef COMPILER_CL
+  #pragma warning(pop)
+#endif
 
