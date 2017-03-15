@@ -929,6 +929,64 @@ shape_release(ref_T* ref)
   SSOL(device_ref_put(dev));
 }
 
+/* Return the parabol discretisation parameter */
+static INLINE size_t
+priv_data_parabol_setup
+  (struct priv_parabol_data* data,
+   struct ssol_quadric_parabol* parabol,
+   const double lower[3],
+   const double upper[3])
+{
+  double max_z;
+  ASSERT(data && parabol && lower && upper);
+
+  data->focal = parabol->focal;
+  data->_1_4f = 1 / (4.0 * parabol->focal);
+  max_z = MMAX(parabol_z(lower, data), parabol_z(upper, data));
+  return MMIN(50, (size_t) (3 + sqrt(max_z) * 6));
+}
+
+static INLINE size_t
+priv_data_hyperbol_setup
+  (struct priv_hyperbol_data* data,
+   struct ssol_quadric_hyperbol* hyperbol,
+   const double lower[3],
+   const double upper[3])
+{
+  double g, f, a2;
+  double max_z;
+  ASSERT(data && hyperbol && lower && upper);
+
+  /* Re-dimensionalize */
+  g = hyperbol->real_focal + hyperbol->img_focal;
+  f = hyperbol->real_focal / g;
+  a2 =  g * g * (f - f * f);
+
+  data->g_2 = g * 0.5;
+  data->abs_b = g * fabs(f - 0.5);
+  data->_a2_b2 = a2 / (data->abs_b * data->abs_b);
+  data->_1_a2 = 1 / a2;
+  max_z = MMAX(hyperbol_z(lower, data), hyperbol_z(upper, data));
+  return MMIN(50, (size_t) (3 + sqrt(max_z) * 6));
+}
+
+static INLINE size_t
+priv_data_parabolic_cylinder_setup
+  (struct priv_pcylinder_data* data,
+   struct ssol_quadric_parabolic_cylinder* parabolic_cylinder,
+   const double lower[3],
+   const double upper[3])
+{
+  double max_z;
+  ASSERT(data && parabolic_cylinder && lower && upper);
+
+  data->focal = parabolic_cylinder->focal;
+  data->_1_4f = 1 / (4.0 * parabolic_cylinder->focal);
+  max_z = MMAX
+    (parabolic_cylinder_z(lower, data), parabolic_cylinder_z(upper, data));
+  return MMIN(50, (size_t) (3 + sqrt(max_z) * 6));
+}
+
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
@@ -1168,51 +1226,24 @@ ssol_punched_surface_setup
     goto error;
   }
 
-  /* Define the #slices of the discretized quadric */
+  /* Define the #slices of the discretized quadric & setup internal data */
   switch (psurf->quadric->type) {
     case SSOL_QUADRIC_PLANE:
       nslices = 1;
       break;
-    case SSOL_QUADRIC_PARABOL: {
-      const struct ssol_quadric_parabol* parabol
-        = &psurf->quadric->data.parabol;
-      struct priv_parabol_data* data = &shape->priv_quadric.data.parabol;
-      double max_z;
-      data->focal = parabol->focal;
-      data->_1_4f = 1 / (4.0 * parabol->focal);
-      max_z = MMAX(parabol_z(lower, data), parabol_z(upper, data));
-      nslices = MMIN(50, (size_t) (3 + sqrt(max_z) * 6));
+    case SSOL_QUADRIC_PARABOL:
+      nslices = priv_data_parabol_setup(&shape->priv_quadric.data.parabol,
+         &psurf->quadric->data.parabol, lower, upper);
       break;
-    }
-    case SSOL_QUADRIC_HYPERBOL: {
-      const struct ssol_quadric_hyperbol* hyperbol =
-        &psurf->quadric->data.hyperbol;
-      struct priv_hyperbol_data* data = &shape->priv_quadric.data.hyperbol;
-      /* re-dimensionalize */
-      const double g = hyperbol->real_focal + hyperbol->img_focal;
-      const double f = hyperbol->real_focal / g;
-      const double a2 =  g * g * (f - f * f);
-      double max_z;
-      data->g_2 = g * 0.5;
-      data->abs_b = g * fabs(f - 0.5);
-      data->_a2_b2 = a2 / (data->abs_b * data->abs_b);
-      data->_1_a2 = 1 / a2;
-      max_z = MMAX(hyperbol_z(lower, data), hyperbol_z(upper, data));
-      nslices = MMIN(50, (size_t) (3 + sqrt(max_z) * 6));
+    case SSOL_QUADRIC_HYPERBOL:
+      nslices = priv_data_hyperbol_setup(&shape->priv_quadric.data.hyperbol,
+         &psurf->quadric->data.hyperbol, lower, upper);
       break;
-    }
-    case SSOL_QUADRIC_PARABOLIC_CYLINDER: {
-      const struct ssol_quadric_parabolic_cylinder* parabolic_cylinder
-        = &psurf->quadric->data.parabolic_cylinder;
-      struct priv_pcylinder_data* data = &shape->priv_quadric.data.pcylinder;
-      double max_z;
-      data->focal = psurf->quadric->data.parabolic_cylinder.focal;
-      data->_1_4f = 1 / (4.0 * parabolic_cylinder->focal);
-      max_z = MMAX(parabolic_cylinder_z(lower, data),
-        parabolic_cylinder_z(upper, data));
-      nslices = MMIN(50, (size_t) (3 + sqrt(max_z) * 6));
+    case SSOL_QUADRIC_PARABOLIC_CYLINDER:
+      nslices = priv_data_parabolic_cylinder_setup
+        (&shape->priv_quadric.data.pcylinder,
+         &psurf->quadric->data.parabolic_cylinder,lower, upper);
       break;
-    }
     default: FATAL("Unreachable code\n"); break;
   }
 
