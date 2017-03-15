@@ -736,6 +736,12 @@ ssol_instance_get_area
   (const struct ssol_instance* instance,
    double* area);
 
+/* Retrieve the normal of the instance */
+SSOL_API res_T
+ssol_instance_get_normal
+  (const struct ssol_instance* instance,
+   double normal[3]);
+
 SSOL_API res_T
 ssol_instance_get_shaded_shapes_count
   (const struct ssol_instance* instance,

@@ -193,9 +193,20 @@ ssol_instance_get_area
   (const struct ssol_instance* instance,
    double* area)
 {
-  if (!instance || !area) return RES_BAD_ARG;;
+  if (!instance || !area) return RES_BAD_ARG;
   /* the area of the 3D surface */
   *area = instance->shape_rt_area;
+  return RES_OK;
+}
+
+res_T
+ssol_instance_get_normal
+  (const struct ssol_instance* instance,
+   double normal[3])
+{
+  if (!instance || !normal) return RES_BAD_ARG;
+  SSOL(object_get_normal(instance->object, normal));
+  d33_muld3(normal, instance->transform, normal);
   return RES_OK;
 }
 
