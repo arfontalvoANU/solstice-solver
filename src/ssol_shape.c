@@ -1005,7 +1005,7 @@ priv_quadric_data_compute_slices_count
   ASSERT(priv_data && lower && upper);
 
   switch(type) {
-    case SSOL_QUADRIC_PLANE: nslices = 50; break;
+    case SSOL_QUADRIC_PLANE: nslices = 1; break;
     case SSOL_QUADRIC_PARABOL:
       max_z = MMAX
         (parabol_z(lower, &priv_data->parabol),
