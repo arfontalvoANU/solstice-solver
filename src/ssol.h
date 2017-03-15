@@ -298,12 +298,20 @@ struct ssol_mc_result {
   double V; /* Variance */
   double SE; /* Standard error, i.e. sqrt(Expectation / N) */
 };
+#define SSOL_MC_RESULT_NULL__ {0, 0, 0}
+static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
 struct ssol_mc_global {
   struct ssol_mc_result cos_factor; /* [0 1] */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
 };
+#define SSOL_MC_GLOBAL_NULL__ {                                                \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__                                                        \
+}
+static const struct ssol_mc_global SSOL_MC_GLOBAL_NULL = SSOL_MC_GLOBAL_NULL__;
 
 struct ssol_mc_receiver {
   struct ssol_mc_result integrated_irradiance; /* In W */
@@ -313,8 +321,27 @@ struct ssol_mc_receiver {
 
   /* Internal data */
   size_t N__;
-  const void* mc__;
+  void* mc__;
+  const struct ssol_instance* instance__;
 };
+#define SSOL_MC_RECEIVER_NULL__ {                                              \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  0, NULL, NULL                                                                \
+}
+static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
+  SSOL_MC_RECEIVER_NULL__;
+
+struct ssol_mc_shape {
+  /* Internal data */
+  size_t N__;
+  void* mc__;
+  const struct ssol_shape* shape__;
+};
+#define SSOL_MC_SHAPE_NULL__ { 0, NULL, NULL }
+static const struct ssol_mc_shape SSOL_MC_SHAPE_NULL = SSOL_MC_SHAPE_NULL__;
 
 struct ssol_mc_sampled {
   struct ssol_mc_result shadowed;
@@ -327,8 +354,15 @@ struct ssol_mc_primitive {
   struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
-  size_t index; /* Index of the primitive */
 };
+#define SSOL_MC_PRIMITIVE_NULL__ {                                             \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__                                                        \
+}
+static const struct ssol_mc_primitive SSOL_MC_PRIMITIVE_NULL =
+  SSOL_MC_PRIMITIVE_NULL__;
 
 typedef res_T
 (*ssol_write_pixels_T)
@@ -969,14 +1003,15 @@ ssol_estimator_get_mc_receiver
    struct ssol_mc_receiver* rcv);
 
 SSOL_API res_T
-ssol_mc_receiver_get_mc_primitives_count
-  (const struct ssol_mc_receiver* rcv,
-   size_t* count);
+ssol_mc_receiver_get_mc_shape
+  (struct ssol_mc_receiver* rcv,
+   const struct ssol_shape* shape,
+   struct ssol_mc_shape* mc);
 
 SSOL_API res_T
-ssol_mc_receiver_get_mc_primitive
-  (const struct ssol_mc_receiver* rcv,
-   const size_t i,
+ssol_mc_shape_get_mc_primitive
+  (struct ssol_mc_shape* shape,
+   const unsigned i, /* In [0, ssol_shape_get_triangles_count[ */
    struct ssol_mc_primitive* prim);
 
 /*******************************************************************************

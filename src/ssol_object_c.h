@@ -54,4 +54,10 @@ struct ssol_object {
   ref_T ref;
 };
 
+extern LOCAL_SYM int
+object_has_shape
+  (struct ssol_object* obj,
+   const struct ssol_shape* shape);
+
 #endif /* SSOL_OBJECT_C_H */
+

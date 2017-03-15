@@ -15,6 +15,7 @@
 
 #include "ssol.h"
 #include "ssol_estimator_c.h"
+#include "ssol_object_c.h"
 
 /*******************************************************************************
  * Exported functions
@@ -26,8 +27,8 @@ ssol_estimator_get_mc_receiver
    const enum ssol_side_flag side,
    struct ssol_mc_receiver* rcv)
 {
-  const struct mc_receiver* mc_rcv = NULL;
-  const struct mc_receiver_1side* mc_rcv1 = NULL;
+  struct mc_receiver* mc_rcv = NULL;
+  struct mc_receiver_1side* mc_rcv1 = NULL;
 
   if(!estimator || !instance || !rcv
   || !(instance->receiver_mask & (int)side))
@@ -56,49 +57,68 @@ ssol_estimator_get_mc_receiver
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__  = estimator->realisation_count;
+  rcv->instance__ = instance;
   return RES_OK;
 }
 
 res_T
-ssol_mc_receiver_get_mc_primitives_count
-  (const struct ssol_mc_receiver* rcv, size_t* count)
+ssol_mc_receiver_get_mc_shape
+  (struct ssol_mc_receiver* rcv,
+   const struct ssol_shape* shape,
+   struct ssol_mc_shape* mc)
 {
-  const struct mc_receiver_1side* mc_rcv1;
-  if(!rcv || !count) return RES_BAD_ARG;
+  struct mc_receiver_1side* mc_rcv1;
+
+  if(!rcv || !shape || !mc) return RES_BAD_ARG;
+  if(!object_has_shape(rcv->instance__->object, shape)) return RES_BAD_ARG;
   mc_rcv1 = rcv->mc__;
-  *count = darray_mc_prim_size_get(&mc_rcv1->mc_prims);
+  mc->N__ = rcv->N__;
+  mc->mc__ = htable_shape2mc_find(&mc_rcv1->shape2mc, &shape);
+  mc->shape__ = shape;
   return RES_OK;
 }
 
 res_T
-ssol_mc_receiver_get_mc_primitive
-  (const struct ssol_mc_receiver* rcv,
-   const size_t i,
+ssol_mc_shape_get_mc_primitive
+  (struct ssol_mc_shape* shape,
+   const unsigned i,
    struct ssol_mc_primitive* prim)
 {
-  const struct mc_primitive_1side* mc_prim1;
-  const struct mc_receiver_1side* mc_rcv1;
+  struct mc_shape_1side* mc_shape1;
+  struct mc_primitive_1side* mc_prim1;
+  unsigned ntris;
 
-  if(!rcv || !prim) return RES_BAD_ARG;
+  if(!shape || !prim) return RES_BAD_ARG;
 
-  mc_rcv1 = rcv->mc__;
-  if(i >= darray_mc_prim_size_get(&mc_rcv1->mc_prims))
-    return RES_BAD_ARG;
+  SSOL(shape_get_triangles_count(shape->shape__, &ntris));
+  if(i >= ntris) return RES_BAD_ARG;
 
-  mc_prim1 = darray_mc_prim_cdata_get(&mc_rcv1->mc_prims) + i;
-  #define SETUP_MC_RESULT(Name) {                                              \
-    const double N = (double)rcv->N__;                                         \
-    const struct mc_data* data = &mc_prim1->Name;                              \
-    prim->Name.E = data->weight / N;                                           \
-    prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;             \
-    prim->Name.SE = prim->Name.V > 0 ? sqrt(prim->Name.V / N) : 0;             \
-  } (void)0
-  SETUP_MC_RESULT(integrated_irradiance);
-  SETUP_MC_RESULT(integrated_absorbed_irradiance);
-  SETUP_MC_RESULT(absorptivity_loss);
-  SETUP_MC_RESULT(reflectivity_loss);
-  #undef SETUP_MC_RESULT
-  prim->index = i;
+  mc_shape1 = shape->mc__;
+  if(!mc_shape1 || !(mc_prim1 = htable_prim2mc_find(&mc_shape1->prim2mc, &i))) {
+    #define SETUP_MC_RESULT(Name) {                                            \
+      prim->Name.E = 0;                                                        \
+      prim->Name.V = 0;                                                        \
+      prim->Name.SE = 0;                                                       \
+    } (void)0
+    SETUP_MC_RESULT(integrated_irradiance);
+    SETUP_MC_RESULT(integrated_absorbed_irradiance);
+    SETUP_MC_RESULT(absorptivity_loss);
+    SETUP_MC_RESULT(reflectivity_loss);
+    #undef SETUP_MC_RESULT
+  } else {
+    #define SETUP_MC_RESULT(Name) {                                            \
+      const double N = (double)shape->N__;                                     \
+      const struct mc_data* data = &mc_prim1->Name;                            \
+      prim->Name.E = data->weight / N;                                         \
+      prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;           \
+      prim->Name.SE = prim->Name.V > 0 ? sqrt(prim->Name.V / N) : 0;           \
+    } (void)0
+    SETUP_MC_RESULT(integrated_irradiance);
+    SETUP_MC_RESULT(integrated_absorbed_irradiance);
+    SETUP_MC_RESULT(absorptivity_loss);
+    SETUP_MC_RESULT(reflectivity_loss);
+    #undef SETUP_MC_RESULT
+  }
   return RES_OK;
 }
 

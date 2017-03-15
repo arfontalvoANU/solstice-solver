@@ -243,3 +243,15 @@ ssol_object_get_normal
   d3_set(normal, object->n);
   return RES_OK;
 }
+
+/*******************************************************************************
+ * Local function
+ ******************************************************************************/
+int
+object_has_shape(struct ssol_object* obj, const struct ssol_shape* shape)
+{
+  unsigned id;
+  ASSERT(obj && shape);
+  S3D(shape_get_id(shape->shape_rt, &id));
+  return htable_shaded_shape_find(&obj->shaded_shapes_rt, &id) != NULL;
+}

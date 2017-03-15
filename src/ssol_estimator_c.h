@@ -18,8 +18,7 @@
 
 #include "ssol_device_c.h"
 #include "ssol_instance_c.h"
-
-#include <limits.h>
+#include "ssol_shape_c.h"
 
 #include <rsys/ref_count.h>
 #include <rsys/hash_table.h>
@@ -36,9 +35,6 @@ struct mc_data {
 #define MC_DATA_NULL__ { 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
-/*******************************************************************************
- * One sided Per receiver MC data
- ******************************************************************************/
 #define MC_RECEIVER_DATA                                                       \
   struct mc_data integrated_irradiance; /* In W */                             \
   struct mc_data integrated_absorbed_irradiance; /* In W */                    \
@@ -51,31 +47,99 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
   MC_DATA_NULL__,                                                              \
   MC_DATA_NULL__
 
+/*******************************************************************************
+ * One sided per shape MC data
+ ******************************************************************************/
 struct mc_primitive_1side {
   MC_RECEIVER_DATA
-  unsigned index;
 };
 
-#define MC_PRIMITIVE_1SIDE_NULL__ { MC_RECEIVER_DATA_NULL__, UINT_MAX }
+#define MC_PRIMITIVE_1SIDE_NULL__ { MC_RECEIVER_DATA_NULL__ }
 static const struct mc_primitive_1side MC_PRIMITIVE_1SIDE_NULL =
   MC_PRIMITIVE_1SIDE_NULL__;
 
-/* Declare the hash table that maps a primitive index to its corresponding
- * entry into an array of Monte-Carlo estimations */
+/* Map an unsigned to a struct mc_primitive_1side */
 #define HTABLE_NAME prim2mc
 #define HTABLE_KEY unsigned
-#define HTABLE_DATA unsigned
+#define HTABLE_DATA struct mc_primitive_1side
 #include <rsys/hash_table.h>
 
-/* Declare the list of per primitive MC estimations */
-#define DARRAY_NAME mc_prim
-#define DARRAY_DATA struct mc_primitive_1side
-#include <rsys/dynamic_array.h>
+struct mc_shape_1side {
+  struct htable_prim2mc prim2mc;
+};
+
+static INLINE void
+mc_shape_1side_init
+  (struct mem_allocator* allocator, struct mc_shape_1side* mc)
+{
+  ASSERT(mc);
+  htable_prim2mc_init(allocator, &mc->prim2mc);
+}
+
+static INLINE void
+mc_shape_1side_release(struct mc_shape_1side* mc)
+{
+  ASSERT(mc);
+  htable_prim2mc_release(&mc->prim2mc);
+}
+
+static INLINE res_T
+mc_shape_1side_copy
+  (struct mc_shape_1side* dst, const struct mc_shape_1side* src)
+{
+  ASSERT(dst && src);
+  return htable_prim2mc_copy(&dst->prim2mc, &src->prim2mc);
+}
+
+static INLINE res_T
+mc_shape_1side_copy_and_release
+  (struct mc_shape_1side* dst, struct mc_shape_1side* src)
+{
+  ASSERT(dst && src);
+  return htable_prim2mc_copy_and_release(&dst->prim2mc, &src->prim2mc);
+}
+
+static INLINE res_T
+mc_shape_1side_get_mc_primitive
+  (struct mc_shape_1side* mc_shape1,
+   const unsigned iprim,
+   struct mc_primitive_1side** out_mc_prim1)
+{
+  struct mc_primitive_1side* mc_prim1 = NULL;
+  res_T res = RES_OK;
+  ASSERT(mc_shape1 && out_mc_prim1);
+
+  mc_prim1 = htable_prim2mc_find(&mc_shape1->prim2mc, &iprim);
+  if(!mc_prim1) {
+    res = htable_prim2mc_set(&mc_shape1->prim2mc, &iprim, &MC_PRIMITIVE_1SIDE_NULL);
+    if(res != RES_OK) goto error;
+
+    mc_prim1 = htable_prim2mc_find(&mc_shape1->prim2mc, &iprim);
+  }
+
+exit:
+  *out_mc_prim1 = mc_prim1;
+  return res;
+error:
+  goto exit;
+}
+
+/*******************************************************************************
+ * One sided per receiver MC data
+ ******************************************************************************/
+/* Map a ssol shape to a struct mc_shape_1side */
+#define HTABLE_NAME shape2mc
+#define HTABLE_KEY const struct ssol_shape*
+#define HTABLE_DATA struct mc_shape_1side
+#define HTABLE_DATA_FUNCTOR_INIT mc_shape_1side_init
+#define HTABLE_DATA_FUNCTOR_RELEASE mc_shape_1side_release
+#define HTABLE_DATA_FUNCTOR_COPY mc_shape_1side_copy
+#define HTABLE_DATA_FUNCTOR_COPY_AND_RELEASE mc_shape_1side_copy_and_release
+#include <rsys/hash_table.h>
 
 struct mc_receiver_1side {
   MC_RECEIVER_DATA
-  struct htable_prim2mc prim2mc;
-  struct darray_mc_prim mc_prims;
+  struct htable_shape2mc shape2mc;
 };
 
 static INLINE void
@@ -87,82 +151,64 @@ mc_receiver_1side_init
   mc->integrated_absorbed_irradiance = MC_DATA_NULL;
   mc->absorptivity_loss = MC_DATA_NULL;
   mc->reflectivity_loss = MC_DATA_NULL;
-  htable_prim2mc_init(allocator, &mc->prim2mc);
-  darray_mc_prim_init(allocator, &mc->mc_prims);
+  htable_shape2mc_init(allocator, &mc->shape2mc);
 }
 
 static INLINE void
 mc_receiver_1side_release(struct mc_receiver_1side* mc)
 {
   ASSERT(mc);
-  htable_prim2mc_release(&mc->prim2mc);
-  darray_mc_prim_release(&mc->mc_prims);
+  htable_shape2mc_release(&mc->shape2mc);
 }
 
 static INLINE res_T
 mc_receiver_1side_copy
   (struct mc_receiver_1side* dst, const struct mc_receiver_1side* src)
 {
-  res_T res = RES_OK;
   ASSERT(dst && src);
   dst->integrated_irradiance = src->integrated_irradiance;
   dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
-  res = htable_prim2mc_copy(&dst->prim2mc, &src->prim2mc);
-  if(res != RES_OK) return res;
-  res = darray_mc_prim_copy(&dst->mc_prims, &src->mc_prims);
-  if(res != RES_OK) return res;
-  return RES_OK;
+  return htable_shape2mc_copy(&dst->shape2mc, &src->shape2mc);
 }
 
 static INLINE res_T
 mc_receiver_1side_copy_and_release
   (struct mc_receiver_1side* dst, struct mc_receiver_1side* src)
 {
-  res_T res = RES_OK;
   ASSERT(dst && src);
   dst->integrated_irradiance = src->integrated_irradiance;
   dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
-  res = htable_prim2mc_copy(&dst->prim2mc, &src->prim2mc);
-  if(res != RES_OK) return res;
-  res = darray_mc_prim_copy(&dst->mc_prims, &src->mc_prims);
-  if(res != RES_OK) return res;
-  return RES_OK;
+  return htable_shape2mc_copy_and_release(&dst->shape2mc, &src->shape2mc);
 }
 
 static INLINE res_T
-mc_receiver_1side_get_mc_primitive
+mc_receiver_1side_get_mc_shape
   (struct mc_receiver_1side* mc_rcv,
-   const unsigned iprim,
-   struct mc_primitive_1side** out_mc_prim1)
+   const struct ssol_shape* shape,
+   struct mc_shape_1side** out_mc_shape1)
 {
-  unsigned* pui = NULL;
-  struct mc_primitive_1side* mc_prim1 = NULL;
+  struct mc_shape_1side* mc_shape1 = NULL;
+  struct mc_shape_1side mc_shape1_null;
   res_T res = RES_OK;
-  ASSERT(mc_rcv);
+  ASSERT(mc_rcv && shape && out_mc_shape1);
 
-  pui = htable_prim2mc_find(&mc_rcv->prim2mc, &iprim);
-  if(pui) {
-    mc_prim1 = darray_mc_prim_data_get(&mc_rcv->mc_prims) + *pui;
-    ASSERT(*pui < darray_mc_prim_size_get(&mc_rcv->mc_prims));
-    ASSERT(mc_prim1->index == *pui);
-  } else {
-    unsigned ui = (unsigned)darray_mc_prim_size_get(&mc_rcv->mc_prims);
+  mc_shape_1side_init(shape->dev->allocator, &mc_shape1_null);
 
-    res = darray_mc_prim_push_back(&mc_rcv->mc_prims, &MC_PRIMITIVE_1SIDE_NULL);
+  mc_shape1 = htable_shape2mc_find(&mc_rcv->shape2mc, &shape);
+  if(!mc_shape1) {
+    res = htable_shape2mc_set(&mc_rcv->shape2mc, &shape, &mc_shape1_null);
     if(res != RES_OK) goto error;
-    mc_prim1 = darray_mc_prim_data_get(&mc_rcv->mc_prims) + ui;
-    mc_prim1->index = ui;
 
-    res = htable_prim2mc_set(&mc_rcv->prim2mc, &iprim, &ui);
-    if(res != RES_OK) goto error;
+    mc_shape1 = htable_shape2mc_find(&mc_rcv->shape2mc, &shape);
   }
 
 exit:
-  *out_mc_prim1 = mc_prim1;
+  mc_shape_1side_release(&mc_shape1_null);
+  *out_mc_shape1 = mc_shape1;
   return res;
 error:
   goto exit;

@@ -465,9 +465,7 @@ accum_mc_receivers_1side
   (struct mc_receiver_1side* dst,
    struct mc_receiver_1side* src)
 {
-  const struct mc_primitive_1side* src_mc_prim;
-  struct mc_primitive_1side* dst_mc_prim;
-  size_t i;
+  struct htable_shape2mc_iterator it_shape, end_shape;
   res_T res = RES_OK;
   ASSERT(dst && src);
 
@@ -481,22 +479,48 @@ accum_mc_receivers_1side
   ACCUM_WEIGHT(reflectivity_loss);
   #undef ACCUM_WEIGHT
 
-  /* Merge the per primitive MC of the integrated irradiance */
-  FOR_EACH(i, 0, darray_mc_prim_size_get(&src->mc_prims)) {
-    src_mc_prim = darray_mc_prim_cdata_get(&src->mc_prims) + i;
-    res = mc_receiver_1side_get_mc_primitive
-      (dst, src_mc_prim->index, &dst_mc_prim);
+  /* Merge the per shape MC */
+  htable_shape2mc_begin(&src->shape2mc, &it_shape);
+  htable_shape2mc_end(&src->shape2mc, &end_shape);
+  while(!htable_shape2mc_iterator_eq(&it_shape, &end_shape)) {
+    struct htable_prim2mc_iterator it_prim, end_prim;
+    const struct ssol_shape* shape = *htable_shape2mc_iterator_key_get(&it_shape);
+    struct mc_shape_1side* mc_shape1_src;
+    struct mc_shape_1side* mc_shape1_dst;
+
+    mc_shape1_src = htable_shape2mc_iterator_data_get(&it_shape);
+
+    res = mc_receiver_1side_get_mc_shape(dst, shape, &mc_shape1_dst);
     if(res != RES_OK) goto error;
-    #define ACCUM_WEIGHT(Name) {                                               \
-      dst_mc_prim->Name.weight += src_mc_prim->Name.weight;                    \
-      dst_mc_prim->Name.sqr_weight += src_mc_prim->Name.sqr_weight;            \
-    } (void)0
-    ACCUM_WEIGHT(integrated_irradiance);
-    ACCUM_WEIGHT(integrated_absorbed_irradiance);
-    ACCUM_WEIGHT(absorptivity_loss);
-    ACCUM_WEIGHT(reflectivity_loss);
-    #undef ACCUM_WEIGHT
+
+    /* Merge the per primitive MC */
+    htable_prim2mc_begin(&mc_shape1_src->prim2mc, &it_prim);
+    htable_prim2mc_end(&mc_shape1_src->prim2mc, &end_prim);
+    while(!htable_prim2mc_iterator_eq(&it_prim, &end_prim)) {
+      const unsigned iprim = *htable_prim2mc_iterator_key_get(&it_prim);
+      struct mc_primitive_1side* mc_prim1_src;
+      struct mc_primitive_1side* mc_prim1_dst;
+
+      mc_prim1_src = htable_prim2mc_iterator_data_get(&it_prim);
+
+      res = mc_shape_1side_get_mc_primitive(mc_shape1_dst, iprim, &mc_prim1_dst);
+      if(res != RES_OK) goto error;
+
+      #define ACCUM_WEIGHT(Name) {                                             \
+        mc_prim1_dst->Name.weight += mc_prim1_src->Name.weight;                \
+        mc_prim1_dst->Name.sqr_weight += mc_prim1_src->Name.sqr_weight;        \
+      } (void)0
+      ACCUM_WEIGHT(integrated_irradiance);
+      ACCUM_WEIGHT(integrated_absorbed_irradiance);
+      ACCUM_WEIGHT(absorptivity_loss);
+      ACCUM_WEIGHT(reflectivity_loss);
+      #undef ACCUM_WEIGHT
+
+      htable_prim2mc_iterator_next(&it_prim);
+    }
+    htable_shape2mc_iterator_next(&it_shape);
   }
+
 exit:
   return res;
 error:
@@ -599,13 +623,18 @@ update_mc
 
   /* Per primitive receiver MC accumulation */
   if(pt->inst->receiver_per_primitive) {
-    struct mc_primitive_1side* mc_prim;
-    res = mc_receiver_1side_get_mc_primitive
-      (mc_rcv1, pt->prim.prim_id, &mc_prim);
+    struct mc_shape_1side* mc_shape1;
+    struct mc_primitive_1side* mc_prim1;
+
+    res = mc_receiver_1side_get_mc_shape(mc_rcv1, pt->sshape->shape, &mc_shape1);
     if(res != RES_OK) goto error;
+
+    res = mc_shape_1side_get_mc_primitive(mc_shape1, pt->prim.prim_id, &mc_prim1);
+    if(res != RES_OK) goto error;
+
     #define ACCUM_WEIGHT(Name, W) {                                            \
-      mc_prim->Name.weight += (W);                                             \
-      mc_prim->Name.sqr_weight += (W)*(W);                                     \
+      mc_prim1->Name.weight += (W);                                             \
+      mc_prim1->Name.sqr_weight += (W)*(W);                                     \
     } (void)0
     ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
     ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
