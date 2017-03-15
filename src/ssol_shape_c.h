@@ -43,13 +43,10 @@ struct priv_pcylinder_data {
   double _1_4f;
 };
 
-struct priv_quadric_data {
-  enum ssol_quadric_type type;
-  union {
-    struct priv_hyperbol_data hyperbol;
-    struct priv_parabol_data parabol;
-    struct priv_pcylinder_data pcylinder;
-  } data;
+union priv_quadric_data {
+  struct priv_hyperbol_data hyperbol;
+  struct priv_parabol_data parabol;
+  struct priv_pcylinder_data pcylinder;
 };
 
 struct ssol_shape {
@@ -57,7 +54,7 @@ struct ssol_shape {
 
   struct s3d_shape* shape_rt; /* Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Star-3D shape to sample */
-  struct priv_quadric_data priv_quadric;
+  union priv_quadric_data priv_quadric;
   struct ssol_quadric quadric;
   double shape_rt_area, shape_samp_area;
 
