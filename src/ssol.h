@@ -298,6 +298,16 @@ struct ssol_instantiated_shaded_shape {
 static const struct ssol_instantiated_shaded_shape
 SSOL_INSTANTIATED_SHADED_SHAPE_NULL = SSOL_INSTANTIATED_SHADED_SHAPE_NULL__;
 
+struct ssol_path {
+  /* Internal data */
+  const void* vertices__;
+};
+
+struct ssol_path_vertex {
+  double pos[3]; /* Position */
+  double weight; /* Monte-Carlo weight */
+};
+
 struct ssol_mc_result {
   double E; /* Expectation */
   double V; /* Variance */
@@ -969,6 +979,31 @@ ssol_estimator_get_sampled_area
    double* area);
 
 /*******************************************************************************
+ * Tracked paths
+ ******************************************************************************/
+SSOL_API res_T
+ssol_estimator_get_tracked_paths_count
+  (const struct ssol_estimator* estimator,
+   size_t* npaths);
+
+SSOL_API res_T
+ssol_estimator_get_tracked_path
+  (const struct ssol_estimator* estimator,
+   const size_t ipath,
+   struct ssol_path* path);
+
+SSOL_API res_T
+ssol_path_get_vertices_count
+  (const struct ssol_path* path,
+   size_t* nvertices);
+
+SSOL_API res_T
+ssol_path_get_vertex
+  (const struct ssol_path* path,
+   const size_t ivertex,
+   struct ssol_path_vertex* vertex);
+
+/*******************************************************************************
  * Per receiver MC estimations
  ******************************************************************************/
 SSOL_API res_T
@@ -998,6 +1033,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
+   const int track_paths, /* Define if the radiative paths are recorded */
    FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator** estimator);
 

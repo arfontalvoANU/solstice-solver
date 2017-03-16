@@ -55,6 +55,7 @@ struct thread_context {
   struct mc_data cos_loss;
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
+  struct darray_path paths; /* paths */
 };
 
 static void
@@ -65,6 +66,7 @@ thread_context_release(struct thread_context* ctx)
   if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
   htable_receiver_release(&ctx->mc_rcvs);
   htable_sampled_release(&ctx->mc_samps);
+  darray_path_release(&ctx->paths);
 }
 
 static res_T
@@ -76,6 +78,7 @@ thread_context_init(struct mem_allocator* allocator, struct thread_context* ctx)
   memset(ctx, 0, sizeof(ctx[0]));
   htable_receiver_init(allocator, &ctx->mc_rcvs);
   htable_sampled_init(allocator, &ctx->mc_samps);
+  darray_path_init(allocator, &ctx->paths);
 
   res = ssf_bsdf_create(allocator, &ctx->bsdf);
   if(res != RES_OK) goto error;
@@ -104,6 +107,8 @@ thread_context_copy
   if(res != RES_OK) return res;
   res = htable_sampled_copy(&dst->mc_samps, &src->mc_samps);
   if(res != RES_OK) return res;
+  res = darray_path_copy(&dst->paths, &src->paths);
+  if(res != RES_OK) return res;
   return RES_OK;
 }
 
@@ -114,6 +119,7 @@ thread_context_clear(struct thread_context* ctx)
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
   htable_receiver_clear(&ctx->mc_rcvs);
   htable_sampled_clear(&ctx->mc_samps);
+  darray_path_clear(&ctx->paths);
 }
 
 static res_T
@@ -447,6 +453,37 @@ check_scene(const struct ssol_scene* scene, const char* caller)
   return RES_OK;
 }
 
+static INLINE res_T
+path_add_vertex
+  (struct darray_path_vertex* path,
+   const double pos[3],
+   const double weight)
+{
+  struct path_vertex vertex;
+  ASSERT(path && pos && weight >= 0);
+  d3_set(vertex.pos, pos);
+  vertex.weight = weight;
+  return darray_path_vertex_push_back(path, &vertex);
+}
+
+static INLINE res_T
+path_register_and_clear
+  (struct darray_path* paths,
+   struct darray_path_vertex* path)
+{
+  struct darray_path_vertex* dst;
+  size_t ipath;
+  res_T res = RES_OK;
+  ASSERT(paths && path);
+
+  ipath = darray_path_size_get(paths);
+  res = darray_path_resize(paths, ipath + 1);
+  if(res != RES_OK) return res;
+
+  dst = darray_path_data_get(paths) + ipath;
+  return darray_path_vertex_copy_and_clear(dst, path);
+}
+
 static res_T
 accum_mc_receivers_1side
   (struct mc_receiver_1side* dst,
@@ -620,7 +657,7 @@ update_mc
     res = mc_shape_1side_get_mc_primitive(mc_shape1, pt->prim.prim_id, &mc_prim1);
     if(res != RES_OK) goto error;
 
-    #define ACCUM_WEIGHT(Name, W) {                                            \
+    #define ACCUM_WEIGHT(Name, W) {                                             \
       mc_prim1->Name.weight += (W);                                             \
       mc_prim1->Name.sqr_weight += (W)*(W);                                     \
     } (void)0
@@ -647,8 +684,10 @@ trace_radiative_path
    struct s3d_scene_view* view_rt,
    struct ranst_sun_dir* ran_sun_dir,
    struct ranst_sun_wl* ran_sun_wl,
+   const int track_paths,
    FILE* output) /* May be NULL */
 {
+  struct darray_path_vertex path;
   struct s3d_hit hit = S3D_HIT_NULL;
   struct point pt;
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
@@ -657,10 +696,19 @@ trace_radiative_path
   res_T res = RES_OK;
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
+  if(track_paths) {
+    darray_path_vertex_init(scn->dev->allocator, &path);
+  }
+
   /* Find a new starting point of the radiative random walk */
   res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
+
+  if(track_paths) {
+    res = path_add_vertex(&path, pt.pos, pt.weight);
+    if(res != RES_OK) goto error;
+  }
 
   if(!is_lit) { /* The starting point is not lit */
     pt.mc_samp->shadowed.weight += pt.weight;
@@ -734,6 +782,11 @@ trace_radiative_path
 
       /* Update the point */
       point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
+
+      if(track_paths) {
+        res = path_add_vertex(&path, pt.pos, pt.weight);
+        if(res != RES_OK) goto error;
+      }
     }
     if(!hit_a_receiver) {
       thread_ctx->missing.weight += pt.weight;
@@ -741,7 +794,13 @@ trace_radiative_path
     }
   }
 
+  if(track_paths) {
+    res = path_register_and_clear(&thread_ctx->paths, &path);
+    if(res != RES_OK) goto error;
+  }
+
 exit:
+  if(track_paths) darray_path_vertex_release(&path);
   return res;
 error:
   goto exit;
@@ -755,6 +814,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng_state,
    const size_t realisations_count,
+   const int track_paths,
    FILE* output,
    struct ssol_estimator** out_estimator)
 {
@@ -832,7 +892,7 @@ ssol_solve
 
     /* Execute a MC experiment */
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
-      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, output);
+      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, track_paths, output);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
@@ -898,6 +958,23 @@ ssol_solve
 
       res = accum_mc_sampled(mc_samp, mc_samp_thread);
       if(res != RES_OK) goto error;
+    }
+  }
+
+  /* Merge per thread tracked paths */
+  if(track_paths) {
+    FOR_EACH(i, 0, nthreads) {
+      struct thread_context* thread_ctx;
+      size_t ipath, npaths;
+
+      thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + i;
+      npaths = darray_path_size_get(&thread_ctx->paths);
+      FOR_EACH(ipath, 0, npaths) {
+        struct darray_path_vertex* path;
+        path = darray_path_data_get(&thread_ctx->paths) + ipath;
+        res = path_register_and_clear(&estimator->paths, path);
+        if(res != RES_OK) goto error;
+      }
     }
   }
 

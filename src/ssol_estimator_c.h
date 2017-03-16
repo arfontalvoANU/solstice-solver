@@ -377,6 +377,26 @@ error:
 #include <rsys/hash_table.h>
 
 /*******************************************************************************
+ * Radiative path
+ ******************************************************************************/
+struct path_vertex {
+  double pos[3];
+  double weight;
+};
+
+#define DARRAY_NAME path_vertex
+#define DARRAY_DATA struct path_vertex
+#include <rsys/dynamic_array.h>
+
+#define DARRAY_NAME path
+#define DARRAY_DATA struct darray_path_vertex
+#define DARRAY_FUNCTOR_INIT darray_path_vertex_init
+#define DARRAY_FUNCTOR_RELEASE darray_path_vertex_release
+#define DARRAY_FUNCTOR_COPY darray_path_vertex_copy
+#define DARRAY_FUNCTOR_COPY_AND_RELEASE darray_path_vertex_copy_and_release
+#include <rsys/dynamic_array.h>
+
+/*******************************************************************************
  * Estimator data structure
  ******************************************************************************/
 struct ssol_estimator {
@@ -390,6 +410,8 @@ struct ssol_estimator {
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */
+
+  struct darray_path paths; /* Tracked paths */
 
   /* Overall area of the sampled instances. Actually this is not the area that
    * is effectively sampled since an instance may be sampled through a proxy

@@ -20,9 +20,10 @@
 #include "ssol_device_c.h"
 #include "ssol_instance_c.h"
 
-#include <rsys/rsys.h>
+#include <rsys/double3.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/rsys.h>
 
 #include <math.h>
 
@@ -79,6 +80,7 @@ estimator_release(ref_T* ref)
   dev = estimator->dev;
   htable_receiver_release(&estimator->mc_receivers);
   htable_sampled_release(&estimator->mc_sampled);
+  darray_path_release(&estimator->paths);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -202,6 +204,54 @@ ssol_estimator_get_sampled_area
   return RES_OK;
 }
 
+res_T
+ssol_estimator_get_tracked_paths_count
+  (const struct ssol_estimator* estimator, size_t* npaths)
+{
+  if(!estimator || !npaths) return RES_BAD_ARG;
+  *npaths = darray_path_size_get(&estimator->paths);
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_tracked_path
+  (const struct ssol_estimator* estimator,
+   const size_t ipath,
+   struct ssol_path* path)
+{
+  if(!estimator || ipath >= darray_path_size_get(&estimator->paths) || !path)
+    return RES_BAD_ARG;
+  path->vertices__  = darray_path_cdata_get(&estimator->paths) + ipath;
+  return RES_OK;
+}
+
+res_T
+ssol_path_get_vertices_count(const struct ssol_path* path, size_t* nvertices)
+{
+  const struct darray_path_vertex* vertices;
+  if(!path || !nvertices) return RES_BAD_ARG;
+  vertices = path->vertices__;
+  *nvertices = darray_path_vertex_size_get(vertices);
+  return RES_OK;
+}
+
+res_T
+ssol_path_get_vertex
+  (const struct ssol_path* path,
+   const size_t ivertex,
+   struct ssol_path_vertex* vertex)
+{
+  const struct darray_path_vertex* vertices;
+  const struct path_vertex* vert;
+  if(!path || !vertex) return RES_BAD_ARG;
+  vertices = path->vertices__;
+  if(ivertex >= darray_path_vertex_size_get(vertices)) return RES_BAD_ARG;
+  vert = darray_path_vertex_cdata_get(vertices) + ivertex;
+  d3_set(vertex->pos, vert->pos);
+  vertex->weight = vert->weight;
+  return RES_OK;
+}
+
 /*******************************************************************************
  * Local function
  ******************************************************************************/
@@ -227,6 +277,7 @@ estimator_create
 
   htable_receiver_init(dev->allocator, &estimator->mc_receivers);
   htable_sampled_init(dev->allocator, &estimator->mc_sampled);
+  darray_path_init(dev->allocator, &estimator->paths);
   SSOL(device_ref_get(dev));
   estimator->dev = dev;
   ref_init(&estimator->ref);
