@@ -73,6 +73,8 @@ main(int argc, char** argv)
   struct ssol_mc_receiver mc_rcv;
   struct ssol_mc_shape mc_shape;
   struct ssol_mc_primitive mc_prim;
+  struct ssol_path path;
+  struct ssol_path_vertex vertex;
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
@@ -162,7 +164,39 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 1, 0, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 1, 1, NULL, &estimator), RES_OK);
+
+  CHECK(ssol_estimator_get_tracked_paths_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_paths_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_paths_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_paths_count(estimator, &count), RES_OK);
+  CHECK(count, 1);
+
+  CHECK(ssol_estimator_get_tracked_path(NULL, count, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(estimator, count, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(NULL, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(estimator, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(NULL, count, &path), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(estimator, count, &path), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(NULL, 0, &path), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_tracked_path(estimator, 0, &path), RES_OK);
+
+  CHECK(ssol_path_get_vertices_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertices_count(&path, NULL), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertices_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertices_count(&path, &count), RES_OK);
+  NCHECK(count, 0);
+
+  CHECK(ssol_path_get_vertex(NULL, count, NULL), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertex(&path, count, NULL), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertex(NULL, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertex(&path, 0, NULL), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertex(NULL, count, &vertex), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertex(&path, count, &vertex), RES_BAD_ARG);
+  CHECK(ssol_path_get_vertex(NULL, 0, &vertex), RES_BAD_ARG);
+  FOR_EACH(i, 0, count) {
+    CHECK(ssol_path_get_vertex(&path, i, &vertex), RES_OK);
+  }
 
   CHECK(ssol_estimator_get_sampled_area(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_sampled_area(estimator, NULL), RES_BAD_ARG);
