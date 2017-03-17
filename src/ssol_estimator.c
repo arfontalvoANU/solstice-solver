@@ -221,17 +221,17 @@ ssol_estimator_get_tracked_path
 {
   if(!estimator || ipath >= darray_path_size_get(&estimator->paths) || !path)
     return RES_BAD_ARG;
-  path->vertices__  = darray_path_cdata_get(&estimator->paths) + ipath;
+  path->path__  = darray_path_cdata_get(&estimator->paths) + ipath;
   return RES_OK;
 }
 
 res_T
 ssol_path_get_vertices_count(const struct ssol_path* path, size_t* nvertices)
 {
-  const struct darray_path_vertex* vertices;
+  const struct path* p;
   if(!path || !nvertices) return RES_BAD_ARG;
-  vertices = path->vertices__;
-  *nvertices = darray_path_vertex_size_get(vertices);
+  p = path->path__;
+  *nvertices = darray_path_vertex_size_get(&p->vertices);
   return RES_OK;
 }
 
@@ -241,14 +241,20 @@ ssol_path_get_vertex
    const size_t ivertex,
    struct ssol_path_vertex* vertex)
 {
-  const struct darray_path_vertex* vertices;
-  const struct path_vertex* vert;
+  const struct path* p;
   if(!path || !vertex) return RES_BAD_ARG;
-  vertices = path->vertices__;
-  if(ivertex >= darray_path_vertex_size_get(vertices)) return RES_BAD_ARG;
-  vert = darray_path_vertex_cdata_get(vertices) + ivertex;
-  d3_set(vertex->pos, vert->pos);
-  vertex->weight = vert->weight;
+  p = path->path__;
+  if(ivertex >= darray_path_vertex_size_get(&p->vertices)) return RES_BAD_ARG;
+  *vertex = darray_path_vertex_cdata_get(&p->vertices)[ivertex];
+  return RES_OK;
+}
+
+res_T
+ssol_path_get_type(const struct ssol_path* path, enum ssol_path_type* type)
+{
+  ASSERT(path && type);
+  if(!path || !type) return RES_BAD_ARG;
+  *type = ((struct path*)path->path__)->type;
   return RES_OK;
 }
 

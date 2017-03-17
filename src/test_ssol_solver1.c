@@ -164,7 +164,8 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, 1, 1, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve
+    (scene, rng, 1, &SSOL_PATH_TRACKER_DEFAULT, NULL, &estimator), RES_OK);
 
   CHECK(ssol_estimator_get_tracked_paths_count(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_tracked_paths_count(estimator, NULL), RES_BAD_ARG);

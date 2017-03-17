@@ -66,6 +66,12 @@ enum ssol_side_flag {
   SSOL_INVALID_SIDE = BIT(2)
 };
 
+enum ssol_path_type {
+  SSOL_PATH_MISSING, /* The path misses the receivers */
+  SSOL_PATH_SHADOW, /* The path is occluded before the sampled geometry */
+  SSOL_PATH_SUCCESS /* The path contributes to at least one receiver */
+};
+
 enum ssol_material_type {
   SSOL_MATERIAL_MATTE,
   SSOL_MATERIAL_MIRROR,
@@ -298,9 +304,20 @@ struct ssol_instantiated_shaded_shape {
 static const struct ssol_instantiated_shaded_shape
 SSOL_INSTANTIATED_SHADED_SHAPE_NULL = SSOL_INSTANTIATED_SHADED_SHAPE_NULL__;
 
+struct ssol_path_tracker {
+  /* Control the length of the path segment starting/ending from/to the
+   * infinite. A value less than zero means for default value */
+  double length_inf_start;
+  double length_inf_end;
+};
+
+#define SSOL_PATH_TRACKER_DEFAULT__ {-1, -1}
+static const struct ssol_path_tracker SSOL_PATH_TRACKER_DEFAULT =
+  SSOL_PATH_TRACKER_DEFAULT__;
+
 struct ssol_path {
   /* Internal data */
-  const void* vertices__;
+  const void* path__;
 };
 
 struct ssol_path_vertex {
@@ -1003,6 +1020,11 @@ ssol_path_get_vertex
    const size_t ivertex,
    struct ssol_path_vertex* vertex);
 
+SSOL_API res_T
+ssol_path_get_type
+  (const struct ssol_path* path,
+   enum ssol_path_type* type);
+  
 /*******************************************************************************
  * Per receiver MC estimations
  ******************************************************************************/
@@ -1033,7 +1055,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
-   const int track_paths, /* Define if the radiative paths are recorded */
+   const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */
    FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator** estimator);
 

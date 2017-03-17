@@ -453,25 +453,24 @@ check_scene(const struct ssol_scene* scene, const char* caller)
   return RES_OK;
 }
 
-static INLINE res_T
-path_add_vertex
-  (struct darray_path_vertex* path,
-   const double pos[3],
-   const double weight)
+/* Compute an empirical length of the path segment coming from/going to the
+ * infinite, wrt the scene bounding box */
+static INLINE double
+compute_infinite_path_segment_extend(struct s3d_scene_view* view)
 {
-  struct path_vertex vertex;
-  ASSERT(path && pos && weight >= 0);
-  d3_set(vertex.pos, pos);
-  vertex.weight = weight;
-  return darray_path_vertex_push_back(path, &vertex);
+  float lower[3], upper[3], size[3];
+  ASSERT(view);
+  S3D(scene_view_get_aabb(view, lower, upper));
+  f3_sub(size, upper, lower);
+  return MMAX(size[0], MMAX(size[1], size[2])) * 0.75;
 }
 
 static INLINE res_T
 path_register_and_clear
   (struct darray_path* paths,
-   struct darray_path_vertex* path)
+   struct path* path)
 {
-  struct darray_path_vertex* dst;
+  struct path* dst_path;
   size_t ipath;
   res_T res = RES_OK;
   ASSERT(paths && path);
@@ -480,8 +479,8 @@ path_register_and_clear
   res = darray_path_resize(paths, ipath + 1);
   if(res != RES_OK) return res;
 
-  dst = darray_path_data_get(paths) + ipath;
-  return darray_path_vertex_copy_and_clear(dst, path);
+  dst_path = darray_path_data_get(paths) + ipath;
+  return path_copy_and_clear(dst_path, path);
 }
 
 static res_T
@@ -684,10 +683,10 @@ trace_radiative_path
    struct s3d_scene_view* view_rt,
    struct ranst_sun_dir* ran_sun_dir,
    struct ranst_sun_wl* ran_sun_wl,
-   const int track_paths,
+   const struct ssol_path_tracker* tracker, /* May be NULL */
    FILE* output) /* May be NULL */
 {
-  struct darray_path_vertex path;
+  struct path path;
   struct s3d_hit hit = S3D_HIT_NULL;
   struct point pt;
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
@@ -696,16 +695,25 @@ trace_radiative_path
   res_T res = RES_OK;
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
-  if(track_paths) {
-    darray_path_vertex_init(scn->dev->allocator, &path);
-  }
+  if(tracker) path_init(scn->dev->allocator, &path);
 
   /* Find a new starting point of the radiative random walk */
   res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
 
-  if(track_paths) {
+  if(tracker) {
+    /* Add the first point of the starting segment */
+    if(tracker->length_inf_start > 0) {
+      double pos[3], wi[3];
+      d3_minus(wi, pt.dir);
+      d3_muld(wi, wi, tracker->length_inf_start);
+      d3_add(pos, pt.pos, wi);
+      res = path_add_vertex(&path, pos, scn->sun->dni);
+      if(res != RES_OK) goto error;
+    }
+
+    /* Register the init position onto the sampled geometry */
     res = path_add_vertex(&path, pt.pos, pt.weight);
     if(res != RES_OK) goto error;
   }
@@ -715,6 +723,7 @@ trace_radiative_path
     pt.mc_samp->shadowed.sqr_weight += pt.weight;
     thread_ctx->shadowed.weight += pt.weight;
     thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
+    if(tracker) path.type = SSOL_PATH_SHADOW;
   } else {
     int hit_a_receiver = 0;
 
@@ -767,7 +776,17 @@ trace_radiative_path
       ray_data.range_min = range[0];
       ray_data.dst = FLT_MAX;
       S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
-      if(S3D_HIT_NONE(&hit)) break;
+      if(S3D_HIT_NONE(&hit)) {
+        /* Add the  point of the last path segment going to the infinite */
+        if(tracker) {
+          double pos[3], wi[3];
+          d3_set_f3(wi, dir);
+          d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->length_inf_end));
+          res = path_add_vertex(&path, pos, pt.weight);
+          if(res != RES_OK) goto error;
+        }
+        break;
+      }
 
       depth += mtl->type != SSOL_MATERIAL_VIRTUAL;
 
@@ -783,7 +802,7 @@ trace_radiative_path
       /* Update the point */
       point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
 
-      if(track_paths) {
+      if(tracker) {
         res = path_add_vertex(&path, pt.pos, pt.weight);
         if(res != RES_OK) goto error;
       }
@@ -792,15 +811,18 @@ trace_radiative_path
       thread_ctx->missing.weight += pt.weight;
       thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
     }
+    if(tracker) {
+      path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
+    }
   }
 
-  if(track_paths) {
+  if(tracker) {
     res = path_register_and_clear(&thread_ctx->paths, &path);
     if(res != RES_OK) goto error;
   }
 
 exit:
-  if(track_paths) darray_path_vertex_release(&path);
+  if(tracker) path_release(&path);
   return res;
 error:
   goto exit;
@@ -814,7 +836,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng_state,
    const size_t realisations_count,
-   const int track_paths,
+   const struct ssol_path_tracker* path_tracker,
    FILE* output,
    struct ssol_estimator** out_estimator)
 {
@@ -826,6 +848,7 @@ ssol_solve
   struct ranst_sun_wl* ran_sun_wl = NULL;
   struct darray_thread_ctx thread_ctxs;
   struct ssol_estimator* estimator = NULL;
+  struct ssol_path_tracker tracker;
   struct ssp_rng_proxy* rng_proxy = NULL;
   double sampled_area;
   double sampled_area_proxy;
@@ -878,6 +901,17 @@ ssol_solve
     if(res != RES_OK) goto error;
   }
 
+  /* Setup the path tracker */
+  if(path_tracker) {
+    tracker = *path_tracker;
+    if(tracker.length_inf_start < 0 || tracker.length_inf_end < 0) {
+      const double extend = compute_infinite_path_segment_extend(view_rt);
+      if(tracker.length_inf_start < 0) tracker.length_inf_start = extend;
+      if(tracker.length_inf_end < 0) tracker.length_inf_end = extend;
+    }
+    path_tracker = &tracker;
+  }
+
   /* Launch the parallel MC estimation */
   #pragma omp parallel for schedule(static)
   for(i = 0; i < nrealisations; ++i) {
@@ -892,7 +926,7 @@ ssol_solve
 
     /* Execute a MC experiment */
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
-      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, track_paths, output);
+      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker, output);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
@@ -962,7 +996,7 @@ ssol_solve
   }
 
   /* Merge per thread tracked paths */
-  if(track_paths) {
+  if(path_tracker) {
     FOR_EACH(i, 0, nthreads) {
       struct thread_context* thread_ctx;
       size_t ipath, npaths;
@@ -970,7 +1004,7 @@ ssol_solve
       thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + i;
       npaths = darray_path_size_get(&thread_ctx->paths);
       FOR_EACH(ipath, 0, npaths) {
-        struct darray_path_vertex* path;
+        struct path* path;
         path = darray_path_data_get(&thread_ctx->paths) + ipath;
         res = path_register_and_clear(&estimator->paths, path);
         if(res != RES_OK) goto error;
