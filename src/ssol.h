@@ -159,9 +159,9 @@ static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
   SSOL_QUADRIC_PARABOL_NULL__;
 
 struct ssol_quadric_hyperbol {
-  double img_focal, real_focal;
   /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0
    * with a^2 = f - f^2; b = f -1/2; f = real_focal / (img_focal + real_focal) */
+  double img_focal, real_focal;
 };
 #define SSOL_QUADRIC_HYPERBOL_NULL__ { -1.0 , -1.0 }
 static const struct ssol_quadric_hyperbol SSOL_QUADRIC_HYPERBOL_NULL =
@@ -185,13 +185,18 @@ struct ssol_quadric {
 
   /* 3x4 column major transformation of the quadric in object space */
   double transform[12];
+
+  /* Hint on the how to discretised */
+  size_t slices_count_hint;
 };
 
 #define SSOL_QUADRIC_DEFAULT__ {                                               \
   SSOL_QUADRIC_PLANE,                                                          \
   {SSOL_QUADRIC_PLANE_DEFAULT__},                                              \
-  {1,0,0, 0,1,0, 0,0,1, 0,0,0}                                                 \
+  {1,0,0, 0,1,0, 0,0,1, 0,0,0},                                                \
+  SIZE_MAX /* <=> Use default discretisation */                                \
 }
+
 static const struct ssol_quadric SSOL_QUADRIC_DEFAULT = SSOL_QUADRIC_DEFAULT__;
 
 /* Define the contour of a 2D polygon as well as the clipping operation to
