@@ -198,7 +198,7 @@ main(int argc, char** argv)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 
   NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(fclose(tmp), 0);
 
   printf("Total = %g\n", TOTAL);

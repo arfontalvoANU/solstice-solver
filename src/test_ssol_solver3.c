@@ -137,7 +137,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 20000
-  CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);

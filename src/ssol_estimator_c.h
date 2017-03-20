@@ -377,6 +377,77 @@ error:
 #include <rsys/hash_table.h>
 
 /*******************************************************************************
+ * Radiative path
+ ******************************************************************************/
+#define DARRAY_NAME path_vertex
+#define DARRAY_DATA struct ssol_path_vertex
+#include <rsys/dynamic_array.h>
+
+struct path {
+  enum ssol_path_type type;
+  struct darray_path_vertex vertices;
+};
+
+static INLINE void
+path_init(struct mem_allocator* allocator, struct path* path)
+{
+  ASSERT(path);
+  path->type = SSOL_PATH_MISSING;
+  darray_path_vertex_init(allocator, &path->vertices);
+}
+
+static INLINE void
+path_release(struct path* path)
+{
+  ASSERT(path);
+  darray_path_vertex_release(&path->vertices);
+}
+
+static INLINE res_T
+path_copy(struct path* dst, const struct path* src)
+{
+  ASSERT(dst && src);
+  dst->type = src->type;
+  return darray_path_vertex_copy(&dst->vertices, &src->vertices);
+}
+
+static INLINE res_T
+path_copy_and_release(struct path* dst, struct path* src)
+{
+  ASSERT(dst && src);
+  dst->type = src->type;
+  return darray_path_vertex_copy_and_release(&dst->vertices, &src->vertices);
+}
+
+static INLINE res_T
+path_copy_and_clear(struct path* dst, struct path* src)
+{
+  ASSERT(dst && src);
+  dst->type = src->type;
+  return darray_path_vertex_copy_and_clear(&dst->vertices, &src->vertices);
+}
+
+static INLINE res_T
+path_add_vertex(struct path* path, const double pos[3], const double weight)
+{
+  struct ssol_path_vertex vertex;
+  ASSERT(path && pos && weight >= 0);
+  vertex.pos[0] = pos[0];
+  vertex.pos[1] = pos[1];
+  vertex.pos[2] = pos[2];
+  vertex.weight = weight;
+  return darray_path_vertex_push_back(&path->vertices, &vertex);
+}
+
+#define DARRAY_NAME path
+#define DARRAY_DATA struct path
+#define DARRAY_FUNCTOR_INIT path_init
+#define DARRAY_FUNCTOR_RELEASE path_release
+#define DARRAY_FUNCTOR_COPY path_copy
+#define DARRAY_FUNCTOR_COPY_AND_RELEASE path_copy_and_release
+#include <rsys/dynamic_array.h>
+
+/*******************************************************************************
  * Estimator data structure
  ******************************************************************************/
 struct ssol_estimator {
@@ -390,6 +461,8 @@ struct ssol_estimator {
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */
+
+  struct darray_path paths; /* Tracked paths */
 
   /* Overall area of the sampled instances. Actually this is not the area that
    * is effectively sampled since an instance may be sampled through a proxy
