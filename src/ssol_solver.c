@@ -704,10 +704,10 @@ trace_radiative_path
 
   if(tracker) {
     /* Add the first point of the starting segment */
-    if(tracker->length_inf_start > 0) {
+    if(tracker->sun_ray_length > 0) {
       double pos[3], wi[3];
       d3_minus(wi, pt.dir);
-      d3_muld(wi, wi, tracker->length_inf_start);
+      d3_muld(wi, wi, tracker->sun_ray_length);
       d3_add(pos, pt.pos, wi);
       res = path_add_vertex(&path, pos, scn->sun->dni);
       if(res != RES_OK) goto error;
@@ -778,10 +778,10 @@ trace_radiative_path
       S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
       if(S3D_HIT_NONE(&hit)) {
         /* Add the  point of the last path segment going to the infinite */
-        if(tracker) {
+        if(tracker && tracker->infinite_ray_length > 0) {
           double pos[3], wi[3];
           d3_set_f3(wi, dir);
-          d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->length_inf_end));
+          d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->infinite_ray_length));
           res = path_add_vertex(&path, pos, pt.weight);
           if(res != RES_OK) goto error;
         }
@@ -904,10 +904,10 @@ ssol_solve
   /* Setup the path tracker */
   if(path_tracker) {
     tracker = *path_tracker;
-    if(tracker.length_inf_start < 0 || tracker.length_inf_end < 0) {
+    if(tracker.sun_ray_length < 0 || tracker.infinite_ray_length < 0) {
       const double extend = compute_infinite_path_segment_extend(view_rt);
-      if(tracker.length_inf_start < 0) tracker.length_inf_start = extend;
-      if(tracker.length_inf_end < 0) tracker.length_inf_end = extend;
+      if(tracker.sun_ray_length < 0) tracker.sun_ray_length = extend;
+      if(tracker.infinite_ray_length < 0) tracker.infinite_ray_length = extend;
     }
     path_tracker = &tracker;
   }

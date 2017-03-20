@@ -307,8 +307,8 @@ SSOL_INSTANTIATED_SHADED_SHAPE_NULL = SSOL_INSTANTIATED_SHADED_SHAPE_NULL__;
 struct ssol_path_tracker {
   /* Control the length of the path segment starting/ending from/to the
    * infinite. A value less than zero means for default value */
-  double length_inf_start;
-  double length_inf_end;
+  double sun_ray_length;
+  double infinite_ray_length;
 };
 
 #define SSOL_PATH_TRACKER_DEFAULT__ {-1, -1}
