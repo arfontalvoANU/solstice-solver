@@ -216,7 +216,7 @@ Li(struct ssol_scene* scn,
     f3_set_d3(ray_dir, wi);
 
     if(!russian_roulette) {
-      throughput *= d3_dot(wi, N) * R;
+      throughput *= fabs(d3_dot(wi, N)) * R;
     } else {
       if(ssp_rng_canonical(ctx->rng) >= R) break;
       throughput *= d3_dot(wi, N);
