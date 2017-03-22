@@ -151,6 +151,45 @@ test_thin_dielectric(struct ssol_device* dev)
 }
 
 static void
+test_dielectric(struct ssol_device* dev)
+{
+  struct ssol_dielectric_shader dielectric = SSOL_DIELECTRIC_SHADER_NULL;
+  struct ssol_material* material;
+  enum ssol_material_type type;
+
+  CHECK(ssol_material_create_dielectric(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_dielectric(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_material_create_dielectric(NULL, &material), RES_BAD_ARG);
+  CHECK(ssol_material_create_dielectric(dev, &material), RES_OK);
+
+  CHECK(ssol_material_get_type(material, &type), RES_OK);
+  CHECK(type, SSOL_MATERIAL_DIELECTRIC);
+
+  dielectric.normal = get_shader_normal;
+  dielectric.eta_i = get_shader_refractive_index;
+  dielectric.eta_t = get_shader_refractive_index;
+
+  CHECK(ssol_dielectric_set_shader(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_dielectric_set_shader(material, NULL), RES_BAD_ARG);
+  CHECK(ssol_dielectric_set_shader(NULL, &dielectric), RES_BAD_ARG);
+  CHECK(ssol_dielectric_set_shader(material, &dielectric), RES_OK);
+
+  dielectric.normal = NULL;
+  CHECK(ssol_dielectric_set_shader(material,&dielectric), RES_BAD_ARG);
+  dielectric.normal = get_shader_normal;
+
+  dielectric.eta_i = NULL;
+  CHECK(ssol_dielectric_set_shader(material,&dielectric), RES_BAD_ARG);
+  dielectric.eta_i = get_shader_refractive_index;
+
+  dielectric.eta_t = NULL;
+  CHECK(ssol_dielectric_set_shader(material,&dielectric), RES_BAD_ARG);
+  dielectric.eta_t = get_shader_refractive_index;
+
+  CHECK(ssol_material_ref_put(material), RES_OK);
+}
+
+static void
 test_virtual(struct ssol_device* dev)
 {
   struct ssol_material* material;
@@ -182,6 +221,7 @@ main(int argc, char** argv)
   test_mirror(dev);
   test_matte(dev);
   test_thin_dielectric(dev);
+  test_dielectric(dev);
   test_virtual(dev);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);

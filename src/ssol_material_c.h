@@ -38,6 +38,7 @@ struct ssol_material {
   enum ssol_material_type type;
 
   union {
+    struct ssol_dielectric_shader dielectric;
     struct ssol_matte_shader matte;
     struct ssol_mirror_shader mirror;
     struct ssol_thin_dielectric_shader thin_dielectric;

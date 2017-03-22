@@ -73,6 +73,7 @@ enum ssol_path_type {
 };
 
 enum ssol_material_type {
+  SSOL_MATERIAL_DIELECTRIC,
   SSOL_MATERIAL_MATTE,
   SSOL_MATERIAL_MIRROR,
   SSOL_MATERIAL_THIN_DIELECTRIC,
@@ -237,6 +238,16 @@ typedef void
    const double uv[2], /* Texture coordinates */
    const double w[3], /* Incoming direction. Point toward the surface */
    double* val); /* Returned value */
+
+/* Dielectric material shader */
+struct ssol_dielectric_shader {
+  ssol_shader_getter_T normal;
+  ssol_shader_getter_T eta_i; /* Refractive index of the current medium */
+  ssol_shader_getter_T eta_t; /* Refractive index of the opposite medium */
+};
+#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL, NULL, NULL }
+static const struct ssol_dielectric_shader SSOL_DIELECTRIC_SHADER_NULL =
+  SSOL_DIELECTRIC_SHADER_NULL__;
 
 /* Mirror material shader */
 struct ssol_mirror_shader {
@@ -654,6 +665,11 @@ ssol_mesh_setup
  * (e.g.: refractive index) properties of a geometry.
  ******************************************************************************/
 SSOL_API res_T
+ssol_material_create_dielectric
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
 ssol_material_create_mirror
   (struct ssol_device* dev,
    struct ssol_material** mtl);
@@ -690,6 +706,11 @@ SSOL_API res_T
 ssol_material_set_param_buffer
   (struct ssol_material* mtl,
    struct ssol_param_buffer* buf);
+
+SSOL_API res_T
+ssol_dielectric_set_shader
+  (struct ssol_material* mtl,
+   const struct ssol_dielectric_shader* shader);
 
 SSOL_API res_T
 ssol_mirror_set_shader
@@ -1024,7 +1045,7 @@ SSOL_API res_T
 ssol_path_get_type
   (const struct ssol_path* path,
    enum ssol_path_type* type);
-  
+
 /*******************************************************************************
  * Per receiver MC estimations
  ******************************************************************************/
