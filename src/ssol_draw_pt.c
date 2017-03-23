@@ -129,6 +129,7 @@ Li(struct ssol_scene* scn,
    const float dir[3],
    double val[3])
 {
+  struct medium medium;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
   struct ssol_instance* inst;
@@ -157,9 +158,17 @@ Li(struct ssol_scene* scn,
   f3_set(ray_org, org);
   f3_set(ray_dir, dir);
 
+  /* Assume that the path starts from the air */
+  medium.eta = 1.00027;
+  medium.absorption = 0;
+
   for(;;) {
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
+
+    if(medium.absorption > 0) {
+      throughput *= exp(-medium.absorption * hit.distance);
+    }
 
     if(S3D_HIT_NONE(&hit)) { /* Background lighting */
       if(ray_dir[2] > 0) L += throughput * 1.e-1;
@@ -195,7 +204,7 @@ Li(struct ssol_scene* scn,
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
     SSF(bsdf_clear(ctx->bsdf));
-    res = material_shade_rendering(mtl, &frag, 1/*TODO wavelength*/, ctx->bsdf);
+    res = material_shade_rendering(mtl, &frag, 1/*TODO wavelength*/, &medium, ctx->bsdf);
     CHECK(res, RES_OK);
 
     /* Update the ray */

@@ -269,7 +269,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
- /* Spectra mismatch */
+  /* Spectra mismatch */
   desc.wavelengths = mismatch;
   desc.wavelengths = ka;
   desc.count = 2;

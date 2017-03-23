@@ -38,6 +38,7 @@ dielectric_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   struct medium* medium,
    struct ssf_bsdf* bsdf)
 {
   struct ssf_bxdf* brdf = NULL;
@@ -47,8 +48,9 @@ dielectric_shade
   double N[3];
   double eta_i;
   double eta_t;
+  double absorption;
   res_T res = RES_OK;
-  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_DIELECTRIC);
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_DIELECTRIC && medium);
   ASSERT(bsdf);
 
   shader = &mtl->data.dielectric;
@@ -60,7 +62,14 @@ dielectric_shade
   FETCH(normal, N);
   FETCH(eta_i, &eta_i);
   FETCH(eta_t, &eta_t);
+  FETCH(absorption, &absorption);
   #undef FETCH
+
+  if(!eq_eps(medium->eta, eta_i, 1.e-3)) {
+    log_error(mtl->dev, "Inconsistent medium definition.\n");
+    res = RES_BAD_ARG;
+    goto error;
+  }
 
   #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
   /* Setup the reflective part */
@@ -76,6 +85,9 @@ dielectric_shade
   CALL(ssf_bsdf_add(bsdf, brdf, 0.5));
   CALL(ssf_bsdf_add(bsdf, btdf, 0.5));
   #undef CALL
+
+  medium->absorption = absorption;
+  medium->eta = eta_t;
 
 exit:
   if(brdf) SSF(bxdf_ref_put(brdf));
@@ -257,6 +269,7 @@ shade
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const int rendering, /* Is material used for rendering */
+   struct medium* medium,
    struct ssf_bsdf* bsdf)
 {
   res_T res = RES_OK;
@@ -265,7 +278,7 @@ shade
   /* Specific material shading */
   switch(mtl->type) {
     case SSOL_MATERIAL_DIELECTRIC:
-      res = dielectric_shade(mtl, fragment, wavelength, bsdf);
+      res = dielectric_shade(mtl, fragment, wavelength, medium, bsdf);
       break;
     case SSOL_MATERIAL_MATTE:
       res = matte_shade(mtl, fragment, wavelength, bsdf);
@@ -288,7 +301,8 @@ check_shader_dielectric(const struct ssol_dielectric_shader* shader)
   return shader
       && shader->normal
       && shader->eta_i
-      && shader->eta_t;
+      && shader->eta_t
+      && shader->absorption;
 }
 
 static INLINE int
@@ -574,9 +588,10 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   struct medium* medium,
    struct ssf_bsdf* bsdf)
 {
-  return shade(mtl, fragment, wavelength, 0, bsdf);
+  return shade(mtl, fragment, wavelength, 0, medium, bsdf);
 }
 
 res_T
@@ -584,8 +599,9 @@ material_shade_rendering
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   struct medium* medium,
    struct ssf_bsdf* bsdf)
 {
-  return shade(mtl, fragment, wavelength, 1, bsdf);
+  return shade(mtl, fragment, wavelength, 1, medium, bsdf);
 }
 

@@ -341,10 +341,15 @@ point_get_material(const struct point* pt)
 
 static FINLINE res_T
 point_shade
-  (struct point* pt, struct ssf_bsdf* bsdf, struct ssp_rng* rng, double dir[3])
+  (struct point* pt,
+   struct ssf_bsdf* bsdf,
+   struct medium* medium,
+   struct ssp_rng* rng,
+   double dir[3])
 {
   struct surface_fragment frag;
-  double wi[3], pdf, r;
+  double reflectivity = 1;
+  double wi[3], pdf;
   res_T res;
 
   /* TODO ensure that if `prim' was sampled, then the surface fragment setup
@@ -362,17 +367,17 @@ point_shade
 
   /* Shade the surface fragment */
   SSF(bsdf_clear(bsdf));
-  res = material_shade(point_get_material(pt), &frag, pt->wl, bsdf);
+  res = material_shade(point_get_material(pt), &frag, pt->wl, medium, bsdf);
   if(res != RES_OK) return res;
 
   /* By convention, Star-SF assumes that incoming and reflected
    * directions point outward the surface => negate incoming dir */
   d3_minus(wi, pt->dir);
 
-  r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
-  ASSERT(0 <= r && r <= 1);
-  pt->reflectivity_loss += (1 - r) * pt->weight;
-  pt->weight *= r;
+  reflectivity = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
+  ASSERT(0 <= reflectivity && reflectivity <= 1);
+  pt->reflectivity_loss += (1 - reflectivity) * pt->weight;
+  pt->weight *= reflectivity;
 
   return RES_OK;
 }
@@ -686,6 +691,7 @@ trace_radiative_path
    const struct ssol_path_tracker* tracker, /* May be NULL */
    FILE* output) /* May be NULL */
 {
+  struct medium medium;
   struct path path;
   struct s3d_hit hit = S3D_HIT_NULL;
   struct point pt;
@@ -701,6 +707,14 @@ trace_radiative_path
   res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
+
+  /* Assume that the path starts from an uniform atmosphere */
+  medium.eta = 1.0002772;
+  medium.absorption = 0;
+  if(scn->atmosphere) {
+    medium.absorption = atmosphere_uniform_get_absorption
+      (scn->atmosphere, pt.wl);
+  }
 
   if(tracker) {
     /* Add the first point of the starting segment */
@@ -751,10 +765,9 @@ trace_radiative_path
         range[0] = nextafterf(hit.distance, FLT_MAX);
         range[1] = FLT_MAX;
       } else {
-
         /* Modulate the point weight wrt to its scattering functions and
          * generate an outgoing direction */
-        res = point_shade(&pt, thread_ctx->bsdf, thread_ctx->rng, pt.dir);
+        res = point_shade(&pt, thread_ctx->bsdf, &medium, thread_ctx->rng, pt.dir);
         if(res != RES_OK) goto error;
 
         /* Stop the radiative random walk */
@@ -790,10 +803,9 @@ trace_radiative_path
 
       depth += mtl->type != SSOL_MATERIAL_VIRTUAL;
 
-      /* Take into account the atmosphere attenuation along the new ray */
-      if(scn->atmosphere) {
-        const double transmissivity = compute_atmosphere_transmissivity
-          (scn->atmosphere, hit.distance, pt.wl);
+      /* Take into account the medium attenuation */
+      if(medium.absorption > 0 && hit.distance > 0) {
+        const double transmissivity = exp(-medium.absorption * hit.distance);
         ASSERT(0 < transmissivity && transmissivity <= 1);
         pt.absorptivity_loss += (1 - transmissivity) * pt.weight;
         pt.weight *= transmissivity;

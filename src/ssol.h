@@ -244,8 +244,9 @@ struct ssol_dielectric_shader {
   ssol_shader_getter_T normal;
   ssol_shader_getter_T eta_i; /* Refractive index of the current medium */
   ssol_shader_getter_T eta_t; /* Refractive index of the opposite medium */
+  ssol_shader_getter_T absorption; /* Medium absorption */
 };
-#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL, NULL, NULL }
+#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL, NULL, NULL, NULL }
 static const struct ssol_dielectric_shader SSOL_DIELECTRIC_SHADER_NULL =
   SSOL_DIELECTRIC_SHADER_NULL__;
 

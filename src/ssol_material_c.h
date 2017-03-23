@@ -23,6 +23,11 @@ struct s3d_primitive;
 struct ssf_bsdf;
 struct ssol_device;
 
+struct medium {
+  double eta; /* Refractive index of the medium */
+  double absorption;
+};
+
 struct surface_fragment {
   double dir[3]; /* World space incoming direction */
   double pos[3]; /* World space position */
@@ -63,6 +68,7 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   struct medium* medium,
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 /* Material shading for rendering purposes */
@@ -71,6 +77,7 @@ material_shade_rendering
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   struct medium* medium,
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 #endif /* SSOL_MATERIAL_C_H */
