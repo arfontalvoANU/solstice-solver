@@ -200,7 +200,6 @@ point_init
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
   float dir[3], pos[3], range[2] = { 0, FLT_MAX };
-  double cos_sun;
   size_t id;
   res_T res = RES_OK;
   ASSERT(pt && scn && sampled && view_samp && view_rt);
@@ -223,15 +222,6 @@ point_init
   f3_normalize(attr.value, attr.value);
   d3_set_f3(pt->N, attr.value);
 
-  /* Sample a sun direction */
-  ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
-
-  /* Initialise the Monte Carlo weight */
-  cos_sun = fabs(d3_dot(pt->N, pt->dir));
-  pt->weight = scn->sun->dni * sampled_area_proxy * cos_sun;
-  pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - cos_sun);
-  pt->absorptivity_loss = pt->reflectivity_loss = 0;
-
   /* Retrieve the sampled instance and shaded shape */
   pt->inst = *htable_instance_find(&scn->instances_samp, &pt->prim.inst_id);
   id = *htable_shaded_shape_find
@@ -239,19 +229,36 @@ point_init
   pt->sshape = darray_shaded_shape_cdata_get
     (&pt->inst->object->shaded_shapes) + id;
 
+  /* Sample a sun direction */
+  ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
+
+  /* Initialise the Monte Carlo weight */
+  if(pt->sshape->shape->type == SHAPE_PUNCHED) {
+    double proxy_sun_cos = fabs(d3_dot(pt->N, pt->dir));
+    double cos_ratio, surface_proxy_cos, surface_sun_cos, tmp_n[3];
+    /* For punched surface, retrieve the sampled position and normal onto the
+     * quadric surface */
+    punched_shape_project_point
+      (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, tmp_n);
+    surface_proxy_cos = d3_dot(pt->N, tmp_n);
+    surface_sun_cos = d3_dot(tmp_n, pt->dir);
+    cos_ratio = fabs(surface_sun_cos / surface_proxy_cos);
+    d3_set(pt->N, tmp_n);
+    pt->weight = scn->sun->dni * sampled_area_proxy * cos_ratio;
+    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - proxy_sun_cos);
+  } else {
+    double surface_sun_cos = fabs(d3_dot(pt->N, pt->dir));
+    pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
+    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - surface_sun_cos);
+  }
+  pt->absorptivity_loss = pt->reflectivity_loss = 0;
+
   /* Store sampled entity related weights */
   res = get_mc_sampled(sampled, pt->inst, &pt->mc_samp);
   if(res != RES_OK) goto error;
   pt->mc_samp->cos_loss.weight += pt->cos_loss;
   pt->mc_samp->cos_loss.sqr_weight += pt->cos_loss * pt->cos_loss;
   pt->mc_samp->nb_samples++;
-
-  /* For punched surface, retrieve the sampled position and normal onto the
-   * quadric surface */
-  if(pt->sshape->shape->type == SHAPE_PUNCHED) {
-    punched_shape_project_point
-      (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, pt->N);
-  }
 
   /* Define the primitive side on which the point lies */
   if(d3_dot(pt->N, pt->dir) < 0) {
