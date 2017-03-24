@@ -19,17 +19,20 @@
 * Rectangle polygon
 ******************************************************************************/
 #if !defined(HALF_X) && !(defined(X_MIN) && defined(X_MAX))
-#error "Missing the HALF_X or X_MIN and X_MAX macros defining the rectangle size"
+#error "Missing the HALF_X or X_MIN and X_MAX macros defining the cube size"
 #endif
 #if !defined(HALF_Y) && !(defined(Y_MIN) && defined(Y_MAX))
-#error "Missing the HALF_Y or Y_MIN and Y_MAX macros defining the rectangle size"
+#error "Missing the HALF_Y or Y_MIN and Y_MAX macros defining the cube size"
 #endif
-#if !defined(POLYGON_NAME)
-#error "Missing the POLYGON_NAME macro defining the rectangle name"
+#if !defined(HALF_Z) && !(defined(Z_MIN) && defined(Z_MAX))
+#error "Missing the HALF_Z or Z_MIN and Z_MAX macros defining the cube size"
+#endif
+#if !defined(CUBE_NAME)
+#error "Missing the CUBE_NAME macro defining the rectangle name"
 #endif
 
-#define EDGES__ CONCAT(POLYGON_NAME, _EDGES__)
-#define POLY_NVERTS__ CONCAT(POLYGON_NAME, _NVERTS__)
+#define EDGES__ CONCAT(CUBE_NAME, _EDGES__)
+#define CUBE_NVERTS__ CONCAT(CUBE_NAME, _NVERTS__)
 
 #if !defined(X_MIN)
 #define X_MIN (float)(-(HALF_X))
@@ -47,23 +50,58 @@
 #define Y_MAX (float)(HALF_Y)
 #endif
 
-/* should be const but scpr expects non-const data */
-static double EDGES__ [] = {
-  X_MIN, Y_MIN,
-  X_MIN, Y_MAX,
-  X_MAX, Y_MAX,
-  X_MAX, Y_MIN
+#if !defined(Z_MIN)
+#define Z_MIN (float)(-(HALF_Z))
+#endif
+
+#if !defined(Z_MAX)
+#define Z_MAX (float)(HALF_Z)
+#endif
+
+static const float EDGES__ [] = {
+  X_MIN, Y_MIN, Z_MIN,
+  X_MIN, Y_MIN, Z_MAX,
+  X_MIN, Y_MAX, Z_MIN,
+  X_MIN, Y_MAX, Z_MAX,
+  X_MAX, Y_MIN, Z_MIN,
+  X_MAX, Y_MIN, Z_MAX,
+  X_MAX, Y_MAX, Z_MIN,
+  X_MAX, Y_MAX, Z_MAX
 };
 
-const unsigned POLY_NVERTS__ = sizeof(EDGES__) / sizeof(double[2]);
+const unsigned CUBE_NVERTS__ = sizeof(EDGES__) / sizeof(float[3]);
+
+const unsigned TRG_IDS__ [] = {
+  0, 6, 4,
+  0, 2, 6,
+  0, 3, 2,
+  0, 1, 3,
+  2, 7, 6,
+  2, 3, 7,
+  4, 6, 7,
+  4, 7, 5,
+  0, 4, 5,
+  0, 5, 1,
+  1, 5, 7,
+  1, 7, 3
+};
+const unsigned CUBE_NTRIS__ = sizeof(TRG_IDS__) / sizeof(unsigned[3]);
+
+static const struct desc CUBE_DESC__ = { EDGES__, TRG_IDS__ };
 
 #undef EDGES__
-#undef POLY_NVERTS__
+#undef TRG_IDS__
+#undef CUBE_DESC__
+#undef CUBE_NVERTS__
+#undef CUBE_NTRIS__
 
 #undef HALF_X
 #undef HALF_Y
+#undef HALF_Z
 #undef X_MIN
 #undef X_MAX
 #undef Y_MIN
 #undef Y_MAX
-#undef POLYGON_NAME
+#undef Z_MIN
+#undef Z_MAX
+#undef CUBE_NAME

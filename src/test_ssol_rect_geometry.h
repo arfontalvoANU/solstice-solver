@@ -18,11 +18,11 @@
 /*******************************************************************************
 * Rectangle plane
 ******************************************************************************/
-#if !defined(HALF_X)
-#error "Missing the HALF_X macro defining the rectangle size"
+#if !defined(HALF_X) && !(defined(X_MIN) && defined(X_MAX))
+#error "Missing the HALF_X or X_MIN and X_MAX macros defining the rectangle size"
 #endif
-#if !defined(HALF_Y)
-#error "Missing the HALF_Y macro defining the rectangle size"
+#if !defined(HALF_Y) && !(defined(Y_MIN) && defined(Y_MAX))
+#error "Missing the HALF_Y or Y_MIN and Y_MAX macros defining the rectangle size"
 #endif
 #if !defined(PLANE_NAME)
 #error "Missing the DARRAY_NAME macro defining the rectangle name"
@@ -34,11 +34,27 @@
 #define RECT_NVERTS__ CONCAT(PLANE_NAME, _NVERTS__)
 #define RECT_NTRIS__ CONCAT(PLANE_NAME, _NTRIS__)
 
+#if !defined(X_MIN)
+#define X_MIN (float)(-(HALF_X))
+#endif
+
+#if !defined(X_MAX)
+#define X_MAX (float)(HALF_X)
+#endif
+
+#if !defined(Y_MIN)
+#define Y_MIN (float)(-(HALF_Y))
+#endif
+
+#if !defined(Y_MAX)
+#define Y_MAX (float)(HALF_Y)
+#endif
+
 static const float EDGES__ [] = {
-  (float) -HALF_X, (float) -HALF_Y, 0.f,
-  (float)  HALF_X, (float) -HALF_Y, 0.f,
-  (float)  HALF_X, (float)  HALF_Y, 0.f,
-  (float) -HALF_X, (float)  HALF_Y, 0.f
+  X_MIN, Y_MIN, 0.f,
+  X_MAX, Y_MIN, 0.f,
+  X_MAX, Y_MAX, 0.f,
+  X_MIN, Y_MAX, 0.f
 };
 
 const unsigned RECT_NVERTS__ = sizeof(EDGES__) / sizeof(float[3]);
@@ -56,4 +72,8 @@ static const struct desc RECT_DESC__ = { EDGES__, TRG_IDS__ };
 
 #undef HALF_X
 #undef HALF_Y
+#undef X_MIN
+#undef X_MAX
+#undef Y_MIN
+#undef Y_MAX
 #undef PLANE_NAME

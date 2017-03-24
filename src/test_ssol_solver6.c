@@ -178,7 +178,7 @@ main(int argc, char** argv)
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(fclose(tmp), 0);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);

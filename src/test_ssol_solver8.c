@@ -1,30 +1,34 @@
 /* Copyright (C) CNRS 2016-2017
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>. */
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
 #include "test_ssol_materials.h"
 
-#define PLANE_NAME SQUARE
-#define HALF_X 0.1
-#define HALF_Y 0.1
-#include "test_ssol_rect_geometry.h"
-
-#define POLYGON_NAME POLY
+#define PLANE_NAME TARGET
 #define HALF_X 10
 #define HALF_Y 10
+#include "test_ssol_rect_geometry.h"
+
+#define X_SZ 10
+#define Y_SZ 4
+#define POLYGON_NAME POLY
+#define HALF_X (X_SZ / 2)
+STATIC_ASSERT((HALF_X * 2 == X_SZ), ONLY_ENVEN_VALUES_FOR_X_SZ);
+#define Y_MIN 0
+#define Y_MAX Y_SZ
 #include "test_ssol_rect2D_geometry.h"
 
 #include <rsys/double33.h>
@@ -38,7 +42,7 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
   CHECK(i < 3, 1);
-  (void)ctx;
+  (void) ctx;
   *wlen = wavelengths[i];
   *data = intensities[i];
 }
@@ -62,8 +66,7 @@ main(int argc, char** argv)
   struct ssol_object* m_object;
   struct ssol_object* t_object;
   struct ssol_instance* heliostat;
-  struct ssol_instance* target1;
-  struct ssol_instance* target2;
+  struct ssol_instance* target;
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
   struct ssol_estimator* estimator;
@@ -73,27 +76,26 @@ main(int argc, char** argv)
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
   FILE* tmp;
-  double m1, std1, m2, std2;
-  uint32_t r_id1, r_id2;
+  uint32_t r_id;
 
   (void) argc, (void) argv;
-#define FOCAL 10
   d3_splat(transform + 9, 0);
   d33_rotation_pitch(transform, PI); /* flip faces: invert normal */
-  transform[11] = FOCAL; /* +FOCAL offset along Z axis */
+  transform[11] = 4; /* set it just above the parabolic cylinder */
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
   CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
+#define DNI 1000
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
-  CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 1, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
-  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
 
@@ -102,16 +104,16 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
-    SQUARE_NVERTS__, attribs, 1, (void*) &SQUARE_DESC__), RES_OK);
+  CHECK(ssol_mesh_setup(square, TARGET_NTRIS__, get_ids,
+    TARGET_NVERTS__, attribs, 1, (void*) &TARGET_DESC__), RES_OK);
 
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square), RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
   carving.nb_vertices = POLY_NVERTS__;
   carving.context = &POLY_EDGES__;
-  quadric.type = SSOL_QUADRIC_PARABOL;
-  quadric.data.parabol.focal = FOCAL;
+  quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
+  quadric.data.parabol.focal = 1;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
@@ -131,60 +133,38 @@ main(int argc, char** argv)
 
   CHECK(ssol_object_create(dev, &t_object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(t_object, square, v_mtl, v_mtl), RES_OK);
-  CHECK(ssol_object_instantiate(t_object, &target1), RES_OK);
-  CHECK(ssol_instance_set_transform(target1, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target1, SSOL_FRONT, 0), RES_OK);
-  CHECK(ssol_instance_sample(target1, 0), RES_OK);
-  CHECK(ssol_scene_attach_instance(scene, target1), RES_OK);
-  CHECK(ssol_object_instantiate(t_object, &target2), RES_OK);
-  transform[11] += 1.e-4;
-  CHECK(ssol_instance_set_transform(target2, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target2, SSOL_FRONT, 0), RES_OK);
-  CHECK(ssol_instance_sample(target2, 0), RES_OK);
-  CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
+  CHECK(ssol_object_instantiate(t_object, &target), RES_OK);
+  CHECK(ssol_instance_set_transform(target, transform), RES_OK);
+  CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
+  CHECK(ssol_instance_sample(target, 0), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-#define N__ 10000
+#define N__ 100000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_instance_get_id(target1, &r_id1), RES_OK);
-  CHECK(ssol_instance_get_id(target2, &r_id2), RES_OK);
-  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
+  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
+  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id1, count, &m1, &std1), RES_OK);
-  CHECK(pp_sum(tmp, (int32_t)r_id2, count, &m2, &std2), RES_OK);
   CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g\n", m1, std1);
-#define COS cos(0)
-#define DNI_cos (1000 * COS)
-  CHECK(eq_eps(m1, 400 * DNI_cos, 400 * DNI_cos * 1e-4), 1);
-  CHECK(eq_eps(std1, 0, 1), 1);
-  CHECK(m1, m2);
-  CHECK(std1, std2);
-  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
-  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
-  CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
-  printf("Ir(target1) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-4), 1);
-  CHECK(GET_MC_RCV(estimator, target2, SSOL_FRONT, &mc_rcv), RES_OK);
-  printf("Ir(target2) = %g +/- %g\n",
-   mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-4), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
+#define S (sqrt(2) * X_SZ * Y_SZ)
+  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
+  printf("Cos = %g +/- %g\n", mc_global.cos_loss.E, mc_global.cos_loss.SE);
+  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
+  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  CHECK(eq_eps(mc_global.cos_loss.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  printf("Ir(target1) = %g +/- %g\n",
+    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S * DNI, 2 * mc_rcv.integrated_irradiance.SE), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
-  CHECK(ssol_instance_ref_put(target1), RES_OK);
-  CHECK(ssol_instance_ref_put(target2), RES_OK);
+  CHECK(ssol_instance_ref_put(target), RES_OK);
   CHECK(ssol_object_ref_put(m_object), RES_OK);
   CHECK(ssol_object_ref_put(t_object), RES_OK);
   CHECK(ssol_shape_ref_put(square), RES_OK);
@@ -204,4 +184,3 @@ main(int argc, char** argv)
 
   return 0;
 }
-
