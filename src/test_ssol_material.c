@@ -166,30 +166,72 @@ test_dielectric(struct ssol_device* dev)
   CHECK(type, SSOL_MATERIAL_DIELECTRIC);
 
   dielectric.normal = get_shader_normal;
-  dielectric.eta_i = get_shader_refractive_index;
-  dielectric.eta_t = get_shader_refractive_index;
-  dielectric.absorption = get_shader_absorption;
 
-  CHECK(ssol_dielectric_set_shader(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_dielectric_set_shader(material, NULL), RES_BAD_ARG);
-  CHECK(ssol_dielectric_set_shader(NULL, &dielectric), RES_BAD_ARG);
-  CHECK(ssol_dielectric_set_shader(material, &dielectric), RES_OK);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 0, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 1, -1, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 0, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 1, 0, -1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 1, 0, -1), RES_BAD_ARG);
 
-  dielectric.normal = NULL;
-  CHECK(ssol_dielectric_set_shader(material, &dielectric), RES_BAD_ARG);
-  dielectric.normal = get_shader_normal;
-
-  dielectric.eta_i = NULL;
-  CHECK(ssol_dielectric_set_shader(material, &dielectric), RES_BAD_ARG);
-  dielectric.eta_i = get_shader_refractive_index;
-
-  dielectric.eta_t = NULL;
-  CHECK(ssol_dielectric_set_shader(material, &dielectric), RES_BAD_ARG);
-  dielectric.eta_t = get_shader_refractive_index;
-
-  dielectric.absorption = NULL;
-  CHECK(ssol_dielectric_set_shader(material, &dielectric), RES_BAD_ARG);
-  dielectric.absorption = get_shader_absorption;
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 0, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 1, -1, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 0, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 0, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 0, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 0, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 0, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, NULL, 1, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, NULL, 1, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(NULL, &dielectric, 1, 1, 0, 1), RES_BAD_ARG);
+  CHECK(ssol_dielectric_setup(material, &dielectric, 1, 1, 0, 1), RES_OK);
 
   CHECK(ssol_material_ref_put(material), RES_OK);
 }

@@ -347,10 +347,13 @@ point_shade
    struct ssp_rng* rng,
    double dir[3])
 {
+  struct ssol_material* mtl;
   struct surface_fragment frag;
   double reflectivity = 1;
   double wi[3], pdf;
+  int type;
   res_T res;
+  ASSERT(pt && bsdf && medium && rng && dir);
 
   /* TODO ensure that if `prim' was sampled, then the surface fragment setup
    * remains valid in *all* situations, i.e. even though the point primitive
@@ -366,19 +369,21 @@ point_shade
   surface_fragment_setup(&frag, pt->pos, pt->dir, pt->N, &pt->prim, pt->uv);
 
   /* Shade the surface fragment */
+  mtl = point_get_material(pt);
   SSF(bsdf_clear(bsdf));
-  res = material_shade(point_get_material(pt), &frag, pt->wl, medium, bsdf);
+  res = material_shade(mtl, &frag, pt->wl, medium, bsdf);
   if(res != RES_OK) return res;
 
   /* By convention, Star-SF assumes that incoming and reflected
    * directions point outward the surface => negate incoming dir */
   d3_minus(wi, pt->dir);
 
-  reflectivity = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
+  reflectivity = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &type, &pdf);
   ASSERT(0 <= reflectivity && reflectivity <= 1);
   pt->reflectivity_loss += (1 - reflectivity) * pt->weight;
   pt->weight *= reflectivity;
 
+  if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, medium, medium);
   return RES_OK;
 }
 

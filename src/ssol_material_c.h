@@ -28,6 +28,11 @@ struct medium {
   double absorption;
 };
 
+static const struct medium vacuum = { 1.0, 0.0 };
+
+#define MEDIA_EQ(A, B) \
+  (((A)->eta == (B)->eta) && ((A)->absorption == (B)->absorption))
+
 struct surface_fragment {
   double dir[3]; /* World space incoming direction */
   double pos[3]; /* World space position */
@@ -49,6 +54,9 @@ struct ssol_material {
     struct ssol_thin_dielectric_shader thin_dielectric;
   } data;
 
+  struct medium out_medium;
+  struct medium in_medium;
+
   struct ssol_param_buffer* buf;
   struct ssol_device* dev;
   ref_T ref;
@@ -68,7 +76,7 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct medium* medium,
+   const struct medium* medium, /* Current medium */
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 /* Material shading for rendering purposes */
@@ -77,7 +85,13 @@ material_shade_rendering
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct medium* medium,
+   const struct medium* medium,
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
+
+extern LOCAL_SYM res_T
+material_get_next_medium
+  (const struct ssol_material* mtl,
+   const struct medium* medium, /* Current mediu */
+   struct medium* next_medium);
 
 #endif /* SSOL_MATERIAL_C_H */

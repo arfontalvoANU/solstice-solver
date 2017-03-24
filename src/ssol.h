@@ -242,11 +242,8 @@ typedef void
 /* Dielectric material shader */
 struct ssol_dielectric_shader {
   ssol_shader_getter_T normal;
-  ssol_shader_getter_T eta_i; /* Refractive index of the current medium */
-  ssol_shader_getter_T eta_t; /* Refractive index of the opposite medium */
-  ssol_shader_getter_T absorption; /* Medium absorption */
 };
-#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL, NULL, NULL, NULL }
+#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL }
 static const struct ssol_dielectric_shader SSOL_DIELECTRIC_SHADER_NULL =
   SSOL_DIELECTRIC_SHADER_NULL__;
 
@@ -709,9 +706,13 @@ ssol_material_set_param_buffer
    struct ssol_param_buffer* buf);
 
 SSOL_API res_T
-ssol_dielectric_set_shader
+ssol_dielectric_setup
   (struct ssol_material* mtl,
-   const struct ssol_dielectric_shader* shader);
+   const struct ssol_dielectric_shader* shader,
+   const double eta_i, /* Refractive index of the medium the ray comes from */
+   const double eta_t, /* Refractive index of the opposite medium */
+   const double absorptivity_i, /* Absorptivity of the medium the ray comes from */
+   const double absorptivity_t); /* Absorptivity of the opposite medium */
 
 SSOL_API res_T
 ssol_mirror_set_shader

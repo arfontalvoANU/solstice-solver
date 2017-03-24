@@ -121,7 +121,7 @@ sun_lighting
   return 0;
 }
 
-static void
+static res_T
 Li(struct ssol_scene* scn,
    struct thread_context* ctx,
    struct s3d_scene_view* view,
@@ -149,6 +149,7 @@ Li(struct ssol_scene* scn,
   float ray_dir[3];
   enum ssol_side_flag side;
   int russian_roulette = 0;
+  int type;
   res_T res = RES_OK;
   ASSERT(scn && view && org && dir && val);
 
@@ -158,9 +159,8 @@ Li(struct ssol_scene* scn,
   f3_set(ray_org, org);
   f3_set(ray_dir, dir);
 
-  /* Assume that the path starts from the air */
-  medium.eta = 1.00027;
-  medium.absorption = 0;
+  /* Assume that the path starts from vacuum */
+  medium = vacuum;
 
   for(;;) {
     S3D(scene_view_trace_ray
@@ -204,8 +204,9 @@ Li(struct ssol_scene* scn,
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
     SSF(bsdf_clear(ctx->bsdf));
-    res = material_shade_rendering(mtl, &frag, 1/*TODO wavelength*/, &medium, ctx->bsdf);
-    CHECK(res, RES_OK);
+    res = material_shade_rendering
+      (mtl, &frag, 1/*TODO wavelength*/, &medium, ctx->bsdf);
+    if(res != RES_OK) goto error;
 
     /* Update the ray */
     ray_data.prim_from = hit.prim;
@@ -220,9 +221,10 @@ Li(struct ssol_scene* scn,
         (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
     }
 
-    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &pdf);
+    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
     ASSERT(0 <= R && R <= 1);
     f3_set_d3(ray_dir, wi);
+    if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, &medium, &medium);
 
     if(!russian_roulette) {
       throughput *= fabs(d3_dot(wi, N)) * R;
@@ -238,6 +240,12 @@ Li(struct ssol_scene* scn,
     }
   }
   d3_splat(val, L);
+
+exit:
+  return res;
+error:
+  d3(val, 1, 1, 0);
+  goto exit;
 }
 
 static void
@@ -256,30 +264,43 @@ draw_pixel
   struct thread_context* ctx;
   double sum[3] = {0, 0, 0};
   size_t isample;
+  res_T res = RES_OK;
   ASSERT(scn && cam && pix_coords && pix_sz && nsamples && pixel && data);
   ASSERT((size_t)ithread < darray_thread_context_size_get(thread_ctxs));
 
   ctx = darray_thread_context_data_get(thread_ctxs) + ithread;
 
   FOR_EACH(isample, 0, nsamples) {
+    const int MAX_NFAILURES = 10;
     double weight[3];
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];
+    int nfailures = 0; 
 
     /* Generate a sample into the pixel */
     samp[0] = ((float)pix_coords[0]+ssp_rng_canonical_float(ctx->rng))*pix_sz[0];
     samp[1] = ((float)pix_coords[1]+ssp_rng_canonical_float(ctx->rng))*pix_sz[1];
 
-    /* Generate a ray starting from the pinhole camera and passing through the
-     * pixel sample */
-    camera_ray(cam, samp, ray_org, ray_dir);
+    do {
+      /* Generate a ray starting from the pinhole camera and passing through the
+       * pixel sample */
+      camera_ray(cam, samp, ray_org, ray_dir);
 
-    /* Compute the radiance arriving through the sampled camera ray */
-    Li(scn, ctx, view, ray_org, ray_dir, weight);
+      /* Compute the radiance arriving through the sampled camera ray */
+      res = Li(scn, ctx, view, ray_org, ray_dir, weight);
+    } while(res == RES_BAD_OP && ++nfailures < MAX_NFAILURES);
+    if(res != RES_OK) goto error;
+
     d3_add(sum, sum, weight);
   }
 
   d3_divd(pixel, sum, (double)nsamples);
+exit:
+  return;
+error:
+  log_error(scn->dev, "Path tracing integrator error.\n");
+  d3(pixel, 1, 1, 0);
+  goto exit;
 }
 
 /*******************************************************************************
