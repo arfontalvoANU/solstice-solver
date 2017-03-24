@@ -143,7 +143,7 @@ main(int argc, char** argv)
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
   shader.roughness = get_shader_roughness;
-  CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
+  CHECK(ssol_mirror_setup(m_mtl, &shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
   CHECK(ssol_object_create(dev, &m_object), RES_OK);
@@ -398,7 +398,7 @@ main(int argc, char** argv)
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity_2;
   shader.roughness = get_shader_roughness;
-  CHECK(ssol_mirror_set_shader(m_mtl2, &shader), RES_OK);
+  CHECK(ssol_mirror_setup(m_mtl2, &shader), RES_OK);
 
   CHECK(ssol_object_create(dev, &m_object2), RES_OK);
   CHECK(ssol_object_add_shaded_shape(m_object2, square, m_mtl2, m_mtl2), RES_OK);

@@ -217,31 +217,29 @@ thin_dielectric_shade
   const struct ssol_thin_dielectric_shader* shader;
   double N[3];
   double thickness;
-  double absorption;
-  const double eta_i = 1.0002772; /* Refractive index of the air */
+  double absorptivity;
+  double eta_i;
   double eta_t;
   res_T res = RES_OK;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_THIN_DIELECTRIC);
   ASSERT(bsdf);
 
-  shader = &mtl->data.thin_dielectric;
+  shader = &mtl->data.thin_dielectric.shader;
 
   /* Fetch material attribs */
-  #define FETCH(Attr, Dst)                                                     \
-    shader->Attr(mtl->dev, mtl->buf, wavelength, fragment->pos,                \
-      fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, Dst)
-  FETCH(normal, N);
-  FETCH(thickness, &thickness);
-  FETCH(absorption, &absorption);
-  FETCH(refractive_index, &eta_t);
-  #undef FETCH
+  shader->normal(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, N);
+  eta_i = mtl->out_medium.refractive_index;
+  eta_t = mtl->data.thin_dielectric.slab_medium.refractive_index;
+  absorptivity = mtl->data.thin_dielectric.slab_medium.absorptivity;
+  thickness = mtl->data.thin_dielectric.thickness;
 
   /* Setup the BxDF */
   res = ssf_bxdf_create
     (mtl->dev->allocator, &ssf_thin_specular_dielectric, &bxdf);
   if(res != RES_OK) goto error;
   res = ssf_thin_specular_dielectric_setup
-    (bxdf, absorption, eta_i, eta_t, thickness);
+    (bxdf, absorptivity, eta_i, eta_t, thickness);
   if(res != RES_OK) goto error;
 
   /* Setup the BSDF */
@@ -314,11 +312,7 @@ check_shader_matte(const struct ssol_matte_shader* shader)
 static INLINE int
 check_shader_thin_differential(const struct ssol_thin_dielectric_shader* shader)
 {
-  return shader
-      && shader->normal
-      && shader->absorption
-      && shader->thickness
-      && shader->refractive_index;
+  return shader && shader->normal;
 }
 
 static INLINE int
@@ -474,7 +468,7 @@ ssol_dielectric_setup
 }
 
 res_T
-ssol_mirror_set_shader
+ssol_mirror_setup
   (struct ssol_material* material, const struct ssol_mirror_shader* shader)
 {
   if(!material
@@ -486,7 +480,7 @@ ssol_mirror_set_shader
 }
 
 res_T
-ssol_matte_set_shader
+ssol_matte_setup
   (struct ssol_material* material, const struct ssol_matte_shader* shader)
 {
   if(!material
@@ -498,15 +492,25 @@ ssol_matte_set_shader
 }
 
 res_T
-ssol_thin_dielectric_set_shader
+ssol_thin_dielectric_setup
   (struct ssol_material* material,
-   const struct ssol_thin_dielectric_shader* shader)
+   const struct ssol_thin_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* slab_medium,
+   const double thickness)
 {
   if(!material
   || material->type != SSOL_MATERIAL_THIN_DIELECTRIC
-  || !check_shader_thin_differential(shader))
+  || !check_shader_thin_differential(shader)
+  || !check_medium(outside_medium)
+  || !check_medium(slab_medium)
+  || thickness < 0)
     return RES_BAD_ARG;
-  material->data.thin_dielectric = *shader;
+  material->data.thin_dielectric.shader = *shader;
+  material->data.thin_dielectric.slab_medium = *slab_medium;
+  material->data.thin_dielectric.thickness = thickness;
+  material->out_medium = *outside_medium;
+  material->in_medium = *outside_medium;
   return RES_OK;
 }
 
