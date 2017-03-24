@@ -224,7 +224,6 @@ point_init
   f3_normalize(attr.value, attr.value);
   d3_set_f3(pt->N, attr.value);
 
-  pt->cos_factor = cos_sun;
   /* Retrieve the sampled instance and shaded shape */
   pt->inst = *htable_instance_find(&scn->instances_samp, &pt->prim.inst_id);
   id = *htable_shaded_shape_find
@@ -243,16 +242,16 @@ point_init
      * quadric surface */
     punched_shape_project_point
       (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, tmp_n);
-    surface_proxy_cos = d3_dot(pt->N, tmp_n);
-    surface_sun_cos = d3_dot(tmp_n, pt->dir);
-    cos_ratio = fabs(surface_sun_cos / surface_proxy_cos);
+    surface_proxy_cos = fabs(d3_dot(pt->N, tmp_n));
+    surface_sun_cos = fabs(d3_dot(tmp_n, pt->dir));
+    cos_ratio = surface_sun_cos / surface_proxy_cos;
     d3_set(pt->N, tmp_n);
     pt->weight = scn->sun->dni * sampled_area_proxy * cos_ratio;
-    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - proxy_sun_cos);
+    pt->cos_factor = surface_sun_cos;
   } else {
     double surface_sun_cos = fabs(d3_dot(pt->N, pt->dir));
     pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
-    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - surface_sun_cos);
+    pt->cos_factor = surface_sun_cos;
   }
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
