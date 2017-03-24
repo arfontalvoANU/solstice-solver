@@ -227,6 +227,13 @@ struct ssol_punched_surface {
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
 
+struct ssol_medium {
+  double absorptivity;
+  double refractive_index;
+};
+#define SSOL_MEDIUM_VACUUM__ { 0, 1 }
+static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
+
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
@@ -709,10 +716,8 @@ SSOL_API res_T
 ssol_dielectric_setup
   (struct ssol_material* mtl,
    const struct ssol_dielectric_shader* shader,
-   const double eta_i, /* Refractive index of the medium the ray comes from */
-   const double eta_t, /* Refractive index of the opposite medium */
-   const double absorptivity_i, /* Absorptivity of the medium the ray comes from */
-   const double absorptivity_t); /* Absorptivity of the opposite medium */
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* inside_medium);
 
 SSOL_API res_T
 ssol_mirror_set_shader

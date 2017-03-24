@@ -343,7 +343,7 @@ static FINLINE res_T
 point_shade
   (struct point* pt,
    struct ssf_bsdf* bsdf,
-   struct medium* medium,
+   struct ssol_medium* medium,
    struct ssp_rng* rng,
    double dir[3])
 {
@@ -696,7 +696,7 @@ trace_radiative_path
    const struct ssol_path_tracker* tracker, /* May be NULL */
    FILE* output) /* May be NULL */
 {
-  struct medium medium;
+  struct ssol_medium medium = SSOL_MEDIUM_VACUUM;
   struct path path;
   struct s3d_hit hit = S3D_HIT_NULL;
   struct point pt;
@@ -713,11 +713,9 @@ trace_radiative_path
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
 
-  /* Assume that the path starts from an uniform atmosphere */
-  medium.eta = 1.0002772;
-  medium.absorption = 0;
   if(scn->atmosphere) {
-    medium.absorption = atmosphere_uniform_get_absorption
+    /* Assume that the path starts from an uniform atmosphere */
+    medium.absorptivity = atmosphere_uniform_get_absorption
       (scn->atmosphere, pt.wl);
   }
 
@@ -809,8 +807,8 @@ trace_radiative_path
       depth += mtl->type != SSOL_MATERIAL_VIRTUAL;
 
       /* Take into account the medium attenuation */
-      if(medium.absorption > 0 && hit.distance > 0) {
-        const double transmissivity = exp(-medium.absorption * hit.distance);
+      if(medium.absorptivity > 0 && hit.distance > 0) {
+        const double transmissivity = exp(-medium.absorptivity * hit.distance);
         ASSERT(0 < transmissivity && transmissivity <= 1);
         pt.absorptivity_loss += (1 - transmissivity) * pt.weight;
         pt.weight *= transmissivity;

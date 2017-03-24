@@ -38,7 +38,7 @@ dielectric_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const struct medium* medium,
+   const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
 {
   struct ssf_bxdf* brdf = NULL;
@@ -63,8 +63,8 @@ dielectric_shade
     goto error;
   }
 
-  eta_i = mtl->out_medium.eta;
-  eta_t = mtl->in_medium.eta;
+  eta_i = mtl->out_medium.refractive_index;
+  eta_t = mtl->in_medium.refractive_index;
 
   #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
   /* Setup the reflective part */
@@ -261,7 +261,7 @@ shade
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const int rendering, /* Is material used for rendering */
-   const struct medium* medium,
+   const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
 {
   res_T res = RES_OK;
@@ -321,6 +321,14 @@ check_shader_thin_differential(const struct ssol_thin_dielectric_shader* shader)
       && shader->refractive_index;
 }
 
+static INLINE int
+check_medium(const struct ssol_medium* medium)
+{
+  return medium
+      && medium->refractive_index > 0
+      && medium->absorptivity >= 0;
+}
+
 static void
 material_release(ref_T* ref)
 {
@@ -362,8 +370,8 @@ ssol_material_create
   material->dev = dev;
   ref_init(&material->ref);
   material->type = type;
-  material->in_medium = vacuum;
-  material->out_medium = vacuum;
+  material->in_medium = SSOL_MEDIUM_VACUUM;
+  material->out_medium = SSOL_MEDIUM_VACUUM;
 
 exit:
   if (out_material) *out_material = material;
@@ -450,24 +458,18 @@ res_T
 ssol_dielectric_setup
   (struct ssol_material* material,
    const struct ssol_dielectric_shader* shader,
-   const double eta_i,
-   const double eta_t,
-   const double absorption_i,
-   const double absorption_t)
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* inside_medium)
 {
   if(!material
   || material->type != SSOL_MATERIAL_DIELECTRIC
   || !check_shader_dielectric(shader)
-  || eta_i <= 0
-  || eta_t <= 0
-  || absorption_i < 0
-  || absorption_t < 0)
+  || !check_medium(outside_medium)
+  || !check_medium(inside_medium))
     return RES_BAD_ARG;
   material->data.dielectric = *shader;
-  material->out_medium.eta = eta_i;
-  material->out_medium.absorption = absorption_i;
-  material->in_medium.eta = eta_t;
-  material->in_medium.absorption = absorption_t;
+  material->out_medium = *outside_medium;
+  material->in_medium = *inside_medium;
   return RES_OK;
 }
 
@@ -592,7 +594,7 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const struct medium* medium,
+   const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
 {
   return shade(mtl, fragment, wavelength, 0, medium, bsdf);
@@ -603,7 +605,7 @@ material_shade_rendering
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const struct medium* medium,
+   const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
 {
   return shade(mtl, fragment, wavelength, 1, medium, bsdf);
@@ -612,8 +614,8 @@ material_shade_rendering
 res_T
 material_get_next_medium
   (const struct ssol_material* mtl,
-   const struct medium* medium,
-   struct medium* next_medium)
+   const struct ssol_medium* medium,
+   struct ssol_medium* next_medium)
 {
   ASSERT(mtl && medium && next_medium);
   switch(mtl->type) {

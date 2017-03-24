@@ -129,7 +129,7 @@ Li(struct ssol_scene* scn,
    const float dir[3],
    double val[3])
 {
-  struct medium medium;
+  struct ssol_medium medium;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
   struct ssol_instance* inst;
@@ -160,14 +160,14 @@ Li(struct ssol_scene* scn,
   f3_set(ray_dir, dir);
 
   /* Assume that the path starts from vacuum */
-  medium = vacuum;
+  medium = SSOL_MEDIUM_VACUUM;
 
   for(;;) {
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
-    if(medium.absorption > 0) {
-      throughput *= exp(-medium.absorption * hit.distance);
+    if(medium.absorptivity > 0) {
+      throughput *= exp(-medium.absorptivity * hit.distance);
     }
 
     if(S3D_HIT_NONE(&hit)) { /* Background lighting */
@@ -275,7 +275,7 @@ draw_pixel
     double weight[3];
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];
-    int nfailures = 0; 
+    int nfailures = 0;
 
     /* Generate a sample into the pixel */
     samp[0] = ((float)pix_coords[0]+ssp_rng_canonical_float(ctx->rng))*pix_sz[0];

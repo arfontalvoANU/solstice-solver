@@ -23,15 +23,9 @@ struct s3d_primitive;
 struct ssf_bsdf;
 struct ssol_device;
 
-struct medium {
-  double eta; /* Refractive index of the medium */
-  double absorption;
-};
-
-static const struct medium vacuum = { 1.0, 0.0 };
-
-#define MEDIA_EQ(A, B) \
-  (((A)->eta == (B)->eta) && ((A)->absorption == (B)->absorption))
+#define MEDIA_EQ(A, B)                                                         \
+  (  ((A)->refractive_index == (B)->refractive_index)                          \
+  && ((A)->absorptivity == (B)->absorptivity))
 
 struct surface_fragment {
   double dir[3]; /* World space incoming direction */
@@ -54,8 +48,8 @@ struct ssol_material {
     struct ssol_thin_dielectric_shader thin_dielectric;
   } data;
 
-  struct medium out_medium;
-  struct medium in_medium;
+  struct ssol_medium out_medium;
+  struct ssol_medium in_medium;
 
   struct ssol_param_buffer* buf;
   struct ssol_device* dev;
@@ -76,7 +70,7 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const struct medium* medium, /* Current medium */
+   const struct ssol_medium* medium, /* Current medium */
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 /* Material shading for rendering purposes */
@@ -85,13 +79,13 @@ material_shade_rendering
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   const struct medium* medium,
+   const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 extern LOCAL_SYM res_T
 material_get_next_medium
   (const struct ssol_material* mtl,
-   const struct medium* medium, /* Current mediu */
-   struct medium* next_medium);
+   const struct ssol_medium* medium, /* Current mediu */
+   struct ssol_medium* next_medium);
 
 #endif /* SSOL_MATERIAL_C_H */
