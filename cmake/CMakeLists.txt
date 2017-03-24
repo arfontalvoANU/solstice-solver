@@ -170,6 +170,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_solver6)
   new_test(test_ssol_solver7)
   new_test(test_ssol_solver8)
+  new_test(test_ssol_solver9)
   new_test(test_ssol_sun)
 
   build_test(test_ssol_draw)
