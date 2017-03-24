@@ -150,8 +150,7 @@ main(int argc, char** argv)
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
   CHECK(eq_eps(mc_global.shadowed.E, DNI_S, 3 * mc_global.shadowed.SE), 1);
-  CHECK(eq_eps(mc_global.missing.E, 
-    MMAX(DNI_S, DNI_TGT_S) - MMIN(DNI_S, DNI_TGT_S), 
+  CHECK(eq_eps(mc_global.missing.E, MMAX(DNI_S, DNI_TGT_S), 
     3 * mc_global.missing.SE), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",

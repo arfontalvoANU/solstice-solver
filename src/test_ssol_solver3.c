@@ -70,6 +70,7 @@ main(int argc, char** argv)
   struct ssol_mc_receiver mc_rcv;
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
+  double area;
   size_t count;
   FILE* tmp;
   double m, std;
@@ -155,7 +156,7 @@ main(int argc, char** argv)
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
   printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-4), 1); /* nothing absorbed */
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
@@ -165,6 +166,8 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
+  CHECK(ssol_instance_get_area(heliostat, &area), RES_OK);
+  CHECK(eq_eps(area, 400, DBL_EPSILON), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

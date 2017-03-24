@@ -233,17 +233,6 @@ ssol_object_get_area(const struct ssol_object* object, double* area)
   return RES_OK;
 }
 
-res_T
-ssol_object_get_normal
-  (const struct ssol_object* object,
-   double normal[3])
-{
-  if (!object || !normal) return RES_BAD_ARG;;
-  /* the area of the 3D surface */
-  d3_set(normal, object->n);
-  return RES_OK;
-}
-
 /*******************************************************************************
  * Local function
  ******************************************************************************/

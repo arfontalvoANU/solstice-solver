@@ -119,8 +119,11 @@ ssol_estimator_get_mc_global
     global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
   } (void)0
   SETUP_MC_RESULT(cos_factor);
+  SETUP_MC_RESULT(absorbed);
   SETUP_MC_RESULT(shadowed);
   SETUP_MC_RESULT(missing);
+  SETUP_MC_RESULT(atmosphere);
+  SETUP_MC_RESULT(reflectivity);
   #undef SETUP_MC_RESULT
   return RES_OK;
 }
@@ -230,6 +233,7 @@ ssol_estimator_get_mc_sampled
     sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
     sampled->Name.SE = sampled->Name.V > 0 ? sqrt(sampled->Name.V / N) : 0;   \
   } (void)0
+  SETUP_MC_RESULT(cos_factor);
   SETUP_MC_RESULT(shadowed);
   #undef SETUP_MC_RESULT
   return RES_OK;

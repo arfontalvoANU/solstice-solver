@@ -112,6 +112,7 @@ main(int argc, char** argv)
   carving.context = &POLY_EDGES__;
   quadric.type = SSOL_QUADRIC_PARABOL;
   quadric.data.parabol.focal = FOCAL;
+  quadric.slices_count_hint = 100;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
@@ -144,7 +145,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-#define N__ 10000
+#define N__ 100000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target1, &r_id1), RES_OK);
@@ -166,17 +167,17 @@ main(int argc, char** argv)
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
   printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-2), 1); /* nothing absorbed */
   CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-2), 1);
   CHECK(GET_MC_RCV(estimator, target2, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target2) = %g +/- %g\n",
    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-2), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 

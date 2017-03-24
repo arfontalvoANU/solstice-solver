@@ -335,10 +335,16 @@ static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
 struct ssol_mc_global {
   struct ssol_mc_result cos_factor; /* [0 1] */
+  struct ssol_mc_result absorbed; /* In W */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
+  struct ssol_mc_result atmosphere; /* In W */
+  struct ssol_mc_result reflectivity; /* In W */
 };
 #define SSOL_MC_GLOBAL_NULL__ {                                                \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__                                                        \
@@ -376,8 +382,8 @@ struct ssol_mc_shape {
 static const struct ssol_mc_shape SSOL_MC_SHAPE_NULL = SSOL_MC_SHAPE_NULL__;
 
 struct ssol_mc_sampled {
+  struct ssol_mc_result cos_factor; /* [0 1] */
   struct ssol_mc_result shadowed;
-  double n[3]; /* normals */
   size_t nb_samples;
 };
 
@@ -746,12 +752,6 @@ ssol_object_get_area
   (const struct ssol_object* object,
    double* area);
 
-/* Retrieve the normal of the object */
-SSOL_API res_T
-ssol_object_get_normal
-  (const struct ssol_object* object,
-   double normal[3]);
-
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as
  * world transformation, material parameters, etc. Note that the object
@@ -801,12 +801,6 @@ SSOL_API res_T
 ssol_instance_get_area
   (const struct ssol_instance* instance,
    double* area);
-
-/* Retrieve the normal of the instance */
-SSOL_API res_T
-ssol_instance_get_normal
-  (const struct ssol_instance* instance,
-   double normal[3]);
 
 SSOL_API res_T
 ssol_instance_get_shaded_shapes_count

@@ -19,11 +19,6 @@
 #include <rsys/mem_allocator.h>
 #include <rsys/image.h>
 
-#define SCREEN_GAMMA 2.2
-#define WIDTH 640
-#define HEIGHT 480
-#define PROJ_RATIO (double)WIDTH/(double)HEIGHT
-
 #define REFLECTIVITY 0.1
 #include "test_ssol_materials.h"
 
@@ -85,7 +80,7 @@ main(int argc, char** argv)
   struct ssol_estimator* estimator;
   struct ssol_mc_global mc_global;
   struct ssol_mc_receiver mc_rcv;
-  double dir[3];
+  double dir[3], area;
   double transform[12]; /* 3x4 column major matrix */
   FILE* tmp;
   /* primary is a parabol */
@@ -201,13 +196,15 @@ main(int argc, char** argv)
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(fclose(tmp), 0);
 
-  printf("Total = %g\n", TOTAL);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
+  CHECK(ssol_estimator_get_sampled_area(estimator, &area), RES_OK);
+  printf("Total = %g\n", area * DNI_cos);
+  CHECK(eq_eps(area * DNI_cos, TOTAL, TOTAL * 1e-4), 1);
+  printf("Absorbed = %g +/- %g\n", mc_global.absorbed.E, mc_global.absorbed.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
 
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Abs(target1) = %g +/- %g\n",
@@ -218,7 +215,7 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, TOTAL, TOTAL * 1e-4), 1);
   CHECK(eq_eps(mc_rcv.integrated_absorbed_irradiance.E, 
     (1 - REFLECTIVITY) * TOTAL, (1 - REFLECTIVITY) *TOTAL * 1e-4), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, 0, 1e-2), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

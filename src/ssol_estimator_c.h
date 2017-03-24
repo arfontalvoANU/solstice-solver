@@ -278,6 +278,7 @@ mc_receiver_copy_and_release
  ******************************************************************************/
 struct mc_sampled {
   /* Global data for this entity */
+  struct mc_data cos_factor;
   struct mc_data shadowed;
   size_t nb_samples;
 
@@ -291,6 +292,7 @@ mc_sampled_init
    struct mc_sampled* samp)
 {
   ASSERT(samp);
+  samp->cos_factor = MC_DATA_NULL;
   samp->shadowed = MC_DATA_NULL;
   samp->nb_samples = 0;
   htable_receiver_init(allocator, &samp->mc_rcvs);
@@ -307,6 +309,7 @@ static INLINE res_T
 mc_sampled_copy(struct mc_sampled* dst, const struct mc_sampled* src)
 {
   ASSERT(dst && src);
+  dst->cos_factor = src->cos_factor;
   dst->shadowed = src->shadowed;
   dst->nb_samples = src->nb_samples;
   return htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
@@ -316,6 +319,7 @@ static INLINE res_T
 mc_sampled_copy_and_release(struct mc_sampled* dst, struct mc_sampled* src)
 {
   ASSERT(dst && src);
+  dst->cos_factor = src->cos_factor;
   dst->shadowed = src->shadowed;
   dst->nb_samples = src->nb_samples;
   return htable_receiver_copy_and_release(&dst->mc_rcvs, &src->mc_rcvs);
@@ -443,9 +447,12 @@ struct ssol_estimator {
   size_t failed_count;
 
   /* Implicit MC computations */
+  struct mc_data cos_factor;
+  struct mc_data absorbed;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data cos_factor;
+  struct mc_data atmosphere;
+  struct mc_data reflectivity;
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */
