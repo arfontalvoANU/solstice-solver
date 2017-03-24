@@ -104,7 +104,12 @@ sun_lighting
   ASSERT(sun && view && ray_data && bsdf && wo && N && ray_org);
   ASSERT(d3_dot(wo, N) >= 0); /* Assume that wo point outward the surface */
 
+  /* Ensure that the incoming direction point outward the surface */
   d3_minus(wi, sun->direction);
+
+  /* The point look backward the sun */
+  if(d3_dot(wi, N) < 0) return 0.0;
+
   R = ssf_bsdf_eval(bsdf, wo, N, wi);
   if(R <= 0) return 0.0;
 
