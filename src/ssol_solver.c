@@ -233,7 +233,11 @@ point_init
   ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
 
   /* Initialise the Monte Carlo weight */
-  if(pt->sshape->shape->type == SHAPE_PUNCHED) {
+  if(pt->sshape->shape->type != SHAPE_PUNCHED) {
+    double surface_sun_cos = fabs(d3_dot(pt->N, pt->dir));
+    pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
+    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - surface_sun_cos);
+  } else {
     double proxy_sun_cos = fabs(d3_dot(pt->N, pt->dir));
     double cos_ratio, surface_proxy_cos, surface_sun_cos, tmp_n[3];
     /* For punched surface, retrieve the sampled position and normal onto the
@@ -246,10 +250,6 @@ point_init
     d3_set(pt->N, tmp_n);
     pt->weight = scn->sun->dni * sampled_area_proxy * cos_ratio;
     pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - proxy_sun_cos);
-  } else {
-    double surface_sun_cos = fabs(d3_dot(pt->N, pt->dir));
-    pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
-    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - surface_sun_cos);
   }
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
@@ -376,8 +376,12 @@ point_shade
    * directions point outward the surface => negate incoming dir */
   d3_minus(wi, pt->dir);
 
-  r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
-  ASSERT(0 <= r && r <= 1);
+  if(d3_dot(wi, frag.Ns) <= 0) {
+    r = 0;
+  } else {
+    r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &pdf);
+    ASSERT(0 <= r && r <= 1);
+  }
   pt->reflectivity_loss += (1 - r) * pt->weight;
   pt->weight *= r;
 
