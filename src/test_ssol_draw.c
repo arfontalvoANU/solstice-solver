@@ -126,7 +126,7 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
   CHECK(ssol_material_create_matte(dev, &mtl), RES_OK);
-  CHECK(ssol_matte_set_shader(mtl, &shader), RES_OK);
+  CHECK(ssol_matte_setup(mtl, &shader), RES_OK);
 
   vdata.usage = SSOL_POSITION;
   vdata.get = get_position;

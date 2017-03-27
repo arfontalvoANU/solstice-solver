@@ -131,11 +131,11 @@ main(int argc, char** argv)
   m_shader.normal = get_shader_normal;
   m_shader.reflectivity = get_shader_reflectivity;
   m_shader.roughness = get_shader_roughness;
-  CHECK(ssol_mirror_set_shader(m_mtl, &m_shader), RES_OK);
+  CHECK(ssol_mirror_setup(m_mtl, &m_shader), RES_OK);
   CHECK(ssol_material_create_matte(dev, &bck_mtl), RES_OK);
   bck_shader.normal = get_shader_normal;
   bck_shader.reflectivity = get_shader_reflectivity_2;
-  CHECK(ssol_matte_set_shader(bck_mtl, &bck_shader), RES_OK);
+  CHECK(ssol_matte_setup(bck_mtl, &bck_shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
   carving1.get = get_polygon_vertices;
