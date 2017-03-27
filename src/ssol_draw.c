@@ -14,16 +14,15 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_c.h"
-#include "ssol_camera.h"
 #include "ssol_device_c.h"
+#include "ssol_draw.h"
 #include "ssol_scene_c.h"
 
-#include <rsys/double3.h>
-#include <rsys/math.h>
 #include <star/s3d.h>
 
 #include <omp.h>
+#include <star/ssf.h>
+#include <star/ssp.h>
 
 #define TILE_SIZE 32 /* definition in X & Y of a tile */
 STATIC_ASSERT(IS_POW2(TILE_SIZE), TILE_SIZE_must_be_a_power_of_2);
@@ -43,41 +42,23 @@ morton2D_decode(const uint32_t u32)
 }
 
 static void
-Li(struct ssol_scene* scn,
-   struct s3d_scene_view* view,
-   const float org[3],
-   const float dir[3],
-   double val[3])
-{
-  const float range[2] = {0, FLT_MAX};
-  struct ray_data ray_data = RAY_DATA_NULL;
-  struct s3d_hit hit;
-
-  ray_data.scn = scn;
-  ray_data.discard_virtual_materials = 1;
-  S3D(scene_view_trace_ray(view, org, dir, range, &ray_data, &hit));
-  if(S3D_HIT_NONE(&hit)) {
-    d3_splat(val, 0);
-  } else {
-    float N[3]={0};
-    f3_normalize(N, hit.normal);
-    d3_splat(val, fabs(f3_dot(N, dir)));
-  }
-}
-
-static void
 draw_tile
   (struct ssol_scene* scn,
    struct s3d_scene_view* view,
    const struct ssol_camera* cam,
+   const int ithread,
+   const size_t spp,
    const size_t origin[2], /* Tile origin */
    const size_t size[2], /* Tile definition */
    const float pix_sz[2], /* Normalized size of a pixel in the image plane */
-   double* pixels)
+   double* pixels,
+   pixel_shader_T shader,
+   void* shader_data)
 {
   size_t npixels;
   size_t mcode; /* Morton code of the tile pixel */
-  ASSERT(scn && view && cam && origin && size && pix_sz && pixels);
+  ASSERT(scn && view && cam && spp && origin && size && pix_sz && pixels);
+  ASSERT(shader);
 
   /* Adjust the #pixels to process them wrt a morton order */
   npixels = round_up_pow2(MMAX(size[0], size[1]));
@@ -85,7 +66,6 @@ draw_tile
 
   FOR_EACH(mcode, 0, npixels) {
     size_t ipix[2];
-    float org[3], dir[3], samp[2];
     double* pixel;
 
     ipix[0] = morton2D_decode((uint32_t)(mcode>>0));
@@ -94,29 +74,27 @@ draw_tile
     if(ipix[1] >= size[1]) continue;
 
     pixel = pixels + (ipix[1]*size[0] + ipix[0])*3/*#channels*/;
-
     ipix[0] = ipix[0] + origin[0];
     ipix[1] = ipix[1] + origin[1];
-    samp[0] = ((float)ipix[0] + 0.5f) * pix_sz[0];
-    samp[1] = ((float)ipix[1] + 0.5f) * pix_sz[1];
 
-    camera_ray(cam, samp, org, dir);
-
-    Li(scn, view, org, dir, pixel);
+    shader(scn, cam, view, ithread, ipix, pix_sz, spp, pixel, shader_data);
   }
 }
 
 /*******************************************************************************
- * Exported function
+ * Local function
  ******************************************************************************/
 res_T
-ssol_draw
+draw
   (struct ssol_scene* scn,
-   struct ssol_camera* cam,
+   const struct ssol_camera* cam,
    const size_t width,
    const size_t height,
+   const size_t spp, /* #samples per pixel */
    ssol_write_pixels_T writer,
-   void* data)
+   void* writer_data,
+   pixel_shader_T pixel_shader,
+   void* pixel_shader_data)
 {
   struct s3d_scene_view* view = NULL;
   struct darray_byte* tiles = NULL;
@@ -126,10 +104,8 @@ ssol_draw
   size_t i;
   ATOMIC res = RES_OK;
 
-  if(!scn || !cam || !width || !height || !writer) {
-    res = RES_BAD_ARG;
-    goto error;
-  }
+  if(!scn || !cam || !width || !height || !spp || !writer || !pixel_shader)
+    return RES_BAD_ARG;
 
   tiles = darray_tile_data_get(&scn->dev->tiles);
   ASSERT(darray_tile_size_get(&scn->dev->tiles) == scn->dev->nthreads);
@@ -154,7 +130,7 @@ ssol_draw
   for(mcode=0; mcode<(int64_t)ntiles; ++mcode) {
     size_t tile_org[2];
     size_t tile_sz[2];
-    int ithread = omp_get_thread_num();
+    const int ithread = omp_get_thread_num();
     double* pixels;
     res_T res_local;
 
@@ -172,9 +148,10 @@ ssol_draw
 
     pixels = (double*)darray_byte_data_get(tiles+ithread);
 
-    draw_tile(scn, view, cam, tile_org, tile_sz, pix_sz, pixels);
+    draw_tile(scn, view, cam, ithread, spp, tile_org, tile_sz, pix_sz, pixels,
+      pixel_shader, pixel_shader_data);
 
-    res_local = writer(data, tile_org, tile_sz, SSOL_PIXEL_DOUBLE3, pixels);
+    res_local = writer(writer_data, tile_org, tile_sz, SSOL_PIXEL_DOUBLE3, pixels);
     if(res_local != RES_OK) {
       ATOMIC_SET(&res, res_local);
       continue;
@@ -187,4 +164,5 @@ exit:
 error:
   goto exit;
 }
+
 

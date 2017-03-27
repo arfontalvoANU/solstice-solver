@@ -27,7 +27,6 @@
 #define HALF_Y 10
 #include "test_ssol_rect2D_geometry.h"
 
-#include <rsys/logger.h>
 #include <rsys/double33.h>
 
 #include <star/s3d.h>
@@ -47,7 +46,6 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
 int
 main(int argc, char** argv)
 {
-  struct logger logger;
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssp_rng* rng;
@@ -69,7 +67,8 @@ main(int argc, char** argv)
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
   struct ssol_estimator* estimator;
-  struct ssol_estimator_status status;
+  struct ssol_mc_global mc_global;
+  struct ssol_mc_receiver mc_rcv;
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
@@ -85,13 +84,8 @@ main(int argc, char** argv)
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(logger_init(&allocator, &logger), RES_OK);
-  logger_set_stream(&logger, LOG_OUTPUT, log_stream, NULL);
-  logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
-  logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
-
   CHECK(ssol_device_create
-  (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
@@ -103,7 +97,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
 
-  /* create scene content */
+  /* Create scene content */
 
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
@@ -127,7 +121,7 @@ main(int argc, char** argv)
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
   shader.roughness = get_shader_roughness;
-  CHECK(ssol_mirror_set_shader(m_mtl, &shader), RES_OK);
+  CHECK(ssol_mirror_setup(m_mtl, &shader), RES_OK);
   CHECK(ssol_material_create_virtual(dev, &v_mtl), RES_OK);
 
   CHECK(ssol_object_create(dev, &m_object), RES_OK);
@@ -139,21 +133,20 @@ main(int argc, char** argv)
   CHECK(ssol_object_add_shaded_shape(t_object, square, v_mtl, v_mtl), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target1), RES_OK);
   CHECK(ssol_instance_set_transform(target1, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target1, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(target1, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_sample(target1, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target1), RES_OK);
   CHECK(ssol_object_instantiate(t_object, &target2), RES_OK);
   transform[11] += 1.e-4;
   CHECK(ssol_instance_set_transform(target2, transform), RES_OK);
-  CHECK(ssol_instance_set_receiver(target2, SSOL_FRONT), RES_OK);
+  CHECK(ssol_instance_set_receiver(target2, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_sample(target2, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
-#define GET_STATUS ssol_estimator_get_status
-#define GET_RCV_STATUS ssol_estimator_get_receiver_status
-  CHECK(ssol_solve(scene, rng, N__, tmp, &estimator), RES_OK);
+#define GET_MC_RCV ssol_estimator_get_mc_receiver
+  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target1, &r_id1), RES_OK);
   CHECK(ssol_instance_get_id(target2, &r_id2), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
@@ -161,29 +154,29 @@ main(int argc, char** argv)
   CHECK(pp_sum(tmp, (int32_t)r_id1, count, &m1, &std1), RES_OK);
   CHECK(pp_sum(tmp, (int32_t)r_id2, count, &m2, &std2), RES_OK);
   CHECK(fclose(tmp), 0);
-  logger_print(&logger, LOG_OUTPUT, "\nIr = %g +/- %g\n", m1, std1);
+  printf("Ir = %g +/- %g\n", m1, std1);
 #define DNI_cos (1000 * cos(0))
   CHECK(eq_eps(m1, 400 * DNI_cos, 400 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std1, 0, 1), 1);
   CHECK(m1, m2);
   CHECK(std1, std2);
-  CHECK(GET_STATUS(estimator, SSOL_STATUS_SHADOW, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Shadows = %g +/- %g", status.irradiance.E, status.irradiance.SE);
-  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
-  CHECK(GET_STATUS(estimator, SSOL_STATUS_MISSING, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Missing = %g +/- %g", status.irradiance.E, status.irradiance.SE);
-  CHECK(eq_eps(status.irradiance.E, 0, 1e-4), 1);
-  CHECK(status.Nf, 0);
-  CHECK(GET_RCV_STATUS(estimator, target1, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Ir(target1) = %g +/- %g", status.irradiance.E, status.irradiance.SE);
-  CHECK(eq_eps(status.irradiance.E, m1, 1e-8), 1);
-  CHECK(eq_eps(status.irradiance.SE, std1, 1e-4), 1);
-  CHECK(GET_RCV_STATUS(estimator, target2, SSOL_FRONT, &status), RES_OK);
-  logger_print(&logger, LOG_OUTPUT, "Ir(target2) = %g +/- %g", status.irradiance.E, status.irradiance.SE);
-  CHECK(eq_eps(status.irradiance.E, m2, 1e-8), 1);
-  CHECK(eq_eps(status.irradiance.SE, std2, 1e-4), 1);
-#undef GET_STATUS
-#undef GET_RCV_STATUS
+  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
+  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
+  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
+  printf("Ir(target1) = %g +/- %g\n",
+    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-4), 1);
+  CHECK(GET_MC_RCV(estimator, target2, SSOL_FRONT, &mc_rcv), RES_OK);
+  printf("Ir(target2) = %g +/- %g\n",
+   mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-4), 1);
+  CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
+  CHECK(count, 0);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
@@ -201,8 +194,6 @@ main(int argc, char** argv)
   CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
-
-  logger_release(&logger);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);

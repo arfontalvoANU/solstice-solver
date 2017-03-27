@@ -123,24 +123,13 @@ ssol_atmosphere_set_uniform_absorption
  * Local functions
  ******************************************************************************/
 double
-compute_atmosphere_transmissivity
+atmosphere_uniform_get_absorption
   (const struct ssol_atmosphere* atmosphere,
-   const double distance,
    const double wavelength)
 {
-  double ka;
   const struct ssol_spectrum* spectrum;
-  if (!atmosphere)
-    return 1;
-
-  ASSERT(distance >= 0 && wavelength >= 0);
-  switch (atmosphere->type) {
-    case ATMOS_UNIFORM:
-      spectrum = atmosphere->data.uniform.spectrum;
-      ka = spectrum_interpolate(spectrum, wavelength);
-      break;
-    default: FATAL("Unreachable code\n"); break;
-  }
-  return exp(-ka * distance);
+  ASSERT(atmosphere && atmosphere->type == ATMOS_UNIFORM && wavelength >= 0);
+  spectrum = atmosphere->data.uniform.spectrum;
+  return spectrum_interpolate(spectrum, wavelength);
 }
 

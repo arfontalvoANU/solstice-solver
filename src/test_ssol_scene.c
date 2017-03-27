@@ -15,8 +15,35 @@
 
 #include "ssol.h"
 #include "test_ssol_utils.h"
+#include "test_ssol_geometries.h"
 
-#include <rsys/logger.h>
+#include <rsys/float3.h>
+
+struct scene_ctx {
+  struct ssol_instance* instance;
+  struct ssol_instance* instance2;
+  int instance_found;
+  int instance2_found;
+};
+
+static res_T
+instance_func(struct ssol_instance* inst, void* context)
+{
+  struct scene_ctx* ctx = context;
+  NCHECK(inst, NULL);
+  if(!ctx) return RES_BAD_ARG;
+
+  if(inst == ctx->instance) {
+    CHECK(ctx->instance_found, 0);
+    ctx->instance_found = 1;
+  } else if(inst == ctx->instance2) {
+    CHECK(ctx->instance2_found, 0);
+    ctx->instance2_found = 1;
+  } else {
+    FATAL("Unreachable code.\n");
+  }
+  return RES_OK;
+}
 
 static void
 get_wlen(const size_t i, double* wlen, double* data, void* ctx)
@@ -32,13 +59,30 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
 int
 main(int argc, char** argv)
 {
-  struct logger logger;
+  const float tall_block[] = {
+    423.f, 247.f, 0.f,
+    265.f, 296.f, 0.f,
+    314.f, 456.f, 0.f,
+    472.f, 406.f, 0.f,
+    423.f, 247.f, 330.f,
+    265.f, 296.f, 330.f,
+    314.f, 456.f, 330.f,
+    472.f, 406.f, 330.f
+  };
+  const unsigned  block_ids[] = {
+    4, 5, 6, 6, 7, 4,
+    1, 2, 6, 6, 5, 1,
+    0, 3, 7, 7, 4, 0,
+    2, 3, 7, 7, 6, 2,
+    0, 1, 5, 5, 4, 0
+  };
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_shape* shape;
   struct ssol_material* material;
   struct ssol_object* object;
   struct ssol_instance* instance;
+  struct ssol_instance* instance2;
   struct ssol_sun* sun;
   struct ssol_sun* sun2;
   struct ssol_scene* scene;
@@ -46,18 +90,17 @@ main(int argc, char** argv)
   struct ssol_spectrum* spectrum;
   struct ssol_atmosphere* atm;
   struct ssol_atmosphere* atm2;
+  struct ssol_vertex_data vdata;
+  struct scene_ctx ctx;
+  struct desc desc;
   double transform[12];
+  float lower[3], upper[3], tmp[3];
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(logger_init(&allocator, &logger), RES_OK);
-  logger_set_stream(&logger, LOG_OUTPUT, log_stream, NULL);
-  logger_set_stream(&logger, LOG_ERROR, log_stream, NULL);
-  logger_set_stream(&logger, LOG_WARNING, log_stream, NULL);
-
   CHECK(ssol_device_create
-    (&logger, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
   CHECK(ssol_material_create_virtual(dev, &material), RES_OK);
 
@@ -65,6 +108,7 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, &object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(object, shape, material, material), RES_OK);
   CHECK(ssol_object_instantiate(object, &instance), RES_OK);
+  CHECK(ssol_object_instantiate(object, &instance2), RES_OK);
   CHECK(ssol_instance_set_transform(instance, transform), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun2), RES_OK);
@@ -85,11 +129,28 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_attach_instance(scene, instance2), RES_OK);
+
+  ctx.instance = instance;
+  ctx.instance2 = instance2;
+  ctx.instance_found = 0;
+  ctx.instance2_found = 0;
+  CHECK(ssol_scene_for_each_instance(NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(NULL, instance_func, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, instance_func, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(NULL, NULL, &ctx), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, NULL, &ctx), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(NULL, instance_func, &ctx), RES_BAD_ARG);
+  CHECK(ssol_scene_for_each_instance(scene, instance_func, &ctx), RES_OK);
+  CHECK(ctx.instance_found, 1);
+  CHECK(ctx.instance2_found, 1);
 
   CHECK(ssol_scene_detach_instance(NULL, instance), RES_BAD_ARG);
   CHECK(ssol_scene_detach_instance(scene, NULL), RES_BAD_ARG);
   CHECK(ssol_scene_detach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_detach_instance(scene, instance), RES_BAD_ARG);
+  CHECK(ssol_scene_detach_instance(scene, instance2), RES_OK);
 
   CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
   CHECK(ssol_scene_attach_instance(scene2, instance), RES_OK);
@@ -154,8 +215,54 @@ main(int argc, char** argv)
 
   CHECK(ssol_scene_ref_put(scene), RES_OK);
   CHECK(ssol_scene_ref_put(scene2), RES_OK);
+  CHECK(ssol_shape_ref_put(shape), RES_OK);
+  CHECK(ssol_object_ref_put(object), RES_OK);
+  CHECK(ssol_instance_ref_put(instance), RES_OK);
+
+  CHECK(ssol_scene_create(dev, &scene), RES_OK);
+  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
+  CHECK(ssol_object_create(dev, &object), RES_OK);
+
+  vdata.usage = SSOL_POSITION;
+  vdata.get = get_position;
+  desc.vertices = tall_block;;
+  desc.indices = block_ids;
+
+  CHECK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc), RES_OK);
+  CHECK(ssol_object_add_shaded_shape(object, shape, material, material), RES_OK);
+  CHECK(ssol_object_instantiate(object, &instance), RES_OK);
+
+  CHECK(ssol_scene_compute_aabb(NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(scene, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(NULL, lower, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(scene, lower, NULL), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(NULL, NULL, upper), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(scene, NULL, upper), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(NULL, lower, upper), RES_BAD_ARG);
+  CHECK(ssol_scene_compute_aabb(scene, lower, upper), RES_OK);
+
+  /* Empty scene */
+  CHECK(lower[0] > upper[0], 1);
+  CHECK(lower[1] > upper[1], 1);
+  CHECK(lower[2] > upper[2], 1);
+ 
+  CHECK(ssol_scene_attach_instance(scene, instance), RES_OK);
+  CHECK(ssol_scene_compute_aabb(scene, lower, upper), RES_OK);
+  CHECK(f3_eq_eps(lower, f3(tmp, 265.f, 247.f, 0.f), 1.e-6f), 1);
+  CHECK(f3_eq_eps(upper, f3(tmp, 472.f, 456.f, 330.f), 1.e-6f), 1);
+
+  CHECK(ssol_scene_clear(scene), RES_OK);
+  CHECK(ssol_scene_compute_aabb(scene, lower, upper), RES_OK);
+
+  /* Empty scene */
+  CHECK(lower[0] > upper[0], 1);
+  CHECK(lower[1] > upper[1], 1);
+  CHECK(lower[2] > upper[2], 1);
+
+  CHECK(ssol_scene_ref_put(scene), RES_OK);
 
   CHECK(ssol_instance_ref_put(instance), RES_OK);
+  CHECK(ssol_instance_ref_put(instance2), RES_OK);
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
@@ -165,8 +272,6 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(material), RES_OK);
 
   CHECK(ssol_device_ref_put(dev), RES_OK);
-
-  logger_release(&logger);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);

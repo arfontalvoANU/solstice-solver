@@ -20,14 +20,6 @@
 #include <stdio.h>
 
 static INLINE void
-log_stream(const char* msg, void* ctx)
-{
-  ASSERT(msg);
-  (void) msg, (void) ctx;
-  printf("%s\n", msg);
-}
-
-static INLINE void
 check_memory_allocator(struct mem_allocator* allocator)
 {
   if(MEM_ALLOCATED_SIZE(allocator)) {

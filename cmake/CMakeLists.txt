@@ -27,7 +27,7 @@ find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.4 REQUIRED)
 find_package(Star3D 0.4 REQUIRED)
 find_package(StarCPR REQUIRED)
-find_package(StarSF 0.0 REQUIRED)
+find_package(StarSF 0.1 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
@@ -57,9 +57,12 @@ set(SSOL_FILES_SRC
   ssol_camera.c
   ssol_device.c
   ssol_draw.c
+  ssol_draw_pt.c
+  ssol_draw_draft.c
   ssol_estimator.c
   ssol_image.c
   ssol_material.c
+  ssol_mc_receiver.c
   ssol_object.c
   ssol_instance.c
   ssol_param_buffer.c
@@ -79,6 +82,7 @@ set(SSOL_FILES_INC
   ssol_c.h
   ssol_camera.h
   ssol_device_c.h
+  ssol_draw.h
   ssol_estimator_c.h
   ssol_image_c.h
   ssol_material_c.h
@@ -123,13 +127,20 @@ rcmake_setup_devel(solstice-solver SolSolver ${VERSION} solstice/ssol_version.h)
 # Add tests
 ################################################################################
 if(NOT NO_TEST)
-  function(new_test _name)
-    add_executable(${_name}
-            ${SSOL_SOURCE_DIR}/${_name}.c)
+  function(build_test _name)
+    add_executable(${_name} ${SSOL_SOURCE_DIR}/${_name}.c)
     target_link_libraries(${_name}
       solstice-solver solstice-test RSys Star3D StarSP)
-    add_test(${_name} ${_name})
+  endfunction()
+
+  function(register_test _name)
+    add_test(${_name} ${ARGN})
     rcmake_set_test_runtime_dirs(${_name} _runtime_dirs)
+  endfunction()
+
+  function(new_test _name)
+    build_test(${_name})
+    register_test(${_name} ${_name})
   endfunction()
 
   add_library(solstice-test STATIC
@@ -142,7 +153,6 @@ if(NOT NO_TEST)
   new_test(test_ssol_by_receiver_integration)
   new_test(test_ssol_camera)
   new_test(test_ssol_device)
-  new_test(test_ssol_draw)
   new_test(test_ssol_image)
   new_test(test_ssol_material)
   new_test(test_ssol_object)
@@ -158,7 +168,15 @@ if(NOT NO_TEST)
   new_test(test_ssol_solver4)
   new_test(test_ssol_solver5)
   new_test(test_ssol_solver6)
+  new_test(test_ssol_solver7)
+  new_test(test_ssol_solver8)
+  new_test(test_ssol_solver9)
   new_test(test_ssol_sun)
+
+  build_test(test_ssol_draw)
+  register_test(test_ssol_draw_draft test_ssol_draw draft)
+  register_test(test_ssol_draw_pt test_ssol_draw pt)
+
 endif()
 
 ################################################################################

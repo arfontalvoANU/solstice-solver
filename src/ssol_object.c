@@ -18,6 +18,8 @@
 #include "ssol_object_c.h"
 #include "ssol_shape_c.h"
 
+#include <star/s3d.h>
+
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 #include <rsys/mem_allocator.h>
@@ -111,7 +113,7 @@ ssol_object_add_shaded_shape
    struct ssol_material* front,
    struct ssol_material* back)
 {
-  enum { 
+  enum {
     ATTACH_S3D_RT, ATTACH_S3D_SAMP, REGISTER_RT, REGISTER_SAMP, REGISTER_SHAPE
   };
   struct shaded_shape* shaded_shape;
@@ -137,11 +139,13 @@ ssol_object_add_shaded_shape
   res = s3d_scene_attach_shape(object->scn_rt, shape->shape_rt);
   if(res != RES_OK) goto error;
   mask |= BIT(ATTACH_S3D_RT);
+  object->scn_rt_area += shape->shape_rt_area;
 
   /* Add the shape samp to the sampling scene of the object */
   res = s3d_scene_attach_shape(object->scn_samp, shape->shape_samp);
   if(res != RES_OK) goto error;
   mask |= BIT(ATTACH_S3D_SAMP);
+  object->scn_samp_area += shape->shape_samp_area;
 
   /* Ask for a shaded shape identifier */
   i = darray_shaded_shape_size_get(&object->shaded_shapes);
@@ -208,9 +212,32 @@ ssol_object_clear(struct ssol_object* obj)
   htable_shaded_shape_clear(&obj->shaded_shapes_rt);
   htable_shaded_shape_clear(&obj->shaded_shapes_samp);
 
+  obj->scn_rt_area = 0;
+
   S3D(scene_clear(obj->scn_rt));
   S3D(scene_clear(obj->scn_samp));
 
   return RES_OK;
+}
+
+res_T
+ssol_object_get_area(const struct ssol_object* object, double* area)
+{
+  if(!object || !area) return RES_BAD_ARG;;
+  /* the area of the 3D surface */
+  *area = object->scn_rt_area;
+  return RES_OK;
+}
+
+/*******************************************************************************
+ * Local function
+ ******************************************************************************/
+int
+object_has_shape(struct ssol_object* obj, const struct ssol_shape* shape)
+{
+  unsigned id;
+  ASSERT(obj && shape);
+  S3D(shape_get_id(shape->shape_rt, &id));
+  return htable_shaded_shape_find(&obj->shaded_shapes_rt, &id) != NULL;
 }
 

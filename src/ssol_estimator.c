@@ -20,9 +20,10 @@
 #include "ssol_device_c.h"
 #include "ssol_instance_c.h"
 
-#include <rsys/rsys.h>
+#include <rsys/double3.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
+#include <rsys/rsys.h>
 
 #include <math.h>
 
@@ -30,31 +31,42 @@
  * Helper functions
  ******************************************************************************/
 static res_T
-create_per_receiver_mc_data
+create_mc_receivers
   (struct ssol_estimator* estimator,
    struct ssol_scene* scene)
 {
   struct htable_instance_iterator it, end;
+  struct mc_receiver mc_rcv_null;
+  struct mc_sampled mc_samp_null;
   res_T res = RES_OK;
   ASSERT(scene && estimator);
 
   htable_instance_begin(&scene->instances_rt, &it);
   htable_instance_end(&scene->instances_rt, &end);
 
+  mc_receiver_init(estimator->dev->allocator, &mc_rcv_null);
+  mc_sampled_init(estimator->dev->allocator, &mc_samp_null);
+
   while(!htable_instance_iterator_eq(&it, &end)) {
     const struct ssol_instance* inst = *htable_instance_iterator_data_get(&it);
     htable_instance_iterator_next(&it);
 
-    if(!inst->receiver_mask) continue;
-
-    res = htable_receiver_set
-      (&estimator->global_receivers, &inst, &MC_RECV_DATA_NULL);
-    if(res != RES_OK) goto error;
+    if(inst->receiver_mask) {
+      res = htable_receiver_set(&estimator->mc_receivers, &inst, &mc_rcv_null);
+      if(res != RES_OK) goto error;
+    }
+    if(inst->sample) {
+      res = htable_sampled_set(&estimator->mc_sampled, &inst, &mc_samp_null);
+      if(res != RES_OK) goto error;
+    }
   }
 exit:
+  mc_receiver_release(&mc_rcv_null);
+  mc_sampled_release(&mc_samp_null);
   return res;
 error:
-  htable_receiver_clear(&estimator->global_receivers);
+  htable_receiver_clear(&estimator->mc_receivers);
+  htable_sampled_clear(&estimator->mc_sampled);
   goto exit;
 }
 
@@ -66,7 +78,9 @@ estimator_release(ref_T* ref)
     CONTAINER_OF(ref, struct ssol_estimator, ref);
   ASSERT(ref);
   dev = estimator->dev;
-  htable_receiver_release(&estimator->global_receivers);
+  htable_receiver_release(&estimator->mc_receivers);
+  htable_sampled_release(&estimator->mc_sampled);
+  darray_path_release(&estimator->paths);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -76,89 +90,90 @@ estimator_release(ref_T* ref)
  * Exported function
  ******************************************************************************/
 res_T
-ssol_estimator_ref_get
-(struct ssol_estimator* estimator)
+ssol_estimator_ref_get(struct ssol_estimator* estimator)
 {
-  if (!estimator) return RES_BAD_ARG;
+  if(!estimator) return RES_BAD_ARG;
   ref_get(&estimator->ref);
   return RES_OK;
 }
 
 res_T
-ssol_estimator_ref_put
-(struct ssol_estimator* estimator)
+ssol_estimator_ref_put(struct ssol_estimator* estimator)
 {
-  if (!estimator) return RES_BAD_ARG;
+  if(!estimator) return RES_BAD_ARG;
   ref_put(&estimator->ref, estimator_release);
   return RES_OK;
 }
 
 res_T
-ssol_estimator_get_status
+ssol_estimator_get_mc_global
   (const struct ssol_estimator* estimator,
-   const enum ssol_status_type type,
-   struct ssol_estimator_status* status)
+   struct ssol_mc_global* global)
 {
-  const struct mc_data* data;
-  if (!estimator || type >= SSOL_STATUS_TYPES_COUNT__ || !status)
-    return RES_BAD_ARG;
-
-  switch (type) {
-    case SSOL_STATUS_SHADOW: data = &estimator->shadow; break;
-    case SSOL_STATUS_MISSING: data = &estimator->missing; break;
-    default: FATAL("Unreachable code.\n"); break;
-  }
-  status->N = estimator->realisation_count;
-  status->Nf = estimator->failed_count;
-  status->irradiance.E = data->weight / (double)status->N;
-  status->irradiance.V
-    = data->sqr_weight / (double)status->N
-      - status->irradiance.E * status->irradiance.E;
-  status->irradiance.SE
-    = (status->irradiance.V > 0)
-      ? sqrt(status->irradiance.V / (double)status->N) : 0;
-  status->absorptivity_loss.E = 0;
-  status->absorptivity_loss.V = 0;
-  status->absorptivity_loss.SE = 0;
-  status->reflectivity_loss.E = 0;
-  status->reflectivity_loss.V = 0;
-  status->reflectivity_loss.SE = 0;
-  status->cos_loss.E = 0;
-  status->cos_loss.V = 0;
-  status->cos_loss.SE = 0;
+  if(!estimator || !global) return RES_BAD_ARG;
+  #define SETUP_MC_RESULT(Name) {                                              \
+    const double N = (double)estimator->realisation_count;                     \
+    const struct mc_data* data = &estimator->Name;                             \
+    global->Name.E = data->weight / N;                                         \
+    global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
+    global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
+  } (void)0
+  SETUP_MC_RESULT(cos_loss);
+  SETUP_MC_RESULT(shadowed);
+  SETUP_MC_RESULT(missing);
+  #undef SETUP_MC_RESULT
   return RES_OK;
 }
 
 res_T
-ssol_estimator_get_receiver_status
+ssol_estimator_get_mc_sampled_x_receiver
   (struct ssol_estimator* estimator,
-   const struct ssol_instance* instance,
+   const struct ssol_instance* samp_instance,
+   const struct ssol_instance* recv_instance,
    const enum ssol_side_flag side,
-   struct ssol_estimator_status* status)
+   struct ssol_mc_receiver* rcv)
 {
-  const struct mc_per_receiver_1side_data* data = NULL;
-  if (!estimator || !instance || !status
-  || (side != SSOL_BACK && side != SSOL_FRONT))
+  struct mc_sampled* mc_samp = NULL;
+  struct mc_receiver* mc_rcv = NULL;
+  struct mc_receiver_1side* mc_rcv1 = NULL;
+
+  if(!estimator || !samp_instance || !recv_instance || !rcv
+  || (side != SSOL_BACK && side != SSOL_FRONT)
+  || !samp_instance->sample
+  || !(recv_instance->receiver_mask & (int)side))
     return RES_BAD_ARG;
 
-  /* Check if a receiver is defined for this instance/side */
-  data = estimator_get_receiver_data
-    (&estimator->global_receivers, instance, side);
-  if(data == NULL) return RES_BAD_ARG;
+  memset(rcv, 0, sizeof(rcv[0]));
 
-  status->N = estimator->realisation_count;
-  status->Nf = estimator->failed_count;
-  #define SETUP_MC_STATUS(Name) {                                              \
-    const double N = (double)estimator->realisation_count;                     \
-    status->Name.E = data->Name.weight / N;                                    \
-    status->Name.V = data->Name.sqr_weight/N - status->Name.E*status->Name.E;  \
-    status->Name.SE = status->Name.V > 0 ? sqrt(status->Name.V / N) : 0;       \
+
+  mc_samp = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
+  if(!mc_samp || !mc_samp->nb_samples) {
+    /* The sampled instance has no MC estimation */
+    return RES_BAD_ARG;
+  }
+
+  mc_rcv = htable_receiver_find(&mc_samp->mc_rcvs, &recv_instance);
+  if(!mc_rcv) {
+    /* No radiative path starting from the sampled instance reaches the receiver
+     * instance. */
+    return RES_OK;
+  }
+
+  mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
+  #define SETUP_MC_RESULT(Name) {                                              \
+    const double N = (double)mc_samp->nb_samples;                              \
+    const struct mc_data* data = &mc_rcv1->Name;                               \
+    rcv->Name.E = data->weight / N;                                            \
+    rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;              \
+    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
   } (void)0
-  SETUP_MC_STATUS(irradiance);
-  SETUP_MC_STATUS(absorptivity_loss);
-  SETUP_MC_STATUS(reflectivity_loss);
-  SETUP_MC_STATUS(cos_loss);
-  #undef SETUP_MC_STATUS
+  SETUP_MC_RESULT(integrated_irradiance);
+  SETUP_MC_RESULT(absorptivity_loss);
+  SETUP_MC_RESULT(reflectivity_loss);
+  SETUP_MC_RESULT(cos_loss);
+  #undef SETUP_MC_RESULT
+  rcv->mc__ = mc_rcv1;
+  rcv->N__ = mc_samp->nb_samples;
   return RES_OK;
 }
 
@@ -182,21 +197,64 @@ ssol_estimator_get_failed_count
 
 res_T
 ssol_estimator_get_sampled_area
-  (const struct ssol_estimator* estimator,
-   double* area)
+  (const struct ssol_estimator* estimator, double* area)
 {
-  if (!estimator || !area) return RES_BAD_ARG;
+  if(!estimator || !area) return RES_BAD_ARG;
   *area = estimator->sampled_area;
   return RES_OK;
 }
 
 res_T
-ssol_estimator_get_primary_area
-  (const struct ssol_estimator* estimator,
-   double* area)
+ssol_estimator_get_tracked_paths_count
+  (const struct ssol_estimator* estimator, size_t* npaths)
 {
-  if (!estimator || !area) return RES_BAD_ARG;
-  *area = estimator->primary_area;
+  if(!estimator || !npaths) return RES_BAD_ARG;
+  *npaths = darray_path_size_get(&estimator->paths);
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_tracked_path
+  (const struct ssol_estimator* estimator,
+   const size_t ipath,
+   struct ssol_path* path)
+{
+  if(!estimator || ipath >= darray_path_size_get(&estimator->paths) || !path)
+    return RES_BAD_ARG;
+  path->path__  = darray_path_cdata_get(&estimator->paths) + ipath;
+  return RES_OK;
+}
+
+res_T
+ssol_path_get_vertices_count(const struct ssol_path* path, size_t* nvertices)
+{
+  const struct path* p;
+  if(!path || !nvertices) return RES_BAD_ARG;
+  p = path->path__;
+  *nvertices = darray_path_vertex_size_get(&p->vertices);
+  return RES_OK;
+}
+
+res_T
+ssol_path_get_vertex
+  (const struct ssol_path* path,
+   const size_t ivertex,
+   struct ssol_path_vertex* vertex)
+{
+  const struct path* p;
+  if(!path || !vertex) return RES_BAD_ARG;
+  p = path->path__;
+  if(ivertex >= darray_path_vertex_size_get(&p->vertices)) return RES_BAD_ARG;
+  *vertex = darray_path_vertex_cdata_get(&p->vertices)[ivertex];
+  return RES_OK;
+}
+
+res_T
+ssol_path_get_type(const struct ssol_path* path, enum ssol_path_type* type)
+{
+  ASSERT(path && type);
+  if(!path || !type) return RES_BAD_ARG;
+  *type = ((struct path*)path->path__)->type;
   return RES_OK;
 }
 
@@ -223,12 +281,14 @@ estimator_create
     goto error;
   }
 
-  htable_receiver_init(dev->allocator, &estimator->global_receivers);
+  htable_receiver_init(dev->allocator, &estimator->mc_receivers);
+  htable_sampled_init(dev->allocator, &estimator->mc_sampled);
+  darray_path_init(dev->allocator, &estimator->paths);
   SSOL(device_ref_get(dev));
   estimator->dev = dev;
   ref_init(&estimator->ref);
 
-  res = create_per_receiver_mc_data(estimator, scene);
+  res = create_mc_receivers(estimator, scene);
   if(res != RES_OK) goto error;
 
 exit:

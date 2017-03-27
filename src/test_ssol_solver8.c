@@ -17,14 +17,18 @@
 #include "test_ssol_utils.h"
 #include "test_ssol_materials.h"
 
-#define PLANE_NAME SQUARE
-#define HALF_X 1
-#define HALF_Y 1
-#include "test_ssol_rect_geometry.h"
-
-#define POLYGON_NAME POLY
+#define PLANE_NAME TARGET
 #define HALF_X 10
 #define HALF_Y 10
+#include "test_ssol_rect_geometry.h"
+
+#define X_SZ 10
+#define Y_SZ 4
+#define POLYGON_NAME POLY
+#define HALF_X (X_SZ / 2)
+STATIC_ASSERT((HALF_X * 2 == X_SZ), ONLY_ENVEN_VALUES_FOR_X_SZ);
+#define Y_MIN 0
+#define Y_MAX Y_SZ
 #include "test_ssol_rect2D_geometry.h"
 
 #include <rsys/double33.h>
@@ -38,7 +42,7 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
   CHECK(i < 3, 1);
-  (void)ctx;
+  (void) ctx;
   *wlen = wavelengths[i];
   *data = intensities[i];
 }
@@ -72,26 +76,26 @@ main(int argc, char** argv)
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
   FILE* tmp;
-  double m, std;
   uint32_t r_id;
-  (void) argc, (void) argv;
 
+  (void) argc, (void) argv;
   d3_splat(transform + 9, 0);
   d33_rotation_pitch(transform, PI); /* flip faces: invert normal */
-  transform[11] = 2; /* +2 offset along Z axis */
-  
+  transform[11] = 4; /* set it just above the parabolic cylinder */
+
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
   CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
+#define DNI 1000
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
-  CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 1, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
-  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
 
@@ -100,15 +104,16 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
-    SQUARE_NVERTS__, attribs, 1, (void*) &SQUARE_DESC__), RES_OK);
+  CHECK(ssol_mesh_setup(square, TARGET_NTRIS__, get_ids,
+    TARGET_NVERTS__, attribs, 1, (void*) &TARGET_DESC__), RES_OK);
 
   CHECK(ssol_shape_create_punched_surface(dev, &quad_square), RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
   carving.nb_vertices = POLY_NVERTS__;
   carving.context = &POLY_EDGES__;
-  quadric.type = SSOL_QUADRIC_PLANE;
+  quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
+  quadric.data.parabol.focal = 1;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
@@ -124,7 +129,6 @@ main(int argc, char** argv)
   CHECK(ssol_object_create(dev, &m_object), RES_OK);
   CHECK(ssol_object_add_shaded_shape(m_object, quad_square, m_mtl, m_mtl), RES_OK);
   CHECK(ssol_object_instantiate(m_object, &heliostat), RES_OK);
-  CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, heliostat), RES_OK);
 
   CHECK(ssol_object_create(dev, &t_object), RES_OK);
@@ -136,32 +140,28 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-#define N__ 20000
+#define N__ 100000
+#define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
   CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g\n", m, std);
-#define DNI_cos (1000 * cos(PI / 4))
-  CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 2e-1), 1);
-#define SQR(x) ((x)*(x))
-  CHECK(eq_eps(std, 
-    sqrt((SQR(400*DNI_cos) / 100 - SQR(4*DNI_cos)) / (double)count), 20), 1);
-  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
-  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
-  CHECK(ssol_estimator_get_mc_receiver
-    (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
-  printf("Ir(target) = %g +/- %g\n", 
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
+#define S (sqrt(2) * X_SZ * Y_SZ)
+  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
+  printf("Cos = %g +/- %g\n", mc_global.cos_loss.E, mc_global.cos_loss.SE);
+  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
+  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  CHECK(eq_eps(mc_global.cos_loss.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
+  printf("Ir(target1) = %g +/- %g\n",
+    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S * DNI,
+    2 * mc_rcv.integrated_irradiance.SE), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);
@@ -172,8 +172,8 @@ main(int argc, char** argv)
   CHECK(ssol_shape_ref_put(quad_square), RES_OK);
   CHECK(ssol_material_ref_put(m_mtl), RES_OK);
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
+  CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);

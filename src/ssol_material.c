@@ -34,6 +34,63 @@
  * Helper functions
  ******************************************************************************/
 static res_T
+dielectric_shade
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   const struct ssol_medium* medium,
+   struct ssf_bsdf* bsdf)
+{
+  struct ssf_bxdf* brdf = NULL;
+  struct ssf_bxdf* btdf = NULL;
+  struct ssf_fresnel* fresnel = NULL;
+  const struct ssol_dielectric_shader* shader;
+  double eta_i, eta_t;
+  double N[3];
+  res_T res = RES_OK;
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_DIELECTRIC);
+  ASSERT(medium && bsdf);
+
+  shader = &mtl->data.dielectric;
+
+  /* Fetch material attribs */
+  shader->normal(mtl->dev, mtl->buf, wavelength, fragment->pos, fragment->Ng,
+    fragment->Ns, fragment->uv, fragment->dir, N);
+
+  if(!MEDIA_EQ(medium, &mtl->out_medium)) {
+    log_error(mtl->dev, "Inconsistent medium description.\n");
+    res = RES_BAD_OP;
+    goto error;
+  }
+
+  eta_i = mtl->out_medium.refractive_index;
+  eta_t = mtl->in_medium.refractive_index;
+
+  #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
+  /* Setup the reflective part */
+  CALL(ssf_fresnel_create
+    (mtl->dev->allocator, &ssf_fresnel_dielectric_dielectric, &fresnel));
+  CALL(ssf_fresnel_dielectric_dielectric_setup(fresnel, eta_i, eta_t));
+  CALL(ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_reflection, &brdf));
+  CALL(ssf_specular_reflection_setup(brdf, fresnel));
+  /* Setup the transmissive part */
+  CALL(ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_transmission, &btdf));
+  CALL(ssf_specular_transmission_setup(btdf, eta_i, eta_t));
+  /* Setup the scattering function */
+  CALL(ssf_bsdf_add(bsdf, brdf, 0.5));
+  CALL(ssf_bsdf_add(bsdf, btdf, 0.5));
+  #undef CALL
+
+exit:
+  if(brdf) SSF(bxdf_ref_put(brdf));
+  if(btdf) SSF(bxdf_ref_put(btdf));
+  if(fresnel) SSF(fresnel_ref_put(fresnel));
+  return res;
+error:
+  goto exit;
+}
+
+static res_T
 matte_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
@@ -45,7 +102,7 @@ matte_shade
   double normal[3];
   double reflectivity;
   res_T res;
-  ASSERT(mtl && fragment && mtl->type == MATERIAL_MATTE);
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MATTE);
   ASSERT(bsdf);
 
   shader = &mtl->data.matte;
@@ -78,6 +135,7 @@ mirror_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   const int rendering,
    struct ssf_bsdf* bsdf)
 {
   struct ssf_bxdf* brdf = NULL;
@@ -88,7 +146,7 @@ mirror_shade
   double roughness;
   double reflectivity;
   res_T res;
-  ASSERT(mtl && fragment && mtl->type == MATERIAL_MIRROR);
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MIRROR);
   ASSERT(bsdf);
 
   shader = &mtl->data.mirror;
@@ -120,8 +178,16 @@ mirror_shade
     res = ssf_beckmann_distribution_setup(distrib, roughness);
     if(res != RES_OK) goto error;
 
-    res = ssf_bxdf_create
-      (mtl->dev->allocator, &ssf_microfacet2_reflection, &brdf);
+    /* Microfacet2 is not well suited for rendering since it cannot be
+     * evaluated and consequently it returns an invalid result for direct
+     * lighting. */
+    if(rendering) {
+      res = ssf_bxdf_create
+        (mtl->dev->allocator, &ssf_microfacet_reflection, &brdf);
+    } else {
+      res = ssf_bxdf_create
+        (mtl->dev->allocator, &ssf_microfacet2_reflection, &brdf);
+    }
     if(res != RES_OK) goto error;
     res = ssf_microfacet_reflection_setup(brdf, fresnel, distrib);
     if(res != RES_OK) goto error;
@@ -140,17 +206,90 @@ error:
   goto exit;
 }
 
-static void
-material_release(ref_T* ref)
+static res_T
+thin_dielectric_shade
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   struct ssf_bsdf* bsdf)
 {
-  struct ssol_device* dev;
-  struct ssol_material* material = CONTAINER_OF(ref, struct ssol_material, ref);
-  ASSERT(ref);
-  dev = material->dev;
-  if(material->buf) SSOL(param_buffer_ref_put(material->buf));
-  ASSERT(dev && dev->allocator);
-  MEM_RM(dev->allocator, material);
-  SSOL(device_ref_put(dev));
+  struct ssf_bxdf* bxdf = NULL;
+  const struct ssol_thin_dielectric_shader* shader;
+  double N[3];
+  double thickness;
+  double absorptivity;
+  double eta_i;
+  double eta_t;
+  res_T res = RES_OK;
+  ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_THIN_DIELECTRIC);
+  ASSERT(bsdf);
+
+  shader = &mtl->data.thin_dielectric.shader;
+
+  /* Fetch material attribs */
+  shader->normal(mtl->dev, mtl->buf, wavelength, fragment->pos,
+    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, N);
+  eta_i = mtl->out_medium.refractive_index;
+  eta_t = mtl->data.thin_dielectric.slab_medium.refractive_index;
+  absorptivity = mtl->data.thin_dielectric.slab_medium.absorptivity;
+  thickness = mtl->data.thin_dielectric.thickness;
+
+  /* Setup the BxDF */
+  res = ssf_bxdf_create
+    (mtl->dev->allocator, &ssf_thin_specular_dielectric, &bxdf);
+  if(res != RES_OK) goto error;
+  res = ssf_thin_specular_dielectric_setup
+    (bxdf, absorptivity, eta_i, eta_t, thickness);
+  if(res != RES_OK) goto error;
+
+  /* Setup the BSDF */
+  res = ssf_bsdf_add(bsdf, bxdf, 1.0);
+  if(res != RES_OK) goto error;
+
+exit:
+  if(bxdf) SSF(bxdf_ref_put(bxdf));
+  return res;
+error:
+  goto exit;
+}
+
+static INLINE res_T
+shade
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   const int rendering, /* Is material used for rendering */
+   const struct ssol_medium* medium,
+   struct ssf_bsdf* bsdf)
+{
+  res_T res = RES_OK;
+  ASSERT(mtl);
+
+  /* Specific material shading */
+  switch(mtl->type) {
+    case SSOL_MATERIAL_DIELECTRIC:
+      res = dielectric_shade
+        (mtl, fragment, wavelength, medium, bsdf);
+      break;
+    case SSOL_MATERIAL_MATTE:
+      res = matte_shade(mtl, fragment, wavelength, bsdf);
+      break;
+    case SSOL_MATERIAL_MIRROR:
+      res = mirror_shade(mtl, fragment, wavelength, rendering, bsdf);
+      break;
+    case SSOL_MATERIAL_THIN_DIELECTRIC:
+      res = thin_dielectric_shade(mtl, fragment, wavelength, bsdf);
+      break;
+    case SSOL_MATERIAL_VIRTUAL: /* Nothing to shade */ break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+  return res;
+}
+
+static INLINE int
+check_shader_dielectric(const struct ssol_dielectric_shader* shader)
+{
+  return shader && shader->normal;
 }
 
 static INLINE int
@@ -170,6 +309,33 @@ check_shader_matte(const struct ssol_matte_shader* shader)
       && shader->reflectivity;
 }
 
+static INLINE int
+check_shader_thin_differential(const struct ssol_thin_dielectric_shader* shader)
+{
+  return shader && shader->normal;
+}
+
+static INLINE int
+check_medium(const struct ssol_medium* medium)
+{
+  return medium
+      && medium->refractive_index > 0
+      && medium->absorptivity >= 0;
+}
+
+static void
+material_release(ref_T* ref)
+{
+  struct ssol_device* dev;
+  struct ssol_material* material = CONTAINER_OF(ref, struct ssol_material, ref);
+  ASSERT(ref);
+  dev = material->dev;
+  if(material->buf) SSOL(param_buffer_ref_put(material->buf));
+  ASSERT(dev && dev->allocator);
+  MEM_RM(dev->allocator, material);
+  SSOL(device_ref_put(dev));
+}
+
 /*******************************************************************************
  * Local functions
  ******************************************************************************/
@@ -177,13 +343,13 @@ static res_T
 ssol_material_create
   (struct ssol_device* dev,
    struct ssol_material** out_material,
-   enum material_type type)
+   enum ssol_material_type type)
 {
   struct ssol_material* material = NULL;
   res_T res = RES_OK;
   if(!dev
   || !out_material
-  || type >= MATERIAL_TYPES_COUNT__) {
+  || type >= SSOL_MATERIAL_TYPES_COUNT__) {
     return RES_BAD_ARG;
   }
 
@@ -198,6 +364,8 @@ ssol_material_create
   material->dev = dev;
   ref_init(&material->ref);
   material->type = type;
+  material->in_medium = SSOL_MEDIUM_VACUUM;
+  material->out_medium = SSOL_MEDIUM_VACUUM;
 
 exit:
   if (out_material) *out_material = material;
@@ -218,7 +386,7 @@ ssol_material_ref_get(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(material->type < MATERIAL_TYPES_COUNT__);
+  ASSERT(material->type < SSOL_MATERIAL_TYPES_COUNT__);
   ref_get(&material->ref);
   return RES_OK;
 }
@@ -228,8 +396,17 @@ ssol_material_ref_put(struct ssol_material* material)
 {
   if (!material)
     return RES_BAD_ARG;
-  ASSERT(material->type < MATERIAL_TYPES_COUNT__);
+  ASSERT(material->type < SSOL_MATERIAL_TYPES_COUNT__);
   ref_put(&material->ref, material_release);
+  return RES_OK;
+}
+
+res_T
+ssol_material_get_type
+  (const struct ssol_material* mtl, enum ssol_material_type* type)
+{
+  if(!mtl || !type) return RES_BAD_ARG;
+  *type = mtl->type;
   return RES_OK;
 }
 
@@ -244,25 +421,58 @@ ssol_material_set_param_buffer
 }
 
 res_T
+ssol_material_create_dielectric
+  (struct ssol_device* dev, struct ssol_material** out_material)
+{
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_DIELECTRIC);
+}
+
+res_T
 ssol_material_create_mirror
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
-  return ssol_material_create(dev, out_material, MATERIAL_MIRROR);
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_MIRROR);
 }
 
 res_T
 ssol_material_create_matte
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
-  return ssol_material_create(dev, out_material, MATERIAL_MATTE);
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_MATTE);
 }
 
 res_T
-ssol_mirror_set_shader
+ssol_material_create_thin_dielectric
+  (struct ssol_device* dev, struct ssol_material** out_material)
+{
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_THIN_DIELECTRIC);
+}
+
+res_T
+ssol_dielectric_setup
+  (struct ssol_material* material,
+   const struct ssol_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* inside_medium)
+{
+  if(!material
+  || material->type != SSOL_MATERIAL_DIELECTRIC
+  || !check_shader_dielectric(shader)
+  || !check_medium(outside_medium)
+  || !check_medium(inside_medium))
+    return RES_BAD_ARG;
+  material->data.dielectric = *shader;
+  material->out_medium = *outside_medium;
+  material->in_medium = *inside_medium;
+  return RES_OK;
+}
+
+res_T
+ssol_mirror_setup
   (struct ssol_material* material, const struct ssol_mirror_shader* shader)
 {
   if(!material
-  || material->type != MATERIAL_MIRROR
+  || material->type != SSOL_MATERIAL_MIRROR
   || !check_shader_mirror(shader))
     return RES_BAD_ARG;
   material->data.mirror = *shader;
@@ -270,11 +480,11 @@ ssol_mirror_set_shader
 }
 
 res_T
-ssol_matte_set_shader
+ssol_matte_setup
   (struct ssol_material* material, const struct ssol_matte_shader* shader)
 {
   if(!material
-  || material->type != MATERIAL_MATTE
+  || material->type != SSOL_MATERIAL_MATTE
   || !check_shader_matte(shader))
     return RES_BAD_ARG;
   material->data.matte = *shader;
@@ -282,10 +492,33 @@ ssol_matte_set_shader
 }
 
 res_T
+ssol_thin_dielectric_setup
+  (struct ssol_material* material,
+   const struct ssol_thin_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* slab_medium,
+   const double thickness)
+{
+  if(!material
+  || material->type != SSOL_MATERIAL_THIN_DIELECTRIC
+  || !check_shader_thin_differential(shader)
+  || !check_medium(outside_medium)
+  || !check_medium(slab_medium)
+  || thickness < 0)
+    return RES_BAD_ARG;
+  material->data.thin_dielectric.shader = *shader;
+  material->data.thin_dielectric.slab_medium = *slab_medium;
+  material->data.thin_dielectric.thickness = thickness;
+  material->out_medium = *outside_medium;
+  material->in_medium = *outside_medium;
+  return RES_OK;
+}
+
+res_T
 ssol_material_create_virtual
   (struct ssol_device* dev, struct ssol_material** out_material)
 {
-  return ssol_material_create(dev, out_material, MATERIAL_VIRTUAL);
+  return ssol_material_create(dev, out_material, SSOL_MATERIAL_VIRTUAL);
 }
 
 /*******************************************************************************
@@ -365,22 +598,47 @@ material_shade
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
+   const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
 {
-  res_T res = RES_OK;
-  ASSERT(mtl);
+  return shade(mtl, fragment, wavelength, 0, medium, bsdf);
+}
 
-  /* Specific material shading */
+res_T
+material_shade_rendering
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength, /* In nanometer */
+   const struct ssol_medium* medium,
+   struct ssf_bsdf* bsdf)
+{
+  return shade(mtl, fragment, wavelength, 1, medium, bsdf);
+}
+
+res_T
+material_get_next_medium
+  (const struct ssol_material* mtl,
+   const struct ssol_medium* medium,
+   struct ssol_medium* next_medium)
+{
+  ASSERT(mtl && medium && next_medium);
   switch(mtl->type) {
-    case MATERIAL_MATTE:
-      res = matte_shade(mtl, fragment, wavelength, bsdf);
+    /* The material is an interface between 2 media */
+    case SSOL_MATERIAL_DIELECTRIC:
+      if(MEDIA_EQ(&mtl->out_medium, medium)) {
+        *next_medium = mtl->in_medium;
+      } else {
+        *next_medium = mtl->out_medium;
+      }
       break;
-    case MATERIAL_MIRROR:
-      res = mirror_shade(mtl, fragment, wavelength, bsdf);
+    /* The material is not an interface between 2 media */
+    case SSOL_MATERIAL_MATTE:
+    case SSOL_MATERIAL_MIRROR:
+    case SSOL_MATERIAL_THIN_DIELECTRIC:
+      *next_medium = *medium;
       break;
-    case MATERIAL_VIRTUAL: /* Nothing to shade */ break;
     default: FATAL("Unreachable code\n"); break;
   }
-  return res;
+  return RES_OK;
 }
 

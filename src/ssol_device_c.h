@@ -19,7 +19,6 @@
 #include <rsys/dynamic_array.h>
 #include <rsys/free_list.h>
 #include <rsys/ref_count.h>
-#include <star/s3d.h>
 
 #define DARRAY_NAME byte
 #define DARRAY_DATA char
@@ -35,6 +34,7 @@
 #include <rsys/dynamic_array.h>
 
 struct scpr_mesh;
+struct s3d_device;
 
 struct ssol_device {
   struct logger* logger;

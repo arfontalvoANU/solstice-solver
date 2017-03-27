@@ -66,6 +66,21 @@ enum ssol_side_flag {
   SSOL_INVALID_SIDE = BIT(2)
 };
 
+enum ssol_path_type {
+  SSOL_PATH_MISSING, /* The path misses the receivers */
+  SSOL_PATH_SHADOW, /* The path is occluded before the sampled geometry */
+  SSOL_PATH_SUCCESS /* The path contributes to at least one receiver */
+};
+
+enum ssol_material_type {
+  SSOL_MATERIAL_DIELECTRIC,
+  SSOL_MATERIAL_MATTE,
+  SSOL_MATERIAL_MIRROR,
+  SSOL_MATERIAL_THIN_DIELECTRIC,
+  SSOL_MATERIAL_VIRTUAL,
+  SSOL_MATERIAL_TYPES_COUNT__
+};
+
 enum ssol_clipping_op {
   SSOL_AND,
   SSOL_SUB,
@@ -85,6 +100,7 @@ enum ssol_parametrization_type {
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
+  SSOL_QUADRIC_HYPERBOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
   SSOL_QUADRIC_TYPE_COUNT__
 };
@@ -149,6 +165,15 @@ struct ssol_quadric_parabol {
 static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
   SSOL_QUADRIC_PARABOL_NULL__;
 
+struct ssol_quadric_hyperbol {
+  /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0
+   * with a^2 = f - f^2; b = f -1/2; f = real_focal / (img_focal + real_focal) */
+  double img_focal, real_focal;
+};
+#define SSOL_QUADRIC_HYPERBOL_NULL__ { -1.0 , -1.0 }
+static const struct ssol_quadric_hyperbol SSOL_QUADRIC_HYPERBOL_NULL =
+SSOL_QUADRIC_HYPERBOL_NULL__;
+
 struct ssol_quadric_parabolic_cylinder {
   double focal; /* Define y^2 - 4 focal z = 0 */
 };
@@ -161,18 +186,24 @@ struct ssol_quadric {
   union {
     struct ssol_quadric_plane plane;
     struct ssol_quadric_parabol parabol;
+    struct ssol_quadric_hyperbol hyperbol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
   } data;
 
   /* 3x4 column major transformation of the quadric in object space */
   double transform[12];
+
+  /* Hint on the how to discretised */
+  size_t slices_count_hint;
 };
 
 #define SSOL_QUADRIC_DEFAULT__ {                                               \
   SSOL_QUADRIC_PLANE,                                                          \
   {SSOL_QUADRIC_PLANE_DEFAULT__},                                              \
-  {1,0,0, 0,1,0, 0,0,1, 0,0,0}                                                 \
+  {1,0,0, 0,1,0, 0,0,1, 0,0,0},                                                \
+  SIZE_MAX /* <=> Use default discretisation */                                \
 }
+
 static const struct ssol_quadric SSOL_QUADRIC_DEFAULT = SSOL_QUADRIC_DEFAULT__;
 
 /* Define the contour of a 2D polygon as well as the clipping operation to
@@ -196,6 +227,13 @@ struct ssol_punched_surface {
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
 
+struct ssol_medium {
+  double absorptivity;
+  double refractive_index;
+};
+#define SSOL_MEDIUM_VACUUM__ { 0, 1 }
+static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
+
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
@@ -207,6 +245,14 @@ typedef void
    const double uv[2], /* Texture coordinates */
    const double w[3], /* Incoming direction. Point toward the surface */
    double* val); /* Returned value */
+
+/* Dielectric material shader */
+struct ssol_dielectric_shader {
+  ssol_shader_getter_T normal;
+};
+#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL }
+static const struct ssol_dielectric_shader SSOL_DIELECTRIC_SHADER_NULL =
+  SSOL_DIELECTRIC_SHADER_NULL__;
 
 /* Mirror material shader */
 struct ssol_mirror_shader {
@@ -226,6 +272,14 @@ struct ssol_matte_shader {
 #define SSOL_MATTE_SHADER_NULL__ { NULL, NULL }
 static const struct ssol_matte_shader SSOL_MATTE_SHADER_NULL =
   SSOL_MATTE_SHADER_NULL__;
+
+/* Thin dielectric shader */
+struct ssol_thin_dielectric_shader {
+  ssol_shader_getter_T normal;
+};
+#define SSOL_THIN_DIELECTRIC_SHADER_NULL__ { NULL }
+static const struct ssol_thin_dielectric_shader
+SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
 
 /* The type of data produced on receiver hits as ssol_solve() write them on its
  * FILE* argument */
@@ -248,28 +302,106 @@ struct ssol_receiver_data {
   /* TODO Add the geometry and primitive identifier */
 };
 
+struct ssol_instantiated_shaded_shape {
+  struct ssol_shape* shape;
+  struct ssol_material* mtl_front;
+  struct ssol_material* mtl_back;
+
+  /* Internal data */
+  double R__[9];
+  double T__[3];
+  double R_invtrans__[9];
+};
+
+#define SSOL_INSTANTIATED_SHADED_SHAPE_NULL__ { 0 }
+static const struct ssol_instantiated_shaded_shape
+SSOL_INSTANTIATED_SHADED_SHAPE_NULL = SSOL_INSTANTIATED_SHADED_SHAPE_NULL__;
+
+struct ssol_path_tracker {
+  /* Control the length of the path segment starting/ending from/to the
+   * infinite. A value less than zero means for default value */
+  double sun_ray_length;
+  double infinite_ray_length;
+};
+
+#define SSOL_PATH_TRACKER_DEFAULT__ {-1, -1}
+static const struct ssol_path_tracker SSOL_PATH_TRACKER_DEFAULT =
+  SSOL_PATH_TRACKER_DEFAULT__;
+
+struct ssol_path {
+  /* Internal data */
+  const void* path__;
+};
+
+struct ssol_path_vertex {
+  double pos[3]; /* Position */
+  double weight; /* Monte-Carlo weight */
+};
+
 struct ssol_mc_result {
   double E; /* Expectation */
   double V; /* Variance */
   double SE; /* Standard error, i.e. sqrt(Expectation / N) */
 };
+#define SSOL_MC_RESULT_NULL__ {0, 0, 0}
+static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
-/* result for MC simulations */
-struct ssol_estimator_status {
-  struct ssol_mc_result irradiance;
-  struct ssol_mc_result absorptivity_loss;
-  struct ssol_mc_result reflectivity_loss;
-  struct ssol_mc_result cos_loss;
-  size_t N; /* Samples count */
-  size_t Nf; /* Failed samples count */
+struct ssol_mc_global {
+  struct ssol_mc_result cos_loss; /* In W */
+  struct ssol_mc_result shadowed; /* In W */
+  struct ssol_mc_result missing; /* In W */
 };
+#define SSOL_MC_GLOBAL_NULL__ {                                                \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__                                                        \
+}
+static const struct ssol_mc_global SSOL_MC_GLOBAL_NULL = SSOL_MC_GLOBAL_NULL__;
 
-/* the always-ON indicators (MC computations) */
-enum ssol_status_type {
-  SSOL_STATUS_SHADOW,
-  SSOL_STATUS_MISSING,
-  SSOL_STATUS_TYPES_COUNT__
+struct ssol_mc_receiver {
+  struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result absorptivity_loss; /* In W */
+  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result cos_loss; /* In W TODO remove this */
+
+  /* Internal data */
+  size_t N__;
+  void* mc__;
+  const struct ssol_instance* instance__;
 };
+#define SSOL_MC_RECEIVER_NULL__ {                                              \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  0, NULL, NULL                                                                \
+}
+static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
+  SSOL_MC_RECEIVER_NULL__;
+
+struct ssol_mc_shape {
+  /* Internal data */
+  size_t N__;
+  void* mc__;
+  const struct ssol_shape* shape__;
+};
+#define SSOL_MC_SHAPE_NULL__ { 0, NULL, NULL }
+static const struct ssol_mc_shape SSOL_MC_SHAPE_NULL = SSOL_MC_SHAPE_NULL__;
+
+struct ssol_mc_primitive {
+  struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result absorptivity_loss; /* In W */
+  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result cos_loss; /* In W TODO remove this */
+};
+#define SSOL_MC_PRIMITIVE_NULL__ {                                             \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__                                                        \
+}
+static const struct ssol_mc_primitive SSOL_MC_PRIMITIVE_NULL =
+  SSOL_MC_PRIMITIVE_NULL__;
 
 typedef res_T
 (*ssol_write_pixels_T)
@@ -427,6 +559,12 @@ ssol_scene_detach_instance
   (struct ssol_scene* scn,
    struct ssol_instance* instance);
 
+SSOL_API res_T
+ssol_scene_compute_aabb
+  (const struct ssol_scene* scn,
+   float lower[3],
+   float upper[3]);
+
 /* Detach all the instances from the scene and release the reference that the
  * scene takes onto them.
  * Also detach the attached sun if any. */
@@ -454,6 +592,12 @@ ssol_scene_detach_atmosphere
   (struct ssol_scene* scn,
    struct ssol_atmosphere* atm);
 
+SSOL_API res_T
+ssol_scene_for_each_instance
+  (struct ssol_scene* scn,
+   res_T (*func)(struct ssol_instance* instance, void* ctx),
+   void* ctx);
+
 /*******************************************************************************
  * Shape API - Define a geometry that can be generated from a quadric equation
  * or from a triangular mesh.
@@ -475,6 +619,29 @@ ssol_shape_ref_get
 SSOL_API res_T
 ssol_shape_ref_put
   (struct ssol_shape* shape);
+
+SSOL_API res_T
+ssol_shape_get_vertices_count
+  (const struct ssol_shape* shape,
+   unsigned* nverts);
+
+SSOL_API res_T
+ssol_shape_get_vertex_attrib
+  (const struct ssol_shape* shape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[]);
+
+SSOL_API res_T
+ssol_shape_get_triangles_count
+  (const struct ssol_shape* shape,
+   unsigned* ntris);
+
+SSOL_API res_T
+ssol_shape_get_triangle_indices
+  (const struct ssol_shape* shape,
+   const unsigned itri,
+   unsigned ids[3]);
 
 /* Define a punched surface in local space, i.e. no translation & no orientation */
 SSOL_API res_T
@@ -500,6 +667,11 @@ ssol_mesh_setup
  * (e.g.: refractive index) properties of a geometry.
  ******************************************************************************/
 SSOL_API res_T
+ssol_material_create_dielectric
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
 ssol_material_create_mirror
   (struct ssol_device* dev,
    struct ssol_material** mtl);
@@ -515,6 +687,16 @@ ssol_material_create_virtual
    struct ssol_material** mtl);
 
 SSOL_API res_T
+ssol_material_create_thin_dielectric
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
+ssol_material_get_type
+  (const struct ssol_material* mtl,
+   enum ssol_material_type* type);
+
+SSOL_API res_T
 ssol_material_ref_get
   (struct ssol_material* mtl);
 
@@ -528,14 +710,29 @@ ssol_material_set_param_buffer
    struct ssol_param_buffer* buf);
 
 SSOL_API res_T
-ssol_mirror_set_shader
+ssol_dielectric_setup
+  (struct ssol_material* mtl,
+   const struct ssol_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* inside_medium);
+
+SSOL_API res_T
+ssol_mirror_setup
   (struct ssol_material* mtl,
    const struct ssol_mirror_shader* shader);
 
 SSOL_API res_T
-ssol_matte_set_shader
+ssol_matte_setup
   (struct ssol_material* mtl,
    const struct ssol_matte_shader* shader);
+
+SSOL_API res_T
+ssol_thin_dielectric_setup
+  (struct ssol_material* mtl,
+   const struct ssol_thin_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* slab_medium,
+   const double thickness);
 
 /*******************************************************************************
  * Object API - Opaque abstraction of a geometry with its associated properties.
@@ -565,6 +762,12 @@ SSOL_API res_T
 ssol_object_clear
   (struct ssol_object* object);
 
+/* Retrieve the area of the object */
+SSOL_API res_T
+ssol_object_get_area
+  (const struct ssol_object* object,
+   double* area);
+
 /*******************************************************************************
  * Object Instance API - Clone of an object with a set of per instance data as
  * world transformation, material parameters, etc. Note that the object
@@ -593,7 +796,8 @@ ssol_instance_set_transform
 SSOL_API res_T
 ssol_instance_set_receiver
   (struct ssol_instance* instance,
-   const int mask); /* Combination of ssol_side_flag */
+   const int mask, /* Combination of ssol_side_flag */
+   const int per_primitive); /* Enable the per primitive integration */
 
 /* Define whether or not the instance is sampled or not. By default an instance
  * is sampled. */
@@ -607,6 +811,30 @@ SSOL_API res_T
 ssol_instance_get_id
   (const struct ssol_instance* instance,
    uint32_t* id);
+
+/* Retrieve the area of the instance */
+SSOL_API res_T
+ssol_instance_get_area
+  (const struct ssol_instance* instance,
+   double* area);
+
+SSOL_API res_T
+ssol_instance_get_shaded_shapes_count
+  (const struct ssol_instance* instance,
+   size_t* nshaded_shapes);
+
+SSOL_API res_T
+ssol_instance_get_shaded_shape
+  (const struct ssol_instance* instance,
+   const size_t ishaded_shape,
+   struct ssol_instantiated_shaded_shape* shaded_shape_instance);
+
+SSOL_API res_T
+ssol_instantiated_shaded_shape_get_vertex_attrib
+  (const struct ssol_instantiated_shaded_shape* sshape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[]);
 
 /*******************************************************************************
  * Param buffer API
@@ -767,17 +995,17 @@ ssol_estimator_ref_put
   (struct ssol_estimator* estimator);
 
 SSOL_API res_T
-ssol_estimator_get_status
+ssol_estimator_get_mc_global
   (const struct ssol_estimator* estimator,
-   const enum ssol_status_type type,
-   struct ssol_estimator_status* status);
+   struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
-ssol_estimator_get_receiver_status
+ssol_estimator_get_mc_sampled_x_receiver
   (struct ssol_estimator* estimator,
-   const struct ssol_instance* instance,
+   const struct ssol_instance* prim_instance,
+   const struct ssol_instance* recv_instance,
    const enum ssol_side_flag side,
-   struct ssol_estimator_status* status);
+   struct ssol_mc_receiver* rcv);
 
 SSOL_API res_T
 ssol_estimator_get_count
@@ -789,15 +1017,63 @@ ssol_estimator_get_failed_count
   (const struct ssol_estimator* estimator,
    size_t* count);
 
+/* Retrieve the overall area of the sampled instances */
 SSOL_API res_T
 ssol_estimator_get_sampled_area
   (const struct ssol_estimator* estimator,
    double* area);
 
+/*******************************************************************************
+ * Tracked paths
+ ******************************************************************************/
 SSOL_API res_T
-ssol_estimator_get_primary_area
+ssol_estimator_get_tracked_paths_count
   (const struct ssol_estimator* estimator,
-   double* area);
+   size_t* npaths);
+
+SSOL_API res_T
+ssol_estimator_get_tracked_path
+  (const struct ssol_estimator* estimator,
+   const size_t ipath,
+   struct ssol_path* path);
+
+SSOL_API res_T
+ssol_path_get_vertices_count
+  (const struct ssol_path* path,
+   size_t* nvertices);
+
+SSOL_API res_T
+ssol_path_get_vertex
+  (const struct ssol_path* path,
+   const size_t ivertex,
+   struct ssol_path_vertex* vertex);
+
+SSOL_API res_T
+ssol_path_get_type
+  (const struct ssol_path* path,
+   enum ssol_path_type* type);
+
+/*******************************************************************************
+ * Per receiver MC estimations
+ ******************************************************************************/
+SSOL_API res_T
+ssol_estimator_get_mc_receiver
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* instance,
+   const enum ssol_side_flag side,
+   struct ssol_mc_receiver* rcv);
+
+SSOL_API res_T
+ssol_mc_receiver_get_mc_shape
+  (struct ssol_mc_receiver* rcv,
+   const struct ssol_shape* shape,
+   struct ssol_mc_shape* mc);
+
+SSOL_API res_T
+ssol_mc_shape_get_mc_primitive
+  (struct ssol_mc_shape* shape,
+   const unsigned i, /* In [0, ssol_shape_get_triangles_count[ */
+   struct ssol_mc_primitive* prim);
 
 /*******************************************************************************
  * Miscellaneous functions
@@ -807,15 +1083,27 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
+   const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */
    FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator** estimator);
 
 SSOL_API res_T
-ssol_draw
+ssol_draw_draft
   (struct ssol_scene* scn,
    struct ssol_camera* cam,
    const size_t width, /* #pixels in X */
    const size_t height, /* #pixels in Y */
+   const size_t spp, /* #samples per pixel */
+   ssol_write_pixels_T writer,
+   void* writer_data);
+
+SSOL_API res_T
+ssol_draw_pt
+  (struct ssol_scene* scn,
+   struct ssol_camera* cam,
+   const size_t width, /* #pixels in X */
+   const size_t height, /* #pixels in Y */
+   const size_t spp,
    ssol_write_pixels_T writer,
    void* writer_data);
 

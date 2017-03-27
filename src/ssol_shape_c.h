@@ -26,12 +26,37 @@ enum shape_type {
   SHAPE_TYPES_COUNT__
 };
 
+struct priv_parabol_data {
+  double focal;
+  double _1_4f;
+};
+
+struct priv_hyperbol_data {
+  double g_2;
+  double _a2_b2;
+  double _1_a2;
+  double abs_b;
+};
+
+struct priv_pcylinder_data {
+  double focal;
+  double _1_4f;
+};
+
+union priv_quadric_data {
+  struct priv_hyperbol_data hyperbol;
+  struct priv_parabol_data parabol;
+  struct priv_pcylinder_data pcylinder;
+};
+
 struct ssol_shape {
   enum shape_type type;
 
   struct s3d_shape* shape_rt; /* Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Star-3D shape to sample */
+  union priv_quadric_data priv_quadric;
   struct ssol_quadric quadric;
+  double shape_rt_area, shape_samp_area;
 
   struct ssol_device* dev;
   ref_T ref;
@@ -55,8 +80,16 @@ punched_shape_trace_ray
    const double org[3], /* Ray origin in world space */
    const double dir[3], /* Ray direction in world space */
    const double hint_dst, /* Hint on the hit distance */
-   double pos_quadric[3], /* World space position onto the quadric */
    double N_quadric[3]); /* World space normal onto the quadric */
+
+/* Fetch vertex attrib without any post treatment, i.e. the position and the
+ * normal are not transformed */
+extern LOCAL_SYM res_T
+shape_fetched_raw_vertex_attrib
+  (const struct ssol_shape* shape,
+   const unsigned ivert,
+   const enum ssol_attrib_usage usage,
+   double value[]);
 
 #endif /* SSOL_SHAPE_C_H */
 
