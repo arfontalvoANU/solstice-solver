@@ -27,7 +27,7 @@ find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.4 REQUIRED)
 find_package(Star3D 0.4 REQUIRED)
 find_package(StarCPR REQUIRED)
-find_package(StarSF 0.0 REQUIRED)
+find_package(StarSF 0.1 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
