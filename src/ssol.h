@@ -73,6 +73,7 @@ enum ssol_path_type {
 };
 
 enum ssol_material_type {
+  SSOL_MATERIAL_DIELECTRIC,
   SSOL_MATERIAL_MATTE,
   SSOL_MATERIAL_MIRROR,
   SSOL_MATERIAL_THIN_DIELECTRIC,
@@ -226,6 +227,13 @@ struct ssol_punched_surface {
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
 
+struct ssol_medium {
+  double absorptivity;
+  double refractive_index;
+};
+#define SSOL_MEDIUM_VACUUM__ { 0, 1 }
+static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
+
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
@@ -237,6 +245,14 @@ typedef void
    const double uv[2], /* Texture coordinates */
    const double w[3], /* Incoming direction. Point toward the surface */
    double* val); /* Returned value */
+
+/* Dielectric material shader */
+struct ssol_dielectric_shader {
+  ssol_shader_getter_T normal;
+};
+#define SSOL_DIELECTRIC_SHADER_NULL__ { NULL }
+static const struct ssol_dielectric_shader SSOL_DIELECTRIC_SHADER_NULL =
+  SSOL_DIELECTRIC_SHADER_NULL__;
 
 /* Mirror material shader */
 struct ssol_mirror_shader {
@@ -260,11 +276,8 @@ static const struct ssol_matte_shader SSOL_MATTE_SHADER_NULL =
 /* Thin dielectric shader */
 struct ssol_thin_dielectric_shader {
   ssol_shader_getter_T normal;
-  ssol_shader_getter_T absorption;
-  ssol_shader_getter_T thickness;
-  ssol_shader_getter_T refractive_index;
 };
-#define SSOL_THIN_DIELECTRIC_SHADER_NULL__ { NULL, NULL, NULL, NULL }
+#define SSOL_THIN_DIELECTRIC_SHADER_NULL__ { NULL }
 static const struct ssol_thin_dielectric_shader
 SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
 
@@ -666,6 +679,11 @@ ssol_mesh_setup
  * (e.g.: refractive index) properties of a geometry.
  ******************************************************************************/
 SSOL_API res_T
+ssol_material_create_dielectric
+  (struct ssol_device* dev,
+   struct ssol_material** mtl);
+
+SSOL_API res_T
 ssol_material_create_mirror
   (struct ssol_device* dev,
    struct ssol_material** mtl);
@@ -704,19 +722,29 @@ ssol_material_set_param_buffer
    struct ssol_param_buffer* buf);
 
 SSOL_API res_T
-ssol_mirror_set_shader
+ssol_dielectric_setup
+  (struct ssol_material* mtl,
+   const struct ssol_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* inside_medium);
+
+SSOL_API res_T
+ssol_mirror_setup
   (struct ssol_material* mtl,
    const struct ssol_mirror_shader* shader);
 
 SSOL_API res_T
-ssol_matte_set_shader
+ssol_matte_setup
   (struct ssol_material* mtl,
    const struct ssol_matte_shader* shader);
 
 SSOL_API res_T
-ssol_thin_dielectric_set_shader
+ssol_thin_dielectric_setup
   (struct ssol_material* mtl,
-   const struct ssol_thin_dielectric_shader* shader);
+   const struct ssol_thin_dielectric_shader* shader,
+   const struct ssol_medium* outside_medium,
+   const struct ssol_medium* slab_medium,
+   const double thickness);
 
 /*******************************************************************************
  * Object API - Opaque abstraction of a geometry with its associated properties.
@@ -1047,7 +1075,7 @@ SSOL_API res_T
 ssol_path_get_type
   (const struct ssol_path* path,
    enum ssol_path_type* type);
-  
+
 /*******************************************************************************
  * Per receiver MC estimations
  ******************************************************************************/
