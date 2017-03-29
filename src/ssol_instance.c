@@ -167,6 +167,16 @@ ssol_instance_set_receiver
 }
 
 res_T
+ssol_instance_is_receiver
+  (struct ssol_instance* instance, int* mask, int* per_primitive)
+{
+  if(!instance || !mask || !per_primitive) return RES_BAD_ARG;
+  *mask = instance->receiver_mask;
+  *per_primitive = instance->receiver_per_primitive;
+  return RES_OK;
+}
+
+res_T
 ssol_instance_sample
   (struct ssol_instance* instance,
    const int sample)

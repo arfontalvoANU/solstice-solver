@@ -39,6 +39,7 @@ main(int argc, char** argv)
   size_t n;
   unsigned i, count;
   uint32_t id, id1;
+  int mask, prim;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -84,6 +85,27 @@ main(int argc, char** argv)
 
   CHECK(ssol_instance_set_receiver(NULL, 0, 0), RES_BAD_ARG);
   CHECK(ssol_instance_set_receiver(instance, 0, 0), RES_OK);
+
+  CHECK(ssol_instance_is_receiver(NULL, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(instance, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(NULL, &mask, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(instance, &mask, NULL), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(NULL, NULL, &prim), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(instance, NULL, &prim), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(NULL, &mask, &prim), RES_BAD_ARG);
+  CHECK(ssol_instance_is_receiver(instance, &mask, &prim), RES_OK);
+  CHECK(mask, 0);
+  CHECK(prim, 0);
+
+  CHECK(ssol_instance_set_receiver(instance, SSOL_FRONT, 0), RES_OK);
+  CHECK(ssol_instance_is_receiver(instance, &mask, &prim), RES_OK);
+  CHECK(mask, SSOL_FRONT);
+  CHECK(prim, 0);
+  CHECK(ssol_instance_set_receiver(instance, SSOL_FRONT|SSOL_BACK, 1), RES_OK);
+  CHECK(ssol_instance_is_receiver(instance, &mask, &prim), RES_OK);
+  CHECK(mask, SSOL_FRONT|SSOL_BACK);
+  CHECK(prim, 1);
+
   CHECK(ssol_instance_sample(NULL, 0), RES_BAD_ARG);
   CHECK(ssol_instance_sample(instance, 0), RES_OK);
   CHECK(ssol_instance_sample(instance, 1), RES_OK);

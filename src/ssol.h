@@ -811,6 +811,12 @@ ssol_instance_set_receiver
    const int mask, /* Combination of ssol_side_flag */
    const int per_primitive); /* Enable the per primitive integration */
 
+SSOL_API res_T
+ssol_instance_is_receiver
+  (struct ssol_instance* instance,
+   int* mask, /* Combination of ssol_side_flag */
+   int* per_primitive);
+
 /* Define whether or not the instance is sampled or not. By default an instance
  * is sampled. */
 SSOL_API res_T
