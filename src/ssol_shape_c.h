@@ -28,19 +28,19 @@ enum shape_type {
 
 struct priv_parabol_data {
   double focal;
-  double _1_4f;
+  double one_over_4focal;
 };
 
 struct priv_hyperbol_data {
-  double g_2;
-  double _a2_b2;
-  double _1_a2;
+  double g_square;
+  double a_square_over_b_square;
+  double one_over_a_square;
   double abs_b;
 };
 
 struct priv_pcylinder_data {
   double focal;
-  double _1_4f;
+  double one_over_4focal;
 };
 
 union priv_quadric_data {
@@ -57,6 +57,7 @@ struct ssol_shape {
   union priv_quadric_data priv_quadric;
   struct ssol_quadric quadric;
   double shape_rt_area, shape_samp_area;
+  double n[3]; /* sum of normals */
 
   struct ssol_device* dev;
   ref_T ref;

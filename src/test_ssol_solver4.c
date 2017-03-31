@@ -112,6 +112,7 @@ main(int argc, char** argv)
   carving.context = &POLY_EDGES__;
   quadric.type = SSOL_QUADRIC_PARABOL;
   quadric.data.parabol.focal = FOCAL;
+  quadric.slices_count_hint = 100;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
@@ -144,18 +145,19 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target2), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
-#define N__ 10000
+#define N__ 100000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target1, &r_id1), RES_OK);
   CHECK(ssol_instance_get_id(target2, &r_id2), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id1, count, &m1, &std1), RES_OK);
   CHECK(pp_sum(tmp, (int32_t)r_id2, count, &m2, &std2), RES_OK);
   CHECK(fclose(tmp), 0);
   printf("Ir = %g +/- %g\n", m1, std1);
-#define DNI_cos (1000 * cos(0))
+#define COS cos(0)
+#define DNI_cos (1000 * COS)
   CHECK(eq_eps(m1, 400 * DNI_cos, 400 * DNI_cos * 1e-4), 1);
   CHECK(eq_eps(std1, 0, 1), 1);
   CHECK(m1, m2);
@@ -163,18 +165,19 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-2), 1); /* nothing absorbed */
   CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-2), 1);
   CHECK(GET_MC_RCV(estimator, target2, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target2) = %g +/- %g\n",
    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-2), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 

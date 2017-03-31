@@ -182,20 +182,23 @@ main(int argc, char** argv)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   printf("Ir = %g +/- %g\n", m, std);
-#define DNI_cos (1000 * cos(PI / 4))
+#define COS cos(PI / 4)
+#define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 1e-4), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g", mc_global.missing.E, mc_global.missing.SE);
+  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 4 * DNI_cos, 1e-4), 1); /* nothing absorbed */
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, heliostat1, SSOL_BACK, &mc_rcv), RES_BAD_ARG);
   CHECK(GET_MC_RCV(estimator, secondary, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(secondary) = %g +/- %g\n",

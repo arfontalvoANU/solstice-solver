@@ -26,6 +26,7 @@ main(int argc, char** argv)
   struct ssol_material* mtl;
   struct ssol_material* mtl2;
   struct ssol_object* object;
+  double a;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -72,6 +73,10 @@ main(int argc, char** argv)
 
   CHECK(ssol_object_clear(NULL), RES_BAD_ARG);
   CHECK(ssol_object_clear(object), RES_OK);
+
+  CHECK(ssol_object_get_area(object, NULL), RES_BAD_ARG);
+  CHECK(ssol_object_get_area(NULL, &a), RES_BAD_ARG);
+  CHECK(ssol_object_get_area(object, &a), RES_OK);
 
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);

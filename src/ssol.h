@@ -347,11 +347,17 @@ struct ssol_mc_result {
 static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
 struct ssol_mc_global {
-  struct ssol_mc_result cos_loss; /* In W */
+  struct ssol_mc_result cos_factor; /* [0 1] */
+  struct ssol_mc_result absorbed; /* In W */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
+  struct ssol_mc_result atmosphere; /* In W */
+  struct ssol_mc_result reflectivity; /* In W */
 };
 #define SSOL_MC_GLOBAL_NULL__ {                                                \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__                                                        \
@@ -360,9 +366,9 @@ static const struct ssol_mc_global SSOL_MC_GLOBAL_NULL = SSOL_MC_GLOBAL_NULL__;
 
 struct ssol_mc_receiver {
   struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
-  struct ssol_mc_result cos_loss; /* In W TODO remove this */
 
   /* Internal data */
   size_t N__;
@@ -388,11 +394,17 @@ struct ssol_mc_shape {
 #define SSOL_MC_SHAPE_NULL__ { 0, NULL, NULL }
 static const struct ssol_mc_shape SSOL_MC_SHAPE_NULL = SSOL_MC_SHAPE_NULL__;
 
+struct ssol_mc_sampled {
+  struct ssol_mc_result cos_factor; /* [0 1] */
+  struct ssol_mc_result shadowed;
+  size_t nb_samples;
+};
+
 struct ssol_mc_primitive {
   struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
-  struct ssol_mc_result cos_loss; /* In W TODO remove this */
 };
 #define SSOL_MC_PRIMITIVE_NULL__ {                                             \
   SSOL_MC_RESULT_NULL__,                                                       \
@@ -1014,7 +1026,7 @@ ssol_estimator_get_mc_sampled_x_receiver
    struct ssol_mc_receiver* rcv);
 
 SSOL_API res_T
-ssol_estimator_get_count
+ssol_estimator_get_realisation_count
   (const struct ssol_estimator* estimator,
    size_t* count);
 
@@ -1028,6 +1040,17 @@ SSOL_API res_T
 ssol_estimator_get_sampled_area
   (const struct ssol_estimator* estimator,
    double* area);
+
+SSOL_API res_T
+ssol_estimator_get_sampled_count
+  (const struct ssol_estimator* estimator,
+   size_t* count);
+
+SSOL_API res_T
+ssol_estimator_get_mc_sampled
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* samp_instance,
+   struct ssol_mc_sampled* sampled);
 
 /*******************************************************************************
  * Tracked paths

@@ -50,9 +50,12 @@
 struct thread_context {
   struct ssp_rng* rng;
   struct ssf_bsdf* bsdf;
+  struct mc_data cos_factor;
+  struct mc_data absorbed;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data cos_loss;
+  struct mc_data atmosphere;
+  struct mc_data reflectivity;
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
   struct darray_path paths; /* paths */
@@ -100,9 +103,12 @@ thread_context_copy
   ASSERT(dst && src);
   dst->rng = src->rng;
   dst->bsdf = src->bsdf;
+  dst->cos_factor = src->cos_factor;
+  dst->absorbed = src->absorbed;
   dst->shadowed = src->shadowed;
   dst->missing = src->missing;
-  dst->cos_loss = src->cos_loss;
+  dst->atmosphere = src->atmosphere;
+  dst->reflectivity = src->reflectivity;
   res = htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
   if(res != RES_OK) return res;
   res = htable_sampled_copy(&dst->mc_samps, &src->mc_samps);
@@ -161,10 +167,12 @@ struct point {
   double dir[3];
   float uv[2];
   double wl; /* Sampled wavelength */
-  double weight; /* actual weight */
-  double absorptivity_loss;
-  double reflectivity_loss;
-  double cos_loss;
+  /* MC weights, before and after hit */
+  double incoming_weight, weight;
+  double cos_factor; /* local cos at the starting point */
+  double absorbed_irradiance; /* current hit only */
+  double absorptivity_loss_before, absorptivity_loss;
+  double reflectivity_loss_before, reflectivity_loss;
   enum ssol_side_flag side;
 };
 
@@ -178,7 +186,7 @@ struct point {
   {0, 0, 0}, /* Direction */                                                   \
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
-  0, 0, 0, 0, /* MC weights */                                                 \
+  0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                                     \
   SSOL_FRONT /* Side */                                                        \
 }
 static const struct point POINT_NULL = POINT_NULL__;
@@ -236,28 +244,25 @@ point_init
   if(pt->sshape->shape->type != SHAPE_PUNCHED) {
     double surface_sun_cos = fabs(d3_dot(pt->N, pt->dir));
     pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
-    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - surface_sun_cos);
+    pt->cos_factor = surface_sun_cos;
   } else {
-    double proxy_sun_cos = fabs(d3_dot(pt->N, pt->dir));
     double cos_ratio, surface_proxy_cos, surface_sun_cos, tmp_n[3];
     /* For punched surface, retrieve the sampled position and normal onto the
      * quadric surface */
     punched_shape_project_point
       (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, tmp_n);
-    surface_proxy_cos = d3_dot(pt->N, tmp_n);
-    surface_sun_cos = d3_dot(tmp_n, pt->dir);
-    cos_ratio = fabs(surface_sun_cos / surface_proxy_cos);
+    surface_proxy_cos = fabs(d3_dot(pt->N, tmp_n));
+    surface_sun_cos = fabs(d3_dot(tmp_n, pt->dir));
+    cos_ratio = surface_sun_cos / surface_proxy_cos;
     d3_set(pt->N, tmp_n);
     pt->weight = scn->sun->dni * sampled_area_proxy * cos_ratio;
-    pt->cos_loss = scn->sun->dni * sampled_area_proxy * (1 - proxy_sun_cos);
+    pt->cos_factor = surface_sun_cos;
   }
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
 
   /* Store sampled entity related weights */
   res = get_mc_sampled(sampled, pt->inst, &pt->mc_samp);
   if(res != RES_OK) goto error;
-  pt->mc_samp->cos_loss.weight += pt->cos_loss;
-  pt->mc_samp->cos_loss.sqr_weight += pt->cos_loss * pt->cos_loss;
   pt->mc_samp->nb_samples++;
 
   /* Define the primitive side on which the point lies */
@@ -391,11 +396,24 @@ point_shade
     r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &type, &pdf);
     ASSERT(0 <= r && r <= 1);
   }
-  pt->reflectivity_loss += (1 - r) * pt->weight;
-  pt->weight *= r;
+  pt->incoming_weight = pt->weight;
+  pt->absorptivity_loss_before = pt->absorptivity_loss;
+  pt->reflectivity_loss_before = pt->reflectivity_loss;
+  pt->absorbed_irradiance = (1 - r) * pt->weight;
+  pt->reflectivity_loss += pt->absorbed_irradiance;
+  pt->weight = pt->incoming_weight - pt->absorbed_irradiance;
 
   if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, medium, medium);
   return RES_OK;
+}
+
+static FINLINE void
+point_hit_virtual(struct point* pt)
+{
+  pt->absorbed_irradiance = 0;
+  pt->incoming_weight = pt->weight;
+  pt->absorptivity_loss_before = pt->absorptivity_loss;
+  pt->reflectivity_loss_before = pt->reflectivity_loss;
 }
 
 static FINLINE int
@@ -518,9 +536,9 @@ accum_mc_receivers_1side
     dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
   ACCUM_WEIGHT(integrated_irradiance);
+  ACCUM_WEIGHT(integrated_absorbed_irradiance);
   ACCUM_WEIGHT(absorptivity_loss);
   ACCUM_WEIGHT(reflectivity_loss);
-  ACCUM_WEIGHT(cos_loss);
   #undef ACCUM_WEIGHT
 
   /* Merge the per shape MC */
@@ -555,9 +573,9 @@ accum_mc_receivers_1side
         mc_prim1_dst->Name.sqr_weight += mc_prim1_src->Name.sqr_weight;        \
       } (void)0
       ACCUM_WEIGHT(integrated_irradiance);
+      ACCUM_WEIGHT(integrated_absorbed_irradiance);
       ACCUM_WEIGHT(absorptivity_loss);
       ACCUM_WEIGHT(reflectivity_loss);
-      ACCUM_WEIGHT(cos_loss);
       #undef ACCUM_WEIGHT
 
       htable_prim2mc_iterator_next(&it_prim);
@@ -585,7 +603,6 @@ accum_mc_sampled(struct mc_sampled* dst, struct mc_sampled* src)
     dst->Name.weight += src->Name.weight;                                      \
     dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
-  ACCUM_WEIGHT(cos_loss);
   ACCUM_WEIGHT(shadowed);
   #undef ACCUM_WEIGHT
 
@@ -627,43 +644,52 @@ update_mc
   (const struct point* pt,
    const size_t irealisation,
    const size_t ibounce,
-   struct htable_receiver* mc_rcvs,
+   struct thread_context* thread_ctx,
    FILE* output)
 {
   struct mc_receiver_1side* mc_rcv1 = NULL;
   struct mc_receiver_1side* mc_samp_x_rcv1 = NULL;
   res_T res = RES_OK;
-  ASSERT(pt && mc_rcvs && point_is_receiver(pt));
-
+  ASSERT(pt && thread_ctx && point_is_receiver(pt));
+  
   res = point_dump(pt, irealisation, ibounce, output);
   if(res != RES_OK) goto error;
 
+  /* Global MC accumulation */
+  #define ACCUM_WEIGHT(Res, W) {                                              \
+    Res.weight += (W);                                                        \
+    Res.sqr_weight += (W)*(W);                                                \
+  } (void)0
+  ACCUM_WEIGHT(thread_ctx->absorbed, pt->absorbed_irradiance);
+  #undef ACCUM_WEIGHT
+
   /* Per receiver MC accumulation */
-  res = get_mc_receiver_1side(mc_rcvs, pt->inst, pt->side, &mc_rcv1);
+  res = get_mc_receiver_1side(&thread_ctx->mc_rcvs, pt->inst, pt->side, &mc_rcv1);
   if(res != RES_OK) goto error;
 
   #define ACCUM_WEIGHT(Name, W) {                                              \
     mc_rcv1->Name.weight += (W);                                               \
     mc_rcv1->Name.sqr_weight += (W)*(W);                                       \
   } (void)0
-  ACCUM_WEIGHT(integrated_irradiance, pt->weight);
-  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
-  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
-  ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+  ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
+  ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
   #undef ACCUM_WEIGHT
 
   /* Per-sampled/receiver MC accumulation */
   res = mc_sampled_get_mc_receiver_1side
     (pt->mc_samp, pt->inst, pt->side, &mc_samp_x_rcv1);
   if(res != RES_OK) goto error;
+
   #define ACCUM_WEIGHT(Name, W) {                                              \
     mc_samp_x_rcv1->Name.weight += (W);                                        \
     mc_samp_x_rcv1->Name.sqr_weight += (W)*(W);                                \
   } (void)0
-  ACCUM_WEIGHT(integrated_irradiance, pt->weight);
-  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
-  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
-  ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+  ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
+  ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+  ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
   #undef ACCUM_WEIGHT
 
   /* Per primitive receiver MC accumulation */
@@ -677,14 +703,14 @@ update_mc
     res = mc_shape_1side_get_mc_primitive(mc_shape1, pt->prim.prim_id, &mc_prim1);
     if(res != RES_OK) goto error;
 
-    #define ACCUM_WEIGHT(Name, W) {                                             \
-      mc_prim1->Name.weight += (W);                                             \
-      mc_prim1->Name.sqr_weight += (W)*(W);                                     \
+    #define ACCUM_WEIGHT(Name, W) {                                            \
+      mc_prim1->Name.weight += (W);                                            \
+      mc_prim1->Name.sqr_weight += (W)*(W);                                    \
     } (void)0
-    ACCUM_WEIGHT(integrated_irradiance, pt->weight);
-    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
-    ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss);
-    ACCUM_WEIGHT(cos_loss, pt->cos_loss);
+    ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
+    ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
+    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+    ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
     #undef ACCUM_WEIGHT
   }
 
@@ -745,16 +771,19 @@ trace_radiative_path
     res = path_add_vertex(&path, pt.pos, pt.weight);
     if(res != RES_OK) goto error;
   }
+  
+  #define ACCUM_WEIGHT(Res, W) {                                              \
+    Res.weight += (W);                                                        \
+    Res.sqr_weight += (W)*(W);                                                \
+  } (void)0
+  ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
+  ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
 
   if(!is_lit) { /* The starting point is not lit */
-    pt.mc_samp->shadowed.weight += pt.weight;
-    pt.mc_samp->shadowed.sqr_weight += pt.weight;
-    thread_ctx->shadowed.weight += pt.weight;
-    thread_ctx->shadowed.sqr_weight += pt.weight * pt.weight;
+    ACCUM_WEIGHT(pt.mc_samp->shadowed, pt.weight);
+    ACCUM_WEIGHT(thread_ctx->shadowed, pt.weight);
     if(tracker) path.type = SSOL_PATH_SHADOW;
   } else {
-    int hit_a_receiver = 0;
-
     /* Setup the ray as if it starts from the current point position in order
      * to handle the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
@@ -765,13 +794,26 @@ trace_radiative_path
       struct ray_data ray_data = RAY_DATA_NULL;
       struct ssol_material* mtl;
 
-      if(point_is_receiver(&pt)) {
-        hit_a_receiver = 1;
-        res = update_mc(&pt, path_id, depth, &thread_ctx->mc_rcvs, output);
+      /* Compute interaction with material */
+      mtl = point_get_material(&pt);
+      if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
+        point_hit_virtual(&pt);
+      } else {
+        /* Modulate the point weight wrt to its scattering functions and
+         * generate an outgoing direction */
+        res = point_shade(&pt, thread_ctx->bsdf, &medium, thread_ctx->rng, pt.dir);
         if(res != RES_OK) goto error;
       }
 
-      mtl = point_get_material(&pt);
+      if(point_is_receiver(&pt)) {
+        res = update_mc(&pt, path_id, depth, thread_ctx, output);
+        if(res != RES_OK) goto error;
+      }
+
+      /* Stop the radiative random walk */
+      if(pt.weight == 0) break;
+
+      /* Setup new ray parameters */
       if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
         /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
          * are not updated to ensure that it pursues its traversal without any
@@ -779,15 +821,6 @@ trace_radiative_path
         range[0] = nextafterf(hit.distance, FLT_MAX);
         range[1] = FLT_MAX;
       } else {
-        /* Modulate the point weight wrt to its scattering functions and
-         * generate an outgoing direction */
-        res = point_shade(&pt, thread_ctx->bsdf, &medium, thread_ctx->rng, pt.dir);
-        if(res != RES_OK) goto error;
-
-        /* Stop the radiative random walk */
-        if(pt.weight == 0) break;
-
-        /* Setup new ray parameters */
         f2(range, 0, FLT_MAX);
         f3_set_d3(org, pt.pos);
         f3_set_d3(dir, pt.dir);
@@ -805,12 +838,12 @@ trace_radiative_path
       S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
       if(S3D_HIT_NONE(&hit)) {
         /* Add the  point of the last path segment going to the infinite */
-        if(tracker && tracker->infinite_ray_length > 0) {
+        if (tracker && tracker->infinite_ray_length > 0) {
           double pos[3], wi[3];
           d3_set_f3(wi, dir);
           d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->infinite_ray_length));
           res = path_add_vertex(&path, pos, pt.weight);
-          if(res != RES_OK) goto error;
+          if (res != RES_OK) goto error;
         }
         break;
       }
@@ -830,15 +863,16 @@ trace_radiative_path
 
       if(tracker) {
         res = path_add_vertex(&path, pt.pos, pt.weight);
-        if(res != RES_OK) goto error;
+        if (res != RES_OK) goto error;
       }
     }
-    if(!hit_a_receiver) {
-      thread_ctx->missing.weight += pt.weight;
-      thread_ctx->missing.sqr_weight += pt.weight*pt.weight;
-    }
+    ACCUM_WEIGHT(thread_ctx->atmosphere, pt.absorptivity_loss);
+    /* all the remaining weight is lost */
+    ACCUM_WEIGHT(thread_ctx->missing, pt.weight);
+    #undef ACCUM_WEIGHT
+
     if(tracker) {
-      path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
+      path.type = pt.absorbed_irradiance ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
     }
   }
 
@@ -846,7 +880,6 @@ trace_radiative_path
     res = path_register_and_clear(&thread_ctx->paths, &path);
     if(res != RES_OK) goto error;
   }
-
 exit:
   if(tracker) path_release(&path);
   return res;
@@ -967,9 +1000,12 @@ ssol_solve
       estimator->Name.weight += thread_ctx->Name.weight;                       \
       estimator->Name.sqr_weight += thread_ctx->Name.sqr_weight;               \
     } (void)0
+    ACCUM_WEIGHT(cos_factor);
+    ACCUM_WEIGHT(absorbed);
     ACCUM_WEIGHT(shadowed);
     ACCUM_WEIGHT(missing);
-    ACCUM_WEIGHT(cos_loss);
+    ACCUM_WEIGHT(atmosphere);
+    ACCUM_WEIGHT(reflectivity);
     #undef ACCUM_WEIGHT
   }
 

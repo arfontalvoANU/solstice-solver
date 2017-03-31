@@ -196,9 +196,10 @@ hyperbol_z
   (const double p[2],
    const struct priv_hyperbol_data* hyperbol)
 {
-  const double z0 = hyperbol->g_2 + hyperbol->abs_b;
+  const double z0 = hyperbol->g_square + hyperbol->abs_b;
   const double r2 = p[0] * p[0] + p[1] * p[1];
-  return hyperbol->abs_b * sqrt(1 + r2 * hyperbol->_1_a2) + hyperbol->g_2 - z0;
+  return hyperbol->abs_b * sqrt(1 + r2 * hyperbol->one_over_a_square)
+    + hyperbol->g_square - z0;
 }
 
 static FINLINE double
@@ -207,7 +208,7 @@ parabol_z
    const struct priv_parabol_data* parabol)
 {
   const double r2 = p[0] * p[0] + p[1] * p[1];
-  return r2 * parabol->_1_4f;
+  return r2 * parabol->one_over_4focal;
 }
 
 static FINLINE double
@@ -215,7 +216,7 @@ parabolic_cylinder_z
   (const double p[2],
    const struct priv_pcylinder_data* pcyl)
 {
-  return (p[1] * p[1]) * pcyl->_1_4f;
+  return (p[1] * p[1]) * pcyl->one_over_4focal;
 }
 
 static void
@@ -474,12 +475,14 @@ mesh_compute_area
    void (*get_indices)(const unsigned itri, unsigned ids[3], void* data),
    const unsigned nverts,
    void (*get_position)(const unsigned ivert, float position[3], void* data),
-   void* ctx)
+   void* ctx,
+   double* normal)
 {
   unsigned itri;
   double area = 0;
   (void)nverts;
 
+  if(normal) d3_splat(normal, 0);
   FOR_EACH(itri, 0, ntris) {
     float v0[3], v1[3], v2[3];
     double E0[3], E1[3], N[3];
@@ -501,7 +504,9 @@ mesh_compute_area
     d3_sub(E1, V2, V0);
 
     area += d3_len(d3_cross(N, E0, E1));
+    if(normal) d3_add(normal, normal, N);
   }
+  if (normal) d3_muld(normal, normal, 0.5);
   return area * 0.5;
 }
 
@@ -559,7 +564,7 @@ quadric_setup_s3d_shape_rt
 
   ASSERT(vdata.get);
   *rt_area = mesh_compute_area
-    (ntris, quadric_mesh_get_ids, nverts, vdata.get, &ctx);
+    (ntris, quadric_mesh_get_ids, nverts, vdata.get, &ctx, NULL);
   return RES_OK;
 }
 
@@ -597,7 +602,7 @@ quadric_setup_s3d_shape_samp
     (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
   if(res != RES_OK) return res;
   *samp_area = mesh_compute_area
-    (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_plane_get_pos, &ctx);
+    (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_plane_get_pos, &ctx, NULL);
   return RES_OK;
 }
 
@@ -709,10 +714,10 @@ quadric_hyperbol_gradient_local
 {
   ASSERT(quad && pt && grad);
   {
-    const double z0 = quad->g_2 + quad->abs_b;
+    const double z0 = quad->g_square + quad->abs_b;
     grad[0] = pt[0];
     grad[1] = pt[1];
-    grad[2] = -(pt[2] + z0 - quad->g_2) * quad->_a2_b2;
+    grad[2] = -(pt[2] + z0 - quad->g_square) * quad->a_square_over_b_square;
   }
 }
 
@@ -788,14 +793,15 @@ quadric_hyperbol_intersect_local
 {
   double dst;
   const double b2 = quad->abs_b * quad->abs_b;
-  const double b2_a2 = b2 * quad->_1_a2;
-  const double z0 = quad->g_2 + quad->abs_b;
+  const double b2_a2 = b2 * quad->one_over_a_square;
+  const double z0 = quad->g_square + quad->abs_b;
   const double a =
     b2_a2 * (dir[0] * dir[0] + dir[1] * dir[1]) - dir[2] * dir[2];
   const double b =
-    2 * (b2_a2 * (org[0] * dir[0] + org[1] * dir[1]) - (org[2] + z0 - quad->g_2) * dir[2]);
+    2 * (b2_a2 * (org[0] * dir[0] + org[1] * dir[1])
+      - (org[2] + z0 - quad->g_square) * dir[2]);
   const double c = b2_a2 * (org[0] * org[0] + org[1] * org[1]) + b2
-    - (org[2] + z0 - quad->g_2) * (org[2] + z0 - quad->g_2);
+    - (org[2] + z0 - quad->g_square) * (org[2] + z0 - quad->g_square);
   const int sol = quadric_solve_second(a, b, c, hint, &dst);
 
   if(!sol) return 0;
@@ -937,7 +943,7 @@ priv_parabol_data_setup
 {
   ASSERT(data && parabol);
   data->focal = parabol->focal;
-  data->_1_4f = 1 / (4.0 * parabol->focal);
+  data->one_over_4focal = 1 / (4.0 * parabol->focal);
 }
 
 static FINLINE void
@@ -953,10 +959,10 @@ priv_hyperbol_data_setup
   f = hyperbol->real_focal / g;
   a2 =  g * g * (f - f * f);
 
-  data->g_2 = g * 0.5;
+  data->g_square = g * 0.5;
   data->abs_b = g * fabs(f - 0.5);
-  data->_a2_b2 = a2 / (data->abs_b * data->abs_b);
-  data->_1_a2 = 1 / a2;
+  data->a_square_over_b_square = a2 / (data->abs_b * data->abs_b);
+  data->one_over_a_square = 1 / a2;
 }
 
 static FINLINE void
@@ -966,7 +972,7 @@ priv_parabolic_cylinder_data_setup
 {
   ASSERT(data && parabolic_cylinder);
   data->focal = parabolic_cylinder->focal;
-  data->_1_4f = 1 / (4.0 * parabolic_cylinder->focal);
+  data->one_over_4focal = 1 / (4.0 * parabolic_cylinder->focal);
 }
 
 static INLINE void
@@ -1244,6 +1250,7 @@ ssol_punched_surface_setup
   struct darray_double coords;
   struct darray_size_t ids;
   size_t nslices;
+  double n;
   res_T res = RES_OK;
 
   darray_double_init(shape->dev->allocator, &coords);
@@ -1295,6 +1302,10 @@ ssol_punched_surface_setup
   res = quadric_setup_s3d_shape_samp
     (psurf->quadric, &coords, &ids, shape->shape_samp, &shape->shape_samp_area);
   if(res != RES_OK) goto error;
+  /* the normal to the quadric is known */
+  n = psurf->quadric->type == SSOL_QUADRIC_HYPERBOL
+    ? -shape->shape_samp_area : shape->shape_samp_area;
+  d3(shape->n, 0, 0, n);
 
 exit:
   darray_double_release(&coords);
@@ -1361,7 +1372,7 @@ ssol_mesh_setup
     (shape->shape_rt, ntris, get_indices, nverts, attrs, nattribs, data);
   if(res != RES_OK) goto error;
   shape->shape_rt_area =
-    mesh_compute_area(ntris, get_indices, nverts, get_position, data);
+    mesh_compute_area(ntris, get_indices, nverts, get_position, data, shape->n);
 
   /* The Star-3D shape to sample is the same of the one to ray-traced */
   res = s3d_mesh_copy(shape->shape_rt, shape->shape_samp);

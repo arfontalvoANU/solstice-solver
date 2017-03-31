@@ -69,6 +69,7 @@ main(int argc, char** argv)
   struct ssol_spectrum* abs;
   struct ssol_atmosphere* atm;
   struct ssol_estimator* estimator;
+  struct ssol_mc_sampled sampled;
   struct ssol_mc_global mc_global;
   struct ssol_mc_receiver mc_rcv;
   struct ssol_mc_shape mc_shape;
@@ -84,7 +85,7 @@ main(int argc, char** argv)
   double transform1[12]; /* 3x4 column major matrix */
   double transform2[12]; /* 3x4 column major matrix */
   double dbl;
-  size_t i, count, fcount;
+  size_t i, count, fcount, scount;
   FILE* tmp = NULL;
   double m, std;
   double a_m, a_std;
@@ -203,12 +204,12 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_sampled_area(estimator, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_sampled_area(NULL, &dbl), RES_BAD_ARG);
   CHECK(ssol_estimator_get_sampled_area(estimator, &dbl), RES_OK);
-  CHECK(eq_eps(dbl, 12, 1.e-6), 1);
+  CHECK(eq_eps(dbl, 12, DBL_EPSILON), 1);
 
-  CHECK(ssol_estimator_get_count(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_count(estimator, NULL), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_count(NULL, &count), RES_BAD_ARG);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_realisation_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_realisation_count(NULL, &count), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, 1);
 
   CHECK(ssol_estimator_get_failed_count(NULL, NULL), RES_BAD_ARG);
@@ -216,6 +217,17 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_failed_count(NULL, &count), RES_BAD_ARG);
   CHECK(ssol_estimator_get_failed_count(estimator, &fcount), RES_OK);
   CHECK(fcount, 0);
+
+  CHECK(ssol_estimator_get_sampled_count(NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_count(estimator, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_count(NULL, &scount), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_sampled_count(estimator, &scount), RES_OK);
+  CHECK(scount, 3);
+
+  CHECK(ssol_estimator_get_mc_sampled(NULL, heliostat, &sampled), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, NULL, &sampled), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, NULL), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_OK);
 
   CHECK(ssol_estimator_get_mc_global(NULL, &mc_global), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_global(estimator, NULL), RES_BAD_ARG);
@@ -232,6 +244,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
   CHECK(ssol_instance_sample(heliostat, 0), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
 
   CHECK(ssol_instance_sample(target, 1), RES_OK);
   CHECK(ssol_instance_sample(secondary, 1), RES_OK);
@@ -290,7 +303,7 @@ main(int argc, char** argv)
 #define GET_MC_GLOBAL ssol_estimator_get_mc_global
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -308,8 +321,9 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, m, 2 * dbl), 1);
-  CHECK(eq_eps(mc_global.missing.E, m, 2*mc_global.missing.SE), 1);
+  CHECK(eq_eps(mc_global.missing.E, 2*m, 2*mc_global.missing.SE), 1);
   CHECK(GET_MC_RCV(NULL, NULL, SSOL_BACK, NULL), RES_BAD_ARG);
   CHECK(GET_MC_RCV(estimator, NULL, SSOL_BACK, NULL), RES_BAD_ARG);
   CHECK(GET_MC_RCV(NULL, target, SSOL_BACK, NULL), RES_BAD_ARG);
@@ -338,7 +352,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -348,8 +362,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, m, 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
@@ -369,7 +385,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -382,13 +398,16 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, m, 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Check atmosphere model and imperfect mirror: there are losses */
@@ -417,7 +436,7 @@ main(int argc, char** argv)
 
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &a_m, &a_std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -428,9 +447,13 @@ main(int argc, char** argv)
   CHECK(eq_eps(a_std, 0, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
+  printf("Atmosphere = %g +/- %g; ", mc_global.atmosphere.E, mc_global.atmosphere.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E + mc_global.atmosphere.E + mc_global.absorbed.E,
+    m, 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf
     ("\tIr(target)                = %g +/- %g (%.2g %%)\n",
@@ -447,11 +470,11 @@ main(int argc, char** argv)
      mc_rcv.reflectivity_loss.E,
      mc_rcv.reflectivity_loss.SE,
      100 * mc_rcv.reflectivity_loss.E / m);
-  printf
-    ("\tCos Loss(target)          = %g +/- %g (%.2g %%)\n",
-     mc_rcv.cos_loss.E,
-     mc_rcv.cos_loss.SE,
-     100 * mc_rcv.cos_loss.E / m);
+
+  CHECK(ssol_estimator_get_sampled_count(estimator, &scount), RES_OK);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
+  CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat2, &sampled), RES_OK);
+
   CHECK(eq_eps(mc_rcv.integrated_irradiance.E, a_m, 1e-8), 1);
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, a_std, 1e-4), 1);
   CHECK(eq_eps
@@ -462,9 +485,7 @@ main(int argc, char** argv)
     ( mc_rcv.integrated_irradiance.E
     + mc_rcv.absorptivity_loss.E
     + mc_rcv.reflectivity_loss.E
-    + mc_rcv.cos_loss.E, 4 * DNI, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.cos_loss.E / (4 * DNI), 1 -  COS, 1e-8), 1);
-
+    + (1 - mc_global.cos_factor.E) * 4 * DNI, 4 * DNI, 1e-8), 1);
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, square, NULL), RES_BAD_ARG);
@@ -517,7 +538,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
@@ -528,8 +549,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, m, 1e-4), 1);
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);

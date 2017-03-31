@@ -37,9 +37,9 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
 #define MC_RECEIVER_DATA                                                       \
   struct mc_data integrated_irradiance; /* In W */                             \
+  struct mc_data integrated_absorbed_irradiance; /* In W */                    \
   struct mc_data absorptivity_loss; /* In W */                                 \
-  struct mc_data reflectivity_loss; /* In W */                                 \
-  struct mc_data cos_loss; /* In W */
+  struct mc_data reflectivity_loss; /* In W */
 
 #define MC_RECEIVER_DATA_NULL__                                                \
   MC_DATA_NULL__,                                                              \
@@ -148,9 +148,9 @@ mc_receiver_1side_init
 {
   ASSERT(mc);
   mc->integrated_irradiance = MC_DATA_NULL;
+  mc->integrated_absorbed_irradiance = MC_DATA_NULL;
   mc->absorptivity_loss = MC_DATA_NULL;
   mc->reflectivity_loss = MC_DATA_NULL;
-  mc->cos_loss = MC_DATA_NULL;
   htable_shape2mc_init(allocator, &mc->shape2mc);
 }
 
@@ -167,9 +167,9 @@ mc_receiver_1side_copy
 {
   ASSERT(dst && src);
   dst->integrated_irradiance = src->integrated_irradiance;
+  dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
-  dst->cos_loss = src->cos_loss;
   return htable_shape2mc_copy(&dst->shape2mc, &src->shape2mc);
 }
 
@@ -179,9 +179,9 @@ mc_receiver_1side_copy_and_release
 {
   ASSERT(dst && src);
   dst->integrated_irradiance = src->integrated_irradiance;
+  dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
   dst->absorptivity_loss = src->absorptivity_loss;
   dst->reflectivity_loss = src->reflectivity_loss;
-  dst->cos_loss = src->cos_loss;
   return htable_shape2mc_copy_and_release(&dst->shape2mc, &src->shape2mc);
 }
 
@@ -278,10 +278,8 @@ mc_receiver_copy_and_release
  ******************************************************************************/
 struct mc_sampled {
   /* Global data for this entity */
-  struct mc_data cos_loss;
+  struct mc_data cos_factor;
   struct mc_data shadowed;
-  double area;
-  double sun_cos;
   size_t nb_samples;
 
   /* By-receptor data for this entity */
@@ -294,10 +292,8 @@ mc_sampled_init
    struct mc_sampled* samp)
 {
   ASSERT(samp);
-  samp->cos_loss = MC_DATA_NULL;
+  samp->cos_factor = MC_DATA_NULL;
   samp->shadowed = MC_DATA_NULL;
-  samp->area = 0;
-  samp->sun_cos = 0;
   samp->nb_samples = 0;
   htable_receiver_init(allocator, &samp->mc_rcvs);
 }
@@ -313,10 +309,8 @@ static INLINE res_T
 mc_sampled_copy(struct mc_sampled* dst, const struct mc_sampled* src)
 {
   ASSERT(dst && src);
-  dst->cos_loss = src->cos_loss;
+  dst->cos_factor = src->cos_factor;
   dst->shadowed = src->shadowed;
-  dst->area = src->area;
-  dst->sun_cos = src->sun_cos;
   dst->nb_samples = src->nb_samples;
   return htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
 }
@@ -325,10 +319,8 @@ static INLINE res_T
 mc_sampled_copy_and_release(struct mc_sampled* dst, struct mc_sampled* src)
 {
   ASSERT(dst && src);
-  dst->cos_loss = src->cos_loss;
+  dst->cos_factor = src->cos_factor;
   dst->shadowed = src->shadowed;
-  dst->area = src->area;
-  dst->sun_cos = src->sun_cos;
   dst->nb_samples = src->nb_samples;
   return htable_receiver_copy_and_release(&dst->mc_rcvs, &src->mc_rcvs);
 }
@@ -455,9 +447,12 @@ struct ssol_estimator {
   size_t failed_count;
 
   /* Implicit MC computations */
+  struct mc_data cos_factor;
+  struct mc_data absorbed;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data cos_loss; /* TODO compute it */
+  struct mc_data atmosphere;
+  struct mc_data reflectivity;
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */
@@ -518,21 +513,20 @@ get_mc_sampled
    struct mc_sampled** out_mc_samp)
 {
   struct mc_sampled* mc_samp = NULL;
-  struct mc_sampled mc_samp_null;
   res_T res = RES_OK;
   ASSERT(sampled && inst && out_mc_samp);
 
-  mc_sampled_init(inst->dev->allocator, &mc_samp_null);
-
   mc_samp = htable_sampled_find(sampled, &inst);
   if(!mc_samp) {
+    struct mc_sampled mc_samp_null;
+    mc_sampled_init(inst->dev->allocator, &mc_samp_null);
     res = htable_sampled_set(sampled, &inst, &mc_samp_null);
+    mc_sampled_release(&mc_samp_null);
     if(res != RES_OK) goto error;
     mc_samp = htable_sampled_find(sampled, &inst);
   }
 
 exit:
-  mc_sampled_release(&mc_samp_null);
   *out_mc_samp = mc_samp;
   return res;
 error:

@@ -118,9 +118,12 @@ ssol_estimator_get_mc_global
     global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
     global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
   } (void)0
-  SETUP_MC_RESULT(cos_loss);
+  SETUP_MC_RESULT(cos_factor);
+  SETUP_MC_RESULT(absorbed);
   SETUP_MC_RESULT(shadowed);
   SETUP_MC_RESULT(missing);
+  SETUP_MC_RESULT(atmosphere);
+  SETUP_MC_RESULT(reflectivity);
   #undef SETUP_MC_RESULT
   return RES_OK;
 }
@@ -145,7 +148,6 @@ ssol_estimator_get_mc_sampled_x_receiver
 
   memset(rcv, 0, sizeof(rcv[0]));
 
-
   mc_samp = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
   if(!mc_samp || !mc_samp->nb_samples) {
     /* The sampled instance has no MC estimation */
@@ -161,16 +163,16 @@ ssol_estimator_get_mc_sampled_x_receiver
 
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
-    const double N = (double)mc_samp->nb_samples;                              \
+    const double N = (double)estimator->realisation_count;                     \
     const struct mc_data* data = &mc_rcv1->Name;                               \
     rcv->Name.E = data->weight / N;                                            \
     rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;              \
     rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
   } (void)0
   SETUP_MC_RESULT(integrated_irradiance);
+  SETUP_MC_RESULT(integrated_absorbed_irradiance);
   SETUP_MC_RESULT(absorptivity_loss);
   SETUP_MC_RESULT(reflectivity_loss);
-  SETUP_MC_RESULT(cos_loss);
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__ = mc_samp->nb_samples;
@@ -178,7 +180,7 @@ ssol_estimator_get_mc_sampled_x_receiver
 }
 
 res_T
-ssol_estimator_get_count
+ssol_estimator_get_realisation_count
   (const struct ssol_estimator* estimator, size_t* count)
 {
   if (!estimator || !count) return RES_BAD_ARG;
@@ -201,6 +203,39 @@ ssol_estimator_get_sampled_area
 {
   if(!estimator || !area) return RES_BAD_ARG;
   *area = estimator->sampled_area;
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_sampled_count
+  (const struct ssol_estimator* estimator, size_t* count)
+{
+  if (!estimator || !count) return RES_BAD_ARG;
+  *count = htable_sampled_size_get(&estimator->mc_sampled);
+  return RES_OK;
+}
+
+res_T
+ssol_estimator_get_mc_sampled
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* samp_instance,
+   struct ssol_mc_sampled* sampled)
+{
+  struct mc_sampled* mc = NULL;
+  if (!estimator || !samp_instance || !sampled) return RES_BAD_ARG;
+  mc = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
+  if(!mc) return RES_BAD_ARG;
+  sampled->nb_samples = mc->nb_samples;
+  #define SETUP_MC_RESULT(Name) {                                             \
+    const double N = (double)estimator->realisation_count;                    \
+    const struct mc_data* data = &mc->Name;                                   \
+    sampled->Name.E = data->weight / N;                                       \
+    sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
+    sampled->Name.SE = sampled->Name.V > 0 ? sqrt(sampled->Name.V / N) : 0;   \
+  } (void)0
+  SETUP_MC_RESULT(cos_factor);
+  SETUP_MC_RESULT(shadowed);
+  #undef SETUP_MC_RESULT
   return RES_OK;
 }
 

@@ -138,7 +138,7 @@ main(int argc, char** argv)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(fclose(tmp), 0);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
@@ -146,13 +146,11 @@ main(int argc, char** argv)
 #define DNI_TGT_S (DNI * TGT_X * TGT_Y)
 #define DNI_S (DNI * SZ * SZ)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Cos = %g +/- %g\n", mc_global.cos_loss.E, mc_global.cos_loss.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
-  /* CHECK(eq_eps(mc_global.cos_loss.E, 4 * DNI_S, DNI_S * 1e-4), 1); */
   CHECK(eq_eps(mc_global.shadowed.E, DNI_S, 3 * mc_global.shadowed.SE), 1);
-  CHECK(eq_eps(mc_global.missing.E, 
-    MMAX(DNI_S, DNI_TGT_S) - MMIN(DNI_S, DNI_TGT_S), 
+  CHECK(eq_eps(mc_global.missing.E, MMAX(DNI_S, DNI_TGT_S), 
     3 * mc_global.missing.SE), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
