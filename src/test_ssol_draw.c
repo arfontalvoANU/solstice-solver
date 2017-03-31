@@ -183,11 +183,13 @@ main(int argc, char** argv)
   struct ssol_camera* cam;
   struct ssol_scene* scn;
   struct ssol_sun* sun;
-  unsigned char* pixels = NULL;
+  struct image img;
+  uint8_t* pixels;
   const double pos[3] = {278.0, -1000.0, 273.0};
   const double tgt[3] = {278.0, 0.0, 273.0};
   const double up[3] = {0.0, 0.0, 1.0};
   double dir[3];
+  size_t pitch;
   res_T (*draw_func)
     (struct ssol_scene* scn,
      struct ssol_camera* cam,
@@ -233,8 +235,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_attach_sun(scn, sun), RES_OK);
 
-  pixels = MEM_CALLOC(&allocator, HEIGHT, PITCH);
-  NCHECK(pixels, NULL);
+  pitch = WIDTH * sizeof_image_format(IMAGE_RGB8);
+  image_init(&allocator, &img);
+  image_setup(&img, WIDTH, HEIGHT, pitch, IMAGE_RGB8, NULL);
+  pixels = (uint8_t*)img.pixels;
 
   CHECK(draw_func(NULL, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
   CHECK(draw_func(scn, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
@@ -301,9 +305,9 @@ main(int argc, char** argv)
   CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, write_RGB8, pixels), RES_BAD_ARG);
   CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_OK);
 
-  CHECK(image_ppm_write_stream(stdout, WIDTH, HEIGHT, 3, pixels), RES_OK);
+  CHECK(image_write_ppm_stream(&img, 0, stdout), RES_OK);
 
-  MEM_RM(&allocator, pixels);
+  CHECK(image_release(&img), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_camera_ref_put(cam), RES_OK);
   CHECK(ssol_scene_ref_put(scn), RES_OK);
