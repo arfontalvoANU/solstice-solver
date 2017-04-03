@@ -92,6 +92,16 @@ enum ssol_pixel_format {
   SSOL_PIXEL_FORMATS_COUNT__
 };
 
+enum ssol_filter_mode {
+  SSOL_FILTER_LINEAR,
+  SSOL_FILTER_NEAREST
+};
+
+enum ssol_address_mode {
+  SSOL_ADDRESS_CLAMP,
+  SSOL_ADDRESS_REPEAT
+};
+
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
@@ -516,6 +526,15 @@ ssol_image_map
 SSOL_API res_T
 ssol_image_unmap
   (const struct ssol_image* image);
+
+SSOL_API res_T
+ssol_image_sample
+  (const struct ssol_image* image,
+   const enum ssol_filter_mode filter,
+   const enum ssol_address_mode address_u,
+   const enum ssol_address_mode address_v,
+   const double uv[2],
+   void* val);
 
 /* Helper function that matches the `ssol_write_pixels_T' functor type */
 SSOL_API res_T
