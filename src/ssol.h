@@ -852,7 +852,10 @@ SSOL_API void*
 ssol_param_buffer_allocate
   (struct ssol_param_buffer* buf,
    const size_t size,
-   const size_t alignment); /* Power of 2 in [1, 64] */
+   const size_t alignment, /* Power of 2 in [1, 64] */
+   /* Functor to invoke on the allocated memory priorly to its destruction.
+    * May be NULL */
+   void (*release)(void*));
 
 /* Retrieve the address of the first allocated parameter */
 SSOL_API void*

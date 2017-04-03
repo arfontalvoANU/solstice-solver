@@ -22,15 +22,19 @@
 #define DEFAULT_ALIGNMENT 64
 
 struct param {
-  size_t size; /* In Bytes */
-  size_t offset; /* In Bytes */
+  void* mem;
+  void (*release)(void*);
 };
+
+#define DARRAY_NAME param
+#define DARRAY_DATA struct param
+#include <rsys/dynamic_array.h>
 
 struct ssol_param_buffer {
   char* pool;
   size_t capacity;
   size_t size;
-
+  struct darray_param params;
   ref_T ref;
   struct ssol_device* dev;
 };
@@ -45,8 +49,10 @@ param_buffer_release(ref_T* ref)
   struct ssol_device* dev;
   ASSERT(ref);
   buf = CONTAINER_OF(ref, struct ssol_param_buffer, ref);
+  SSOL(param_buffer_clear(buf));
   dev = buf->dev;
   if(buf->pool) MEM_RM(dev->allocator, buf->pool);
+  darray_param_release(&buf->params);
   MEM_RM(dev->allocator, buf);
   SSOL(device_ref_put(dev));
 }
@@ -78,6 +84,8 @@ ssol_param_buffer_create
   ref_init(&buf->ref);
   buf->capacity = capacity;
   buf->size = 0;
+  darray_param_init(dev->allocator, &buf->params);
+
   buf->pool = MEM_ALLOC_ALIGNED(dev->allocator, capacity, DEFAULT_ALIGNMENT);
   if(!buf->pool) {
     res = RES_MEM_ERR;
@@ -115,25 +123,32 @@ void*
 ssol_param_buffer_allocate
   (struct ssol_param_buffer* buf,
    const size_t size, /* In Bytes */
-   const size_t align) /* Must be a power of 2 in [1, 64] */
+   const size_t align, /* Must be a power of 2 in [1, 64] */
+   void (*release)(void*)) /* May be NULL */
 {
+  struct param param = { NULL, NULL };
   size_t offset;
-  void* mem = NULL;
+  res_T res = RES_OK;
 
   if(!buf || !size || !IS_POW2(align) || align > DEFAULT_ALIGNMENT)
     goto error;
 
   offset = ALIGN_SIZE(buf->size, align);
   if(offset + size > buf->capacity) goto error;
-  
-  mem = buf->pool + offset;
-  ASSERT(IS_ALIGNED(mem, align));
+
+  param.mem = buf->pool + offset;
+  param.release = release;
+  ASSERT(IS_ALIGNED(param.mem, align));
+
+  res = darray_param_push_back(&buf->params, &param);
+  if(res != RES_OK) goto error;
+
   buf->size = offset + size;
 
 exit:
-  return mem;
+  return param.mem;
 error:
-  mem = NULL;
+  param.mem = NULL;
   goto exit;
 }
 
@@ -147,7 +162,15 @@ ssol_param_buffer_get(struct ssol_param_buffer* buf)
 res_T
 ssol_param_buffer_clear(struct ssol_param_buffer* buf)
 {
+  size_t i;
   if(!buf) return RES_BAD_ARG;
+
+  /* Release the parameter */
+  FOR_EACH(i, 0, darray_param_size_get(&buf->params)) {
+    struct param* param = darray_param_data_get(&buf->params)+i;
+    if(param->release) param->release(param->mem);
+  }
+  darray_param_clear(&buf->params);
   buf->size = 0;
   return RES_OK;
 }
