@@ -165,7 +165,6 @@ ssol_object_add_shaded_shape
   /* Setup the object shaded shape */
   object->scn_rt_area += shape->shape_rt_area;
   object->scn_samp_area += shape->shape_samp_area;
-  d3_add(object->n, object->n, shape->n);
   SSOL(shape_ref_get(shape));
   SSOL(material_ref_get(front));
   SSOL(material_ref_get(back));
@@ -216,7 +215,6 @@ ssol_object_clear(struct ssol_object* obj)
 
   obj->scn_rt_area = 0;
   obj->scn_samp_area = 0;
-  d3_splat(obj->n, 0);
 
   S3D(scene_clear(obj->scn_rt));
   S3D(scene_clear(obj->scn_samp));

@@ -475,14 +475,12 @@ mesh_compute_area
    void (*get_indices)(const unsigned itri, unsigned ids[3], void* data),
    const unsigned nverts,
    void (*get_position)(const unsigned ivert, float position[3], void* data),
-   void* ctx,
-   double* normal)
+   void* ctx)
 {
   unsigned itri;
   double area = 0;
   (void)nverts;
 
-  if(normal) d3_splat(normal, 0);
   FOR_EACH(itri, 0, ntris) {
     float v0[3], v1[3], v2[3];
     double E0[3], E1[3], N[3];
@@ -504,9 +502,7 @@ mesh_compute_area
     d3_sub(E1, V2, V0);
 
     area += d3_len(d3_cross(N, E0, E1));
-    if(normal) d3_add(normal, normal, N);
   }
-  if (normal) d3_muld(normal, normal, 0.5);
   return area * 0.5;
 }
 
@@ -564,7 +560,7 @@ quadric_setup_s3d_shape_rt
 
   ASSERT(vdata.get);
   *rt_area = mesh_compute_area
-    (ntris, quadric_mesh_get_ids, nverts, vdata.get, &ctx, NULL);
+    (ntris, quadric_mesh_get_ids, nverts, vdata.get, &ctx);
   return RES_OK;
 }
 
@@ -602,7 +598,7 @@ quadric_setup_s3d_shape_samp
     (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
   if(res != RES_OK) return res;
   *samp_area = mesh_compute_area
-    (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_plane_get_pos, &ctx, NULL);
+    (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_plane_get_pos, &ctx);
   return RES_OK;
 }
 
@@ -1250,7 +1246,6 @@ ssol_punched_surface_setup
   struct darray_double coords;
   struct darray_size_t ids;
   size_t nslices;
-  double n;
   res_T res = RES_OK;
 
   darray_double_init(shape->dev->allocator, &coords);
@@ -1302,10 +1297,6 @@ ssol_punched_surface_setup
   res = quadric_setup_s3d_shape_samp
     (psurf->quadric, &coords, &ids, shape->shape_samp, &shape->shape_samp_area);
   if(res != RES_OK) goto error;
-  /* the normal to the quadric is known */
-  n = psurf->quadric->type == SSOL_QUADRIC_HYPERBOL
-    ? -shape->shape_samp_area : shape->shape_samp_area;
-  d3(shape->n, 0, 0, n);
 
 exit:
   darray_double_release(&coords);
@@ -1372,7 +1363,7 @@ ssol_mesh_setup
     (shape->shape_rt, ntris, get_indices, nverts, attrs, nattribs, data);
   if(res != RES_OK) goto error;
   shape->shape_rt_area =
-    mesh_compute_area(ntris, get_indices, nverts, get_position, data, shape->n);
+    mesh_compute_area(ntris, get_indices, nverts, get_position, data);
 
   /* The Star-3D shape to sample is the same of the one to ray-traced */
   res = s3d_mesh_copy(shape->shape_rt, shape->shape_samp);

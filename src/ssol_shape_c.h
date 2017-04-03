@@ -57,7 +57,6 @@ struct ssol_shape {
   union priv_quadric_data priv_quadric;
   struct ssol_quadric quadric;
   double shape_rt_area, shape_samp_area;
-  double n[3]; /* sum of normals */
 
   struct ssol_device* dev;
   ref_T ref;
