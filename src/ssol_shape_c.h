@@ -43,10 +43,16 @@ struct priv_pcylinder_data {
   double one_over_4focal;
 };
 
+struct priv_hemisphere_data {
+  double radius;
+  double sqr_radius;
+};
+
 union priv_quadric_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
   struct priv_pcylinder_data pcylinder;
+  struct priv_hemisphere_data hemisphere;
 };
 
 struct ssol_shape {

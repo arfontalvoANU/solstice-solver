@@ -221,6 +221,14 @@ main(int argc, char** argv)
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.data.parabolic_cylinder.focal = 1;
 
+  quadric.type = SSOL_QUADRIC_HEMISPHERE;
+  quadric.data.hemisphere.radius = 10;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  quadric.data.hemisphere.radius = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.data.hemisphere.radius = 10;
+
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 

@@ -77,6 +77,12 @@ check_parabolic_cylinder
 }
 
 static INLINE int
+check_hemisphere(const struct ssol_quadric_hemisphere* hemisphere)
+{
+  return hemisphere && hemisphere->radius > 0;
+}
+
+static INLINE int
 check_quadric(const struct ssol_quadric* quadric)
 {
   if(!quadric) return RES_BAD_ARG;
@@ -90,6 +96,8 @@ check_quadric(const struct ssol_quadric* quadric)
       return check_hyperbol(&quadric->data.hyperbol);
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
       return check_parabolic_cylinder(&quadric->data.parabolic_cylinder);
+    case SSOL_QUADRIC_HEMISPHERE:
+      return check_hemisphere(&quadric->data.hemisphere);
     default: return 0;
   }
 }
@@ -219,6 +227,17 @@ parabolic_cylinder_z
   return (p[1] * p[1]) * pcyl->one_over_4focal;
 }
 
+static FINLINE double
+hemisphere_z
+  (const double p[2],
+   const struct priv_hemisphere_data* hemisphere)
+{
+  const double r2 = p[0] * p[0] + p[1] * p[1];
+  const double z2 = hemisphere->sqr_radius - r2;
+  ASSERT(z2 >= 0);
+  return (z2 > 0) ? sqrt(z2) + hemisphere->radius : 0;
+}
+
 static void
 quadric_mesh_parabol_get_pos(const unsigned ivert, float pos[3], void* ctx)
 {
@@ -270,6 +289,25 @@ quadric_mesh_parabolic_cylinder_get_pos
   /* Transform the position in object space */
   d33_muld3(p, msh->transform, p);
   d3_add(p, p, msh->transform+9);
+
+  f3_set_d3(pos, p);
+}
+
+static void
+quadric_mesh_hemisphere_get_pos
+  (const unsigned ivert, float pos[3], void* ctx)
+{
+  const size_t i = ivert * 2/*#coords per vertex*/;
+  const struct quadric_mesh_context* msh = ctx;
+  double p[3]; /* Temporary quadric space position */
+  ASSERT(pos && ctx);
+  p[0] = msh->coords[i + 0];
+  p[1] = msh->coords[i + 1];
+  p[2] = hemisphere_z(p, &msh->quadric->hemisphere);
+
+  /* Transform the position in object space */
+  d33_muld3(p, msh->transform, p);
+  d3_add(p, p, msh->transform + 9);
 
   f3_set_d3(pos, p);
 }
@@ -551,6 +589,9 @@ quadric_setup_s3d_shape_rt
     case SSOL_QUADRIC_PLANE:
       vdata.get = quadric_mesh_plane_get_pos;
       break;
+    case SSOL_QUADRIC_HEMISPHERE:
+      vdata.get = quadric_mesh_hemisphere_get_pos;
+      break;
     default: FATAL("Unreachable code.\n"); break;
   }
 
@@ -729,6 +770,17 @@ quadric_parabolic_cylinder_gradient_local
   grad[2] = 2 * quad->focal;
 }
 
+static FINLINE void
+quadric_hemisphere_gradient_local
+  (const double pt[3],
+   double grad[3])
+{
+  ASSERT(pt && grad);
+  grad[0] = pt[0];
+  grad[1] = pt[1];
+  grad[2] = pt[2];
+}
+
 static FINLINE int
 quadric_plane_intersect_local
   (const double org[3],
@@ -808,6 +860,30 @@ quadric_hyperbol_intersect_local
 }
 
 static FINLINE int
+quadric_hemisphere_intersect_local
+  (const struct priv_hemisphere_data* quad,
+   const double org[3],
+   const double dir[3],
+   const double hint,
+   double hit_pt[3],
+   double grad[3],
+   double* dist)
+{
+  double dst;
+  const double a = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
+  const double b = 2 * (org[0] * dir[0] + org[1] * dir[1] + org[2] * dir[2]);
+  const double c = 
+    org[0] * org[0] + org[1] * org[1] + org[2] * org[2] - quad->sqr_radius;
+  const int sol = quadric_solve_second(a, b, c, hint, &dst);
+
+  if(!sol) return 0;
+  d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst));
+  quadric_hemisphere_gradient_local(hit_pt, grad);
+  *dist = dst;
+  return 1;
+}
+
+static FINLINE int
 quadric_parabolic_cylinder_intersect_local
   (const struct priv_pcylinder_data* quad,
    const double org[3],
@@ -847,6 +923,9 @@ punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
     case SSOL_QUADRIC_HYPERBOL:
       pt[2] = hyperbol_z(pt, &shape->priv_quadric.hyperbol);
       break;
+    case SSOL_QUADRIC_HEMISPHERE:
+      pt[2] = hemisphere_z(pt, &shape->priv_quadric.hemisphere);
+      break;
     default: FATAL("Unreachable code\n"); break;
   }
 }
@@ -867,7 +946,7 @@ punched_shape_set_normal_local
       quadric_parabolic_cylinder_gradient_local
         (&shape->priv_quadric.pcylinder, pt, normal);
       break;
-    case SSOL_QUADRIC_PARABOL: {
+    case SSOL_QUADRIC_PARABOL:
       quadric_parabol_gradient_local
         (&shape->priv_quadric.parabol, pt, normal);
       break;
@@ -875,7 +954,9 @@ punched_shape_set_normal_local
       quadric_hyperbol_gradient_local
         (&shape->priv_quadric.hyperbol, pt, normal);
       break;
-    }
+    case SSOL_QUADRIC_HEMISPHERE:
+      quadric_hemisphere_gradient_local(pt, normal);
+      break;
     default: FATAL("Unreachable code\n"); break;
   }
 }
@@ -911,6 +992,10 @@ punched_shape_intersect_local
     case SSOL_QUADRIC_HYPERBOL:
       hit = quadric_hyperbol_intersect_local
         (&shape->priv_quadric.hyperbol, org, dir, hint, pt, N, dist);
+      break;
+    case SSOL_QUADRIC_HEMISPHERE:
+      hit = quadric_hemisphere_intersect_local
+        (&shape->priv_quadric.hemisphere, org, dir, hint, pt, N, dist);
       break;
     default: FATAL("Unreachable code\n"); break;
   }
@@ -971,6 +1056,16 @@ priv_parabolic_cylinder_data_setup
   data->one_over_4focal = 1 / (4.0 * parabolic_cylinder->focal);
 }
 
+static FINLINE void
+priv_hemisphere_data_setup
+  (struct priv_hemisphere_data* data,
+   const struct ssol_quadric_hemisphere* hemisphere)
+{
+  ASSERT(data && hemisphere);
+  data->radius = hemisphere->radius;
+  data->sqr_radius = hemisphere->radius * hemisphere->radius;
+}
+
 static INLINE void
 priv_quadric_data_setup
   (union priv_quadric_data* priv_data,
@@ -990,6 +1085,10 @@ priv_quadric_data_setup
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
       priv_parabolic_cylinder_data_setup
         (&priv_data->pcylinder, &quadric->data.parabolic_cylinder);
+      break;
+    case SSOL_QUADRIC_HEMISPHERE:
+      priv_hemisphere_data_setup
+        (&priv_data->hemisphere, &quadric->data.hemisphere);
       break;
     default: FATAL("Unreachable code\n"); break;
   }
@@ -1024,6 +1123,12 @@ priv_quadric_data_compute_slices_count
       max_z = MMAX
         (parabolic_cylinder_z(lower, &priv_data->pcylinder),
          parabolic_cylinder_z(upper, &priv_data->pcylinder));
+      nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
+      break;
+    case SSOL_QUADRIC_HEMISPHERE:
+      max_z = MMAX
+        (hemisphere_z(lower, &priv_data->hemisphere),
+         hemisphere_z(upper, &priv_data->hemisphere));
       nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
       break;
     default: FATAL("Unreachable code\n"); break;
@@ -1267,6 +1372,20 @@ ssol_punched_surface_setup
       "%s: infinite or null punched surface.\n",
       FUNC_NAME);
     res = RES_BAD_ARG;
+    goto error;
+  }
+
+  /* Hemispheres are special quadrics as they are not defined everywhere.
+   * As a results, we have to check that all the clipped region is inside
+   * the disk defined by radius */
+  if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
+    if(
+      fabs(lower[0]) >= psurf->quadric->data.hemisphere.radius
+      || fabs(lower[1]) >= psurf->quadric->data.hemisphere.radius
+      || fabs(upper[0]) >= psurf->quadric->data.hemisphere.radius
+      || fabs(upper[1]) >= psurf->quadric->data.hemisphere.radius
+      )
+      res = RES_BAD_ARG;
     goto error;
   }
 
