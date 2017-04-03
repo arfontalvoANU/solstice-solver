@@ -284,7 +284,7 @@ main(int argc, char** argv)
 
   /* Spectra mismatch */
   desc.wavelengths = mismatch;
-  desc.wavelengths = ka;
+  desc.intensities = ka;
   desc.count = 2;
   CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
   CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
