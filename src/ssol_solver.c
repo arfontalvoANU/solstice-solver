@@ -469,11 +469,6 @@ check_scene(const struct ssol_scene* scene, const char* caller)
     return RES_BAD_ARG;
   }
 
-  if(!scene->sun->spectrum) {
-    log_error(scene->dev, "%s: sun's spectrum undefined.\n", caller);
-    return RES_BAD_ARG;
-  }
-
   if(scene->sun->dni <= 0) {
     log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
     return RES_BAD_ARG;

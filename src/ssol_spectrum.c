@@ -175,6 +175,7 @@ ssol_spectrum_setup
 {
   double* wavelengths;
   double* intensities;
+  double current_wl = 0;
   size_t i;
   res_T res = RES_OK;
 
@@ -190,7 +191,14 @@ ssol_spectrum_setup
 
   wavelengths = darray_double_data_get(&spectrum->wavelengths);
   intensities = darray_double_data_get(&spectrum->intensities);
-  FOR_EACH(i, 0, nwlens) get(i, wavelengths+i, intensities+i, ctx);
+  FOR_EACH(i, 0, nwlens) {
+    get(i, wavelengths + i, intensities + i, ctx);
+    if(*(wavelengths + i) <= current_wl || *(intensities + i) < 0) {
+      res = RES_BAD_ARG;
+      goto error;
+    }
+    current_wl = *(wavelengths + i);
+  }
 
 exit:
   return res;
