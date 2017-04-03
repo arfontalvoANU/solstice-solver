@@ -521,7 +521,7 @@ ssol_image_get_layout
 SSOL_API res_T
 ssol_image_map
   (const struct ssol_image* image,
-   void** memory);
+   char** memory);
 
 SSOL_API res_T
 ssol_image_unmap

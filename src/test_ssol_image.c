@@ -16,6 +16,94 @@
 #include "ssol.h"
 #include "test_ssol_utils.h"
 
+
+#include <rsys/double2.h>
+#include <rsys/double3.h>
+
+static void
+check_sampling(struct ssol_device* dev)
+{
+  struct ssol_image_layout layout;
+  struct ssol_image* img;
+  size_t pixsz;
+  char* mem;
+  double uv[2];
+  double pix[3];
+  double tmp[3];
+
+  CHECK(ssol_image_create(dev, &img), RES_OK);
+  CHECK(ssol_image_setup(img, 4, 2, SSOL_PIXEL_DOUBLE3), RES_OK);
+  CHECK(ssol_image_get_layout(img, &layout), RES_OK);
+
+  pixsz = ssol_sizeof_pixel_format(layout.pixel_format);
+
+  CHECK(ssol_image_map(img, &mem), RES_OK);
+  d3((double*)(mem + layout.offset + 0*pixsz + 0*layout.row_pitch), 1, 0, 0);
+  d3((double*)(mem + layout.offset + 1*pixsz + 0*layout.row_pitch), 1, 0, 0);
+  d3((double*)(mem + layout.offset + 2*pixsz + 0*layout.row_pitch), 1, 1, 0);
+  d3((double*)(mem + layout.offset + 3*pixsz + 0*layout.row_pitch), 1, 1, 0);
+  d3((double*)(mem + layout.offset + 0*pixsz + 1*layout.row_pitch), 1, 0, 1);
+  d3((double*)(mem + layout.offset + 1*pixsz + 1*layout.row_pitch), 1, 0, 1);
+  d3((double*)(mem + layout.offset + 2*pixsz + 1*layout.row_pitch), 0, 1, 1);
+  d3((double*)(mem + layout.offset + 3*pixsz + 1*layout.row_pitch), 0, 1, 1);
+  CHECK(ssol_image_unmap(img), RES_OK);
+
+  #define CLAMPED SSOL_ADDRESS_CLAMP
+  #define REPEAT SSOL_ADDRESS_REPEAT
+  #define NEAREST SSOL_FILTER_NEAREST
+  #define LINEAR SSOL_FILTER_LINEAR
+
+  d2_splat(uv, 0);
+  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, uv, NULL), RES_BAD_ARG);
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, NULL), RES_BAD_ARG);
+  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, NULL, pix), RES_BAD_ARG);
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, NULL, pix), RES_BAD_ARG);
+  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_BAD_ARG);
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+
+  uv[0] = 1.0/4.0;
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+  uv[0] = 2.0/4.0;
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  uv[0] = 3.0/4.0;
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+
+  uv[0] = -1.0/4.0;
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+  CHECK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  uv[0] = 4.0/4.0;
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  CHECK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+
+  uv[1] = 1.0/2.0;
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,0,1,1)), 1);
+  uv[1] = 2.0/2.0;
+  CHECK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,0,1)), 1);
+  CHECK(ssol_image_sample(img, NEAREST, REPEAT, REPEAT, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, REPEAT, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+
+  uv[0] = 1.0/4.0 + 1.0/8.0;
+  uv[1] = 0.0/2.0 + 1.0/4.0;
+  CHECK(ssol_image_sample(img, LINEAR, CLAMPED, CLAMPED, uv, pix), RES_OK);
+  CHECK(d3_eq(pix, d3(tmp,0.75,0.5,0.5)), 1);
+
+  CHECK(ssol_image_ref_put(img), RES_OK);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -26,7 +114,7 @@ main(int argc, char** argv)
   struct ssol_image_layout layout = SSOL_IMAGE_LAYOUT_NULL;
   size_t org[2];
   size_t sz[2];
-  void* mem;
+  char* mem;
   size_t i, x, y;
   (void) argc, (void) argv;
 
@@ -103,7 +191,7 @@ main(int argc, char** argv)
 
   FOR_EACH(y, 0, layout.height) {
     const double* row = (const double*)
-      (((char*)mem + layout.offset) + y * layout.row_pitch);
+      ((mem + layout.offset) + y * layout.row_pitch);
     FOR_EACH(x, 0, layout.width) {
       const double* pixel = row + x*3;
       if(y < 8) {
@@ -117,7 +205,7 @@ main(int argc, char** argv)
           CHECK(pixel[2], 2);
         }
       } else {
-        if(x < 8) { 
+        if(x < 8) {
           CHECK(pixel[0], 3);
           CHECK(pixel[1], 3);
           CHECK(pixel[2], 3);
@@ -129,8 +217,12 @@ main(int argc, char** argv)
       }
     }
   }
+  CHECK(ssol_image_unmap(NULL), RES_BAD_ARG);
+  CHECK(ssol_image_unmap(img), RES_OK);
 
   CHECK(ssol_image_ref_put(img), RES_OK);
+
+  check_sampling(dev);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
   check_memory_allocator(&allocator);

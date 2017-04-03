@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
+#define _POSIX_C_SOURCE 200112L /* nextafter support */
+
 #include "ssol.h"
 #include "ssol_image_c.h"
 #include "ssol_device_c.h"
@@ -21,6 +23,7 @@
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 
+#include <math.h>
 #include <string.h>
 
 /*******************************************************************************
@@ -32,8 +35,11 @@ map_address(const double address, const enum ssol_address_mode mode)
   double dbl;
   double i;
   switch(mode) {
-    case SSOL_ADDRESS_CLAMP: dbl = CLAMP(address, 0, 1); break;
-    case SSOL_ADDRESS_REPEAT: dbl = modf(address, &i); break;
+    case SSOL_ADDRESS_CLAMP: dbl = CLAMP(address, 0, nextafter(1,0)); break;
+    case SSOL_ADDRESS_REPEAT:
+      dbl = modf(address, &i);
+      if(dbl < 0) dbl = 1.0+dbl;
+      break;
     default: FATAL("Unreachable code.\n"); break;
   }
   return dbl;
@@ -156,7 +162,7 @@ ssol_image_get_layout
 }
 
 res_T
-ssol_image_map(const struct ssol_image* img, void** mem)
+ssol_image_map(const struct ssol_image* img, char** mem)
 {
   if(!img || !mem) return RES_BAD_ARG;
   *mem = img->mem;
