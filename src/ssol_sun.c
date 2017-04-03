@@ -214,10 +214,15 @@ sun_create_distributions
   /* Create and setup the spectrum distribution */
   res = ranst_sun_wl_create(sun->dev->allocator, &ran_wl);
   if(res != RES_OK) goto error;
-  res = ranst_sun_wl_setup(ran_wl,
-    darray_double_cdata_get(&sun->spectrum->wavelengths),
-    darray_double_cdata_get(&sun->spectrum->intensities),
-    darray_double_size_get(&sun->spectrum->wavelengths));
+  if(!sun->spectrum) {
+    res = ranst_sun_wl_setup(ran_wl, NULL, NULL, 0);
+  }
+  else {
+    res = ranst_sun_wl_setup(ran_wl,
+      darray_double_cdata_get(&sun->spectrum->wavelengths),
+      darray_double_cdata_get(&sun->spectrum->intensities),
+      darray_double_size_get(&sun->spectrum->wavelengths));
+  }
   if(res != RES_OK) goto error;
 
   /* Create and setup the the direction distribution */

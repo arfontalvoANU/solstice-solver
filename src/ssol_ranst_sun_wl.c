@@ -158,7 +158,7 @@ ranst_sun_wl_setup
    const size_t sz)
 {
   res_T res = RES_OK;
-  if (!ran || !wavelengths || !intensities || !sz)
+  if (sz && (!ran || !wavelengths || !intensities))
     return RES_BAD_ARG;
   if (sz > 1) {
     ran->type = WL_PIECEWISE;
@@ -172,7 +172,7 @@ ranst_sun_wl_setup
   } else {
     ran->type = WL_DIRAC;
     ran->get = &ran_dirac_get;
-    ran->state.dirac.wavelength = wavelengths[0];
+    ran->state.dirac.wavelength = sz ? wavelengths[0] : -1;
   }
 exit:
   return res;
