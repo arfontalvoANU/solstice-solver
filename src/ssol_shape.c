@@ -234,8 +234,9 @@ hemisphere_z
 {
   const double r2 = p[0] * p[0] + p[1] * p[1];
   const double z2 = hemisphere->sqr_radius - r2;
-  ASSERT(z2 >= 0);
-  return (z2 > 0) ? sqrt(z2) + hemisphere->radius : 0;
+  /* manage numerical unaccuracy */
+  ASSERT(z2 >= -hemisphere->sqr_radius * FLT_EPSILON);
+  return (z2 > 0) ? -sqrt(z2) + hemisphere->radius : 0;
 }
 
 static void
@@ -772,13 +773,14 @@ quadric_parabolic_cylinder_gradient_local
 
 static FINLINE void
 quadric_hemisphere_gradient_local
-  (const double pt[3],
+  (const struct priv_hemisphere_data* quad,
+   const double pt[3],
    double grad[3])
 {
   ASSERT(pt && grad);
-  grad[0] = pt[0];
-  grad[1] = pt[1];
-  grad[2] = pt[2];
+  grad[0] = -pt[0];
+  grad[1] = -pt[1];
+  grad[2] = quad->radius - pt[2];
 }
 
 static FINLINE int
@@ -870,15 +872,17 @@ quadric_hemisphere_intersect_local
    double* dist)
 {
   double dst;
+  double z0 = -quad->radius;
   const double a = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
-  const double b = 2 * (org[0] * dir[0] + org[1] * dir[1] + org[2] * dir[2]);
+  const double b = 2 * (org[0] * dir[0] + org[1] * dir[1] + org[2] * dir[2] + z0 * dir[2]);
   const double c = 
-    org[0] * org[0] + org[1] * org[1] + org[2] * org[2] - quad->sqr_radius;
+    org[0] * org[0] + org[1] * org[1] + org[2] * org[2] - quad->sqr_radius
+    + 2 * z0 * org[2] + z0 * z0;
   const int sol = quadric_solve_second(a, b, c, hint, &dst);
 
   if(!sol) return 0;
   d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst));
-  quadric_hemisphere_gradient_local(hit_pt, grad);
+  quadric_hemisphere_gradient_local(quad, hit_pt, grad);
   *dist = dst;
   return 1;
 }
@@ -955,7 +959,8 @@ punched_shape_set_normal_local
         (&shape->priv_quadric.hyperbol, pt, normal);
       break;
     case SSOL_QUADRIC_HEMISPHERE:
-      quadric_hemisphere_gradient_local(pt, normal);
+      quadric_hemisphere_gradient_local
+        (&shape->priv_quadric.hemisphere, pt, normal);
       break;
     default: FATAL("Unreachable code\n"); break;
   }
@@ -1379,14 +1384,16 @@ ssol_punched_surface_setup
    * As a results, we have to check that all the clipped region is inside
    * the disk defined by radius */
   if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
-    if(
+    if (
       fabs(lower[0]) >= psurf->quadric->data.hemisphere.radius
       || fabs(lower[1]) >= psurf->quadric->data.hemisphere.radius
       || fabs(upper[0]) >= psurf->quadric->data.hemisphere.radius
       || fabs(upper[1]) >= psurf->quadric->data.hemisphere.radius
       )
+    {
       res = RES_BAD_ARG;
-    goto error;
+      goto error;
+    }
   }
 
   /* Setup internal data */
