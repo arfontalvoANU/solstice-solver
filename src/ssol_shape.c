@@ -48,6 +48,12 @@ struct quadric_mesh_context {
   const double* transform; /* 3x4 column major matrix */
 };
 
+struct get_ctx {
+  size_t nbvert;
+  double two_pi_over_nbvert;
+  double radius;
+};
+
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
@@ -236,7 +242,7 @@ hemisphere_z
   const double z2 = hemisphere->sqr_radius - r2;
   /* manage numerical unaccuracy */
   ASSERT(z2 >= -hemisphere->sqr_radius * FLT_EPSILON);
-  return (z2 > 0) ? -sqrt(z2) + hemisphere->radius : 0;
+  return (z2 > 0) ? -sqrt(z2) + hemisphere->radius : hemisphere->radius;
 }
 
 static void
@@ -1130,15 +1136,37 @@ priv_quadric_data_compute_slices_count
          parabolic_cylinder_z(upper, &priv_data->pcylinder));
       nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
       break;
-    case SSOL_QUADRIC_HEMISPHERE:
+    case SSOL_QUADRIC_HEMISPHERE: {
+      /* need to clamp the range */
+      double l[2], u[2];
+      double r;
+      d2_set(u, upper);
+      r = d2_dot(u, u);
+      if (r > priv_data->hemisphere.sqr_radius)
+        d2_muld(u, u, sqrt(priv_data->hemisphere.sqr_radius / r));
+      d2_set(l, lower);
+      r = d2_dot(l, l);
+      if (r > priv_data->hemisphere.sqr_radius)
+        d2_muld(l, l, sqrt(priv_data->hemisphere.sqr_radius / r));
       max_z = MMAX
-        (hemisphere_z(lower, &priv_data->hemisphere),
-         hemisphere_z(upper, &priv_data->hemisphere));
+        (hemisphere_z(l, &priv_data->hemisphere),
+         hemisphere_z(u, &priv_data->hemisphere));
       nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
       break;
+    }
     default: FATAL("Unreachable code\n"); break;
   }
   return nslices;
+}
+
+static void 
+get_circular(const size_t ivert, double position[2], void* ctx)
+{
+  struct get_ctx* data = (struct get_ctx*)ctx;
+  const double a = (double)ivert * data->two_pi_over_nbvert;
+  ASSERT(ivert < data->nbvert);
+  position[0] = data->radius * cos(a);
+  position[1] = data->radius * sin(a);
 }
 
 /*******************************************************************************
@@ -1355,7 +1383,8 @@ ssol_punched_surface_setup
   double lower[2], upper[2]; /* Carvings AABB */
   struct darray_double coords;
   struct darray_size_t ids;
-  size_t nslices;
+  struct ssol_carving* tmp_carvings = NULL;
+  size_t nslices, tmp_carvings_count;
   res_T res = RES_OK;
 
   darray_double_init(shape->dev->allocator, &coords);
@@ -1371,29 +1400,44 @@ ssol_punched_surface_setup
   /* Save quadric for further object instancing */
   shape->quadric = *psurf->quadric;
 
-  carvings_compute_aabb(psurf->carvings, psurf->nb_carvings, lower, upper);
+  if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
+    size_t c;
+    struct get_ctx ctx;
+    tmp_carvings = (struct ssol_carving*)MEM_CALLOC
+      (shape->dev->allocator, 1 + psurf->nb_carvings, sizeof(struct ssol_carving));
+    if(!tmp_carvings) {
+      res = RES_MEM_ERR;
+      goto error;
+    }
+    /* add the implicit circular carving */
+    tmp_carvings[0].get = &get_circular;
+    tmp_carvings[0].nb_vertices = 
+      (psurf->quadric->slices_count_hint == SIZE_MAX) ? 
+      64 : 8 * psurf->quadric->slices_count_hint;
+    tmp_carvings[0].operation = SSOL_AND;
+    tmp_carvings[0].context = &ctx;
+    for (c = 0; c < psurf->nb_carvings; c++) {
+      tmp_carvings[c + 1] = psurf->carvings[c];
+    }
+    ctx.nbvert = tmp_carvings[0].nb_vertices;
+    ctx.two_pi_over_nbvert = 2 * PI / (double)ctx.nbvert;
+    ctx.radius = shape->quadric.data.hemisphere.radius;
+    tmp_carvings_count = psurf->nb_carvings + 1;
+    ((struct ssol_punched_surface*)psurf)->carvings = tmp_carvings;
+    ((struct ssol_punched_surface*)psurf)->nb_carvings = tmp_carvings_count;
+  }
+  else {
+    tmp_carvings = psurf->carvings;
+    tmp_carvings_count = psurf->nb_carvings;
+  }
+
+  carvings_compute_aabb(tmp_carvings, tmp_carvings_count, lower, upper);
   if(aabb_is_degenerated(lower, upper)) {
     log_error(shape->dev,
       "%s: infinite or null punched surface.\n",
       FUNC_NAME);
     res = RES_BAD_ARG;
     goto error;
-  }
-
-  /* Hemispheres are special quadrics as they are not defined everywhere.
-   * As a results, we have to check that all the clipped region is inside
-   * the disk defined by radius */
-  if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
-    if (
-      fabs(lower[0]) >= psurf->quadric->data.hemisphere.radius
-      || fabs(lower[1]) >= psurf->quadric->data.hemisphere.radius
-      || fabs(upper[0]) >= psurf->quadric->data.hemisphere.radius
-      || fabs(upper[1]) >= psurf->quadric->data.hemisphere.radius
-      )
-    {
-      res = RES_BAD_ARG;
-      goto error;
-    }
   }
 
   /* Setup internal data */
@@ -1411,7 +1455,7 @@ ssol_punched_surface_setup
   if(res != RES_OK) goto error;
 
   res = clip_triangulated_plane
-    (&coords, &ids, shape->dev->scpr_mesh, psurf->carvings, psurf->nb_carvings);
+    (&coords, &ids, shape->dev->scpr_mesh, tmp_carvings, tmp_carvings_count);
   if(res != RES_OK) goto error;
 
   /* Setup the Star-3D shape to ray-trace */
@@ -1425,6 +1469,9 @@ ssol_punched_surface_setup
   if(res != RES_OK) goto error;
 
 exit:
+  if(tmp_carvings && tmp_carvings != psurf->carvings) {
+    MEM_RM(shape->dev->allocator, tmp_carvings);
+  }
   darray_double_release(&coords);
   darray_size_t_release(&ids);
   return res;
