@@ -38,8 +38,20 @@ struct surface_fragment {
 static const struct surface_fragment SURFACE_FRAGMENT_NULL =
   SURFACE_FRAGMENT_NULL__;
 
+struct dielectric {
+  int dummy;
+};
+
+struct matte {
+  ssol_shader_getter_T reflectivity;
+};
+
+struct mirror {
+  ssol_shader_getter_T reflectivity;
+  ssol_shader_getter_T roughness;
+};
+
 struct thin_dielectric {
-  struct ssol_thin_dielectric_shader shader;
   struct ssol_medium slab_medium;
   double thickness;
 };
@@ -47,10 +59,12 @@ struct thin_dielectric {
 struct ssol_material {
   enum ssol_material_type type;
 
+  ssol_shader_getter_T normal;
+
   union {
-    struct ssol_dielectric_shader dielectric;
-    struct ssol_matte_shader matte;
-    struct ssol_mirror_shader mirror;
+    struct dielectric dielectric;
+    struct matte matte;
+    struct mirror mirror;
     struct thin_dielectric thin_dielectric;
   } data;
 

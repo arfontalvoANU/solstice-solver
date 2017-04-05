@@ -33,6 +33,23 @@
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static void
+shade_normal_default
+  (struct ssol_device* dev,
+   struct ssol_param_buffer* buf,
+   const double wavelength, /* In nanometer */
+   const double P[3], /* World space position */
+   const double Ng[3], /* World space geometry normal */
+   const double Ns[3], /* World space shading normal */
+   const double uv[2], /* Texture coordinates */
+   const double w[3], /* Incoming direction. Point toward the surface */
+   double* val) /* Returned value */
+{
+  (void)dev, (void)buf, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv;
+  (void)w;
+  d3_set(val, Ns);
+}
+
 static res_T
 setup_dielectric_bsdf
   (const struct ssol_material* mtl,
@@ -91,16 +108,13 @@ setup_matte_bsdf
    struct ssf_bsdf* bsdf)
 {
   struct ssf_bxdf* brdf = NULL;
-  const struct ssol_matte_shader* shader;
   double reflectivity;
   res_T res;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MATTE);
   ASSERT(bsdf);
 
-  shader = &mtl->data.matte;
-
   /* Fetch material attribs */
-  shader->reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
+  mtl->data.matte.reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
     fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
 
   /* Setup the BRDF */
@@ -131,19 +145,16 @@ setup_mirror_bsdf
   struct ssf_bxdf* brdf = NULL;
   struct ssf_fresnel* fresnel = NULL;
   struct ssf_microfacet_distribution* distrib = NULL;
-  const struct ssol_mirror_shader* shader;
   double roughness;
   double reflectivity;
   res_T res;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MIRROR);
   ASSERT(bsdf);
 
-  shader = &mtl->data.mirror;
-
   /* Fetch material attribs */
-  shader->reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
+  mtl->data.mirror.reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
     fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
-  shader->roughness(mtl->dev, mtl->buf, wavelength, fragment->pos,
+  mtl->data.mirror.roughness(mtl->dev, mtl->buf, wavelength, fragment->pos,
     fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &roughness);
 
   /* Setup the fresnel term */
@@ -314,6 +325,7 @@ ssol_material_create
   material->type = type;
   material->in_medium = SSOL_MEDIUM_VACUUM;
   material->out_medium = SSOL_MEDIUM_VACUUM;
+  material->normal = shade_normal_default;
 
 exit:
   if (out_material) *out_material = material;
@@ -409,9 +421,10 @@ ssol_dielectric_setup
   || !check_medium(outside_medium)
   || !check_medium(inside_medium))
     return RES_BAD_ARG;
-  material->data.dielectric = *shader;
+  material->data.dielectric.dummy = 1;
   material->out_medium = *outside_medium;
   material->in_medium = *inside_medium;
+  material->normal = shader->normal;
   return RES_OK;
 }
 
@@ -423,7 +436,9 @@ ssol_mirror_setup
   || material->type != SSOL_MATERIAL_MIRROR
   || !check_shader_mirror(shader))
     return RES_BAD_ARG;
-  material->data.mirror = *shader;
+  material->normal = shader->normal;
+  material->data.mirror.reflectivity = shader->reflectivity;
+  material->data.mirror.roughness = shader->roughness;
   return RES_OK;
 }
 
@@ -435,7 +450,8 @@ ssol_matte_setup
   || material->type != SSOL_MATERIAL_MATTE
   || !check_shader_matte(shader))
     return RES_BAD_ARG;
-  material->data.matte = *shader;
+  material->normal = shader->normal;
+  material->data.matte.reflectivity = shader->reflectivity;
   return RES_OK;
 }
 
@@ -454,11 +470,11 @@ ssol_thin_dielectric_setup
   || !check_medium(slab_medium)
   || thickness < 0)
     return RES_BAD_ARG;
-  material->data.thin_dielectric.shader = *shader;
   material->data.thin_dielectric.slab_medium = *slab_medium;
   material->data.thin_dielectric.thickness = thickness;
   material->out_medium = *outside_medium;
   material->in_medium = *outside_medium;
+  material->normal = shader->normal;
   return RES_OK;
 }
 
@@ -549,29 +565,8 @@ material_shade_normal
    double N[3])
 {
   ASSERT(mtl && frag && N);
-
-  if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
-    d3_set(N, frag->Ns);
-  } else {
-    ssol_shader_getter_T normal;
-    switch(mtl->type) {
-      case SSOL_MATERIAL_DIELECTRIC:
-        normal = mtl->data.dielectric.normal;
-        break;
-      case SSOL_MATERIAL_MATTE:
-        normal = mtl->data.matte.normal;
-        break;
-      case SSOL_MATERIAL_MIRROR:
-        normal = mtl->data.mirror.normal;
-        break;
-      case SSOL_MATERIAL_THIN_DIELECTRIC:
-        normal = mtl->data.thin_dielectric.shader.normal;
-        break;
-      default: FATAL("Unreachable code\n"); break;
-    }
-    normal(mtl->dev, mtl->buf, wavelength, frag->pos, frag->Ng, frag->Ns,
-      frag->uv, frag->dir, N);
-  }
+  mtl->normal(mtl->dev, mtl->buf, wavelength, frag->pos, frag->Ng, frag->Ns,
+    frag->uv, frag->dir, N);
 }
 
 res_T
