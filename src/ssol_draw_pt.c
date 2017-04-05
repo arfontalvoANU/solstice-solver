@@ -203,6 +203,11 @@ Li(struct ssol_scene* scn,
     }
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
+    material_shade_normal(mtl, &frag, 1/*TODO wlen*/, frag.Ns);
+
+    /* Shaded normal may look backward the outgoing direction */
+    if(d3_dot(frag.Ns, wo) > 0) break;
+
     SSF(bsdf_clear(ctx->bsdf));
     res = material_setup_bsdf
       (mtl, &frag, 1/*TODO wavelength*/, &medium, 1/*Rendering*/, ctx->bsdf);
@@ -218,7 +223,7 @@ Li(struct ssol_scene* scn,
     d3_minus(wo, wo);
     if(scn->sun) {
       L += throughput * sun_lighting
-        (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
+        (scn->sun, view, &ray_data, ctx->bsdf, wo, frag.Ns, ray_org);
     }
 
     R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
@@ -227,10 +232,10 @@ Li(struct ssol_scene* scn,
     if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, &medium, &medium);
 
     if(!russian_roulette) {
-      throughput *= fabs(d3_dot(wi, N)) * R;
+      throughput *= fabs(d3_dot(wi, frag.Ns)) * R;
     } else {
       if(ssp_rng_canonical(ctx->rng) >= R) break;
-      throughput *= d3_dot(wi, N);
+      throughput *= d3_dot(wi, frag.Ns);
     }
 
     if(throughput <= 0) break;
