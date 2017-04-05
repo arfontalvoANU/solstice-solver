@@ -1110,8 +1110,8 @@ static INLINE size_t
 priv_quadric_data_compute_slices_count
   (const enum ssol_quadric_type type,
    const union priv_quadric_data* priv_data,
-   const double lower[3],
-   const double upper[3])
+   const double lower[2],
+   const double upper[2])
 {
   size_t nslices;
   double max_z;
