@@ -378,7 +378,7 @@ point_shade
   /* Shade the surface fragment */
   mtl = point_get_material(pt);
   SSF(bsdf_clear(bsdf));
-  res = material_shade(mtl, &frag, pt->wl, medium, bsdf);
+  res = material_setup_bsdf(mtl, &frag, pt->wl, medium, 0, bsdf);
   if(res != RES_OK) return res;
 
   /* By convention, Star-SF assumes that incoming and reflected

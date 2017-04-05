@@ -71,21 +71,20 @@ surface_fragment_setup
    const struct s3d_primitive* primitive,
    const float uv[2]);
 
+extern LOCAL_SYM void
+material_shade_normal
+  (const struct ssol_material* mtl,
+   const struct surface_fragment* fragment,
+   const double wavelength,
+   double N[3]);
+
 extern LOCAL_SYM res_T
-material_shade
+material_setup_bsdf
   (const struct ssol_material* mtl,
    const struct surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium, /* Current medium */
-   struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
-
-/* Material shading for rendering purposes */
-extern LOCAL_SYM res_T
-material_shade_rendering
-  (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
-   const double wavelength, /* In nanometer */
-   const struct ssol_medium* medium,
+   const int rendering, /* Is material used for rendering purposes */
    struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
 
 extern LOCAL_SYM res_T
@@ -95,3 +94,4 @@ material_get_next_medium
    struct ssol_medium* next_medium);
 
 #endif /* SSOL_MATERIAL_C_H */
+

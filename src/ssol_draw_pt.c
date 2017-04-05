@@ -204,8 +204,8 @@ Li(struct ssol_scene* scn,
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
     SSF(bsdf_clear(ctx->bsdf));
-    res = material_shade_rendering
-      (mtl, &frag, 1/*TODO wavelength*/, &medium, ctx->bsdf);
+    res = material_setup_bsdf
+      (mtl, &frag, 1/*TODO wavelength*/, &medium, 1/*Rendering*/, ctx->bsdf);
     if(res != RES_OK) goto error;
 
     /* Update the ray */
