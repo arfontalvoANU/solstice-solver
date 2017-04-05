@@ -122,8 +122,9 @@ check_punched_surface(const struct ssol_punched_surface* punched_surface)
   size_t i;
 
   if(!punched_surface
-  || punched_surface->nb_carvings == 0
-  || !punched_surface->carvings
+  || (punched_surface->nb_carvings == 0 
+    && punched_surface->quadric->type != SSOL_QUADRIC_HEMISPHERE)
+  || (punched_surface->nb_carvings && !punched_surface->carvings)
   || !punched_surface->quadric
   || !check_quadric(punched_surface->quadric))
     return 0;
@@ -1409,22 +1410,18 @@ ssol_punched_surface_setup
       res = RES_MEM_ERR;
       goto error;
     }
-    /* add the implicit circular carving */
-    tmp_carvings[0].get = &get_circular;
-    tmp_carvings[0].nb_vertices = 
-      (psurf->quadric->slices_count_hint == SIZE_MAX) ? 
-      64 : 8 * psurf->quadric->slices_count_hint;
-    tmp_carvings[0].operation = SSOL_AND;
-    tmp_carvings[0].context = &ctx;
     for (c = 0; c < psurf->nb_carvings; c++) {
-      tmp_carvings[c + 1] = psurf->carvings[c];
+      tmp_carvings[c] = psurf->carvings[c];
     }
-    ctx.nbvert = tmp_carvings[0].nb_vertices;
+    /* add an implicit circular carving */
+    tmp_carvings[psurf->nb_carvings].get = &get_circular;
+    tmp_carvings[psurf->nb_carvings].operation = SSOL_AND;
+    tmp_carvings[psurf->nb_carvings].context = &ctx;
+    tmp_carvings[psurf->nb_carvings].nb_vertices = 1024;
+    ctx.nbvert = tmp_carvings[psurf->nb_carvings].nb_vertices;
     ctx.two_pi_over_nbvert = 2 * PI / (double)ctx.nbvert;
     ctx.radius = shape->quadric.data.hemisphere.radius;
     tmp_carvings_count = psurf->nb_carvings + 1;
-    ((struct ssol_punched_surface*)psurf)->carvings = tmp_carvings;
-    ((struct ssol_punched_surface*)psurf)->nb_carvings = tmp_carvings_count;
   }
   else {
     tmp_carvings = psurf->carvings;
