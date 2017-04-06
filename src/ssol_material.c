@@ -545,9 +545,8 @@ surface_fragment_setup
   dP2[0] = P[2].value[0] - P[0].value[0];
   dP2[1] = P[2].value[1] - P[0].value[1];
   dP2[2] = P[2].value[2] - P[0].value[2];
-
   det = duv1[0]*duv2[1] - duv1[1]*duv2[0];
-  if(det <= 0) { /* Handle zero determinant */
+  if(det == 0) { /* Handle zero determinant */
     double basis[9];
     d33_basis(basis, fragment->Ng);
     d3_set(fragment->dPdu, basis + 0);

@@ -247,8 +247,8 @@ struct ssol_surface_fragment {
   double uv[2]; /* Texture coordinates */
   double dPdu[3]; /* Partial derivative of the position in u */
   double dPdv[3]; /* Partial derivative of the position in v */
-
 };
+
 #define SSOL_SURFACE_FRAGMENT_NULL__ \
   {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}, {0,0,0}, {0,0,0}}
 static const struct ssol_surface_fragment SSOL_SURFACE_FRAGMENT_NULL =
