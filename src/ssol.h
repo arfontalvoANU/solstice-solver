@@ -240,13 +240,17 @@ struct ssol_medium {
 static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
 
 struct ssol_surface_fragment {
-  double dir[3]; /* World space incoming direction. Point outward the surface */
-  double pos[3]; /* World space position */
+  double dir[3]; /* World space incoming direction. Point forward the surface */
+  double P[3]; /* World space position */
   double Ng[3]; /* Normalized world space geometry normal */
   double Ns[3]; /* Normalized world space shading normal */
   double uv[2]; /* Texture coordinates */
+  double dPdu[3]; /* Partial derivative of the position in u */
+  double dPdv[3]; /* Partial derivative of the position in v */
+
 };
-#define SSOL_SURFACE_FRAGMENT_NULL__ {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}}
+#define SSOL_SURFACE_FRAGMENT_NULL__ \
+  {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}, {0,0,0}, {0,0,0}}
 static const struct ssol_surface_fragment SSOL_SURFACE_FRAGMENT_NULL =
   SSOL_SURFACE_FRAGMENT_NULL__;
 

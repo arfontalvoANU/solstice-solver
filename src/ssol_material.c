@@ -18,8 +18,10 @@
 #include "ssol_material_c.h"
 #include "ssol_device_c.h"
 
-#include <rsys/double3.h>
 #include <rsys/double2.h>
+#include <rsys/double3.h>
+#include <rsys/double33.h>
+#include <rsys/float2.h>
 #include <rsys/float3.h>
 #include <rsys/float33.h>
 #include <rsys/ref_count.h>
@@ -495,29 +497,67 @@ surface_fragment_setup
 {
   struct s3d_attrib attr;
   char has_texcoord, has_normal;
+  struct s3d_attrib uvs[3];
+  struct s3d_attrib P[3];
+  double duv1[2], duv2[2];
+  double dP1[3], dP2[3];
+  double det;
   ASSERT(fragment && pos && dir && primitive && uv);
 
   /* Assume that the submitted normal look forward the incoming dir */
   ASSERT(d3_dot(normal, dir) <= 0);
 
-  /* Setup the incoming direction */
-  d3_set(fragment->dir, dir);
+  d3_set(fragment->dir, dir); /* Setup the incoming direction */
+  d3_set(fragment->P, pos); /* Setup the surface position */
+  d3_normalize(fragment->Ng, normal); /* Normalize the geometry normal */
 
-  /* Setup the surface position */
-  d3_set(fragment->pos, pos);
-
-  /* Normalize the geometry normal */
-  d3_set(fragment->Ng, normal);
-  d3_normalize(fragment->Ng, fragment->Ng);
+  /* Retrieve the position of the triangle vertices */
+  S3D(triangle_get_vertex_attrib(primitive, 0, S3D_POSITION, &P[0]));
+  S3D(triangle_get_vertex_attrib(primitive, 1, S3D_POSITION, &P[1]));
+  S3D(triangle_get_vertex_attrib(primitive, 2, S3D_POSITION, &P[2]));
 
   /* Retrieve the tex coord */
   S3D(primitive_has_attrib(primitive, SSOL_TO_S3D_TEXCOORD, &has_texcoord));
   if (!has_texcoord) {
     d2_set_f2(fragment->uv, uv);
+    uvs[0].type = uvs[1].type = uvs[2].type = S3D_FLOAT2;
+    uvs[0].usage = uvs[1].usage = uvs[2].usage = SSOL_TO_S3D_TEXCOORD;
+    f2(uvs[0].value, 1, 0);
+    f2(uvs[1].value, 0, 1);
+    f2(uvs[2].value, 0, 0);
   } else {
     S3D(primitive_get_attrib(primitive, SSOL_TO_S3D_TEXCOORD, uv, &attr));
+    S3D(triangle_get_vertex_attrib(primitive, 0, SSOL_TO_S3D_TEXCOORD, &uvs[0]));
+    S3D(triangle_get_vertex_attrib(primitive, 1, SSOL_TO_S3D_TEXCOORD, &uvs[1]));
+    S3D(triangle_get_vertex_attrib(primitive, 2, SSOL_TO_S3D_TEXCOORD, &uvs[2]));
     ASSERT(attr.type == S3D_FLOAT2);
     d2_set_f2(fragment->uv, attr.value);
+  }
+
+  /* Compute the partial derivatives. */
+  duv1[0] = uvs[1].value[0] - uvs[0].value[0];
+  duv1[1] = uvs[1].value[1] - uvs[0].value[1];
+  duv2[0] = uvs[2].value[0] - uvs[0].value[0];
+  duv2[1] = uvs[2].value[1] - uvs[0].value[1];
+  dP1[0] = P[1].value[0] - P[0].value[0];
+  dP1[1] = P[1].value[1] - P[0].value[1];
+  dP1[2] = P[1].value[2] - P[0].value[2];
+  dP2[0] = P[2].value[0] - P[0].value[0];
+  dP2[1] = P[2].value[1] - P[0].value[1];
+  dP2[2] = P[2].value[2] - P[0].value[2];
+
+  det = duv1[0]*duv2[1] - duv1[1]*duv2[0];
+  if(det <= 0) { /* Handle zero determinant */
+    double basis[9];
+    d33_basis(basis, fragment->Ng);
+    d3_set(fragment->dPdu, basis + 0);
+    d3_set(fragment->dPdv, basis + 3);
+  } else {
+    double a[3], b[3];
+    d3_sub(fragment->dPdu, d3_muld(a, dP1, duv2[1]), d3_muld(b, dP2, duv1[1]));
+    d3_sub(fragment->dPdv, d3_muld(a, dP2, duv1[0]), d3_muld(b, dP1, duv2[0]));
+    d3_divd(fragment->dPdu, fragment->dPdu, det);
+    d3_divd(fragment->dPdv, fragment->dPdv, det);
   }
 
   /* Retrieve and normalize the shading normal in world space */
