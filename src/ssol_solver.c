@@ -355,7 +355,7 @@ point_shade
    double dir[3])
 {
   struct ssol_material* mtl;
-  struct surface_fragment frag;
+  struct ssol_surface_fragment frag;
   double r = 1;
   double wi[3], pdf;
   int type;

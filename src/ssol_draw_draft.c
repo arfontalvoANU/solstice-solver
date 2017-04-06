@@ -42,7 +42,7 @@ Li
    double val[3])
 {
   const float range[2] = {0, FLT_MAX};
-  struct surface_fragment frag;
+  struct ssol_surface_fragment frag;
   struct ray_data ray_data = RAY_DATA_NULL;
   struct s3d_hit hit;
   ASSERT(scn && view && org && dir && val);

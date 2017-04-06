@@ -135,7 +135,7 @@ Li(struct ssol_scene* scn,
   struct ssol_instance* inst;
   struct ssol_material* mtl;
   const struct shaded_shape* sshape;
-  struct surface_fragment frag;
+  struct ssol_surface_fragment frag;
   size_t isshape;
   double throughput = 1.0;
   double wi[3], o[3], uv[3];

@@ -239,16 +239,23 @@ struct ssol_medium {
 #define SSOL_MEDIUM_VACUUM__ { 0, 1 }
 static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
 
+struct ssol_surface_fragment {
+  double dir[3]; /* World space incoming direction. Point outward the surface */
+  double pos[3]; /* World space position */
+  double Ng[3]; /* Normalized world space geometry normal */
+  double Ns[3]; /* Normalized world space shading normal */
+  double uv[2]; /* Texture coordinates */
+};
+#define SSOL_SURFACE_FRAGMENT_NULL__ {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}}
+static const struct ssol_surface_fragment SSOL_SURFACE_FRAGMENT_NULL =
+  SSOL_SURFACE_FRAGMENT_NULL__;
+
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
-   const double wavelength, /* In nanometer */
-   const double P[3], /* World space position */
-   const double Ng[3], /* World space geometry normal */
-   const double Ns[3], /* World space shading normal */
-   const double uv[2], /* Texture coordinates */
-   const double w[3], /* Incoming direction. Point toward the surface */
+   const double wavelength,
+   const struct ssol_surface_fragment* fragment,
    double* val); /* Returned value */
 
 /* Dielectric material shader */

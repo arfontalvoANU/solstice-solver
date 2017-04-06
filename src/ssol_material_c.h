@@ -27,17 +27,6 @@ struct ssol_device;
   (  ((A)->refractive_index == (B)->refractive_index)                          \
   && ((A)->absorptivity == (B)->absorptivity))
 
-struct surface_fragment {
-  double dir[3]; /* World space incoming direction */
-  double pos[3]; /* World space position */
-  double Ng[3]; /* Normalized world space primitive normal */
-  double Ns[3]; /* Normalized world space shading normal */
-  double uv[2]; /* Texture coordinates */
-};
-#define SURFACE_FRAGMENT_NULL__ {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}}
-static const struct surface_fragment SURFACE_FRAGMENT_NULL =
-  SURFACE_FRAGMENT_NULL__;
-
 struct dielectric {
   int dummy;
 };
@@ -78,7 +67,7 @@ struct ssol_material {
 
 extern LOCAL_SYM void
 surface_fragment_setup
-  (struct surface_fragment* fragment,
+  (struct ssol_surface_fragment* fragment,
    const double pos[3],
    const double dir[3],
    const double normal[3],
@@ -88,14 +77,14 @@ surface_fragment_setup
 extern LOCAL_SYM void
 material_shade_normal
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength,
    double N[3]);
 
 extern LOCAL_SYM res_T
 material_setup_bsdf
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium, /* Current medium */
    const int rendering, /* Is material used for rendering purposes */

@@ -37,23 +37,19 @@ static void
 shade_normal_default
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
-   const double wavelength, /* In nanometer */
-   const double P[3], /* World space position */
-   const double Ng[3], /* World space geometry normal */
-   const double Ns[3], /* World space shading normal */
-   const double uv[2], /* Texture coordinates */
-   const double w[3], /* Incoming direction. Point toward the surface */
+   const double wlen,
+   const struct ssol_surface_fragment* frag,
    double* val) /* Returned value */
 {
-  (void)dev, (void)buf, (void)wavelength, (void)P, (void)Ng, (void)Ns, (void)uv;
-  (void)w;
-  d3_set(val, Ns);
+  ASSERT(frag && val);
+  (void)dev, (void)buf, (void)wlen;
+  d3_set(val, frag->Ns);
 }
 
 static res_T
 setup_dielectric_bsdf
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
@@ -103,7 +99,7 @@ error:
 static res_T
 setup_matte_bsdf
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    struct ssf_bsdf* bsdf)
 {
@@ -114,8 +110,8 @@ setup_matte_bsdf
   ASSERT(bsdf);
 
   /* Fetch material attribs */
-  mtl->data.matte.reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
-    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
+  mtl->data.matte.reflectivity
+    (mtl->dev, mtl->buf, wavelength, fragment, &reflectivity);
 
   /* Setup the BRDF */
   res = ssf_bxdf_create(mtl->dev->allocator, &ssf_lambertian_reflection, &brdf);
@@ -137,7 +133,7 @@ error:
 static res_T
 setup_mirror_bsdf
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const int rendering,
    struct ssf_bsdf* bsdf)
@@ -152,10 +148,10 @@ setup_mirror_bsdf
   ASSERT(bsdf);
 
   /* Fetch material attribs */
-  mtl->data.mirror.reflectivity(mtl->dev, mtl->buf, wavelength, fragment->pos,
-    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &reflectivity);
-  mtl->data.mirror.roughness(mtl->dev, mtl->buf, wavelength, fragment->pos,
-    fragment->Ng, fragment->Ns, fragment->uv, fragment->dir, &roughness);
+  mtl->data.mirror.reflectivity
+    (mtl->dev, mtl->buf, wavelength, fragment, &reflectivity);
+  mtl->data.mirror.roughness
+    (mtl->dev, mtl->buf, wavelength, fragment, &roughness);
 
   /* Setup the fresnel term */
   res = ssf_fresnel_create(mtl->dev->allocator, &ssf_fresnel_constant, &fresnel);
@@ -207,7 +203,7 @@ error:
 static res_T
 setup_thin_dielectric_bsdf
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    struct ssf_bsdf* bsdf)
 {
@@ -490,7 +486,7 @@ ssol_material_create_virtual
  ******************************************************************************/
 void
 surface_fragment_setup
-  (struct surface_fragment* fragment,
+  (struct ssol_surface_fragment* fragment,
    const double pos[3],
    const double dir[3],
    const double normal[3],
@@ -560,19 +556,18 @@ surface_fragment_setup
 void
 material_shade_normal
   (const struct ssol_material* mtl,
-   const struct surface_fragment* frag,
+   const struct ssol_surface_fragment* frag,
    const double wavelength,
    double N[3])
 {
   ASSERT(mtl && frag && N);
-  mtl->normal(mtl->dev, mtl->buf, wavelength, frag->pos, frag->Ng, frag->Ns,
-    frag->uv, frag->dir, N);
+  mtl->normal(mtl->dev, mtl->buf, wavelength, frag, N);
 }
 
 res_T
 material_setup_bsdf
   (const struct ssol_material* mtl,
-   const struct surface_fragment* fragment,
+   const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium,
    const int rendering, /* Is BSDF used for rendering */
