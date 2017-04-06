@@ -59,6 +59,7 @@ Li
     size_t isshape;
     double o[3], wi[3];
     double N[3]={0};
+    double cos_Ns_wi;
 
     /* Retrieve the hit shaded shape */
     inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
@@ -76,6 +77,7 @@ Li
 
     d3_set_f3(o, org);
     d3_set_f3(wi, dir);
+    d3_normalize(wi, wi);
     if(d3_dot(N, wi) < 0) {
       mtl = sshape->mtl_front;
     } else {
@@ -87,7 +89,8 @@ Li
     material_shade_normal(mtl, &frag, 1/*TODO wavelength*/, frag.Ns);
 
     ASSERT(d3_is_normalized(frag.Ns));
-    d3_splat(val, fabs(d3_dot(frag.Ns, wi)));
+    cos_Ns_wi = d3_dot(frag.Ns, d3_minus(wi, wi));
+    d3_splat(val, MMAX(cos_Ns_wi, 0));
   }
 }
 

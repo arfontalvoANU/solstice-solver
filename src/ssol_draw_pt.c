@@ -108,12 +108,11 @@ sun_lighting
   d3_minus(wi, sun->direction);
 
   /* The point look backward the sun */
-  if(d3_dot(wi, N) < 0) return 0.0;
+  cos_wi_N = d3_dot(wi, N);
+  if(cos_wi_N < 0 || eq_eps(cos_wi_N, 0, 1.e-6)) return 0.0;
 
   R = ssf_bsdf_eval(bsdf, wo, N, wi);
   if(R <= 0) return 0.0;
-
-  cos_wi_N = d3_dot(wi, N);
 
   f3_set_d3(ray_dir, wi);
   S3D(scene_view_trace_ray(view, ray_org, ray_dir, ray_range, ray_data, &hit));
