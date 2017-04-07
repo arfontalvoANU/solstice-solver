@@ -275,7 +275,7 @@ draw_pixel
   ctx = darray_thread_context_data_get(thread_ctxs) + ithread;
 
   FOR_EACH(isample, 0, nsamples) {
-    const int MAX_NFAILURES = 10;
+    const int MAX_NFAILURES = 100;
     double weight[3];
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];
