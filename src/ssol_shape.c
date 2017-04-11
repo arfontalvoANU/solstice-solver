@@ -383,6 +383,92 @@ carvings_compute_aabb
   }
 }
 
+static void
+carvings_compute_radius
+  (const struct ssol_carving* carvings,
+   const size_t ncarvings,
+   double* radius)
+{
+  size_t icarving;
+  double r2 = - DBL_MAX;
+  ASSERT(carvings && radius);
+
+  if(!ncarvings) {
+    *radius = DBL_MAX;
+    return;
+  }
+
+  FOR_EACH(icarving, 0, ncarvings) {
+    size_t ivert;
+    FOR_EACH(ivert, 0, carvings[icarving].nb_vertices) {
+      double pos[2];
+      /* Discard the polygons to subtract */
+      if (carvings[icarving].operation == SSOL_SUB) continue;
+
+      carvings[icarving].get(ivert, pos, carvings[icarving].context);
+      r2 = MMAX(r2, d2_dot(pos, pos));
+    }
+  }
+
+  *radius = sqrt(r2);
+}
+
+static res_T
+build_triangulated_disk
+  (struct darray_double* coords,
+   struct darray_size_t* ids,
+   const double radius,
+   const size_t nsteps)
+{
+  struct s3dut_mesh_data data;
+  struct s3dut_mesh* mesh = NULL;
+  double *c_ptr = NULL;
+  size_t* i_ptr = NULL;
+  size_t i;
+  res_T res = RES_OK;
+  ASSERT(coords && ids && nsteps && radius > 0);
+  ASSERT(nsteps < UINT_MAX);
+  
+  s3dut_create_hemisphere
+    (coords->allocator, radius, (unsigned)nsteps, (unsigned)nsteps, &mesh);
+  if (res != RES_OK) {
+    fprintf(stderr, "Could not create the hemisphere 3D data.\n");
+    goto error;
+  }
+
+  S3DUT(mesh_get_data(mesh, &data));
+  if (!data.nprimitives || !data.nvertices) {
+    res = RES_BAD_ARG;
+    goto error;
+  }
+  
+  darray_double_clear(coords);
+  darray_size_t_clear(ids);
+
+  /* Reserve the memory space for the plane vertices */
+  res = darray_double_resize(coords, data.nvertices * 2/*#coords per vertex*/);
+  if (res != RES_OK) goto error;
+
+  /* Reserve the memory space for the plane indices */
+  res = darray_size_t_resize(ids, data.nprimitives * 3/*#ids per triangle*/);
+  if (res != RES_OK) goto error;
+
+  c_ptr = darray_double_data_get(coords);
+  FOR_EACH(i, 0, data.nvertices) {
+    d2_set(c_ptr + i * 2, data.positions + i * 3); /* don't get z */
+  }
+  i_ptr = darray_size_t_data_get(ids);
+  FOR_EACH(i, 0, data.nprimitives * 3) i_ptr[i] = data.indices[i];
+
+exit:
+  if(mesh) S3DUT(mesh_ref_put(mesh));
+  return res;
+error:
+  darray_double_clear(coords);
+  darray_size_t_clear(ids);
+  goto exit;
+}
+
 static res_T
 build_triangulated_plane
   (struct darray_double* coords,
@@ -398,7 +484,7 @@ build_triangulated_plane
   double size_min;
   double delta;
   res_T res = RES_OK;
-  ASSERT(coords && lower && upper && nsteps);
+  ASSERT(coords && ids && lower && upper && nsteps);
   ASSERT(!aabb_is_degenerated(lower, upper));
 
   darray_double_clear(coords);
@@ -470,7 +556,7 @@ error:
 }
 
 static res_T
-clip_triangulated_plane
+clip_triangulated_sheet
   (struct darray_double* coords,
    struct darray_size_t* ids,
    struct scpr_mesh* mesh,
@@ -1213,7 +1299,7 @@ priv_quadric_data_setup
 }
 
 static INLINE size_t
-priv_quadric_data_compute_slices_count
+priv_quadric_data_compute_slices_count_aabb
   (const enum ssol_quadric_type type,
    const union private_data* priv_data,
    const double lower[2],
@@ -1243,26 +1329,32 @@ priv_quadric_data_compute_slices_count
          parabolic_cylinder_z(upper, &priv_data->pcylinder));
       nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
       break;
-    case SSOL_QUADRIC_HEMISPHERE: {
-      /* need to clamp the range */
-      double l[2], u[2];
-      double r;
-      d2_set(u, upper);
-      r = d2_dot(u, u);
-      if(r > priv_data->hemisphere.sqr_radius)
-        d2_muld(u, u, sqrt(priv_data->hemisphere.sqr_radius / r));
-      d2_set(l, lower);
-      r = d2_dot(l, l);
-      if(r > priv_data->hemisphere.sqr_radius)
-        d2_muld(l, l, sqrt(priv_data->hemisphere.sqr_radius / r));
-      max_z = MMAX
-        (hemisphere_z(l, &priv_data->hemisphere),
-         hemisphere_z(u, &priv_data->hemisphere));
-      nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
-      break;
-    }
     default: FATAL("Unreachable code\n"); break;
   }
+  return nslices;
+}
+
+static INLINE size_t
+priv_quadric_data_compute_slices_count_radius
+  (const enum ssol_quadric_type type,
+   const union private_data* priv_data,
+   const double radius)
+{
+  size_t nslices;
+  double pt[2];
+  double max_z = -DBL_MAX;
+
+  ASSERT(priv_data && radius > 0);
+  switch (type) {
+    case SSOL_QUADRIC_HEMISPHERE:
+      d2(pt, 0, radius);
+      max_z = MMAX(max_z, hemisphere_z(pt, &priv_data->hemisphere));
+
+      nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+
   return nslices;
 }
 
@@ -1610,10 +1702,10 @@ ssol_punched_surface_setup
    const struct ssol_punched_surface* psurf)
 {
   double lower[2], upper[2]; /* Carvings AABB */
+  double radius;
   struct darray_double coords;
   struct darray_size_t ids;
-  struct ssol_carving* tmp_carvings = NULL;
-  size_t nslices, tmp_carvings_count;
+  size_t nslices;
   res_T res = RES_OK;
 
   darray_double_init(shape->dev->allocator, &coords);
@@ -1632,39 +1724,17 @@ ssol_punched_surface_setup
   shape->private_type.quadric = psurf->quadric->type;
 
   if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
-    size_t c;
-    struct get_ctx ctx;
-    tmp_carvings = (struct ssol_carving*)MEM_CALLOC
-      (shape->dev->allocator, 1 + psurf->nb_carvings, sizeof(struct ssol_carving));
-    if(!tmp_carvings) {
-      res = RES_MEM_ERR;
+    carvings_compute_radius(psurf->carvings, psurf->nb_carvings, &radius);
+    radius = MMIN(radius, psurf->quadric->data.hemisphere.radius);
+  } else {
+    carvings_compute_aabb(psurf->carvings, psurf->nb_carvings, lower, upper);
+    if(aabb_is_degenerated(lower, upper)) {
+      log_error(shape->dev,
+        "%s: infinite or null punched surface.\n",
+        FUNC_NAME);
+      res = RES_BAD_ARG;
       goto error;
     }
-    for (c = 0; c < psurf->nb_carvings; c++) {
-      tmp_carvings[c] = psurf->carvings[c];
-    }
-    /* add an implicit circular carving */
-    tmp_carvings[psurf->nb_carvings].get = &get_circular;
-    tmp_carvings[psurf->nb_carvings].operation = SSOL_AND;
-    tmp_carvings[psurf->nb_carvings].context = &ctx;
-    tmp_carvings[psurf->nb_carvings].nb_vertices = 1024;
-    ctx.nbvert = tmp_carvings[psurf->nb_carvings].nb_vertices;
-    ctx.two_pi_over_nbvert = 2 * PI / (double)ctx.nbvert;
-    ctx.radius = psurf->quadric->data.hemisphere.radius;
-    tmp_carvings_count = psurf->nb_carvings + 1;
-  }
-  else {
-    tmp_carvings = psurf->carvings;
-    tmp_carvings_count = psurf->nb_carvings;
-  }
-
-  carvings_compute_aabb(tmp_carvings, tmp_carvings_count, lower, upper);
-  if(aabb_is_degenerated(lower, upper)) {
-    log_error(shape->dev,
-      "%s: infinite or null punched surface.\n",
-      FUNC_NAME);
-    res = RES_BAD_ARG;
-    goto error;
   }
 
   /* Setup internal data */
@@ -1674,16 +1744,28 @@ ssol_punched_surface_setup
   if(psurf->quadric->slices_count_hint != SIZE_MAX) {
     nslices = psurf->quadric->slices_count_hint;
   } else {
-    nslices = priv_quadric_data_compute_slices_count
-      (shape->private_type.quadric, &shape->private_data, lower, upper);
+    if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
+      nslices = priv_quadric_data_compute_slices_count_radius
+        (shape->private_type.quadric, &shape->private_data, radius);
+    }
+    else {
+      nslices = priv_quadric_data_compute_slices_count_aabb
+        (shape->private_type.quadric, &shape->private_data, lower, upper);
+    }
   }
 
-  res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);
+  if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
+    res = build_triangulated_disk(&coords, &ids, radius, nslices);
+  } else {
+    res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);
+  }
   if(res != RES_OK) goto error;
-
-  res = clip_triangulated_plane
-    (&coords, &ids, shape->dev->scpr_mesh, tmp_carvings, tmp_carvings_count);
-  if(res != RES_OK) goto error;
+  
+  if(psurf->nb_carvings) {
+    res = clip_triangulated_sheet
+      (&coords, &ids, shape->dev->scpr_mesh, psurf->carvings, psurf->nb_carvings);
+    if(res != RES_OK) goto error;
+  }
 
   /* Setup the Star-3D shape to ray-trace */
   res = quadric_setup_s3d_shape_rt
@@ -1696,9 +1778,6 @@ ssol_punched_surface_setup
   if(res != RES_OK) goto error;
 
 exit:
-  if(tmp_carvings && tmp_carvings != psurf->carvings) {
-    MEM_RM(shape->dev->allocator, tmp_carvings);
-  }
   darray_double_release(&coords);
   darray_size_t_release(&ids);
   return res;
