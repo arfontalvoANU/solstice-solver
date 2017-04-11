@@ -188,8 +188,13 @@ Li(struct ssol_scene* scn,
 
     /* Retrieve and normalized the hit normal */
     switch(sshape->shape->type) {
-      case SHAPE_MESH: d3_normalize(N, d3_set_f3(N, hit.normal)); break;
-      case SHAPE_PUNCHED: d3_normalize(N, ray_data.N); break;
+      case SHAPE_MESH:
+        d3_normalize(N, d3_set_f3(N, hit.normal));
+        break;
+      case SHAPE_PUNCHED:
+      case SHAPE_ANALYTIC:
+        d3_normalize(N, ray_data.N);
+        break;
       default: FATAL("Unreachable code"); break;
     }
 

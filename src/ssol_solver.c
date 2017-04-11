@@ -327,6 +327,7 @@ point_update_from_hit
       d3_set_f3(pt->pos, tmpf);
       break;
     case SHAPE_PUNCHED:
+    case SHAPE_ANALYTIC:
       d3_normalize(pt->N, rdata->N);
       d3_muld(tmp, pt->dir, rdata->dst);
       d3_add(pt->pos, pt->pos, tmp);

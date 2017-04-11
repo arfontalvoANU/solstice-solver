@@ -203,7 +203,7 @@ struct ssol_quadric {
   /* 3x4 column major transformation of the quadric in object space */
   double transform[12];
 
-  /* Hint on the how to discretised */
+  /* Hint on how to discretise */
   size_t slices_count_hint;
 };
 
@@ -236,6 +236,41 @@ struct ssol_punched_surface {
 #define SSOL_PUNCHED_SURFACE_NULL__ { NULL, NULL, 0 }
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
+
+enum ssol_analytic_type {
+  SSOL_ANALYTIC_CYLINDER,
+  SSOL_ANALYTIC_SURFACE_TYPES_COUNT__
+};
+
+struct ssol_analytic_cylinder {
+  double radius;
+  double height;
+  unsigned nslices;
+  unsigned nstacks;
+};
+
+#define SSOL_ANALYTIC_CYLINDER_NULL__ { -1, -1, 0, 0 }
+static const struct ssol_analytic_cylinder SSOL_ANALYTIC_CYLINDER_NULL =
+SSOL_ANALYTIC_CYLINDER_NULL__;
+
+struct ssol_analytic_surface {
+  enum ssol_analytic_type type;
+  union {
+    struct ssol_analytic_cylinder cylinder;
+  } data;
+
+  /* 3x4 column major transformation of the quadric in object space */
+  double transform[12];
+};
+
+#define SSOL_ANALYTIC_SURFACE_NULL__  {                                        \
+  SSOL_ANALYTIC_SURFACE_TYPES_COUNT__,                                         \
+  SSOL_ANALYTIC_CYLINDER_NULL__,                                               \
+  {1,0,0, 0,1,0, 0,0,1, 0,0,0},                                                \
+}
+
+static const struct ssol_analytic_surface SSOL_ANALYTIC_SURFACE_NULL =
+SSOL_ANALYTIC_SURFACE_NULL__;
 
 struct ssol_medium {
   double absorptivity;
@@ -394,6 +429,14 @@ struct ssol_mc_receiver {
 }
 static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
   SSOL_MC_RECEIVER_NULL__;
+
+#define MC_RCV_NONE__ {                                                        \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    0, NULL, NULL                                                              \
+}
 
 struct ssol_mc_shape {
   /* Internal data */
@@ -635,6 +678,11 @@ ssol_shape_create_punched_surface
    struct ssol_shape** shape);
 
 SSOL_API res_T
+ssol_shape_create_analytic_surface
+(struct ssol_device* dev,
+  struct ssol_shape** shape);
+
+SSOL_API res_T
 ssol_shape_ref_get
   (struct ssol_shape* shape);
 
@@ -683,6 +731,11 @@ ssol_mesh_setup
    const struct ssol_vertex_data attribs[],
    const unsigned nattribs,
    void* data);
+
+SSOL_API res_T
+ssol_analytic_surface_setup
+  (struct ssol_shape* shape,
+   const struct ssol_analytic_surface* analytic_surface);
 
 /*******************************************************************************
  * Material API - Define the surfacic (e.g.: BRDF) as well as the volumic

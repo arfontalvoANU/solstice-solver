@@ -23,6 +23,7 @@
 enum shape_type {
   SHAPE_MESH,
   SHAPE_PUNCHED,
+  SHAPE_ANALYTIC,
   SHAPE_TYPES_COUNT__
 };
 
@@ -48,11 +49,24 @@ struct priv_hemisphere_data {
   double sqr_radius;
 };
 
-union priv_quadric_data {
+struct priv_analytic_cylinder {
+  double radius;
+  double height;
+  unsigned nslices;
+  unsigned nstacks;
+};
+
+union private_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
   struct priv_pcylinder_data pcylinder;
   struct priv_hemisphere_data hemisphere;
+  struct priv_analytic_cylinder cylinder;
+};
+
+union private_type {
+  enum ssol_quadric_type quadric;
+  enum ssol_analytic_type analytic;
 };
 
 struct ssol_shape {
@@ -60,13 +74,23 @@ struct ssol_shape {
 
   struct s3d_shape* shape_rt; /* Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Star-3D shape to sample */
-  union priv_quadric_data priv_quadric;
-  struct ssol_quadric quadric;
+  union private_data private_data;
+  union private_type private_type;
+  double transform[12];
   double shape_rt_area, shape_samp_area;
 
   struct ssol_device* dev;
   ref_T ref;
 };
+
+typedef int(*intersect_local_fn)
+  (const struct ssol_shape* shape,
+   const double org[3],
+   const double dir[3],
+   const double hint,
+   double pt[3],
+   double N[3],
+   double* dist);
 
 /* Project pos onto the punched surface and retrieve its associated normal */
 extern LOCAL_SYM void
@@ -96,6 +120,37 @@ shape_fetched_raw_vertex_attrib
    const unsigned ivert,
    const enum ssol_attrib_usage usage,
    double value[]);
+
+/* Compute ray/punched shape intersection */
+extern LOCAL_SYM int punched_shape_intersect_local
+  (const struct ssol_shape* shape,
+   const double org[3],
+   const double dir[3],
+   const double hint,
+   double pt[3],
+   double N[3],
+   double* dist); 
+
+/* Compute ray/analytic shape intersection */
+extern LOCAL_SYM int analytic_intersect_local
+  (const struct ssol_shape* shape,
+   const double org[3],
+   const double dir[3],
+   const double hint,
+   double pt[3],
+   double N[3],
+   double* dist);
+
+/* Compute ray/shape intersection */
+extern LOCAL_SYM double
+shape_trace_ray
+  (struct ssol_shape* shape,
+   const double transform[12], /* Shape to world space transformation */
+   const double org[3], /* World space position near of the ray origin */
+   const double dir[3], /* World space ray direction */
+   const double hint_dst, /* Hint on the hit distance */
+   double N_quadric[3], /* World space normal onto the quadric */
+   intersect_local_fn local);
 
 #endif /* SSOL_SHAPE_C_H */
 

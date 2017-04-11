@@ -65,8 +65,13 @@ Li
 
     /* Retrieve and normalized the hit normal */
     switch(sshape->shape->type) {
-      case SHAPE_MESH: f3_normalize(N, hit.normal); break;
-      case SHAPE_PUNCHED: f3_normalize(N, f3_set_d3(N, ray_data.N)); break;
+      case SHAPE_MESH:
+        f3_normalize(N, hit.normal);
+        break;
+      case SHAPE_PUNCHED:
+      case SHAPE_ANALYTIC:
+        f3_normalize(N, f3_set_d3(N, ray_data.N));
+        break;
       default: FATAL("Unreachable code"); break;
     }
     ASSERT(f3_is_normalized(N));

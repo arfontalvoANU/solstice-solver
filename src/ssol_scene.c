@@ -478,10 +478,10 @@ hit_filter_function
       /* Project the hit position into the punched shape */
       d3_set_f3(dir, dirf);
       d3_set_f3(org, orgf);
-      dst = punched_shape_trace_ray(sshape->shape, inst->transform, org, dir,
-        hit->distance, N);
+      dst = shape_trace_ray(sshape->shape, inst->transform, org, dir,
+        hit->distance, N, punched_shape_intersect_local);
       if(dst >= FLT_MAX) {
-        /* No projection is found => the ray does not intersect the quadric */
+        /* No projection found => the ray does not intersect the quadric */
         return 1;
       }
       if((float)dst <= rdata->range_min) {
@@ -499,6 +499,17 @@ hit_filter_function
         return 1;
       }
       break;
+    case SHAPE_ANALYTIC:
+      d3_set_f3(dir, dirf);
+      d3_set_f3(org, orgf);
+      dst = shape_trace_ray(sshape->shape, inst->transform, org, dir, 
+        hit->distance, N, analytic_intersect_local);
+      if(dst >= FLT_MAX) {
+        /* No projection found => the ray does not intersect the analytic surface */
+        return 1;
+      }
+      hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
+      break;
     default: FATAL("Unreachable code.\n"); break;
   }
   ASSERT(hit_side == SSOL_BACK || hit_side == SSOL_FRONT);
@@ -513,8 +524,8 @@ hit_filter_function
     if((inst->receiver_mask & (int)hit_side) == 0) return 1;
   }
 
-  /* Save the nearest intersected quadric point */
-  if(sshape->shape->type == SHAPE_PUNCHED && rdata->dst >= dst) {
+  /* Save the nearest intersected quadric/analytic point */
+  if(sshape->shape->type != SHAPE_MESH && rdata->dst >= dst) {
     d3_set(rdata->N, N);
     rdata->dst = dst;
   }
