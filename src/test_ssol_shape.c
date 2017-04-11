@@ -269,6 +269,24 @@ main(int argc, char** argv)
   CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
   analytic.data.cylinder.nstacks = 10;
 
+  analytic.type = SSOL_ANALYTIC_SPHERE;
+  analytic.data.sphere.radius = 10;
+  analytic.data.sphere.nslices = 10;
+  analytic.data.sphere.nstacks = 10;
+  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_OK);
+
+  analytic.data.sphere.radius = 0;
+  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
+  analytic.data.sphere.radius = 10;
+
+  analytic.data.sphere.nslices = 0;
+  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
+  analytic.data.sphere.nslices = 10;
+
+  analytic.data.sphere.nstacks = 0;
+  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
+  analytic.data.sphere.nstacks = 10;
+
   analytic.type = (enum ssol_analytic_type)999;
   CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
 

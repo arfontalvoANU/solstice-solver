@@ -153,6 +153,14 @@ check_cylinder(const struct ssol_analytic_cylinder* cylinder)
     && cylinder->nslices > 2 && cylinder->nstacks > 0;
 }
 
+static FINLINE int
+check_sphere(const struct ssol_analytic_sphere* sphere)
+{
+  return sphere != NULL
+    && sphere->radius > 0
+    && sphere->nslices > 2 && sphere->nstacks > 0;
+}
+
 static INLINE int
 check_analytic_surface(const struct ssol_analytic_surface* analytic_surface)
 {
@@ -163,6 +171,8 @@ check_analytic_surface(const struct ssol_analytic_surface* analytic_surface)
   switch(analytic_surface->type) {
   case SSOL_ANALYTIC_CYLINDER:
     return check_cylinder(&analytic_surface->data.cylinder);
+  case SSOL_ANALYTIC_SPHERE:
+    return check_sphere(&analytic_surface->data.sphere);
   default: return 0;
   }
 }
@@ -923,6 +933,15 @@ analytic_cylinder_gradient_local
   grad[2] = 0;
 }
 
+static FINLINE void
+analytic_sphere_gradient_local
+(const double pt[3],
+  double grad[3])
+{
+  ASSERT(pt && grad);
+  d3_set(grad, pt);
+}
+
 static FINLINE int
 quadric_plane_intersect_local
   (const double org[3],
@@ -1083,6 +1102,30 @@ analytic_cylinder_intersect_local
   return 1;
 }
 
+static FINLINE int
+analytic_sphere_intersect_local
+(const struct priv_analytic_sphere* analytic,
+  const double org[3],
+  const double dir[3],
+  const double hint,
+  double hit_pt[3],
+  double grad[3],
+  double* dist) /* in/out: */
+{
+  double dst[2];
+  const double a = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
+  const double b = 2 * (org[0] * dir[0] + org[1] * dir[1] + org[2] * dir[2]);
+  const double c = org[0] * org[0] + org[1] * org[1] + org[2] * org[2]
+    - analytic->sqr_radius;
+  const int n = solve_second(a, b, c, hint, dst);
+
+  if (!n) return 0;
+  d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst[0]));
+  analytic_sphere_gradient_local(hit_pt, grad);
+  *dist = *dst;
+  return 1;
+}
+
 static FINLINE void
 punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
 {
@@ -1200,6 +1243,10 @@ analytic_intersect_local
     case SSOL_ANALYTIC_CYLINDER:
       hit = analytic_cylinder_intersect_local
         (&shape->private_data.cylinder, org, dir, hint, pt, N, dist);
+      break;
+    case SSOL_ANALYTIC_SPHERE:
+      hit = analytic_sphere_intersect_local
+        (&shape->private_data.sphere, org, dir, hint, pt, N, dist);
       break;
     default: FATAL("Unreachable code.\n"); break;
   }
@@ -1407,6 +1454,7 @@ analytic_setup_s3d_shape_rt
   switch(shape->private_type.analytic) {
   case SSOL_ANALYTIC_CYLINDER:
     ASSERT(shape->private_data.cylinder.nslices < UINT_MAX);
+    ASSERT(shape->private_data.cylinder.nstacks < UINT_MAX);
     res = s3dut_create_cylinder(
       shape->dev->allocator,
       shape->private_data.cylinder.radius,
@@ -1416,6 +1464,20 @@ analytic_setup_s3d_shape_rt
       &mesh);
     if(res != RES_OK) {
       fprintf(stderr, "Could not create the cylinder 3D data.\n");
+      goto error;
+    }
+    break;
+  case SSOL_ANALYTIC_SPHERE:
+    ASSERT(shape->private_data.sphere.nslices < UINT_MAX);
+    ASSERT(shape->private_data.sphere.nstacks < UINT_MAX);
+    res = s3dut_create_sphere(
+      shape->dev->allocator,
+      shape->private_data.sphere.radius,
+      shape->private_data.sphere.nslices,
+      shape->private_data.sphere.nstacks,
+      &mesh);
+    if (res != RES_OK) {
+      fprintf(stderr, "Could not create the sphere 3D data.\n");
       goto error;
     }
     break;
@@ -1468,6 +1530,18 @@ priv_analytic_cylinder_data_setup
 }
 
 static INLINE void
+priv_analytic_sphere_data_setup
+(struct priv_analytic_sphere* priv_data,
+  const struct ssol_analytic_sphere* analytic)
+{
+  ASSERT(priv_data && analytic);
+  priv_data->radius = analytic->radius;
+  priv_data->sqr_radius = analytic->radius * analytic->radius;
+  priv_data->nslices = analytic->nslices;
+  priv_data->nstacks = analytic->nstacks;
+}
+
+static INLINE void
 priv_analytic_data_setup
   (union private_data* priv_data,
    const struct ssol_analytic_surface* analytic)
@@ -1477,6 +1551,10 @@ priv_analytic_data_setup
   case SSOL_ANALYTIC_CYLINDER:
     priv_analytic_cylinder_data_setup
       (&priv_data->cylinder, &analytic->data.cylinder);
+    break;
+  case SSOL_ANALYTIC_SPHERE:
+    priv_analytic_sphere_data_setup
+      (&priv_data->sphere, &analytic->data.sphere);
     break;
   default: FATAL("Unreachable code\n"); break;
   }

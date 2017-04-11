@@ -239,6 +239,7 @@ static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
 
 enum ssol_analytic_type {
   SSOL_ANALYTIC_CYLINDER,
+  SSOL_ANALYTIC_SPHERE,
   SSOL_ANALYTIC_SURFACE_TYPES_COUNT__
 };
 
@@ -248,15 +249,24 @@ struct ssol_analytic_cylinder {
   unsigned nslices;
   unsigned nstacks;
 };
-
 #define SSOL_ANALYTIC_CYLINDER_NULL__ { -1, -1, 0, 0 }
 static const struct ssol_analytic_cylinder SSOL_ANALYTIC_CYLINDER_NULL =
 SSOL_ANALYTIC_CYLINDER_NULL__;
+
+struct ssol_analytic_sphere {
+  double radius;
+  unsigned nslices;
+  unsigned nstacks;
+};
+#define SSOL_ANALYTIC_SPHERE_NULL__ { -1, 0 }
+static const struct ssol_analytic_sphere SSOL_ANALYTIC_SPHERE_NULL =
+SSOL_ANALYTIC_SPHERE_NULL__;
 
 struct ssol_analytic_surface {
   enum ssol_analytic_type type;
   union {
     struct ssol_analytic_cylinder cylinder;
+    struct ssol_analytic_sphere sphere;
   } data;
 
   /* 3x4 column major transformation of the quadric in object space */

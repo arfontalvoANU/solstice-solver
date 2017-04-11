@@ -56,12 +56,20 @@ struct priv_analytic_cylinder {
   unsigned nstacks;
 };
 
+struct priv_analytic_sphere {
+  double radius;
+  double sqr_radius;
+  unsigned nslices;
+  unsigned nstacks;
+};
+
 union private_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
   struct priv_pcylinder_data pcylinder;
   struct priv_hemisphere_data hemisphere;
   struct priv_analytic_cylinder cylinder;
+  struct priv_analytic_sphere sphere;
 };
 
 union private_type {
