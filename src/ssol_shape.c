@@ -1405,16 +1405,6 @@ priv_quadric_data_compute_slices_count_radius
   return nslices;
 }
 
-static void 
-get_circular(const size_t ivert, double position[2], void* ctx)
-{
-  struct get_ctx* data = (struct get_ctx*)ctx;
-  const double a = (double)ivert * data->two_pi_over_nbvert;
-  ASSERT(ivert < data->nbvert);
-  position[0] = data->radius * cos(a);
-  position[1] = data->radius * sin(a);
-}
-
 static void
 mesh_ctx_s3dut_get_ids(const unsigned itri, unsigned ids[3], void* ctx)
 {
