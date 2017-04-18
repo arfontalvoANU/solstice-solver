@@ -150,9 +150,6 @@ Li(struct ssol_scene* scn,
   enum ssol_side_flag side;
   int russian_roulette = 0;
   int type;
-  int reject_sample;
-  int nfailures;
-  const int MAX_FAILURES = 10;
   res_T res = RES_OK;
   ASSERT(scn && view && org && dir && val);
 
@@ -230,22 +227,18 @@ Li(struct ssol_scene* scn,
     }
 
     /* Sampling a bounce direction */
-    nfailures = 0;
-    do {
-      reject_sample = 0;
-      R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
-      ASSERT(0 <= R && R <= 1);
-      cos_wi_Ng = d3_dot(wi, frag.Ng);
-      if(((type & SSF_TRANSMISSION) && cos_wi_Ng > 0)
-      || ((type & SSF_REFLECTION)   && cos_wi_Ng < 0)) {
-        /* Reject inconsistent direction due to normal perturbation exepted if
-         * no other direction can be generated */
-        R = 0;
-        reject_sample = (++nfailures < MAX_FAILURES && !(type & SSF_SPECULAR));
-      }
-    } while(reject_sample);
-    f3_set_d3(ray_dir, wi);
+    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
+    ASSERT(0 <= R && R <= 1);
 
+    /* Due to the shading normal, the sampled direction may point in the wrong
+     * direction wrt the sampled BSDF component. */
+    cos_wi_Ng = d3_dot(frag.Ng, wi);
+    if((cos_wi_Ng > 0 && (type & SSF_TRANSMISSION))
+    || (cos_wi_Ng < 0 && (type & SSF_REFLECTION))) {
+      R = 0;
+    }
+
+    f3_set_d3(ray_dir, wi);
     if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, &medium, &medium);
 
     if(!russian_roulette) {
