@@ -13,6 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
+#define _POSIX_C_SOURCE 200112L /* nextafter support */
+
 #include "ssol.h"
 #include "ssol_image_c.h"
 #include "ssol_device_c.h"
@@ -21,11 +23,35 @@
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 
+#include <math.h>
 #include <string.h>
 
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static INLINE double
+map_address(const double address, const enum ssol_address_mode mode)
+{
+  double dbl;
+  double i;
+  switch(mode) {
+    case SSOL_ADDRESS_CLAMP: dbl = CLAMP(address, 0, nextafter(1,0)); break;
+    case SSOL_ADDRESS_REPEAT:
+      dbl = modf(address, &i);
+      if(dbl < 0) dbl = 1.0+dbl;
+      break;
+    default: FATAL("Unreachable code.\n"); break;
+  }
+  return dbl;
+}
+
+static INLINE const char*
+get_pixel(const struct ssol_image* img, const size_t x, const size_t y)
+{
+  ASSERT(img && x < img->size[0] && y < img->size[1]);
+  return img->mem + y*img->pitch + x*ssol_sizeof_pixel_format(img->format);
+}
+
 static void
 image_release(ref_T* ref)
 {
@@ -136,7 +162,7 @@ ssol_image_get_layout
 }
 
 res_T
-ssol_image_map(const struct ssol_image* img, void** mem)
+ssol_image_map(const struct ssol_image* img, char** mem)
 {
   if(!img || !mem) return RES_BAD_ARG;
   *mem = img->mem;
@@ -147,6 +173,57 @@ res_T ssol_image_unmap(const struct ssol_image* img)
 {
   if(!img) return RES_BAD_ARG;
   /* Do nothing */
+  return RES_OK;
+}
+
+res_T
+ssol_image_sample
+  (const struct ssol_image* img,
+   const enum ssol_filter_mode filter,
+   const enum ssol_address_mode address_u,
+   const enum ssol_address_mode address_v,
+   const double uv[2],
+   void* val)
+{
+  double* z00, *z01, *z10, *z11;
+  double x0, y0, x1, y1;
+  double texsz[2];
+  double s, t;
+  double* pix = val;
+  double integer;
+
+  if(!img || !uv || !val) return RES_BAD_ARG;
+
+  /* Only double3 pixel format is currently supported */
+  if(img->format != SSOL_PIXEL_DOUBLE3) return RES_BAD_ARG;
+
+  x0 = map_address(uv[0], address_u) * (double)img->size[0];
+  y0 = map_address(uv[1], address_v) * (double)img->size[1];
+
+  switch(filter) {
+    case SSOL_FILTER_NEAREST:
+      z00 = (double*)get_pixel(img, (size_t)x0, (size_t)y0);
+      pix[0] = z00[0];
+      pix[1] = z00[1];
+      pix[2] = z00[2];
+      break;
+    case SSOL_FILTER_LINEAR:
+      texsz[0] = 1.0/(double)img->size[0];
+      texsz[1] = 1.0/(double)img->size[1];
+      x1 = map_address(uv[0] + texsz[0], address_u) * (double)img->size[0];
+      y1 = map_address(uv[1] + texsz[1], address_v) * (double)img->size[1];
+      z00 = (double*)get_pixel(img, (size_t)x0, (size_t)y0);
+      z01 = (double*)get_pixel(img, (size_t)x0, (size_t)y1);
+      z10 = (double*)get_pixel(img, (size_t)x1, (size_t)y0);
+      z11 = (double*)get_pixel(img, (size_t)x1, (size_t)y1);
+      s = modf(x0, &integer);
+      t = modf(y0, &integer);
+      pix[0] = (1-s)*((1-t)*z00[0] + t*z01[0]) + s*((1-t)*z10[0] + t*z11[0]);
+      pix[1] = (1-s)*((1-t)*z00[1] + t*z01[1]) + s*((1-t)*z10[1] + t*z11[1]);
+      pix[2] = (1-s)*((1-t)*z00[2] + t*z01[2]) + s*((1-t)*z10[2] + t*z11[2]);
+      break;
+    default: FATAL("Unreachable code.\n"); break;
+  }
   return RES_OK;
 }
 

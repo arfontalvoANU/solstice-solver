@@ -46,6 +46,8 @@ struct quadric_mesh_context {
   const size_t* ids;
   const union priv_quadric_data* quadric;
   const double* transform; /* 3x4 column major matrix */
+  double lower[2];
+  double upper[2];
 };
 
 /*******************************************************************************
@@ -160,6 +162,20 @@ mesh_get_pos(const size_t ivert, double pos[2], void* ctx)
   ASSERT(pos && ctx);
   pos[0] = msh->coords[i+0];
   pos[1] = msh->coords[i+1];
+}
+
+static void
+quadric_mesh_get_uv(const unsigned ivert, float uv[2], void* ctx)
+{
+  const size_t i = ivert*2/*#coords per vertex*/;
+  const struct quadric_mesh_context* msh = ctx;
+  double tmp[2];
+  ASSERT(uv && ctx);
+  tmp[0] = (msh->coords[i+0] - msh->lower[0]) / (msh->upper[0] - msh->lower[0]);
+  tmp[1] = (msh->coords[i+1] - msh->lower[1]) / (msh->upper[1] - msh->lower[1]);
+
+  uv[0] = (float)tmp[0];
+  uv[1] = (float)tmp[1];
 }
 
 static void
@@ -514,53 +530,62 @@ quadric_setup_s3d_shape_rt
   (const struct ssol_shape* shape,
    const struct darray_double* coords,
    const struct darray_size_t* ids,
+   const double lower[2],
+   const double upper[2],
    struct s3d_shape* s3dshape,
    double* rt_area)
 {
   struct quadric_mesh_context ctx;
-  struct s3d_vertex_data vdata;
+  struct s3d_vertex_data vdata[2];
   unsigned nverts;
   unsigned ntris;
   res_T res;
-  ASSERT(shape && coords && ids && s3dshape && rt_area);
+  ASSERT(shape && coords && ids && lower && upper && s3dshape && rt_area);
   ASSERT(darray_double_size_get(coords)%2 == 0);
   ASSERT(darray_size_t_size_get(ids)%3 == 0);
   ASSERT(darray_double_size_get(coords)/2 <= UINT_MAX);
   ASSERT(darray_size_t_size_get(ids)/3 <= UINT_MAX);
+  ASSERT(!aabb_is_degenerated(lower, upper));
 
   nverts = (unsigned)darray_double_size_get(coords) / 2/*#coords per vertex*/;
   ntris = (unsigned)darray_size_t_size_get(ids) / 3/*#ids per triangle*/;
   ctx.coords = darray_double_cdata_get(coords);
   ctx.ids = darray_size_t_cdata_get(ids);
   ctx.transform = shape->quadric.transform;
+  d2_set(ctx.lower, lower);
+  d2_set(ctx.upper, upper);
 
-  vdata.usage = S3D_POSITION;
-  vdata.type = S3D_FLOAT3;
-  vdata.get = NULL;
+  vdata[0].usage = S3D_POSITION;
+  vdata[0].type = S3D_FLOAT3;
+  vdata[0].get = NULL;
+
+  vdata[1].usage = SSOL_TO_S3D_TEXCOORD;
+  vdata[1].type = S3D_FLOAT2;
+  vdata[1].get = quadric_mesh_get_uv;
+
   ctx.quadric = &shape->priv_quadric;
   switch (shape->quadric.type) {
     case SSOL_QUADRIC_PARABOL:
-      vdata.get = quadric_mesh_parabol_get_pos;
+      vdata[0].get = quadric_mesh_parabol_get_pos;
       break;
     case SSOL_QUADRIC_HYPERBOL:
-      vdata.get = quadric_mesh_hyperbol_get_pos;
+      vdata[0].get = quadric_mesh_hyperbol_get_pos;
       break;
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
-      vdata.get = quadric_mesh_parabolic_cylinder_get_pos;
+      vdata[0].get = quadric_mesh_parabolic_cylinder_get_pos;
       break;
     case SSOL_QUADRIC_PLANE:
-      vdata.get = quadric_mesh_plane_get_pos;
+      vdata[0].get = quadric_mesh_plane_get_pos;
       break;
     default: FATAL("Unreachable code.\n"); break;
   }
 
   res = s3d_mesh_setup_indexed_vertices
-    (s3dshape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
+    (s3dshape, ntris, quadric_mesh_get_ids, nverts, vdata, 2, &ctx);
   if(res != RES_OK) return res;
 
-  ASSERT(vdata.get);
   *rt_area = mesh_compute_area
-    (ntris, quadric_mesh_get_ids, nverts, vdata.get, &ctx);
+    (ntris, quadric_mesh_get_ids, nverts, vdata[0].get, &ctx);
   return RES_OK;
 }
 
@@ -571,31 +596,41 @@ quadric_setup_s3d_shape_samp
   (const struct ssol_quadric* quadric,
    const struct darray_double* coords,
    const struct darray_size_t* ids,
+   const double lower[2],
+   const double upper[2],
    struct s3d_shape* shape,
    double *samp_area)
 {
   struct quadric_mesh_context ctx;
-  struct s3d_vertex_data vdata;
+  struct s3d_vertex_data vdata[2];
   unsigned nverts;
   unsigned ntris;
   res_T res;
-  ASSERT(coords && ids && shape);
+  ASSERT(coords && ids && shape && ids && lower && samp_area);
   ASSERT(darray_double_size_get(coords)%2 == 0);
   ASSERT(darray_size_t_size_get(ids)%3 == 0);
   ASSERT(darray_double_size_get(coords)/2 <= UINT_MAX);
   ASSERT(darray_size_t_size_get(ids)/3 <= UINT_MAX);
+  ASSERT(!aabb_is_degenerated(lower, upper));
 
   nverts = (unsigned)darray_double_size_get(coords) / 2/*#coords per vertex*/;
   ntris = (unsigned)darray_size_t_size_get(ids) / 3/*#ids per triangle*/;
   ctx.coords = darray_double_cdata_get(coords);
   ctx.ids = darray_size_t_cdata_get(ids);
   ctx.transform = quadric->transform;
+  d2_set(ctx.lower, lower);
+  d2_set(ctx.upper, upper);
 
-  vdata.usage = S3D_POSITION;
-  vdata.type = S3D_FLOAT3;
-  vdata.get = quadric_mesh_plane_get_pos;
+  vdata[0].usage = S3D_POSITION;
+  vdata[0].type = S3D_FLOAT3;
+  vdata[0].get = quadric_mesh_plane_get_pos;
+
+  vdata[1].usage = SSOL_TO_S3D_TEXCOORD;
+  vdata[1].type = S3D_FLOAT2;
+  vdata[1].get = quadric_mesh_get_uv;
+
   res = s3d_mesh_setup_indexed_vertices
-    (shape, ntris, quadric_mesh_get_ids, nverts, &vdata, 1, &ctx);
+    (shape, ntris, quadric_mesh_get_ids, nverts, vdata, 2, &ctx);
   if(res != RES_OK) return res;
   *samp_area = mesh_compute_area
     (ntris, quadric_mesh_get_ids, nverts, quadric_mesh_plane_get_pos, &ctx);
@@ -1289,13 +1324,13 @@ ssol_punched_surface_setup
   if(res != RES_OK) goto error;
 
   /* Setup the Star-3D shape to ray-trace */
-  res = quadric_setup_s3d_shape_rt
-    (shape, &coords, &ids, shape->shape_rt, &shape->shape_rt_area);
+  res = quadric_setup_s3d_shape_rt(shape, &coords, &ids, lower, upper,
+    shape->shape_rt, &shape->shape_rt_area);
   if(res != RES_OK) goto error;
 
   /* Setup the Star-3D shape to sample */
-  res = quadric_setup_s3d_shape_samp
-    (psurf->quadric, &coords, &ids, shape->shape_samp, &shape->shape_samp_area);
+  res = quadric_setup_s3d_shape_samp(psurf->quadric, &coords, &ids, lower,
+    upper, shape->shape_samp, &shape->shape_samp_area);
   if(res != RES_OK) goto error;
 
 exit:

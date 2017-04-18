@@ -92,6 +92,16 @@ enum ssol_pixel_format {
   SSOL_PIXEL_FORMATS_COUNT__
 };
 
+enum ssol_filter_mode {
+  SSOL_FILTER_LINEAR,
+  SSOL_FILTER_NEAREST
+};
+
+enum ssol_address_mode {
+  SSOL_ADDRESS_CLAMP,
+  SSOL_ADDRESS_REPEAT
+};
+
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
@@ -229,16 +239,27 @@ struct ssol_medium {
 #define SSOL_MEDIUM_VACUUM__ { 0, 1 }
 static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
 
+struct ssol_surface_fragment {
+  double dir[3]; /* World space incoming direction. Point forward the surface */
+  double P[3]; /* World space position */
+  double Ng[3]; /* Normalized world space geometry normal */
+  double Ns[3]; /* Normalized world space shading normal */
+  double uv[2]; /* Texture coordinates */
+  double dPdu[3]; /* Partial derivative of the position in u */
+  double dPdv[3]; /* Partial derivative of the position in v */
+};
+
+#define SSOL_SURFACE_FRAGMENT_NULL__ \
+  {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}, {0,0,0}, {0,0,0}}
+static const struct ssol_surface_fragment SSOL_SURFACE_FRAGMENT_NULL =
+  SSOL_SURFACE_FRAGMENT_NULL__;
+
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
-   const double wavelength, /* In nanometer */
-   const double P[3], /* World space position */
-   const double Ng[3], /* World space geometry normal */
-   const double Ns[3], /* World space shading normal */
-   const double uv[2], /* Texture coordinates */
-   const double w[3], /* Incoming direction. Point toward the surface */
+   const double wavelength,
+   const struct ssol_surface_fragment* fragment,
    double* val); /* Returned value */
 
 /* Dielectric material shader */
@@ -523,11 +544,20 @@ ssol_image_get_layout
 SSOL_API res_T
 ssol_image_map
   (const struct ssol_image* image,
-   void** memory);
+   char** memory);
 
 SSOL_API res_T
 ssol_image_unmap
   (const struct ssol_image* image);
+
+SSOL_API res_T
+ssol_image_sample
+  (const struct ssol_image* image,
+   const enum ssol_filter_mode filter,
+   const enum ssol_address_mode address_u,
+   const enum ssol_address_mode address_v,
+   const double uv[2],
+   void* val);
 
 /* Helper function that matches the `ssol_write_pixels_T' functor type */
 SSOL_API res_T
@@ -870,7 +900,10 @@ SSOL_API void*
 ssol_param_buffer_allocate
   (struct ssol_param_buffer* buf,
    const size_t size,
-   const size_t alignment); /* Power of 2 in [1, 64] */
+   const size_t alignment, /* Power of 2 in [1, 64] */
+   /* Functor to invoke on the allocated memory priorly to its destruction.
+    * May be NULL */
+   void (*release)(void*));
 
 /* Retrieve the address of the first allocated parameter */
 SSOL_API void*

@@ -108,12 +108,11 @@ sun_lighting
   d3_minus(wi, sun->direction);
 
   /* The point look backward the sun */
-  if(d3_dot(wi, N) < 0) return 0.0;
+  cos_wi_N = d3_dot(wi, N);
+  if(cos_wi_N < 0 || eq_eps(cos_wi_N, 0, 1.e-6)) return 0.0;
 
   R = ssf_bsdf_eval(bsdf, wo, N, wi);
   if(R <= 0) return 0.0;
-
-  cos_wi_N = d3_dot(wi, N);
 
   f3_set_d3(ray_dir, wi);
   S3D(scene_view_trace_ray(view, ray_org, ray_dir, ray_range, ray_data, &hit));
@@ -135,7 +134,7 @@ Li(struct ssol_scene* scn,
   struct ssol_instance* inst;
   struct ssol_material* mtl;
   const struct shaded_shape* sshape;
-  struct surface_fragment frag;
+  struct ssol_surface_fragment frag;
   size_t isshape;
   double throughput = 1.0;
   double wi[3], o[3], uv[3];
@@ -144,6 +143,7 @@ Li(struct ssol_scene* scn,
   double L = 0;
   double R;
   double pdf;
+  double cos_wi_Ng;
   const float ray_range[2] = {0, FLT_MAX};
   float ray_org[3];
   float ray_dir[3];
@@ -203,9 +203,14 @@ Li(struct ssol_scene* scn,
     }
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
+    material_shade_normal(mtl, &frag, 1/*TODO wlen*/, frag.Ns);
+
+    /* Shaded normal may look backward the outgoing direction */
+    if(d3_dot(frag.Ns, wo) > 0) break;
+
     SSF(bsdf_clear(ctx->bsdf));
-    res = material_shade_rendering
-      (mtl, &frag, 1/*TODO wavelength*/, &medium, ctx->bsdf);
+    res = material_setup_bsdf
+      (mtl, &frag, 1/*TODO wavelength*/, &medium, 1/*Rendering*/, ctx->bsdf);
     if(res != RES_OK) goto error;
 
     /* Update the ray */
@@ -218,19 +223,29 @@ Li(struct ssol_scene* scn,
     d3_minus(wo, wo);
     if(scn->sun) {
       L += throughput * sun_lighting
-        (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
+        (scn->sun, view, &ray_data, ctx->bsdf, wo, frag.Ns, ray_org);
     }
 
+    /* Sampling a bounce direction */
     R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
     ASSERT(0 <= R && R <= 1);
+
+    /* Due to the shading normal, the sampled direction may point in the wrong
+     * direction wrt the sampled BSDF component. */
+    cos_wi_Ng = d3_dot(frag.Ng, wi);
+    if((cos_wi_Ng > 0 && (type & SSF_TRANSMISSION))
+    || (cos_wi_Ng < 0 && (type & SSF_REFLECTION))) {
+      R = 0;
+    }
+
     f3_set_d3(ray_dir, wi);
     if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, &medium, &medium);
 
     if(!russian_roulette) {
-      throughput *= fabs(d3_dot(wi, N)) * R;
+      throughput *= fabs(d3_dot(wi, frag.Ns)) * R;
     } else {
       if(ssp_rng_canonical(ctx->rng) >= R) break;
-      throughput *= d3_dot(wi, N);
+      throughput *= fabs(d3_dot(wi, frag.Ns));
     }
 
     if(throughput <= 0) break;
@@ -271,7 +286,7 @@ draw_pixel
   ctx = darray_thread_context_data_get(thread_ctxs) + ithread;
 
   FOR_EACH(isample, 0, nsamples) {
-    const int MAX_NFAILURES = 10;
+    const int MAX_NFAILURES = 100;
     double weight[3];
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];

@@ -360,7 +360,7 @@ point_shade
    double dir[3])
 {
   struct ssol_material* mtl;
-  struct surface_fragment frag;
+  struct ssol_surface_fragment frag;
   double r = 1;
   double wi[3], pdf;
   int type;
@@ -383,7 +383,7 @@ point_shade
   /* Shade the surface fragment */
   mtl = point_get_material(pt);
   SSF(bsdf_clear(bsdf));
-  res = material_shade(mtl, &frag, pt->wl, medium, bsdf);
+  res = material_setup_bsdf(mtl, &frag, pt->wl, medium, 0, bsdf);
   if(res != RES_OK) return res;
 
   /* By convention, Star-SF assumes that incoming and reflected
@@ -393,8 +393,17 @@ point_shade
   if(d3_dot(wi, frag.Ns) <= 0) {
     r = 0;
   } else {
+    double cos_dir_Ng;
     r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &type, &pdf);
     ASSERT(0 <= r && r <= 1);
+
+    /* Due to the shading normal, the sampled direction may point in the wrong
+     * direction wrt the sampled BSDF component. */
+    cos_dir_Ng = d3_dot(frag.Ng, dir);
+    if((cos_dir_Ng > 0 && (type & SSF_TRANSMISSION))
+    || (cos_dir_Ng < 0 && (type & SSF_REFLECTION))) {
+      r = 0;
+    }
   }
   pt->incoming_weight = pt->weight;
   pt->absorptivity_loss_before = pt->absorptivity_loss;
