@@ -761,6 +761,7 @@ trace_radiative_path
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
   size_t depth = 0;
   int is_lit = 0;
+  int hit_a_receiver = 0;
   res_T res = RES_OK;
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
@@ -827,6 +828,7 @@ trace_radiative_path
       }
 
       if(point_is_receiver(&pt)) {
+        hit_a_receiver = 1;
         res = update_mc(&pt, path_id, depth, thread_ctx, output);
         if(res != RES_OK) goto error;
       }
@@ -893,7 +895,7 @@ trace_radiative_path
     #undef ACCUM_WEIGHT
 
     if(tracker) {
-      path.type = pt.absorbed_irradiance ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
+      path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
     }
   }
 
