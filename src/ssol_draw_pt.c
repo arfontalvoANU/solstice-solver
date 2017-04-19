@@ -203,10 +203,10 @@ Li(struct ssol_scene* scn,
     }
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
-    material_shade_normal(mtl, &frag, 1/*TODO wlen*/, frag.Ns);
+    material_shade_normal(mtl, &frag, 1/*TODO wlen*/, N);
 
     /* Shaded normal may look backward the outgoing direction */
-    if(d3_dot(frag.Ns, wo) > 0) break;
+    if(d3_dot(N, wo) > 0) break;
 
     SSF(bsdf_clear(ctx->bsdf));
     res = material_setup_bsdf
@@ -217,17 +217,21 @@ Li(struct ssol_scene* scn,
     ray_data.prim_from = hit.prim;
     ray_data.inst_from = inst;
     ray_data.side_from = side;
-    f3_mulf(ray_dir, ray_dir, hit.distance);
+    switch(sshape->shape->type) {
+      case SHAPE_MESH: f3_mulf(ray_dir, ray_dir, hit.distance); break;
+      case SHAPE_PUNCHED: f3_mulf(ray_dir, ray_dir, (float)ray_data.dst); break;
+      default: FATAL("Unreachable code"); break;
+    }
     f3_add(ray_org, ray_org, ray_dir);
 
     d3_minus(wo, wo);
     if(scn->sun) {
       L += throughput * sun_lighting
-        (scn->sun, view, &ray_data, ctx->bsdf, wo, frag.Ns, ray_org);
+        (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
     }
 
     /* Sampling a bounce direction */
-    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
+    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, N, wi, &type, &pdf);
     ASSERT(0 <= R && R <= 1);
 
     /* Due to the shading normal, the sampled direction may point in the wrong
@@ -242,10 +246,10 @@ Li(struct ssol_scene* scn,
     if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, &medium, &medium);
 
     if(!russian_roulette) {
-      throughput *= fabs(d3_dot(wi, frag.Ns)) * R;
+      throughput *= fabs(d3_dot(wi, N)) * R;
     } else {
       if(ssp_rng_canonical(ctx->rng) >= R) break;
-      throughput *= fabs(d3_dot(wi, frag.Ns));
+      throughput *= fabs(d3_dot(wi, N));
     }
 
     if(throughput <= 0) break;
