@@ -39,7 +39,7 @@ sun_release(ref_T* ref)
   ASSERT(ref);
   dev = sun->dev;
   ASSERT(dev && dev->allocator);
-  if (sun->spectrum) SSOL(spectrum_ref_put(sun->spectrum));
+  if(sun->spectrum) SSOL(spectrum_ref_put(sun->spectrum));
   MEM_RM(dev->allocator, sun);
   SSOL(device_ref_put(dev));
 }
@@ -50,13 +50,13 @@ sun_create
 {
   struct ssol_sun* sun = NULL;
   res_T res = RES_OK;
-  if (!dev || !out_sun || type >= SUN_TYPES_COUNT__) {
+  if(!dev || !out_sun || type >= SUN_TYPES_COUNT__) {
     return RES_BAD_ARG;
   }
 
   sun = (struct ssol_sun*)MEM_CALLOC
     (dev->allocator, 1, sizeof(struct ssol_sun));
-  if (!sun) {
+  if(!sun) {
     res = RES_MEM_ERR;
     goto error;
   }
@@ -67,10 +67,10 @@ sun_create
   ref_init(&sun->ref);
 
 exit:
-  if (out_sun) *out_sun = sun;
+  if(out_sun) *out_sun = sun;
   return res;
 error:
-  if (sun) {
+  if(sun) {
     SSOL(sun_ref_put(sun));
     sun = NULL;
   }
@@ -102,7 +102,7 @@ ssol_sun_create_buie
 res_T
 ssol_sun_ref_get(struct ssol_sun* sun)
 {
-  if (!sun)
+  if(!sun)
     return RES_BAD_ARG;
   ref_get(&sun->ref);
   return RES_OK;
@@ -111,7 +111,7 @@ ssol_sun_ref_get(struct ssol_sun* sun)
 res_T
 ssol_sun_ref_put(struct ssol_sun* sun)
 {
-  if (!sun)
+  if(!sun)
     return RES_BAD_ARG;
   ref_put(&sun->ref, sun_release);
   return RES_OK;
@@ -120,9 +120,9 @@ ssol_sun_ref_put(struct ssol_sun* sun)
 res_T
 ssol_sun_set_direction(struct ssol_sun* sun, const double direction[3])
 {
-  if (!sun || !direction)
+  if(!sun || !direction)
     return RES_BAD_ARG;
-  if (0 == d3_normalize(sun->direction, direction))
+  if(0 == d3_normalize(sun->direction, direction))
     /* zero vector */
     return RES_BAD_ARG;
   return RES_OK;
@@ -131,7 +131,7 @@ ssol_sun_set_direction(struct ssol_sun* sun, const double direction[3])
 res_T
 ssol_sun_get_direction(const struct ssol_sun* sun, double direction[3])
 {
-  if (!sun || !direction)
+  if(!sun || !direction)
     return RES_BAD_ARG;
   d3_set(direction, sun->direction);
   return RES_OK;
@@ -140,7 +140,7 @@ ssol_sun_get_direction(const struct ssol_sun* sun, double direction[3])
 res_T
 ssol_sun_set_dni(struct ssol_sun* sun, const double dni)
 {
-  if (!sun || dni <= 0)
+  if(!sun || dni <= 0)
     return RES_BAD_ARG;
   sun->dni = dni;
   return RES_OK;
@@ -149,7 +149,7 @@ ssol_sun_set_dni(struct ssol_sun* sun, const double dni)
 res_T
 ssol_sun_get_dni(const struct ssol_sun* sun, double* dni)
 {
-  if (!sun || !dni)
+  if(!sun || !dni)
     return RES_BAD_ARG;
   *dni = sun->dni;
   return RES_OK;
@@ -158,11 +158,11 @@ ssol_sun_get_dni(const struct ssol_sun* sun, double* dni)
 res_T
 ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 {
-  if (!sun || !spectrum)
+  if(!sun || !spectrum)
     return RES_BAD_ARG;
-  if (spectrum == sun->spectrum) /* no change */
+  if(spectrum == sun->spectrum) /* no change */
     return RES_OK;
-  if (sun->spectrum)
+  if(sun->spectrum)
     SSOL(spectrum_ref_put(sun->spectrum));
   SSOL(spectrum_ref_get(spectrum));
   sun->spectrum = spectrum;
@@ -170,9 +170,7 @@ ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 }
 
 res_T
-ssol_sun_set_pillbox_aperture
-  (struct ssol_sun* sun,
-   const double angle)
+ssol_sun_set_pillbox_aperture(struct ssol_sun* sun, const double angle)
 {
   if(!sun
   || angle <= 0
@@ -258,5 +256,4 @@ error:
   }
   goto exit;
 }
-
 
