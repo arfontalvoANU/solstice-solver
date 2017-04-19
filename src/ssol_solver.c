@@ -191,6 +191,12 @@ struct point {
 }
 static const struct point POINT_NULL = POINT_NULL__;
 
+static FINLINE struct ssol_material*
+point_get_material(const struct point* pt)
+{
+  return pt->side == SSOL_FRONT ? pt->sshape->mtl_front : pt->sshape->mtl_back;
+}
+
 static res_T
 point_init
   (struct point* pt,
@@ -204,9 +210,12 @@ point_init
    struct ssp_rng* rng,
    int* is_lit)
 {
+  struct ssol_surface_fragment frag;
   struct s3d_attrib attr;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
+  struct ssol_material* mtl;
+  double N[3], Np[3];
   float dir[3], pos[3], range[2] = { 0, FLT_MAX };
   size_t id;
   res_T res = RES_OK;
@@ -240,38 +249,49 @@ point_init
   /* Sample a sun direction */
   ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
 
-  /* Initialise the Monte Carlo weight */
   if(pt->sshape->shape->type != SHAPE_PUNCHED) {
-    double surface_sun_cos = fabs(d3_dot(pt->N, pt->dir));
-    pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
-    pt->cos_factor = surface_sun_cos;
+    d3_set(N, pt->N);
   } else {
-    double cos_ratio, surface_proxy_cos, surface_sun_cos, tmp_n[3];
     /* For punched surface, retrieve the sampled position and normal onto the
      * quadric surface */
     punched_shape_project_point
-      (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, tmp_n);
-    surface_proxy_cos = fabs(d3_dot(pt->N, tmp_n));
-    surface_sun_cos = fabs(d3_dot(tmp_n, pt->dir));
+      (pt->sshape->shape, pt->inst->transform, pt->pos, pt->pos, N);
+  }
+
+  /* Define the primitive side on which the point lies */
+  if(d3_dot(N, pt->dir) < 0) {
+    pt->side = SSOL_FRONT;
+  } else {
+    pt->side = SSOL_BACK;
+    d3_minus(N, N); /* Force the normal to look forward dir */
+  }
+
+  /* Perturb the normal */
+  surface_fragment_setup(&frag, pt->pos, pt->dir, N, &pt->prim, pt->uv);
+  mtl = point_get_material(pt);
+  material_shade_normal(mtl, &frag, pt->wl, Np);
+
+  /* Initialise the Monte Carlo weight */
+  if(pt->sshape->shape->type != SHAPE_PUNCHED) {
+    double surface_sun_cos = fabs(d3_dot(Np, pt->dir));
+    pt->weight = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
+    pt->cos_factor = surface_sun_cos;
+  } else {
+    double cos_ratio, surface_proxy_cos, surface_sun_cos;
+    surface_proxy_cos = fabs(d3_dot(pt->N, Np));
+    surface_sun_cos = fabs(d3_dot(Np, pt->dir));
     cos_ratio = surface_sun_cos / surface_proxy_cos;
-    d3_set(pt->N, tmp_n);
     pt->weight = scn->sun->dni * sampled_area_proxy * cos_ratio;
     pt->cos_factor = surface_sun_cos;
   }
+  d3_set(pt->N, N);
   pt->absorptivity_loss = pt->reflectivity_loss = 0;
+  ASSERT(d3_dot(pt->N, pt->dir) <= 0);
 
   /* Store sampled entity related weights */
   res = get_mc_sampled(sampled, pt->inst, &pt->mc_samp);
   if(res != RES_OK) goto error;
   pt->mc_samp->nb_samples++;
-
-  /* Define the primitive side on which the point lies */
-  if(d3_dot(pt->N, pt->dir) < 0) {
-    pt->side = SSOL_FRONT;
-  } else {
-    pt->side = SSOL_BACK;
-    d3_minus(pt->N, pt->N); /* Force the normal to look forward dir */
-  }
 
   /* Initialise the ray data to avoid self intersection */
   ray_data.scn = scn;
@@ -345,12 +365,6 @@ point_update_from_hit
   }
 }
 
-static FINLINE struct ssol_material*
-point_get_material(const struct point* pt)
-{
-  return pt->side == SSOL_FRONT ? pt->sshape->mtl_front : pt->sshape->mtl_back;
-}
-
 static FINLINE res_T
 point_shade
   (struct point* pt,
@@ -362,7 +376,7 @@ point_shade
   struct ssol_material* mtl;
   struct ssol_surface_fragment frag;
   double r = 1;
-  double wi[3], pdf;
+  double wi[3], N[3], pdf;
   int type;
   res_T res;
   ASSERT(pt && bsdf && medium && rng && dir);
@@ -386,19 +400,22 @@ point_shade
   res = material_setup_bsdf(mtl, &frag, pt->wl, medium, 0, bsdf);
   if(res != RES_OK) return res;
 
+  /* Perturbe the normal */
+  material_shade_normal(mtl, &frag, pt->wl, N);
+
   /* By convention, Star-SF assumes that incoming and reflected
    * directions point outward the surface => negate incoming dir */
   d3_minus(wi, pt->dir);
 
-  if(d3_dot(wi, frag.Ns) <= 0) {
+  if(d3_dot(wi, N) <= 0) {
     r = 0;
   } else {
     double cos_dir_Ng;
-    r = ssf_bsdf_sample(bsdf, rng, wi, frag.Ns, dir, &type, &pdf);
+    r = ssf_bsdf_sample(bsdf, rng, wi, N, dir, &type, &pdf);
     ASSERT(0 <= r && r <= 1);
 
-    /* Due to the shading normal, the sampled direction may point in the wrong
-     * direction wrt the sampled BSDF component. */
+    /* Due to the perturbed normal, the sampled direction may point in the
+     * wrong direction wrt the sampled BSDF component. */
     cos_dir_Ng = d3_dot(frag.Ng, dir);
     if((cos_dir_Ng > 0 && (type & SSF_TRANSMISSION))
     || (cos_dir_Ng < 0 && (type & SSF_REFLECTION))) {
@@ -655,7 +672,7 @@ update_mc
   struct mc_receiver_1side* mc_samp_x_rcv1 = NULL;
   res_T res = RES_OK;
   ASSERT(pt && thread_ctx && point_is_receiver(pt));
-  
+
   res = point_dump(pt, irealisation, ibounce, output);
   if(res != RES_OK) goto error;
 
@@ -775,7 +792,7 @@ trace_radiative_path
     res = path_add_vertex(&path, pt.pos, pt.weight);
     if(res != RES_OK) goto error;
   }
-  
+
   #define ACCUM_WEIGHT(Res, W) {                                              \
     Res.weight += (W);                                                        \
     Res.sqr_weight += (W)*(W);                                                \
@@ -803,8 +820,8 @@ trace_radiative_path
       if(mtl->type == SSOL_MATERIAL_VIRTUAL) {
         point_hit_virtual(&pt);
       } else {
-        /* Modulate the point weight wrt to its scattering functions and
-         * generate an outgoing direction */
+        /* Modulate the point weight wrt its scattering functions and generate
+         * an outgoing direction */
         res = point_shade(&pt, thread_ctx->bsdf, &medium, thread_ctx->rng, pt.dir);
         if(res != RES_OK) goto error;
       }
