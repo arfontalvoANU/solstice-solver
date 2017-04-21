@@ -478,10 +478,10 @@ hit_filter_function
       /* Project the hit position into the punched shape */
       d3_set_f3(dir, dirf);
       d3_set_f3(org, orgf);
-      dst = punched_shape_trace_ray(sshape->shape, inst->transform, org, dir,
-        hit->distance, N);
+      dst = shape_trace_ray(sshape->shape, inst->transform, org, dir,
+        hit->distance, N, punched_shape_intersect_local);
       if(dst >= FLT_MAX) {
-        /* No projection is found => the ray does not intersect the quadric */
+        /* No projection found => the ray does not intersect the quadric */
         return 1;
       }
       if((float)dst <= rdata->range_min) {
@@ -514,7 +514,7 @@ hit_filter_function
   }
 
   /* Save the nearest intersected quadric point */
-  if(sshape->shape->type == SHAPE_PUNCHED && rdata->dst >= dst) {
+  if(sshape->shape->type != SHAPE_MESH && rdata->dst >= dst) {
     d3_set(rdata->N, N);
     rdata->dst = dst;
   }

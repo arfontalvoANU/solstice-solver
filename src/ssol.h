@@ -107,6 +107,7 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_PARABOL,
   SSOL_QUADRIC_HYPERBOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
+  SSOL_QUADRIC_HEMISPHERE,
   SSOL_QUADRIC_TYPE_COUNT__
 };
 
@@ -171,7 +172,7 @@ static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
   SSOL_QUADRIC_PARABOL_NULL__;
 
 struct ssol_quadric_hyperbol {
-  /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0
+  /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0; z > 0
    * with a^2 = f - f^2; b = f -1/2; f = real_focal / (img_focal + real_focal) */
   double img_focal, real_focal;
 };
@@ -186,6 +187,14 @@ struct ssol_quadric_parabolic_cylinder {
 static const struct ssol_quadric_parabolic_cylinder
 SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL = SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL__;
 
+struct ssol_quadric_hemisphere {
+  /* Define x^2 + y^2 + (z-radius)^2 - radius^2 = 0 with z <= r */
+  double radius;
+};
+#define SSOL_QUADRIC_HEMISPHERE_NULL__ { -1.0 }
+static const struct ssol_quadric_hemisphere SSOL_QUADRIC_HEMISPHERE_NULL =
+SSOL_QUADRIC_HEMISPHERE_NULL__;
+
 struct ssol_quadric {
   enum ssol_quadric_type type;
   union {
@@ -193,12 +202,13 @@ struct ssol_quadric {
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_hyperbol hyperbol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
+    struct ssol_quadric_hemisphere hemisphere;
   } data;
 
   /* 3x4 column major transformation of the quadric in object space */
   double transform[12];
 
-  /* Hint on the how to discretised */
+  /* Hint on how to discretise */
   size_t slices_count_hint;
 };
 
@@ -400,6 +410,14 @@ struct ssol_mc_receiver {
 }
 static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
   SSOL_MC_RECEIVER_NULL__;
+
+#define MC_RCV_NONE__ {                                                        \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    0, NULL, NULL                                                              \
+}
 
 struct ssol_mc_shape {
   /* Internal data */

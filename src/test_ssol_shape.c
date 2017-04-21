@@ -151,13 +151,7 @@ main(int argc, char** argv)
   CHECK(ssol_shape_create_punched_surface(dev, NULL), RES_BAD_ARG);
   CHECK(ssol_shape_create_punched_surface(NULL, &shape), RES_BAD_ARG);
   CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
-
-  CHECK(ssol_shape_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_shape_ref_get(shape), RES_OK);
-
-  CHECK(ssol_shape_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-
+  
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
   carving.nb_vertices = npolygon_verts;
@@ -196,6 +190,10 @@ main(int argc, char** argv)
   quadric.data.parabol.focal = 1;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
 
+  punched_surface.nb_carvings = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  punched_surface.nb_carvings = 1;
+  
   quadric.data.parabol.focal = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.data.parabol.focal = 1;
@@ -204,6 +202,10 @@ main(int argc, char** argv)
   quadric.data.hyperbol.real_focal = 1;
   quadric.data.hyperbol.img_focal = 1;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  punched_surface.nb_carvings = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  punched_surface.nb_carvings = 1;
 
   quadric.data.hyperbol.real_focal = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
@@ -217,10 +219,26 @@ main(int argc, char** argv)
   quadric.data.parabolic_cylinder.focal = 1;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
 
+  punched_surface.nb_carvings = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  punched_surface.nb_carvings = 1;
+
   quadric.data.parabolic_cylinder.focal = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.data.parabolic_cylinder.focal = 1;
 
+  quadric.type = SSOL_QUADRIC_HEMISPHERE;
+  quadric.data.hemisphere.radius = 10;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+
+  punched_surface.nb_carvings = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_OK);
+  punched_surface.nb_carvings = 1;
+
+  quadric.data.hemisphere.radius = 0;
+  CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
+  quadric.data.hemisphere.radius = 10;
+    
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 

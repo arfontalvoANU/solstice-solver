@@ -26,6 +26,7 @@ option(NO_TEST "Do not build tests" OFF)
 find_package(RCMake 0.2.3 REQUIRED)
 find_package(RSys 0.4 REQUIRED)
 find_package(Star3D 0.4 REQUIRED)
+find_package(Star3DUT 0.2 REQUIRED)
 find_package(StarCPR REQUIRED)
 find_package(StarSF 0.1 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
@@ -38,11 +39,12 @@ include(rcmake_runtime)
 include_directories(
   ${RSys_INCLUDE_DIR}
   ${Star3D_INCLUDE_DIR}
+  ${Star3DUT_INCLUDE_DIR}
   ${StarCPR_INCLUDE_DIR}
   ${StarSF_INCLUDE_DIR}
   ${StarSP_INCLUDE_DIR})
 
-rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D StarCPR StarSF StarSP)
+rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF StarSP)
 
 ################################################################################
 # Configure and define targets
@@ -104,7 +106,7 @@ rcmake_prepend_path(SSOL_FILES_INC_API ${SSOL_SOURCE_DIR})
 rcmake_prepend_path(SSOL_FILES_DOC ${PROJECT_SOURCE_DIR}/../)
 
 add_library(solstice-solver SHARED ${SSOL_FILES_SRC} ${SSOL_FILES_INC} ${SSOL_FILES_INC_API})
-target_link_libraries(solstice-solver RSys Star3D StarCPR StarSF StarSP)
+target_link_libraries(solstice-solver RSys Star3D Star3DUT StarCPR StarSF StarSP)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_link_libraries(solstice-solver m)
