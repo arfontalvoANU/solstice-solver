@@ -19,18 +19,30 @@
 #include <rsys/logger.h>
 #include <limits.h>
 
+struct param {
+  char* name;
+  double d;
+  int i;
+  void* ptr;
+  struct ssol_image* img;
+};
+
+static void
+param_release(void* mem)
+{
+  struct param* param = mem;
+  ASSERT(param);
+  if(param->img) SSOL(image_ref_put(param->img));
+}
+
 int
 main(int argc, char** argv)
 {
-  struct param {
-    char* name;
-    double d;
-    int i;
-    void* ptr;
-  }* param;
+  struct param* param;
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssol_param_buffer* pbuf;
+  struct ssol_image* img;
   size_t sz, al;
   void* mem;
   (void)argc, (void)argv;
@@ -53,14 +65,14 @@ main(int argc, char** argv)
 
   sz = sizeof(intptr_t);
   al = ALIGNOF(intptr_t);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, 0, 0), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, 0), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, sz, 0), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, sz, 0), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, 0, al), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, al), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, sz, al), NULL);
-  NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(NULL, 0, 0, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, 0, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(NULL, sz, 0, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(pbuf, sz, 0, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(NULL, 0, al, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, al, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(NULL, sz, al, NULL), NULL);
+  NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al, NULL), NULL);
 
   *(intptr_t*)mem = 0xDECAFBAD;
   CHECK(*(intptr_t*)ssol_param_buffer_get(pbuf), 0xDECAFBAD);
@@ -74,7 +86,7 @@ main(int argc, char** argv)
 
   sz = strlen("Foo") + 1;
   al = 4;
-  NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al), NULL);
+  NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al, NULL), NULL);
   strcpy(mem, "Foo");
   CHECK(strcmp(ssol_param_buffer_get(pbuf), "Foo"), 0);
   strcpy(mem, "Bar");
@@ -85,12 +97,13 @@ main(int argc, char** argv)
 
   sz = sizeof(struct param);
   al = ALIGNOF(struct param);
-  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al), NULL);
-  NCHECK(param->name = ssol_param_buffer_allocate(pbuf, 7, 64), NULL);
+  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, NULL), NULL);
+  NCHECK(param->name = ssol_param_buffer_allocate(pbuf, 7, 64, NULL), NULL);
   strcpy(param->name, "0123456");
-  NCHECK(param->ptr = ssol_param_buffer_allocate(pbuf, 4, 16), NULL);
+  NCHECK(param->ptr = ssol_param_buffer_allocate(pbuf, 4, 16, NULL), NULL);
   param->d = PI;
   param->i = -123;
+  param->img = NULL;
   strcpy(param->ptr, "abc");
 
   NCHECK(param = ssol_param_buffer_get(pbuf), NULL);
@@ -102,6 +115,46 @@ main(int argc, char** argv)
   CHECK(strcmp(param->name, "0123456"), 0);
   CHECK(strcmp(param->ptr, "abc"), 0);
 
+  CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
+
+  sz = sizeof(struct param);
+  al = ALIGNOF(struct param);
+  CHECK(ssol_image_create(dev, &img), RES_OK);
+  CHECK(ssol_image_setup(img, 1280, 720, SSOL_PIXEL_DOUBLE3), RES_OK);
+  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  param->d = PI;
+  param->i = -123;
+  param->name = NULL;
+  param->ptr = NULL;
+  param->img = img;
+  CHECK(ssol_image_ref_get(img), RES_OK);
+
+  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  param->d = 123.456;
+  param->i = -1;
+  param->name = NULL;
+  param->ptr = NULL;
+  param->img = img;
+  CHECK(ssol_image_ref_get(img), RES_OK);
+
+  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  param->d = 0.1;
+  param->i = 789;
+  param->name = NULL;
+  param->ptr = NULL;
+  param->img = img;
+  CHECK(ssol_image_ref_get(img), RES_OK);
+
+  CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
+
+  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  param->d = 0.1;
+  param->i = 789;
+  param->name = NULL;
+  param->ptr = NULL;
+  param->img = img;
+  CHECK(ssol_image_ref_get(img), RES_OK);
+
   CHECK(ssol_param_buffer_ref_get(NULL), RES_BAD_ARG);
   CHECK(ssol_param_buffer_ref_get(pbuf), RES_OK);
   CHECK(ssol_param_buffer_ref_put(NULL), RES_BAD_ARG);
@@ -109,9 +162,10 @@ main(int argc, char** argv)
   CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
 
   CHECK(ssol_param_buffer_create(dev, 8, &pbuf), RES_OK);
-  NCHECK(mem = ssol_param_buffer_allocate(pbuf, 2, 1), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, 1, 16), NULL);
+  NCHECK(mem = ssol_param_buffer_allocate(pbuf, 2, 1, NULL), NULL);
+  CHECK(mem = ssol_param_buffer_allocate(pbuf, 1, 16, NULL), NULL);
 
+  CHECK(ssol_image_ref_put(img), RES_OK);
   CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 

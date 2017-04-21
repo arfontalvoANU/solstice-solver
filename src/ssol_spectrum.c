@@ -84,8 +84,7 @@ spectrum_includes
 
 double
 spectrum_interpolate
-  (const struct ssol_spectrum* spectrum,
-   const double wavelength)
+  (const struct ssol_spectrum* spectrum, const double wavelength)
 {
   const double* wls;
   const double* ints;
@@ -193,7 +192,7 @@ ssol_spectrum_setup
   intensities = darray_double_data_get(&spectrum->intensities);
   FOR_EACH(i, 0, nwlens) {
     get(i, wavelengths + i, intensities + i, ctx);
-    if(*(wavelengths + i) <= current_wl || *(intensities + i) < 0) {
+    if(wavelengths[i] <= current_wl || intensities[i] < 0) {
       res = RES_BAD_ARG;
       goto error;
     }
