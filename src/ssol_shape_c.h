@@ -23,7 +23,6 @@
 enum shape_type {
   SHAPE_MESH,
   SHAPE_PUNCHED,
-  SHAPE_ANALYTIC,
   SHAPE_TYPES_COUNT__
 };
 
@@ -49,32 +48,15 @@ struct priv_hemisphere_data {
   double sqr_radius;
 };
 
-struct priv_analytic_cylinder {
-  double radius;
-  double height;
-  unsigned nslices;
-  unsigned nstacks;
-};
-
-struct priv_analytic_sphere {
-  double radius;
-  double sqr_radius;
-  unsigned nslices;
-  unsigned nstacks;
-};
-
 union private_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
   struct priv_pcylinder_data pcylinder;
   struct priv_hemisphere_data hemisphere;
-  struct priv_analytic_cylinder cylinder;
-  struct priv_analytic_sphere sphere;
 };
 
 union private_type {
   enum ssol_quadric_type quadric;
-  enum ssol_analytic_type analytic;
 };
 
 struct ssol_shape {
@@ -138,16 +120,6 @@ extern LOCAL_SYM int punched_shape_intersect_local
    double pt[3],
    double N[3],
    double* dist); 
-
-/* Compute ray/analytic shape intersection */
-extern LOCAL_SYM int analytic_intersect_local
-  (const struct ssol_shape* shape,
-   const double org[3],
-   const double dir[3],
-   const double hint,
-   double pt[3],
-   double N[3],
-   double* dist);
 
 /* Compute ray/shape intersection */
 extern LOCAL_SYM double

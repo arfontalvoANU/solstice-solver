@@ -145,38 +145,6 @@ check_punched_surface(const struct ssol_punched_surface* punched_surface)
   return 1;
 }
 
-static FINLINE int
-check_cylinder(const struct ssol_analytic_cylinder* cylinder)
-{
-  return cylinder != NULL
-    && cylinder->radius > 0 && cylinder->height > 0
-    && cylinder->nslices > 2 && cylinder->nstacks > 0;
-}
-
-static FINLINE int
-check_sphere(const struct ssol_analytic_sphere* sphere)
-{
-  return sphere != NULL
-    && sphere->radius > 0
-    && sphere->nslices > 2 && sphere->nstacks > 0;
-}
-
-static INLINE int
-check_analytic_surface(const struct ssol_analytic_surface* analytic_surface)
-{
-  if(!analytic_surface
-   || analytic_surface->type >= SSOL_ANALYTIC_SURFACE_TYPES_COUNT__)
-    return 0;
-
-  switch(analytic_surface->type) {
-  case SSOL_ANALYTIC_CYLINDER:
-    return check_cylinder(&analytic_surface->data.cylinder);
-  case SSOL_ANALYTIC_SPHERE:
-    return check_sphere(&analytic_surface->data.sphere);
-  default: return 0;
-  }
-}
-
 static INLINE int
 check_shape(const struct ssol_shape* shape)
 {
@@ -922,26 +890,6 @@ quadric_hemisphere_gradient_local
   grad[2] = quad->radius - pt[2];
 }
 
-static FINLINE void
-analytic_cylinder_gradient_local
-  (const double pt[3],
-   double grad[3])
-{
-  ASSERT(pt && grad);
-  grad[0] = pt[0];
-  grad[1] = pt[1];
-  grad[2] = 0;
-}
-
-static FINLINE void
-analytic_sphere_gradient_local
-(const double pt[3],
-  double grad[3])
-{
-  ASSERT(pt && grad);
-  d3_set(grad, pt);
-}
-
 static FINLINE int
 quadric_plane_intersect_local
   (const double org[3],
@@ -1069,63 +1017,6 @@ quadric_parabolic_cylinder_intersect_local
   return 1;
 }
 
-static FINLINE int
-analytic_cylinder_intersect_local
-  (const struct priv_analytic_cylinder* analytic,
-   const double org[3],
-   const double dir[3],
-   const double hint,
-   double hit_pt[3],
-   double grad[3],
-   double* dist) /* in/out: */
-{
-  double dst[2];
-  const double a = dir[0] * dir[0] + dir[1] * dir[1];
-  const double b = 2 * (org[0] * dir[0] + org[1] * dir[1]);
-  const double c = org[0] * org[0] + org[1] * org[1]
-    - analytic->radius * analytic->radius;
-  const int n = solve_second(a, b, c, hint, dst);
-
-  if(!n) return 0;
-  /* We just solved intersection with an infinite cylinder.
-   * Now we filter according to cylinder's height. */
-  d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst[0]));
-  if(fabs(hit_pt[2]) > 0.5 * analytic->height) {
-    if(n == 1) return 0;
-    d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst[1]));
-    if(fabs(hit_pt[2]) > 0.5 * analytic->height) return 0;
-    *dist = dst[1];
-  } else {
-    *dist = dst[0];
-  }
-  analytic_cylinder_gradient_local(hit_pt, grad);
-  return 1;
-}
-
-static FINLINE int
-analytic_sphere_intersect_local
-(const struct priv_analytic_sphere* analytic,
-  const double org[3],
-  const double dir[3],
-  const double hint,
-  double hit_pt[3],
-  double grad[3],
-  double* dist) /* in/out: */
-{
-  double dst[2];
-  const double a = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
-  const double b = 2 * (org[0] * dir[0] + org[1] * dir[1] + org[2] * dir[2]);
-  const double c = org[0] * org[0] + org[1] * org[1] + org[2] * org[2]
-    - analytic->sqr_radius;
-  const int n = solve_second(a, b, c, hint, dst);
-
-  if (!n) return 0;
-  d3_add(hit_pt, org, d3_muld(hit_pt, dir, dst[0]));
-  analytic_sphere_gradient_local(hit_pt, grad);
-  *dist = *dst;
-  return 1;
-}
-
 static FINLINE void
 punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
 {
@@ -1220,35 +1111,6 @@ punched_shape_intersect_local
         (&shape->private_data.hemisphere, org, dir, hint, pt, N, dist);
       break;
     default: FATAL("Unreachable code\n"); break;
-  }
-  return hit;
-}
-
-int
-analytic_intersect_local
-  (const struct ssol_shape* shape,
-   const double org[3],
-   const double dir[3],
-   const double hint,
-   double pt[3],
-   double N[3],
-   double* dist)
-{
-  int hit;
-  ASSERT(shape && org && dir && hint >= 0 && pt && N && dist);
-  ASSERT(shape->type == SHAPE_ANALYTIC);
-  ASSERT(dir[0] || dir[1] || dir[2]);
-
-  switch (shape->private_type.analytic) {
-    case SSOL_ANALYTIC_CYLINDER:
-      hit = analytic_cylinder_intersect_local
-        (&shape->private_data.cylinder, org, dir, hint, pt, N, dist);
-      break;
-    case SSOL_ANALYTIC_SPHERE:
-      hit = analytic_sphere_intersect_local
-        (&shape->private_data.sphere, org, dir, hint, pt, N, dist);
-      break;
-    default: FATAL("Unreachable code.\n"); break;
   }
   return hit;
 }
@@ -1430,168 +1292,6 @@ mesh_ctx_s3dut_get_pos(const unsigned ivert, float pos[3], void* ctx)
   f3_set_d3(pos, tmp);
 }
 
-#define SQR(x) ((x)*(x))
-
-static double
-uv_sphere_area(const unsigned nslices, const unsigned nstacks, const double radius)
-{
-  const double d_t = PI / nstacks;
-  const double sin_d_t = sin(d_t);
-  const double sin_d_t_2 = sin(d_t / 2);
-  const double d_p = 2 * PI / nslices;
-  const double sin_d_p_2 = sin(d_p / 2);
-  double a = 0;
-  unsigned i;
-  for(i = 2; i <= nstacks - 1; i++) {
-    a += sin_d_p_2 * (sin(d_t * (i - 1)) + sin(d_t * i)) * sqrt(4 * SQR(sin_d_t_2) - SQR(sin_d_p_2) * SQR(sin(d_t * (i - 1)) - sin(d_t * i)));
-  }
-  a += 2 * sin_d_p_2 * sin_d_t * sqrt(4 * SQR(sin_d_t_2) - SQR(sin_d_t) * SQR(sin_d_p_2));
-  a *= nslices;
-  a *= SQR(radius);
-  return a;
-}
-
-/* Setup the Star-3D shape of the analytic surface to ray-trace */
-static res_T
-analytic_setup_s3d_shape_rt
-  (struct ssol_shape* shape,
-   double* rt_area)
-{
-  struct s3dut_mesh* mesh = NULL;
-  struct mesh_ctx_s3dut mesh_ctx;
-  struct s3d_vertex_data attrs;
-  res_T res;
-  
-  switch(shape->private_type.analytic) {
-  case SSOL_ANALYTIC_CYLINDER: {
-    const unsigned nslices = shape->private_data.cylinder.nslices;
-    const double radius = shape->private_data.cylinder.radius;
-    const double h = shape->private_data.cylinder.height;
-    const double a = nslices * sin(2 * PI / nslices);
-    const double b = 2 * nslices * sin(PI / nslices) * h;
-    const double c = -2 * PI * radius * (radius + h);
-    double adapted_radius[2];
-    int nb;
-    ASSERT(shape->private_data.cylinder.nslices < UINT_MAX);
-    ASSERT(shape->private_data.cylinder.nstacks < UINT_MAX);
-    /* radius that ensure correct surface for the meshed cylinder */
-    nb = solve_second(a, b, c, radius, adapted_radius);
-    ASSERT(nb && adapted_radius[0] > 0 &&(nb == 1 || adapted_radius[1] < 0));
-    res = s3dut_create_cylinder(shape->dev->allocator,
-      adapted_radius[0], h, nslices, shape->private_data.cylinder.nstacks,
-      &mesh);
-    if (res != RES_OK) {
-      fprintf(stderr, "Could not create the cylinder 3D data.\n");
-      goto error;
-    }
-    break;
-  }
-  case SSOL_ANALYTIC_SPHERE: {
-    const double radius = shape->private_data.sphere.radius;
-    const unsigned nslices = shape->private_data.sphere.nslices;
-    const unsigned nstacks = shape->private_data.sphere.nstacks;
-    /* we want the same surface as the true analytic sphere */
-    const double corrective_factor = 
-      sqrt(4 * PI * radius * radius / uv_sphere_area(nslices, nstacks, radius));
-    double adapted_radius = corrective_factor * radius;
-    ASSERT(shape->private_data.sphere.nslices < UINT_MAX);
-    ASSERT(shape->private_data.sphere.nstacks < UINT_MAX);
-    res = s3dut_create_sphere(shape->dev->allocator,
-      adapted_radius, nslices, nstacks,
-      &mesh);
-    if (res != RES_OK) {
-      fprintf(stderr, "Could not create the sphere 3D data.\n");
-      goto error;
-    }
-    break;
-  }
-  default: FATAL("Unreachable code.\n"); break;
-  }
-
-  S3DUT(mesh_get_data(mesh, &mesh_ctx.data));
-  ASSERT(mesh_ctx.data.nprimitives <= UINT_MAX);
-  ASSERT(mesh_ctx.data.nvertices <= UINT_MAX);
-  d33_set(mesh_ctx.transform, shape->transform);
-  d3_set(mesh_ctx.transform + 9, shape->transform + 9);
-  
-  attrs.usage = SSOL_TO_S3D_POSITION;
-  attrs.type = S3D_FLOAT3;
-  attrs.get = mesh_ctx_s3dut_get_pos;
-
-  res = s3d_mesh_setup_indexed_vertices
-    (shape->shape_rt, (unsigned)mesh_ctx.data.nprimitives, 
-     mesh_ctx_s3dut_get_ids, (unsigned)mesh_ctx.data.nvertices, 
-     &attrs, 1, &mesh_ctx);
-  if(res != RES_OK) {
-    fprintf(stderr, "Could not setup a Solstice Solver mesh shape.\n");
-    goto error;
-  }
-
-  switch (shape->private_type.analytic) {
-    case SSOL_ANALYTIC_CYLINDER:
-    *rt_area = 2 * PI *
-      shape->private_data.cylinder.radius *
-      shape->private_data.cylinder.height
-      + 2 * PI * shape->private_data.cylinder.radius * shape->private_data.cylinder.radius;
-    break;
-    case SSOL_ANALYTIC_SPHERE:
-      *rt_area = 4 *PI * shape->private_data.sphere.sqr_radius;
-      break;
-    default: FATAL("Unreachable code.\n"); break;
-  }
-  ASSERT(fabs(1 - (*rt_area) / mesh_compute_area
-    ((unsigned)mesh_ctx.data.nprimitives, mesh_ctx_s3dut_get_ids,
-     (unsigned)mesh_ctx.data.nvertices, attrs.get, &mesh_ctx)) < FLT_EPSILON);
-
-end:
-  if(mesh) s3dut_mesh_ref_put(mesh);
-  return RES_OK;
-error:
-  goto end;
-}
-
-static INLINE void
-priv_analytic_cylinder_data_setup
-  (struct priv_analytic_cylinder* priv_data,
-   const struct ssol_analytic_cylinder* analytic)
-{
-  ASSERT(priv_data && analytic);
-  priv_data->radius = analytic->radius;
-  priv_data->height = analytic->height;
-  priv_data->nslices = analytic->nslices;
-  priv_data->nstacks = analytic->nstacks;
-}
-
-static INLINE void
-priv_analytic_sphere_data_setup
-(struct priv_analytic_sphere* priv_data,
-  const struct ssol_analytic_sphere* analytic)
-{
-  ASSERT(priv_data && analytic);
-  priv_data->radius = analytic->radius;
-  priv_data->sqr_radius = analytic->radius * analytic->radius;
-  priv_data->nslices = analytic->nslices;
-  priv_data->nstacks = analytic->nstacks;
-}
-
-static INLINE void
-priv_analytic_data_setup
-  (union private_data* priv_data,
-   const struct ssol_analytic_surface* analytic)
-{
-  ASSERT(priv_data && analytic);
-  switch (analytic->type) {
-  case SSOL_ANALYTIC_CYLINDER:
-    priv_analytic_cylinder_data_setup
-      (&priv_data->cylinder, &analytic->data.cylinder);
-    break;
-  case SSOL_ANALYTIC_SPHERE:
-    priv_analytic_sphere_data_setup
-      (&priv_data->sphere, &analytic->data.sphere);
-    break;
-  default: FATAL("Unreachable code\n"); break;
-  }
-}
 
 /*******************************************************************************
  * Local functions
@@ -1730,14 +1430,6 @@ ssol_shape_create_punched_surface
    struct ssol_shape** out_shape)
 {
   return shape_create(dev, out_shape, SHAPE_PUNCHED);
-}
-
-res_T
-ssol_shape_create_analytic_surface
-  (struct ssol_device* dev,
-   struct ssol_shape** out_shape)
-{
-  return shape_create(dev, out_shape, SHAPE_ANALYTIC);
 }
 
 res_T
@@ -1960,42 +1652,6 @@ ssol_mesh_setup
   if(res != RES_OK) goto error;
   shape->shape_samp_area = shape->shape_rt_area;
 
-exit:
-  return res;
-error:
-  goto exit;
-}
-
-res_T
-ssol_analytic_surface_setup
-  (struct ssol_shape* shape,
-    const struct ssol_analytic_surface* asurf)
-{
-  res_T res = RES_OK;
-
-  if(!check_shape(shape)
-    || !check_analytic_surface(asurf)
-    || shape->type != SHAPE_ANALYTIC) {
-    res = RES_BAD_ARG;
-    goto error;
-  }
-
-  /* Save analytic surface for further object instancing */
-  d33_set(shape->transform, asurf->transform);
-  d3_set(shape->transform + 9, asurf->transform + 9);
-  shape->private_type.analytic = asurf->type;
-
-  /* Setup internal data */
-  priv_analytic_data_setup(&shape->private_data, asurf);
-
-  /* Setup the Star-3D shape to ray-trace */
-  res = analytic_setup_s3d_shape_rt(shape, &shape->shape_rt_area);
-  if(res != RES_OK) goto error;
-
-  /* The Star-3D shape to sample is the same that the one to ray-trace */
-  res = s3d_mesh_copy(shape->shape_rt, shape->shape_samp);
-  if(res != RES_OK) goto error;
-  shape->shape_samp_area = shape->shape_rt_area;
 exit:
   return res;
 error:

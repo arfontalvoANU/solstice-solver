@@ -69,7 +69,6 @@ Li
         f3_normalize(N, hit.normal);
         break;
       case SHAPE_PUNCHED:
-      case SHAPE_ANALYTIC:
         f3_normalize(N, f3_set_d3(N, ray_data.N));
         break;
       default: FATAL("Unreachable code"); break;

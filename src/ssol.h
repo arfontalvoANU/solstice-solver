@@ -237,51 +237,6 @@ struct ssol_punched_surface {
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
 
-enum ssol_analytic_type {
-  SSOL_ANALYTIC_CYLINDER,
-  SSOL_ANALYTIC_SPHERE,
-  SSOL_ANALYTIC_SURFACE_TYPES_COUNT__
-};
-
-struct ssol_analytic_cylinder {
-  double radius;
-  double height;
-  unsigned nslices;
-  unsigned nstacks;
-};
-#define SSOL_ANALYTIC_CYLINDER_NULL__ { -1, -1, 0, 0 }
-static const struct ssol_analytic_cylinder SSOL_ANALYTIC_CYLINDER_NULL =
-SSOL_ANALYTIC_CYLINDER_NULL__;
-
-struct ssol_analytic_sphere {
-  double radius;
-  unsigned nslices;
-  unsigned nstacks;
-};
-#define SSOL_ANALYTIC_SPHERE_NULL__ { -1, 0 }
-static const struct ssol_analytic_sphere SSOL_ANALYTIC_SPHERE_NULL =
-SSOL_ANALYTIC_SPHERE_NULL__;
-
-struct ssol_analytic_surface {
-  enum ssol_analytic_type type;
-  union {
-    struct ssol_analytic_cylinder cylinder;
-    struct ssol_analytic_sphere sphere;
-  } data;
-
-  /* 3x4 column major transformation of the quadric in object space */
-  double transform[12];
-};
-
-#define SSOL_ANALYTIC_SURFACE_NULL__  {                                        \
-  SSOL_ANALYTIC_SURFACE_TYPES_COUNT__,                                         \
-  SSOL_ANALYTIC_CYLINDER_NULL__,                                               \
-  {1,0,0, 0,1,0, 0,0,1, 0,0,0},                                                \
-}
-
-static const struct ssol_analytic_surface SSOL_ANALYTIC_SURFACE_NULL =
-SSOL_ANALYTIC_SURFACE_NULL__;
-
 struct ssol_medium {
   double absorptivity;
   double refractive_index;
@@ -688,11 +643,6 @@ ssol_shape_create_punched_surface
    struct ssol_shape** shape);
 
 SSOL_API res_T
-ssol_shape_create_analytic_surface
-(struct ssol_device* dev,
-  struct ssol_shape** shape);
-
-SSOL_API res_T
 ssol_shape_ref_get
   (struct ssol_shape* shape);
 
@@ -741,11 +691,6 @@ ssol_mesh_setup
    const struct ssol_vertex_data attribs[],
    const unsigned nattribs,
    void* data);
-
-SSOL_API res_T
-ssol_analytic_surface_setup
-  (struct ssol_shape* shape,
-   const struct ssol_analytic_surface* analytic_surface);
 
 /*******************************************************************************
  * Material API - Define the surfacic (e.g.: BRDF) as well as the volumic

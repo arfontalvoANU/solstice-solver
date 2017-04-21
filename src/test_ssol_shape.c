@@ -36,7 +36,6 @@ main(int argc, char** argv)
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
   };
   const size_t npolygon_verts = sizeof(polygon)/sizeof(double[2]);
-  struct ssol_analytic_surface analytic = SSOL_ANALYTIC_SURFACE_NULL__;
   double val[3];
   unsigned ids[3];
   unsigned i, n;
@@ -239,57 +238,7 @@ main(int argc, char** argv)
   quadric.data.hemisphere.radius = 0;
   CHECK(ssol_punched_surface_setup(shape, &punched_surface), RES_BAD_ARG);
   quadric.data.hemisphere.radius = 10;
-
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-
-  CHECK(ssol_shape_create_analytic_surface(NULL, &shape), RES_BAD_ARG);
-  CHECK(ssol_shape_create_analytic_surface(dev, NULL), RES_BAD_ARG);
-  CHECK(ssol_shape_create_analytic_surface(dev, &shape), RES_OK);
-
-  analytic.type = SSOL_ANALYTIC_CYLINDER;
-  analytic.data.cylinder.height = 10;
-  analytic.data.cylinder.radius = 2;
-  analytic.data.cylinder.nslices = 16;
-  analytic.data.cylinder.nstacks = 9;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_OK);
-
-  analytic.data.cylinder.height = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.cylinder.height = 10;
-
-  analytic.data.cylinder.radius = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.cylinder.radius = 10;
-
-  analytic.data.cylinder.nslices = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.cylinder.nslices = 10;
-
-  analytic.data.cylinder.nstacks = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.cylinder.nstacks = 10;
-
-  analytic.type = SSOL_ANALYTIC_SPHERE;
-  analytic.data.sphere.radius = 10;
-  analytic.data.sphere.nslices = 4;
-  analytic.data.sphere.nstacks = 4;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_OK);
-
-  analytic.data.sphere.radius = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.sphere.radius = 10;
-
-  analytic.data.sphere.nslices = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.sphere.nslices = 10;
-
-  analytic.data.sphere.nstacks = 0;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-  analytic.data.sphere.nstacks = 10;
-
-  analytic.type = (enum ssol_analytic_type)999;
-  CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_BAD_ARG);
-
+    
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
 
