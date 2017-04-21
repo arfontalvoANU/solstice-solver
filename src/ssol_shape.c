@@ -1430,6 +1430,27 @@ mesh_ctx_s3dut_get_pos(const unsigned ivert, float pos[3], void* ctx)
   f3_set_d3(pos, tmp);
 }
 
+#define SQR(x) ((x)*(x))
+
+static double
+uv_sphere_area(const unsigned nslices, const unsigned nstacks, const double radius)
+{
+  const double d_t = PI / nstacks;
+  const double sin_d_t = sin(d_t);
+  const double sin_d_t_2 = sin(d_t / 2);
+  const double d_p = 2 * PI / nslices;
+  const double sin_d_p_2 = sin(d_p / 2);
+  double a = 0;
+  unsigned i;
+  for(i = 2; i <= nstacks - 1; i++) {
+    a += sin_d_p_2 * (sin(d_t * (i - 1)) + sin(d_t * i)) * sqrt(4 * SQR(sin_d_t_2) - SQR(sin_d_p_2) * SQR(sin(d_t * (i - 1)) - sin(d_t * i)));
+  }
+  a += 2 * sin_d_p_2 * sin_d_t * sqrt(4 * SQR(sin_d_t_2) - SQR(sin_d_t) * SQR(sin_d_p_2));
+  a *= nslices;
+  a *= SQR(radius);
+  return a;
+}
+
 /* Setup the Star-3D shape of the analytic surface to ray-trace */
 static res_T
 analytic_setup_s3d_shape_rt
@@ -1442,35 +1463,48 @@ analytic_setup_s3d_shape_rt
   res_T res;
   
   switch(shape->private_type.analytic) {
-  case SSOL_ANALYTIC_CYLINDER:
+  case SSOL_ANALYTIC_CYLINDER: {
+    const unsigned nslices = shape->private_data.cylinder.nslices;
+    const double radius = shape->private_data.cylinder.radius;
+    const double h = shape->private_data.cylinder.height;
+    const double a = nslices * sin(2 * PI / nslices);
+    const double b = 2 * nslices * sin(PI / nslices) * h;
+    const double c = -2 * PI * radius * (radius + h);
+    double adapted_radius[2];
+    int nb;
     ASSERT(shape->private_data.cylinder.nslices < UINT_MAX);
     ASSERT(shape->private_data.cylinder.nstacks < UINT_MAX);
-    res = s3dut_create_cylinder(
-      shape->dev->allocator,
-      shape->private_data.cylinder.radius,
-      shape->private_data.cylinder.height,
-      shape->private_data.cylinder.nslices,
-      shape->private_data.cylinder.nstacks,
+    /* radius that ensure correct surface for the meshed cylinder */
+    nb = solve_second(a, b, c, radius, adapted_radius);
+    ASSERT(nb && adapted_radius[0] > 0 &&(nb == 1 || adapted_radius[1] < 0));
+    res = s3dut_create_cylinder(shape->dev->allocator,
+      adapted_radius[0], h, nslices, shape->private_data.cylinder.nstacks,
       &mesh);
-    if(res != RES_OK) {
+    if (res != RES_OK) {
       fprintf(stderr, "Could not create the cylinder 3D data.\n");
       goto error;
     }
     break;
-  case SSOL_ANALYTIC_SPHERE:
+  }
+  case SSOL_ANALYTIC_SPHERE: {
+    const double radius = shape->private_data.sphere.radius;
+    const unsigned nslices = shape->private_data.sphere.nslices;
+    const unsigned nstacks = shape->private_data.sphere.nstacks;
+    /* we want the same surface as the true analytic sphere */
+    const double corrective_factor = 
+      sqrt(4 * PI * radius * radius / uv_sphere_area(nslices, nstacks, radius));
+    double adapted_radius = corrective_factor * radius;
     ASSERT(shape->private_data.sphere.nslices < UINT_MAX);
     ASSERT(shape->private_data.sphere.nstacks < UINT_MAX);
-    res = s3dut_create_sphere(
-      shape->dev->allocator,
-      shape->private_data.sphere.radius,
-      shape->private_data.sphere.nslices,
-      shape->private_data.sphere.nstacks,
+    res = s3dut_create_sphere(shape->dev->allocator,
+      adapted_radius, nslices, nstacks,
       &mesh);
     if (res != RES_OK) {
       fprintf(stderr, "Could not create the sphere 3D data.\n");
       goto error;
     }
     break;
+  }
   default: FATAL("Unreachable code.\n"); break;
   }
 
@@ -1493,13 +1527,22 @@ analytic_setup_s3d_shape_rt
     goto error;
   }
 
-  /* FIXME: use mesh area or analytic area??? */
-  *rt_area = mesh_compute_area
-    ((unsigned)mesh_ctx.data.nprimitives, mesh_ctx_s3dut_get_ids, 
-     (unsigned)mesh_ctx.data.nvertices, attrs.get, &mesh_ctx);
-  *rt_area = 2 * PI *
-    shape->private_data.cylinder.radius *
-    shape->private_data.cylinder.height;
+  switch (shape->private_type.analytic) {
+    case SSOL_ANALYTIC_CYLINDER:
+    *rt_area = 2 * PI *
+      shape->private_data.cylinder.radius *
+      shape->private_data.cylinder.height
+      + 2 * PI * shape->private_data.cylinder.radius * shape->private_data.cylinder.radius;
+    break;
+    case SSOL_ANALYTIC_SPHERE:
+      *rt_area = 4 *PI * shape->private_data.sphere.sqr_radius;
+      break;
+    default: FATAL("Unreachable code.\n"); break;
+  }
+  ASSERT(fabs(1 - (*rt_area) / mesh_compute_area
+    ((unsigned)mesh_ctx.data.nprimitives, mesh_ctx_s3dut_get_ids,
+     (unsigned)mesh_ctx.data.nvertices, attrs.get, &mesh_ctx)) < FLT_EPSILON);
+
 end:
   if(mesh) s3dut_mesh_ref_put(mesh);
   return RES_OK;

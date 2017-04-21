@@ -248,9 +248,9 @@ main(int argc, char** argv)
 
   analytic.type = SSOL_ANALYTIC_CYLINDER;
   analytic.data.cylinder.height = 10;
-  analytic.data.cylinder.radius = 10;
-  analytic.data.cylinder.nslices = 10;
-  analytic.data.cylinder.nstacks = 10;
+  analytic.data.cylinder.radius = 2;
+  analytic.data.cylinder.nslices = 16;
+  analytic.data.cylinder.nstacks = 9;
   CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_OK);
 
   analytic.data.cylinder.height = 0;
@@ -271,8 +271,8 @@ main(int argc, char** argv)
 
   analytic.type = SSOL_ANALYTIC_SPHERE;
   analytic.data.sphere.radius = 10;
-  analytic.data.sphere.nslices = 10;
-  analytic.data.sphere.nstacks = 10;
+  analytic.data.sphere.nslices = 4;
+  analytic.data.sphere.nstacks = 4;
   CHECK(ssol_analytic_surface_setup(shape, &analytic), RES_OK);
 
   analytic.data.sphere.radius = 0;
