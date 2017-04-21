@@ -160,20 +160,21 @@ ranst_sun_wl_setup
   res_T res = RES_OK;
   if (sz && (!ran || !wavelengths || !intensities))
     return RES_BAD_ARG;
-  if (sz > 1) {
+  if(sz <= 1) {
+    ran->type = WL_DIRAC;
+    ran->get = &ran_dirac_get;
+    ran->state.dirac.wavelength = sz ? wavelengths[0] : -1;
+  } else {
     ran->type = WL_PIECEWISE;
     ran->get = &ran_piecewise_get;
     res = ssp_ranst_piecewise_linear_create
       (ran->allocator, &ran->state.piecewise.spectrum);
-    if (res != RES_OK) goto error;
+    if(res != RES_OK) goto error;
     res = ssp_ranst_piecewise_linear_setup
       (ran->state.piecewise.spectrum, wavelengths, intensities, sz);
-    if (res != RES_OK) goto error;
-  } else {
-    ran->type = WL_DIRAC;
-    ran->get = &ran_dirac_get;
-    ran->state.dirac.wavelength = sz ? wavelengths[0] : -1;
+    if(res != RES_OK) goto error;
   }
+
 exit:
   return res;
 error:

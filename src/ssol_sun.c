@@ -214,8 +214,7 @@ sun_create_distributions
   if(res != RES_OK) goto error;
   if(!sun->spectrum) {
     res = ranst_sun_wl_setup(ran_wl, NULL, NULL, 0);
-  }
-  else {
+  } else {
     res = ranst_sun_wl_setup(ran_wl,
       darray_double_cdata_get(&sun->spectrum->wavelengths),
       darray_double_cdata_get(&sun->spectrum->intensities),

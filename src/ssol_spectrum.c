@@ -111,6 +111,19 @@ spectrum_interpolate
   return intensity;
 }
 
+int
+spectrum_check_data
+  (const struct ssol_spectrum* spectrum, const double lower, const double upper)
+{
+  size_t i;
+  ASSERT(spectrum && lower <= upper);
+  FOR_EACH(i, 0, darray_double_size_get(&spectrum->intensities)) {
+    const double data = darray_double_cdata_get(&spectrum->intensities)[i];
+    if(data < lower || data > upper) return 0;
+  }
+  return 1;
+}
+
 /*******************************************************************************
  * Exported ssol_spectrum functions
  ******************************************************************************/

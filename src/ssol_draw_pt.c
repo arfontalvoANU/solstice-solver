@@ -128,7 +128,7 @@ Li(struct ssol_scene* scn,
    const float dir[3],
    double val[3])
 {
-  struct ssol_medium medium;
+  struct ssol_medium medium = SSOL_MEDIUM_VACUUM;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
   struct ssol_instance* inst;
@@ -159,15 +159,14 @@ Li(struct ssol_scene* scn,
   f3_set(ray_org, org);
   f3_set(ray_dir, dir);
 
-  /* Assume that the path starts from vacuum */
-  medium = SSOL_MEDIUM_VACUUM;
-
   for(;;) {
+    double absorptivity;
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
-    if(medium.absorptivity > 0) {
-      throughput *= exp(-medium.absorptivity * hit.distance);
+    absorptivity = ssol_data_get_value(&medium.absorptivity, 1/*Wavelength*/);
+    if(absorptivity > 0) {
+      throughput *= exp(-absorptivity * hit.distance);
     }
 
     if(S3D_HIT_NONE(&hit)) { /* Background lighting */
@@ -261,6 +260,7 @@ Li(struct ssol_scene* scn,
   d3_splat(val, L);
 
 exit:
+  ssol_medium_clear(&medium);
   return res;
 error:
   d3(val, 1, 1, 0);

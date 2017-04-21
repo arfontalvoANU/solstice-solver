@@ -71,8 +71,8 @@ setup_dielectric_bsdf
     goto error;
   }
 
-  eta_i = mtl->out_medium.refractive_index;
-  eta_t = mtl->in_medium.refractive_index;
+  eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
+  eta_t = ssol_data_get_value(&mtl->in_medium.refractive_index, wavelength);
 
   #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
   /* Setup the reflective part */
@@ -219,9 +219,11 @@ setup_thin_dielectric_bsdf
   ASSERT(bsdf);
   (void)wavelength, (void)fragment;
 
-  eta_i = mtl->out_medium.refractive_index;
-  eta_t = mtl->data.thin_dielectric.slab_medium.refractive_index;
-  absorptivity = mtl->data.thin_dielectric.slab_medium.absorptivity;
+  eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
+  eta_t = ssol_data_get_value
+    (&mtl->data.thin_dielectric.slab_medium.refractive_index, wavelength);
+  absorptivity = ssol_data_get_value
+    (&mtl->data.thin_dielectric.slab_medium.absorptivity, wavelength);
   thickness = mtl->data.thin_dielectric.thickness;
 
   /* Setup the BxDF */
@@ -275,9 +277,38 @@ check_shader_thin_differential(const struct ssol_thin_dielectric_shader* shader)
 static INLINE int
 check_medium(const struct ssol_medium* medium)
 {
-  return medium
-      && medium->refractive_index > 0
-      && medium->absorptivity >= 0;
+  if(!medium) return 0;
+
+  /* Check absorptivity in [0, INF) */
+  switch(medium->absorptivity.type) {
+    case SSOL_DATA_REAL:
+      if(medium->absorptivity.value.real < 0)
+        return 0;
+      break;
+    case SSOL_DATA_SPECTRUM:
+      if(!medium->absorptivity.value.spectrum
+      || !spectrum_check_data(medium->absorptivity.value.spectrum, 0, DBL_MAX))
+        return 0;
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+
+  /* Check absorptivity in ]0, INF) */
+  switch(medium->refractive_index.type) {
+    case SSOL_DATA_REAL:
+      if(medium->refractive_index.value.real <= 0)
+        return 0;
+      break;
+    case SSOL_DATA_SPECTRUM:
+      if(!medium->refractive_index.value.spectrum
+      || !spectrum_check_data
+         (medium->refractive_index.value.spectrum, DBL_EPSILON, DBL_MAX))
+        return 0;
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+
+  return 1;
 }
 
 static void
@@ -420,8 +451,8 @@ ssol_dielectric_setup
   || !check_medium(inside_medium))
     return RES_BAD_ARG;
   material->data.dielectric.dummy = 1;
-  material->out_medium = *outside_medium;
-  material->in_medium = *inside_medium;
+  ssol_medium_copy(&material->out_medium, outside_medium);
+  ssol_medium_copy(&material->in_medium, inside_medium);
   material->normal = shader->normal;
   return RES_OK;
 }
@@ -470,8 +501,8 @@ ssol_thin_dielectric_setup
     return RES_BAD_ARG;
   material->data.thin_dielectric.slab_medium = *slab_medium;
   material->data.thin_dielectric.thickness = thickness;
-  material->out_medium = *outside_medium;
-  material->in_medium = *outside_medium;
+  ssol_medium_copy(&material->out_medium, outside_medium);
+  ssol_medium_copy(&material->in_medium, outside_medium);
   material->normal = shader->normal;
   return RES_OK;
 }
@@ -647,16 +678,16 @@ material_get_next_medium
     /* The material is an interface between 2 media */
     case SSOL_MATERIAL_DIELECTRIC:
       if(MEDIA_EQ(&mtl->out_medium, medium)) {
-        *next_medium = mtl->in_medium;
+        ssol_medium_copy(next_medium, &mtl->in_medium);
       } else {
-        *next_medium = mtl->out_medium;
+        ssol_medium_copy(next_medium, &mtl->out_medium);
       }
       break;
     /* The material is not an interface between 2 media */
     case SSOL_MATERIAL_MATTE:
     case SSOL_MATERIAL_MIRROR:
     case SSOL_MATERIAL_THIN_DIELECTRIC:
-      *next_medium = *medium;
+      ssol_medium_copy(next_medium, medium);
       break;
     default: FATAL("Unreachable code\n"); break;
   }

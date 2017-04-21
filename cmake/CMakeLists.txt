@@ -55,6 +55,7 @@ set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 set(SSOL_FILES_SRC
   ssol_atmosphere.c
   ssol_camera.c
+  ssol_data.c
   ssol_device.c
   ssol_draw.c
   ssol_draw_pt.c
