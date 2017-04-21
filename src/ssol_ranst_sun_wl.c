@@ -158,8 +158,9 @@ ranst_sun_wl_setup
    const size_t sz)
 {
   res_T res = RES_OK;
-  if (sz && (!ran || !wavelengths || !intensities))
+  if(!ran || !wavelengths || !intensities || !sz)
     return RES_BAD_ARG;
+
   if(sz <= 1) {
     ran->type = WL_DIRAC;
     ran->get = &ran_dirac_get;
