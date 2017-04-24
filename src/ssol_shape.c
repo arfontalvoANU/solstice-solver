@@ -46,7 +46,7 @@ struct quadric_mesh_context {
   const double* coords;
   const size_t* ids;
   const union private_data* data;
-  union private_type private_type;
+  enum ssol_quadric_type quadric_type;
   const double* transform; /* 3x4 column major matrix */
   double lower[2];
   double upper[2];
@@ -126,7 +126,7 @@ check_punched_surface(const struct ssol_punched_surface* punched_surface)
   size_t i;
 
   if(!punched_surface
-  || (punched_surface->nb_carvings == 0 
+  || (punched_surface->nb_carvings == 0
     && punched_surface->quadric->type != SSOL_QUADRIC_HEMISPHERE)
   || (punched_surface->nb_carvings && !punched_surface->carvings)
   || !punched_surface->quadric
@@ -372,20 +372,15 @@ carvings_compute_aabb
   }
 }
 
-static void
+static double
 carvings_compute_radius
-  (const struct ssol_carving* carvings,
-   const size_t ncarvings,
-   double* radius)
+  (const struct ssol_carving* carvings, const size_t ncarvings)
 {
   size_t icarving;
-  double r2 = - DBL_MAX;
-  ASSERT(carvings && radius);
+  double r2 = -DBL_MAX;
+  ASSERT(carvings);
 
-  if(!ncarvings) {
-    *radius = DBL_MAX;
-    return;
-  }
+  if(!ncarvings) return DBL_MAX;
 
   FOR_EACH(icarving, 0, ncarvings) {
     size_t ivert;
@@ -398,8 +393,7 @@ carvings_compute_radius
       r2 = MMAX(r2, d2_dot(pos, pos));
     }
   }
-
-  *radius = sqrt(r2);
+  return r2 >= 0 ? sqrt(r2) : DBL_MAX;
 }
 
 static res_T
@@ -417,7 +411,7 @@ build_triangulated_disk
   res_T res = RES_OK;
   ASSERT(coords && ids && nsteps && radius > 0);
   ASSERT(nsteps < UINT_MAX);
-  
+
   s3dut_create_hemisphere
     (coords->allocator, radius, (unsigned)nsteps, (unsigned)nsteps, &mesh);
   if (res != RES_OK) {
@@ -430,7 +424,7 @@ build_triangulated_disk
     res = RES_BAD_ARG;
     goto error;
   }
-  
+
   darray_double_clear(coords);
   darray_size_t_clear(ids);
 
@@ -698,8 +692,8 @@ quadric_setup_s3d_shape_rt
   vdata[1].get = quadric_mesh_get_uv;
 
   ctx.data = &shape->private_data;
-  ctx.private_type = shape->private_type;
-  switch (shape->private_type.quadric) {
+  ctx.quadric_type = shape->quadric_type;
+  switch (shape->quadric_type) {
     case SSOL_QUADRIC_PARABOL:
       vdata[0].get = quadric_mesh_parabol_get_pos;
       break;
@@ -822,9 +816,9 @@ error:
 }
 
 /* Solve a 2nd degree equation. "hint" is used to select among the 2 solutions
- * (if applies) the selected solution is then the closest to hint ans is 
+ * (if applies) the selected solution is then the closest to hint ans is
  * returned in dist[0].
- * If there is a second solution, it is returned in dist[1]. 
+ * If there is a second solution, it is returned in dist[1].
  * Returns the number of roots. */
 static int
 solve_second
@@ -1012,7 +1006,7 @@ quadric_hemisphere_intersect_local
   double z0 = -quad->radius;
   const double a = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
   const double b = 2 * (org[0] * dir[0] + org[1] * dir[1] + org[2] * dir[2] + z0 * dir[2]);
-  const double c = 
+  const double c =
     org[0] * org[0] + org[1] * org[1] + org[2] * org[2] - quad->sqr_radius
     + 2 * z0 * org[2] + z0 * z0;
   const int n = solve_second(a, b, c, hint, dst);
@@ -1052,7 +1046,7 @@ punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
 {
   ASSERT(shape && pt);
   ASSERT(shape->type == SHAPE_PUNCHED);
-  switch (shape->private_type.quadric) {
+  switch (shape->quadric_type) {
     case SSOL_QUADRIC_PLANE:
       pt[2] = 0;
       break;
@@ -1080,7 +1074,7 @@ punched_shape_set_normal_local
 {
   ASSERT(shape && pt);
   ASSERT(shape->type == SHAPE_PUNCHED);
-  switch (shape->private_type.quadric) {
+  switch (shape->quadric_type) {
     case SSOL_QUADRIC_PLANE:
       quadric_plane_gradient_local(normal);
       break;
@@ -1120,7 +1114,7 @@ punched_shape_intersect_local
   ASSERT(dir[0] || dir[1] || dir[2]);
 
   /* Hits on quadrics must be recomputed more accurately */
-  switch (shape->private_type.quadric) {
+  switch (shape->quadric_type) {
     case SSOL_QUADRIC_PLANE:
       hit = quadric_plane_intersect_local(org, dir, hint, pt, N, dist);
       break;
@@ -1238,7 +1232,7 @@ priv_quadric_data_setup
 }
 
 static INLINE size_t
-priv_quadric_data_compute_slices_count_aabb
+priv_quadric_data_compute_slices_count
   (const enum ssol_quadric_type type,
    const union private_data* priv_data,
    const double lower[2],
@@ -1274,26 +1268,16 @@ priv_quadric_data_compute_slices_count_aabb
 }
 
 static INLINE size_t
-priv_quadric_data_compute_slices_count_radius
-  (const enum ssol_quadric_type type,
-   const union private_data* priv_data,
-   const double radius)
+hemisphere_compute_slices_count
+  (const struct priv_hemisphere_data* hemisphere, const double radius)
 {
   size_t nslices;
   double pt[2];
   double max_z = -DBL_MAX;
-
-  ASSERT(priv_data && radius > 0);
-  switch (type) {
-    case SSOL_QUADRIC_HEMISPHERE:
-      d2(pt, 0, radius);
-      max_z = MMAX(max_z, hemisphere_z(pt, &priv_data->hemisphere));
-
-      nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
-      break;
-    default: FATAL("Unreachable code\n"); break;
-  }
-
+  ASSERT(hemisphere && radius > 0);
+  d2(pt, 0, radius);
+  max_z = MMAX(max_z, hemisphere_z(pt, hemisphere));
+  nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
   return nslices;
 }
 
@@ -1509,7 +1493,7 @@ ssol_punched_surface_setup
    const struct ssol_punched_surface* psurf)
 {
   double lower[2], upper[2]; /* Carvings AABB */
-  double radius;
+  double radius = -1;
   struct darray_double coords;
   struct darray_size_t ids;
   size_t nslices;
@@ -1528,10 +1512,10 @@ ssol_punched_surface_setup
   /* Save quadric for further object instancing */
   d33_set(shape->transform, psurf->quadric->transform);
   d3_set(shape->transform+9, psurf->quadric->transform+9);
-  shape->private_type.quadric = psurf->quadric->type;
+  shape->quadric_type = psurf->quadric->type;
 
   if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
-    carvings_compute_radius(psurf->carvings, psurf->nb_carvings, &radius);
+    radius = carvings_compute_radius(psurf->carvings, psurf->nb_carvings);
     radius = MMIN(radius, psurf->quadric->data.hemisphere.radius);
     lower[0] = lower[1] = -radius;
     upper[0] = upper[1] = +radius;
@@ -1549,27 +1533,26 @@ ssol_punched_surface_setup
   /* Setup internal data */
   priv_quadric_data_setup(&shape->private_data, psurf->quadric);
 
-  /* Define the #slices of the discretized quadric */
+  /* Define the #slices of the discreet quadric */
   if(psurf->quadric->slices_count_hint != SIZE_MAX) {
     nslices = psurf->quadric->slices_count_hint;
+  } else if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
+    nslices = hemisphere_compute_slices_count
+      (&shape->private_data.hemisphere, radius); 
   } else {
-    if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
-      nslices = priv_quadric_data_compute_slices_count_radius
-        (shape->private_type.quadric, &shape->private_data, radius);
-    }
-    else {
-      nslices = priv_quadric_data_compute_slices_count_aabb
-        (shape->private_type.quadric, &shape->private_data, lower, upper);
-    }
+    nslices = priv_quadric_data_compute_slices_count
+      (shape->quadric_type, &shape->private_data, lower, upper);
   }
 
+  /* Build the quadric mesh */
   if(psurf->quadric->type == SSOL_QUADRIC_HEMISPHERE) {
     res = build_triangulated_disk(&coords, &ids, radius, nslices);
   } else {
     res = build_triangulated_plane(&coords, &ids, lower, upper, nslices);
   }
   if(res != RES_OK) goto error;
-  
+
+  /* Clip the quadric mesh if necessary */
   if(psurf->nb_carvings) {
     res = clip_triangulated_sheet
       (&coords, &ids, shape->dev->scpr_mesh, psurf->carvings, psurf->nb_carvings);

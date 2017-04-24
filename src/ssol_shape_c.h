@@ -55,17 +55,13 @@ union private_data {
   struct priv_hemisphere_data hemisphere;
 };
 
-union private_type {
-  enum ssol_quadric_type quadric;
-};
-
 struct ssol_shape {
   enum shape_type type;
+  enum ssol_quadric_type quadric_type; /* Defined if type is SHAPE_PUNCHED */
 
   struct s3d_shape* shape_rt; /* Star-3D shape to ray-trace */
   struct s3d_shape* shape_samp; /* Star-3D shape to sample */
   union private_data private_data;
-  union private_type private_type;
   double transform[12];
   double shape_rt_area, shape_samp_area;
 
@@ -119,7 +115,7 @@ extern LOCAL_SYM int punched_shape_intersect_local
    const double hint,
    double pt[3],
    double N[3],
-   double* dist); 
+   double* dist);
 
 /* Compute ray/shape intersection */
 extern LOCAL_SYM double
