@@ -17,6 +17,7 @@
 #define SSOL_DATA_C_H
 
 #include "ssol.h"
+#include "ssol_spectrum_c.h"
 
 /*******************************************************************************
  * Exported functions
@@ -86,6 +87,25 @@ ssol_data_eq(const struct ssol_data* a, const struct ssol_data* b)
     default: FATAL("Unreachable code.\n"); break;
   }
   return 0;
+}
+
+double
+ssol_data_get_value(const struct ssol_data* data, const double wavelength)
+{
+  double val;
+  ASSERT(data);
+
+  switch(data->type) {
+    case SSOL_DATA_REAL:
+      val = data->value.real;
+      break;
+    case SSOL_DATA_SPECTRUM:
+      ASSERT(wavelength >= 0);
+      val = spectrum_interpolate(data->value.spectrum, wavelength);
+      break;
+    default: FATAL("Unreachable code\n"); break;
+  }
+  return val;
 }
 
 #endif /* SSOL_DATA_C_H */

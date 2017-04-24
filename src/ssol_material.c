@@ -15,8 +15,9 @@
 
 #include "ssol.h"
 #include "ssol_c.h"
-#include "ssol_material_c.h"
 #include "ssol_device_c.h"
+#include "ssol_material_c.h"
+#include "ssol_spectrum_c.h"
 
 #include <rsys/double2.h>
 #include <rsys/double3.h>

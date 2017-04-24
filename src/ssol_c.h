@@ -18,7 +18,6 @@
 
 #include "ssol.h"
 #include "ssol_instance_c.h"
-#include "ssol_spectrum_c.h"
 
 #include <rsys/math.h>
 #include <star/s3d.h>
@@ -68,24 +67,6 @@ hit_filter_function
    const float dir[3],
    void* realisation,
    void* filter_data);
-
-static INLINE double
-ssol_data_get_value(const struct ssol_data* data, const double wavelength)
-{
-  double val;
-  ASSERT(data && wavelength >= 0);
-
-  switch(data->type) {
-    case SSOL_DATA_REAL:
-      val = data->value.real;
-      break;
-    case SSOL_DATA_SPECTRUM:
-      val = spectrum_interpolate(data->value.spectrum, wavelength);
-      break;
-    default: FATAL("Unreachable code\n"); break;
-  }
-  return val;
-}
 
 #endif /* SSOL_C_H */
 

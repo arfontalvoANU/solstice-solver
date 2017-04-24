@@ -1208,6 +1208,10 @@ ssol_data_eq
   (const struct ssol_data* op0,
    const struct ssol_data* op1);
 
+SSOL_API double
+ssol_data_get_value
+  (const struct ssol_data* data,
+   const double wavelength);
 
 /*******************************************************************************
  * Medium API
