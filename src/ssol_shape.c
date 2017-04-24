@@ -37,11 +37,6 @@
 #include <limits.h> /* UINT_MAX constant */
 #include <math.h> /* copysign function */
 
-struct mesh_ctx_s3dut {
-  struct s3dut_mesh_data data;
-  double transform[12];
-};
-
 struct mesh_context {
   const double* coords;
   const size_t* ids;
@@ -1301,32 +1296,6 @@ priv_quadric_data_compute_slices_count_radius
 
   return nslices;
 }
-
-static void
-mesh_ctx_s3dut_get_ids(const unsigned itri, unsigned ids[3], void* ctx)
-{
-  const struct mesh_ctx_s3dut* mesh = ctx;
-  ASSERT(ids && ctx && itri < mesh->data.nprimitives);
-  ASSERT(mesh->data.indices[itri * 3 + 0] <= UINT_MAX);
-  ASSERT(mesh->data.indices[itri * 3 + 1] <= UINT_MAX);
-  ASSERT(mesh->data.indices[itri * 3 + 2] <= UINT_MAX);
-  ids[0] = (unsigned)mesh->data.indices[itri * 3 + 0];
-  ids[1] = (unsigned)mesh->data.indices[itri * 3 + 1];
-  ids[2] = (unsigned)mesh->data.indices[itri * 3 + 2];
-}
-
-static void
-mesh_ctx_s3dut_get_pos(const unsigned ivert, float pos[3], void* ctx)
-{
-  const struct mesh_ctx_s3dut* mesh = ctx;
-  double tmp[3];
-  ASSERT(pos && ctx && ivert < mesh->data.nvertices);
-  d3_set(tmp, mesh->data.positions + ivert * 3);
-  d33_muld3(tmp, mesh->transform, tmp);
-  d3_add(tmp, mesh->transform + 9, tmp);
-  f3_set_d3(pos, tmp);
-}
-
 
 /*******************************************************************************
  * Local functions
