@@ -92,15 +92,21 @@ spectrum_interpolate
   double slope;
   double intensity;
   size_t id_next, sz;
-  ASSERT(spectrum && spectrum_includes_point(spectrum, wavelength));
+  ASSERT(spectrum);
 
   sz = darray_double_size_get(&spectrum->wavelengths);
   wls = darray_double_cdata_get(&spectrum->wavelengths);
   ints = darray_double_cdata_get(&spectrum->intensities);
   next = search_lower_bound(&wavelength, wls, sz, sizeof(double), &eq_dbl);
-  ASSERT(next); /* because spectrum_includes_point */
+  if(!next) { /* Clamp to upper bound */
+    return ints[sz-1];
+  }
 
   id_next = (size_t)(next - wls);
+  if(!id_next) { /* Clamp to lower bound */
+    return ints[0];
+  }
+
   ASSERT(id_next); /* because spectrum_includes_point */
   ASSERT(ints[id_next] >= ints[id_next - 1]);
   ASSERT(wls[id_next] >= wls[id_next - 1]);
@@ -109,6 +115,19 @@ spectrum_interpolate
   intensity = ints[id_next-1] + (wavelength - wls[id_next - 1]) * slope;
   ASSERT(intensity >= 0);
   return intensity;
+}
+
+int
+spectrum_check_data
+  (const struct ssol_spectrum* spectrum, const double lower, const double upper)
+{
+  size_t i;
+  ASSERT(spectrum && lower <= upper);
+  FOR_EACH(i, 0, darray_double_size_get(&spectrum->intensities)) {
+    const double data = darray_double_cdata_get(&spectrum->intensities)[i];
+    if(data < lower || data > upper) return 0;
+  }
+  return 1;
 }
 
 /*******************************************************************************

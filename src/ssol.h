@@ -119,6 +119,11 @@ enum ssol_attrib_usage {
   SSOL_ATTRIBS_COUNT__
 };
 
+enum ssol_data_type {
+  SSOL_DATA_REAL,
+  SSOL_DATA_SPECTRUM
+};
+
 /* Describe a vertex data */
 struct ssol_vertex_data {
   enum ssol_attrib_usage usage; /* Semantic of the data */
@@ -242,11 +247,21 @@ struct ssol_punched_surface {
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
 
-struct ssol_medium {
-  double absorptivity;
-  double refractive_index;
+struct ssol_data {
+  enum ssol_data_type type;
+  union {
+    double real;
+    struct ssol_spectrum* spectrum;
+  } value;
 };
-#define SSOL_MEDIUM_VACUUM__ { 0, 1 }
+#define SSOL_DATA_NULL__ {SSOL_DATA_REAL, {0.0}}
+static const struct ssol_data SSOL_DATA_NULL = SSOL_DATA_NULL__;
+
+struct ssol_medium {
+  struct ssol_data absorptivity;
+  struct ssol_data refractive_index;
+};
+#define SSOL_MEDIUM_VACUUM__ {{SSOL_DATA_REAL, {0}}, {SSOL_DATA_REAL, {1}}}
 static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
 
 struct ssol_surface_fragment {
@@ -1181,6 +1196,61 @@ ssol_draw_pt
    const size_t spp,
    ssol_write_pixels_T writer,
    void* writer_data);
+
+/*******************************************************************************
+ * Data API
+ ******************************************************************************/
+SSOL_API struct ssol_data*
+ssol_data_set_real
+  (struct ssol_data* data,
+   const double real);
+
+/* Get a reference onto the submitted spectrum */
+SSOL_API struct ssol_data*
+ssol_data_set_spectrum
+  (struct ssol_data* data,
+   struct ssol_spectrum* spectrum);
+
+/* Release the reference on its associated spectrum, if defined */
+SSOL_API struct ssol_data*
+ssol_data_clear
+  (struct ssol_data* data);
+
+SSOL_API struct ssol_data*
+ssol_data_copy
+  (struct ssol_data* dst,
+   const struct ssol_data* src);
+
+SSOL_API int
+ssol_data_eq
+  (const struct ssol_data* op0,
+   const struct ssol_data* op1);
+
+SSOL_API double
+ssol_data_get_value
+  (const struct ssol_data* data,
+   const double wavelength);
+
+/*******************************************************************************
+ * Medium API
+ ******************************************************************************/
+static FINLINE struct ssol_medium*
+ssol_medium_clear(struct ssol_medium* medium)
+{
+  ASSERT(medium);
+  ssol_data_clear(&medium->absorptivity);
+  ssol_data_clear(&medium->refractive_index);
+  return medium;
+}
+
+static FINLINE struct ssol_medium*
+ssol_medium_copy(struct ssol_medium* dst, const struct ssol_medium* src)
+{
+  ASSERT(dst && src);
+  ssol_data_copy(&dst->absorptivity, &src->absorptivity);
+  ssol_data_copy(&dst->refractive_index, &src->refractive_index);
+  return dst;
+}
 
 END_DECLS
 

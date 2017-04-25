@@ -91,7 +91,6 @@ main(int argc, char** argv)
   double a_m, a_std;
   uint32_t r_id;
   unsigned ntris;
-
   (void) argc, (void) argv;
 
   d33_splat(transform1, 0);
@@ -260,10 +259,9 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
-  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Sun with undefined DNI */
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);

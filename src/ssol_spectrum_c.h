@@ -40,4 +40,10 @@ spectrum_interpolate
   (const struct ssol_spectrum* spectrum,
    const double wavelength);
 
+extern LOCAL_SYM int
+spectrum_check_data
+  (const struct ssol_spectrum* spectrum,
+   const double lower, /* Inclusive lower bound */
+   const double upper); /* Inclusive upper bound */
+
 #endif /* SSOL_SPECTRUM_C_H */
