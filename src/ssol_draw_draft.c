@@ -157,6 +157,9 @@ ssol_draw_draft
 
   darray_float_init(scn->dev->allocator, &samples);
 
+  res = scene_check(scn, FUNC_NAME);
+  if(res != RES_OK) goto error;
+
   res = darray_float_reserve(&samples, spp * 2/*#dimensions*/);
   if(res != RES_OK) goto error;
 

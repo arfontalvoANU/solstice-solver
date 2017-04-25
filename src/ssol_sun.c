@@ -199,27 +199,13 @@ ssol_sun_set_buie_param
  * Local function
  ******************************************************************************/
 res_T
-sun_create_distributions
-  (struct ssol_sun* sun,
-   struct ranst_sun_dir** out_ran_dir,
-   struct ranst_sun_wl** out_ran_wl)
+sun_create_direction_distribution
+  (struct ssol_sun* sun, struct ranst_sun_dir** out_ran_dir)
 {
   struct ranst_sun_dir* ran_dir = NULL;
-  struct ranst_sun_wl* ran_wl = NULL;
   res_T res = RES_OK;
-  ASSERT(sun && out_ran_dir && out_ran_wl);
+  ASSERT(sun && out_ran_dir);
 
-  /* Create and setup the spectrum distribution */
-  res = ranst_sun_wl_create(sun->dev->allocator, &ran_wl);
-  if(res != RES_OK) goto error;
-
-  res = ranst_sun_wl_setup(ran_wl,
-    darray_double_cdata_get(&sun->spectrum->wavelengths),
-    darray_double_cdata_get(&sun->spectrum->intensities),
-    darray_double_size_get(&sun->spectrum->wavelengths));
-  if(res != RES_OK) goto error;
-
-  /* Create and setup the the direction distribution */
   res = ranst_sun_dir_create(sun->dev->allocator, &ran_dir);
   if(res != RES_OK) goto error;
   switch(sun->type) {
@@ -236,16 +222,10 @@ sun_create_distributions
       break;
     default: FATAL("Unreachable code\n"); break;
   }
-
 exit:
   *out_ran_dir = ran_dir;
-  *out_ran_wl = ran_wl;
   return res;
 error:
-  if(ran_wl) {
-    CHECK(ranst_sun_wl_ref_put(ran_wl), RES_OK);
-    ran_wl = NULL;
-  }
   if(ran_dir) {
     CHECK(ranst_sun_dir_ref_put(ran_dir), RES_OK);
     ran_dir = NULL;
@@ -253,3 +233,30 @@ error:
   goto exit;
 }
 
+res_T
+sun_create_wavelength_distribution
+  (struct ssol_sun* sun, struct ranst_sun_wl** out_ran_wl)
+{
+  struct ranst_sun_wl* ran_wl = NULL;
+  res_T res = RES_OK; 
+  ASSERT(sun && out_ran_wl);
+
+  res = ranst_sun_wl_create(sun->dev->allocator, &ran_wl);
+  if(res != RES_OK) goto error;
+
+  res = ranst_sun_wl_setup(ran_wl,
+    darray_double_cdata_get(&sun->spectrum->wavelengths),
+    darray_double_cdata_get(&sun->spectrum->intensities),
+    darray_double_size_get(&sun->spectrum->wavelengths));
+  if(res != RES_OK) goto error;
+
+exit:
+  *out_ran_wl = ran_wl;
+  return res;
+error:
+  if(ran_wl) {
+    CHECK(ranst_sun_wl_ref_put(ran_wl), RES_OK);
+    ran_wl = NULL;
+  }
+  goto exit;
+}

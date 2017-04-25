@@ -25,7 +25,6 @@
 #include "ssol_object_c.h"
 #include "ssol_sun_c.h"
 #include "ssol_material_c.h"
-#include "ssol_spectrum_c.h"
 #include "ssol_instance_c.h"
 #include "ssol_ranst_sun_dir.h"
 #include "ssol_ranst_sun_wl.h"
@@ -485,39 +484,6 @@ point_dump
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
-static FINLINE res_T
-check_scene(const struct ssol_scene* scene, const char* caller)
-{
-  ASSERT(scene && caller);
-
-  if(!scene->sun) {
-    log_error(scene->dev, "%s: no sun attached.\n", caller);
-    return RES_BAD_ARG;
-  }
-
-  if(!scene->sun->spectrum) {
-    log_error(scene->dev, "%s: sun's spectrum undefined.\n", caller);
-    return RES_BAD_ARG;
-  }
-
-  if(scene->sun->dni <= 0) {
-    log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
-    return RES_BAD_ARG;
-  }
-
-  if(scene->atmosphere) {
-    int i;
-    ASSERT(scene->atmosphere->type == ATMOS_UNIFORM);
-    i = spectrum_includes
-      (scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum);
-    if(!i) {
-      log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", caller);
-      return RES_BAD_ARG;
-    }
-  }
-  return RES_OK;
-}
-
 /* Compute an empirical length of the path segment coming from/going to the
  * infinite, wrt the scene bounding box */
 static INLINE double
@@ -963,14 +929,16 @@ ssol_solve
   nrealisations = (int)realisations_count;
   nthreads = (int) scn->dev->nthreads;
 
-  res = check_scene(scn, FUNC_NAME);
+  res = scene_check(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
 
   /* Create data structures shared by all threads */
   res = scene_create_s3d_views(scn, &view_rt, &view_samp, &sampled_area,
     &sampled_area_proxy);
   if(res != RES_OK) goto error;
-  res = sun_create_distributions(scn->sun, &ran_sun_dir, &ran_sun_wl);
+  res = sun_create_direction_distribution(scn->sun, &ran_sun_dir);
+  if(res != RES_OK) goto error;
+  res = sun_create_wavelength_distribution(scn->sun, &ran_sun_wl);
   if(res != RES_OK) goto error;
 
   /* Create a RNG proxy from the submitted RNG state */

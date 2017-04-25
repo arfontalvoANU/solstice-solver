@@ -19,6 +19,7 @@
 #include "ssol_draw.h"
 #include "ssol_material_c.h"
 #include "ssol_object_c.h"
+#include "ssol_ranst_sun_wl.h"
 #include "ssol_scene_c.h"
 #include "ssol_shape_c.h"
 #include "ssol_sun_c.h"
@@ -37,6 +38,7 @@
 struct thread_context {
   struct ssp_rng* rng;
   struct ssf_bsdf* bsdf;
+  struct ranst_sun_wl* ran_wl;
 };
 
 static void
@@ -45,6 +47,7 @@ thread_context_release(struct thread_context* ctx)
   ASSERT(ctx);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
   if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
+  if(ctx->ran_wl) ranst_sun_wl_ref_put(ctx->ran_wl);
 }
 
 static res_T
@@ -67,12 +70,15 @@ error:
 static void
 thread_context_setup
   (struct thread_context* ctx,
-   struct ssp_rng* rng)
+   struct ssp_rng* rng,
+   struct ranst_sun_wl* ran_wl)
 {
-  ASSERT(ctx && rng);
+  ASSERT(ctx && rng && ran_wl);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
   SSP(rng_ref_get(rng));
+  ranst_sun_wl_ref_get(ran_wl);
   ctx->rng = rng;
+  ctx->ran_wl = ran_wl;
 }
 
 /* Declare the container of the per thread contexts */
@@ -144,6 +150,7 @@ Li(struct ssol_scene* scn,
   double R;
   double pdf;
   double cos_wi_Ng;
+  double wl;
   const float ray_range[2] = {0, FLT_MAX};
   float ray_org[3];
   float ray_dir[3];
@@ -159,12 +166,14 @@ Li(struct ssol_scene* scn,
   f3_set(ray_org, org);
   f3_set(ray_dir, dir);
 
+  wl = ranst_sun_wl_get(ctx->ran_wl, ctx->rng);
+
   for(;;) {
     double absorptivity;
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
-    absorptivity = ssol_data_get_value(&medium.absorptivity, 1/*Wavelength*/);
+    absorptivity = ssol_data_get_value(&medium.absorptivity, wl);
     if(absorptivity > 0) {
       throughput *= exp(-absorptivity * hit.distance);
     }
@@ -206,14 +215,14 @@ Li(struct ssol_scene* scn,
     }
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
-    material_shade_normal(mtl, &frag, 1/*TODO wlen*/, N);
+    material_shade_normal(mtl, &frag, wl, N);
 
     /* Shaded normal may look backward the outgoing direction */
     if(d3_dot(N, wo) > 0) break;
 
     SSF(bsdf_clear(ctx->bsdf));
     res = material_setup_bsdf
-      (mtl, &frag, 1/*TODO wavelength*/, &medium, 1/*Rendering*/, ctx->bsdf);
+      (mtl, &frag, wl, &medium, 1/*Rendering*/, ctx->bsdf);
     if(res != RES_OK) goto error;
 
     /* Update the ray */
@@ -341,17 +350,23 @@ ssol_draw_pt
 {
   struct darray_thread_context thread_ctxs;
   struct ssp_rng_proxy* rng_proxy = NULL;
+  struct ranst_sun_wl* ran_sun_wl = NULL;
   size_t i;
   res_T res = RES_OK;
 
-  if(!scn)
-    return RES_BAD_ARG;
+  if(!scn) return RES_BAD_ARG;
 
   darray_thread_context_init(scn->dev->allocator, &thread_ctxs);
+
+  res = scene_check(scn, FUNC_NAME);
+  if(res != RES_OK) goto error;
 
   /* Create a RNG proxy */
   res = ssp_rng_proxy_create
     (scn->dev->allocator, &ssp_rng_threefry, scn->dev->nthreads, &rng_proxy);
+  if(res != RES_OK) goto error;
+
+  res = sun_create_wavelength_distribution(scn->sun, &ran_sun_wl);
   if(res != RES_OK) goto error;
 
   /* Create the thread contexts */
@@ -366,7 +381,7 @@ ssol_draw_pt
     res = ssp_rng_proxy_create_rng(rng_proxy, i, &rng);
     if(res != RES_OK) goto error;
 
-    thread_context_setup(ctx, rng);
+    thread_context_setup(ctx, rng, ran_sun_wl);
     SSP(rng_ref_put(rng));
   }
 
@@ -377,6 +392,7 @@ ssol_draw_pt
 exit:
   darray_thread_context_release(&thread_ctxs);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
+  if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   return (res_T)res;
 error:
   goto exit;

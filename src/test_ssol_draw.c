@@ -30,6 +30,17 @@
 #define PITCH (WIDTH*sizeof(unsigned char[3]))
 #define PROJ_RATIO ((double)WIDTH/(double)HEIGHT)
 
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  double wavelengths[3] = { 1, 2, 3 };
+  double intensities[3] = { 1, 0.8, 1 };
+  CHECK(i < 3, 1);
+  (void)ctx;
+  *wlen = wavelengths[i];
+  *data = intensities[i];
+}
+
 static res_T
 write_RGB8
   (void* data,
@@ -182,6 +193,7 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_camera* cam;
   struct ssol_scene* scn;
+  struct ssol_spectrum* spectrum;
   struct ssol_sun* sun;
   struct image img;
   uint8_t* pixels;
@@ -303,6 +315,13 @@ main(int argc, char** argv)
   CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
   CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
   CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, write_RGB8, pixels), RES_BAD_ARG);
+
+  /* No sun spectrum */
+  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+
+  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_OK);
 
   CHECK(image_write_ppm_stream(&img, 0, stdout), RES_OK);
@@ -311,6 +330,7 @@ main(int argc, char** argv)
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_camera_ref_put(cam), RES_OK);
   CHECK(ssol_scene_ref_put(scn), RES_OK);
+  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   check_memory_allocator(&allocator);

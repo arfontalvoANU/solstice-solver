@@ -120,7 +120,6 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
-  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
 
   CHECK(ssol_solve(NULL, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_solve(scene, NULL, 10, 0, NULL, &estimator), RES_BAD_ARG);
@@ -163,6 +162,13 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_transform(target, transform2), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
+
+  /* No sun */
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+
+  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_OK);
+  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_solve
     (scene, rng, 1, &SSOL_PATH_TRACKER_DEFAULT, NULL, &estimator), RES_OK);
