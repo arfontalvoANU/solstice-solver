@@ -514,8 +514,16 @@ main(int argc, char** argv)
 
   dbl = 0;
   FOR_EACH(i, 0, ntris) {
+    double v0[3], v1[3], v2[3], E1[3], E2[3], N[3], area;
+    unsigned ids[3];
+    CHECK(ssol_shape_get_triangle_indices(square, (unsigned)i, ids), RES_OK);
+    CHECK(ssol_shape_get_vertex_attrib(square, ids[0], SSOL_POSITION, v0), RES_OK);
+    CHECK(ssol_shape_get_vertex_attrib(square, ids[1], SSOL_POSITION, v1), RES_OK);
+    CHECK(ssol_shape_get_vertex_attrib(square, ids[2], SSOL_POSITION, v2), RES_OK);
+    area = d3_len(d3_cross(N, d3_sub(E1, v1, v0), d3_sub(E2, v2, v0))) * 0.5;
+
     CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, (unsigned)i, &mc_prim), RES_OK);
-    dbl += mc_prim.integrated_irradiance.E;
+    dbl += mc_prim.integrated_irradiance.E * area;
   }
 
   CHECK(eq_eps(dbl, a_m, 1.e-6), 1);

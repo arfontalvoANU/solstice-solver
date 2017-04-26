@@ -17,6 +17,9 @@
 #include "ssol_estimator_c.h"
 #include "ssol_object_c.h"
 
+#include <rsys/double3.h>
+#include <star/s3d.h>
+
 #ifdef COMPILER_CL
   #pragma warning(push)
   #pragma warning(disable:4706) /* Assignment within a condition */
@@ -111,12 +114,42 @@ ssol_mc_shape_get_mc_primitive
     SETUP_MC_RESULT(reflectivity_loss);
     #undef SETUP_MC_RESULT
   } else {
+    struct s3d_attrib attr;
+    struct s3d_shape* s3d_shape;
+    double v0[3], v1[3], v2[3], E0[3], E1[3], normal[3];
+    double area;
+    unsigned ids[3];
+    res_T res = RES_OK;
+
+    s3d_shape = shape->shape__->shape_rt;
+
+    /* Retrieve the primitive indices */
+    res = s3d_mesh_get_triangle_indices(s3d_shape, i, ids);
+    if(res != RES_OK) return res;
+
+    /* Fetch the primitive vertices */
+    S3D(mesh_get_vertex_attrib(s3d_shape, ids[0], S3D_POSITION, &attr));
+    d3_set_f3(v0, attr.value);
+    S3D(mesh_get_vertex_attrib(s3d_shape, ids[1], S3D_POSITION, &attr));
+    d3_set_f3(v1, attr.value);
+    S3D(mesh_get_vertex_attrib(s3d_shape, ids[2], S3D_POSITION, &attr));
+    d3_set_f3(v2, attr.value);
+
+    /* Compute the primitive area */
+    d3_sub(E0, v1, v0);
+    d3_sub(E1, v2, v0);
+    d3_cross(normal, E0, E1);
+    area = d3_len(normal) * 0.5;
+
     #define SETUP_MC_RESULT(Name) {                                            \
       const double N = (double)shape->N__;                                     \
       const struct mc_data* data = &mc_prim1->Name;                            \
       prim->Name.E = data->weight / N;                                         \
       prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;           \
       prim->Name.SE = prim->Name.V > 0 ? sqrt(prim->Name.V / N) : 0;           \
+      prim->Name.E /= area;                                                    \
+      prim->Name.V /= area*area;                                               \
+      prim->Name.SE /= area;                                                   \
     } (void)0
     SETUP_MC_RESULT(integrated_irradiance);
     SETUP_MC_RESULT(integrated_absorbed_irradiance);
@@ -124,6 +157,7 @@ ssol_mc_shape_get_mc_primitive
     SETUP_MC_RESULT(reflectivity_loss);
     #undef SETUP_MC_RESULT
   }
+
   return RES_OK;
 }
 
