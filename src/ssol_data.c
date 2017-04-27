@@ -86,7 +86,6 @@ ssol_data_eq(const struct ssol_data* a, const struct ssol_data* b)
     case SSOL_DATA_SPECTRUM: return a->value.spectrum == b->value.spectrum;
     default: FATAL("Unreachable code.\n"); break;
   }
-  return 0;
 }
 
 double
