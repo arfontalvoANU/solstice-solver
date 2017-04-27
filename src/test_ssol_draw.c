@@ -186,6 +186,22 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   CHECK(f3_eq_eps(upper, f3(tmp, 552.f, 559.f, 548.f), 1.e-6f), 1);
 }
 
+
+/* Wrap the ssol_draw_pt function to match the ssol_draw_draft profile */
+static INLINE res_T
+draw_pt
+  (struct ssol_scene* scn,
+   struct ssol_camera* cam,
+   const size_t width,
+   const size_t height,
+   const size_t spp,
+   ssol_write_pixels_T writer,
+   void* data)
+{
+  const double up[3] = {0, 0, 1};
+  return ssol_draw_pt(scn, cam, width, height, spp, up, writer, data);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -220,7 +236,7 @@ main(int argc, char** argv)
   if(!strcmp(argv[1], "draft")) {
     draw_func = ssol_draw_draft;
   } else if(!strcmp(argv[1], "pt")) {
-    draw_func = ssol_draw_pt;
+    draw_func = draw_pt;
   } else {
     fprintf(stderr, "Usage: %s <draft|pt>\n", argv[0]);
     return -1;
@@ -325,6 +341,11 @@ main(int argc, char** argv)
   CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_OK);
 
   CHECK(image_write_ppm_stream(&img, 0, stdout), RES_OK);
+
+  if(draw_func == draw_pt) {
+    CHECK(ssol_draw_pt
+      (scn, cam, WIDTH, HEIGHT, 4, NULL, write_RGB8, pixels), RES_BAD_ARG);
+  }
 
   CHECK(image_release(&img), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);

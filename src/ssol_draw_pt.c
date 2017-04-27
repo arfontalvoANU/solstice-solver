@@ -39,6 +39,7 @@ struct thread_context {
   struct ssp_rng* rng;
   struct ssf_bsdf* bsdf;
   struct ranst_sun_wl* ran_wl;
+  float up[3];
 };
 
 static void
@@ -71,14 +72,16 @@ static void
 thread_context_setup
   (struct thread_context* ctx,
    struct ssp_rng* rng,
-   struct ranst_sun_wl* ran_wl)
+   struct ranst_sun_wl* ran_wl,
+   const double up[3])
 {
-  ASSERT(ctx && rng && ran_wl);
+  ASSERT(ctx && rng && ran_wl && up);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
   SSP(rng_ref_get(rng));
   ranst_sun_wl_ref_get(ran_wl);
   ctx->rng = rng;
   ctx->ran_wl = ran_wl;
+  f3_set_d3(ctx->up, up);
 }
 
 /* Declare the container of the per thread contexts */
@@ -179,7 +182,7 @@ Li(struct ssol_scene* scn,
     }
 
     if(S3D_HIT_NONE(&hit)) { /* Background lighting */
-      if(ray_dir[2] > 0) L += throughput * 1.e-1;
+      if(f3_dot(ray_dir, ctx->up) > 0)  L += throughput * 1.e-1;
       break;
     }
 
@@ -345,6 +348,7 @@ ssol_draw_pt
    const size_t width,
    const size_t height,
    const size_t spp,
+   const double up[3],
    ssol_write_pixels_T writer,
    void* data)
 {
@@ -354,7 +358,7 @@ ssol_draw_pt
   size_t i;
   res_T res = RES_OK;
 
-  if(!scn) return RES_BAD_ARG;
+  if(!scn || !up) return RES_BAD_ARG;
 
   darray_thread_context_init(scn->dev->allocator, &thread_ctxs);
 
@@ -381,7 +385,7 @@ ssol_draw_pt
     res = ssp_rng_proxy_create_rng(rng_proxy, i, &rng);
     if(res != RES_OK) goto error;
 
-    thread_context_setup(ctx, rng, ran_sun_wl);
+    thread_context_setup(ctx, rng, ran_sun_wl, up);
     SSP(rng_ref_put(rng));
   }
 

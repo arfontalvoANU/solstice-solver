@@ -1194,6 +1194,7 @@ ssol_draw_pt
    const size_t width, /* #pixels in X */
    const size_t height, /* #pixels in Y */
    const size_t spp,
+   const double up[3], /* Direction toward the top of the skydome */
    ssol_write_pixels_T writer,
    void* writer_data);
 
