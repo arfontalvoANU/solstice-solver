@@ -121,11 +121,19 @@ int
 spectrum_check_data
   (const struct ssol_spectrum* spectrum, const double lower, const double upper)
 {
-  size_t i;
+  size_t sz, i;
+  double current_wl = 0;
   ASSERT(spectrum && lower <= upper);
-  FOR_EACH(i, 0, darray_double_size_get(&spectrum->intensities)) {
+  sz = darray_double_size_get(&spectrum->intensities);
+  if(!sz) return 0;
+  if(sz != darray_double_size_get(&spectrum->wavelengths)) return 0;
+  FOR_EACH(i, 0, sz) {
+    const double wl = darray_double_cdata_get(&spectrum->wavelengths)[i];
     const double data = darray_double_cdata_get(&spectrum->intensities)[i];
     if(data < lower || data > upper) return 0;
+    if(wl <= 0) return 0;
+    if(wl <= current_wl) return 0;
+    current_wl = wl;
   }
   return 1;
 }
