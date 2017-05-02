@@ -41,20 +41,6 @@ spectrum_release(ref_T* ref)
 }
 
 static int
-spectrum_includes_point
-  (const struct ssol_spectrum* spectrum,
-   const double wavelength)
-{
-  const double* data;
-  size_t sz;
-  ASSERT(spectrum);
-  sz = darray_double_size_get(&spectrum->wavelengths);
-  ASSERT(sz && sz == darray_double_size_get(&spectrum->intensities));
-  data = darray_double_cdata_get(&spectrum->wavelengths);
-  return data[0] <= wavelength && wavelength <= data[sz - 1];
-}
-
-static int
 eq_dbl(const void* key, const void* base)
 {
   const double k = *(const double*) key;
@@ -67,21 +53,6 @@ eq_dbl(const void* key, const void* base)
 /*******************************************************************************
  * Local ssol_spectrum functions
  ******************************************************************************/
-int
-spectrum_includes
-  (const struct ssol_spectrum* reference,
-   const struct ssol_spectrum* tested)
-{
-  const double* test_data;
-  size_t test_sz;
-  ASSERT(reference && tested);
-
-  test_sz = darray_double_size_get(&tested->wavelengths);
-  test_data = darray_double_cdata_get(&tested->wavelengths);
-  return spectrum_includes_point(reference, test_data[0])
-      && spectrum_includes_point(reference, test_data[test_sz - 1]);
-}
-
 double
 spectrum_interpolate
   (const struct ssol_spectrum* spectrum, const double wavelength)
