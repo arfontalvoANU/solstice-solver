@@ -66,7 +66,8 @@ main(int argc, char** argv)
   struct ssol_sun* sun;
   struct ssol_sun* sun_mono;
   struct ssol_spectrum* spectrum;
-  struct ssol_spectrum* abs;
+  struct ssol_spectrum* abs_spectrum;
+  struct ssol_data abs_data;
   struct ssol_atmosphere* atm;
   struct ssol_estimator* estimator;
   struct ssol_mc_sampled sampled;
@@ -79,7 +80,6 @@ main(int argc, char** argv)
   double dir[3];
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
-  double mismatch[3] = { 1.5, 3.5, 0 };
   double ka[3] = { 0, 0, 0 };
   double mono = 1.21;
   double transform1[12]; /* 3x4 column major matrix */
@@ -287,20 +287,6 @@ main(int argc, char** argv)
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
-  /* Spectra mismatch */
-  desc.wavelengths = mismatch;
-  desc.intensities = ka;
-  desc.count = 2;
-  CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
-  CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
-  CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
-  CHECK(ssol_spectrum_ref_put(abs), RES_OK);
-  CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
-
   /* Can sample any geometry; variance is high */
   NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
@@ -379,13 +365,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Check atmosphere model; with no absorption result is unchanged */
-  desc.wavelengths = wavelengths;
-  desc.intensities = ka;
-  desc.count = 3;
-  CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, get_wlen, 3, &desc), RES_OK);
-  CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
+  CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
+  abs_data.type = SSOL_DATA_REAL;
+  abs_data.value.real = 0;
+  CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
   NCHECK(tmp = tmpfile(), 0);
@@ -398,7 +381,6 @@ main(int argc, char** argv)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
-  CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
@@ -431,11 +413,11 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, heliostat2), RES_OK);
 
 #define KA 0.03
-  ka[0] = ka[1] = ka[2] = KA;
-  CHECK(ssol_spectrum_create(dev, &abs), RES_OK);
-  CHECK(ssol_spectrum_setup(abs, get_wlen, 3, &desc), RES_OK);
-  CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorption(atm, abs), RES_OK);
+  abs_data.value.real = KA;
+  CHECK(ssol_spectrum_create(dev, &abs_spectrum), RES_OK);
+  CHECK(ssol_spectrum_setup(abs_spectrum, get_wlen, 3, &desc), RES_OK);
+  CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
+  CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 1), RES_OK);
 
@@ -547,8 +529,13 @@ main(int argc, char** argv)
   ka[1] = 0.2; ka[0] = ka[2] = 0.1;
   desc.wavelengths = wavelengths;
   desc.intensities = ka;
-  desc.count = 2;
-  CHECK(ssol_spectrum_setup(abs, get_wlen, 2, &desc), RES_OK);
+  desc.count = 3;
+  CHECK(ssol_spectrum_setup(abs_spectrum, get_wlen, 3, &desc), RES_OK);
+  CHECK(ssol_spectrum_setup(abs_spectrum, get_wlen, 2, &desc), RES_OK);
+  abs_data.type = SSOL_DATA_SPECTRUM;
+  abs_data.value.spectrum = abs_spectrum;
+  CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
+
   NCHECK(tmp = tmpfile(), 0);
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
@@ -587,10 +574,10 @@ main(int argc, char** argv)
   CHECK(ssol_material_ref_put(v_mtl), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_scene_ref_put(scene), RES_OK);
-  CHECK(ssol_spectrum_ref_put(abs), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
+  CHECK(ssol_spectrum_ref_put(abs_spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun_mono), RES_OK);
   CHECK(ssp_rng_ref_put(rng), RES_OK);

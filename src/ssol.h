@@ -637,7 +637,7 @@ ssol_scene_compute_aabb
 
 /* Detach all the instances from the scene and release the reference that the
  * scene takes onto them.
- * Also detach the attached sun if any. */
+ * Also detach the attached sun and atmosphere if any. */
 SSOL_API res_T
 ssol_scene_clear
   (struct ssol_scene* scn);
@@ -1044,7 +1044,7 @@ ssol_sun_set_buie_param
  ******************************************************************************/
 /* The atmosphere describes absorption along the light paths */
 SSOL_API res_T
-ssol_atmosphere_create_uniform
+ssol_atmosphere_create
   (struct ssol_device* dev,
    struct ssol_atmosphere** atmosphere);
 
@@ -1056,11 +1056,10 @@ SSOL_API res_T
 ssol_atmosphere_ref_put
   (struct ssol_atmosphere* atmosphere);
 
-/* List of per wavelength power of the sun */
 SSOL_API res_T
-ssol_atmosphere_set_uniform_absorption
+ssol_atmosphere_set_absorption
   (struct ssol_atmosphere* atmosphere,
-   struct ssol_spectrum* spectrum);
+   struct ssol_data* absorption);
 
 /*******************************************************************************
 * Estimator API - Describe the state of a simulation.

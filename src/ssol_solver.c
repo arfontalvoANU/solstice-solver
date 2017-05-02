@@ -746,7 +746,7 @@ trace_radiative_path
   if(scn->atmosphere) {
     /* Assume that the path starts from an uniform atmosphere */
     ssol_data_set_real(&medium.absorptivity,
-      atmosphere_uniform_get_absorption(scn->atmosphere, pt.wl));
+      atmosphere_get_absorption(scn->atmosphere, pt.wl));
   }
 
   if(tracker) {

@@ -62,17 +62,17 @@ ssol_data_copy(struct ssol_data* dst, const struct ssol_data* src)
 {
   ASSERT(dst && src);
   if(dst == src) return dst;
-  dst->type = src->type;
-  switch(dst->type) {
+  ssol_data_clear(dst);
+  switch(src->type) {
     case SSOL_DATA_REAL:
       dst->value.real = src->value.real;
       break;
     case SSOL_DATA_SPECTRUM:
-      dst->value.spectrum = src->value.spectrum;
-      SSOL(spectrum_ref_get(dst->value.spectrum));
+      ssol_data_set_spectrum(dst, src->value.spectrum);
       break;
     default: FATAL("Unreachable code.\n"); break;
   }
+  dst->type = src->type;
   return dst;
 }
 
