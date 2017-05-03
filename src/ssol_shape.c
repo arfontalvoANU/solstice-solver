@@ -1272,12 +1272,9 @@ hemisphere_compute_slices_count
   (const struct priv_hemisphere_data* hemisphere, const double radius)
 {
   size_t nslices;
-  double pt[2];
-  double max_z = -DBL_MAX;
-  ASSERT(hemisphere && radius > 0);
-  d2(pt, 0, radius);
-  max_z = MMAX(max_z, hemisphere_z(pt, hemisphere));
-  nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
+  ASSERT(hemisphere && radius > 0 && hemisphere->radius >= radius);
+  /* default ranging from 5 to 16 */
+  nslices = (size_t)(5.5 + 11 * radius / hemisphere->radius);
   return nslices;
 }
 
