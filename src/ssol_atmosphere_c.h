@@ -21,28 +21,16 @@
 
 struct ssol_scene;
 
-enum atmosphere_type {
-  ATMOS_UNIFORM,
-  ATMOS_TYPES_COUNT__
-};
-
-struct atm_uniform {
-  struct ssol_spectrum* spectrum;
-};
-
 struct ssol_atmosphere {
-  enum atmosphere_type type;
   struct ssol_scene* scene_attachment;
-  union {
-    struct atm_uniform uniform;
-  } data;
+  struct ssol_data absorption;
 
   struct ssol_device* dev;
   ref_T ref;
 };
 
 extern LOCAL_SYM double
-atmosphere_uniform_get_absorption
+atmosphere_get_absorption
   (const struct ssol_atmosphere* atmosphere,
    const double wavelength);
 

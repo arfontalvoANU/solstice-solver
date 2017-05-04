@@ -45,17 +45,6 @@ instance_func(struct ssol_instance* inst, void* context)
   return RES_OK;
 }
 
-static void
-get_wlen(const size_t i, double* wlen, double* data, void* ctx)
-{
-  double wavelengths[3] = { 10, 20, 30 };
-  double intensities[3] = { 1, 2.1, 1.5 };
-  CHECK(i < 3, 1);
-  (void)ctx;
-  *wlen = wavelengths[i];
-  *data = intensities[i];
-}
-
 int
 main(int argc, char** argv)
 {
@@ -87,9 +76,9 @@ main(int argc, char** argv)
   struct ssol_sun* sun2;
   struct ssol_scene* scene;
   struct ssol_scene* scene2;
-  struct ssol_spectrum* spectrum;
   struct ssol_atmosphere* atm;
   struct ssol_atmosphere* atm2;
+  struct ssol_data absorption;
   struct ssol_vertex_data vdata;
   struct scene_ctx ctx;
   struct desc desc;
@@ -179,12 +168,12 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_sun(scene, sun), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene2, sun), RES_OK);
 
-  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
-  CHECK(ssol_atmosphere_create_uniform(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorption(atm, spectrum), RES_OK);
-  CHECK(ssol_atmosphere_create_uniform(dev, &atm2), RES_OK);
-  CHECK(ssol_atmosphere_set_uniform_absorption(atm2, spectrum), RES_OK);
+  CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
+  absorption.type = SSOL_DATA_REAL;
+  absorption.value.real = 0.1;
+  CHECK(ssol_atmosphere_set_absorption(atm, &absorption), RES_OK);
+  CHECK(ssol_atmosphere_create(dev, &atm2), RES_OK);
+  CHECK(ssol_atmosphere_set_absorption(atm2, &absorption), RES_OK);
 
   CHECK(ssol_scene_attach_atmosphere(NULL, atm), RES_BAD_ARG);
   CHECK(ssol_scene_attach_atmosphere(scene, NULL), RES_BAD_ARG);
@@ -266,7 +255,6 @@ main(int argc, char** argv)
   CHECK(ssol_object_ref_put(object), RES_OK);
   CHECK(ssol_shape_ref_put(shape), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
-  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm2), RES_OK);
   CHECK(ssol_material_ref_put(material), RES_OK);

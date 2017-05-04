@@ -542,17 +542,6 @@ scene_check(const struct ssol_scene* scene, const char* caller)
     log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
     return RES_BAD_ARG;
   }
-
-  if(scene->atmosphere) {
-    int i;
-    ASSERT(scene->atmosphere->type == ATMOS_UNIFORM);
-    i = spectrum_includes
-      (scene->atmosphere->data.uniform.spectrum, scene->sun->spectrum);
-    if(!i) {
-      log_error(scene->dev, "%s: sun/atmosphere spectra mismatch.\n", caller);
-      return RES_BAD_ARG;
-    }
-  }
   return RES_OK;
 }
 

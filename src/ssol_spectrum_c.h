@@ -27,12 +27,6 @@ struct ssol_spectrum {
   ref_T ref;
 };
 
-/* Check that the `tested' spectrum is included into `reference' */
-extern LOCAL_SYM int
-spectrum_includes
-  (const struct ssol_spectrum* reference,
-   const struct ssol_spectrum* tested);
-
 /* Retrieve the linearly interpolated spectrum intensity for the commited
  * wavelength */
 extern LOCAL_SYM double
