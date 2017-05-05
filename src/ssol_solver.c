@@ -468,7 +468,6 @@ point_dump
   if(!stream) return RES_OK;
 
   out.realization_id = irealisation;
-  out.date = 0; /* TODO */
   out.segment_id = (uint32_t)isegment;
   out.receiver_id = point_get_id(pt);
   out.wavelength = (float)pt->wl;

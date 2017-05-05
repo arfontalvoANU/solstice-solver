@@ -326,7 +326,6 @@ SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
  * FILE* argument */
 struct ssol_receiver_data {
   uint64_t realization_id;
-  int64_t date;
   uint32_t segment_id;
 
   /* Its absolute value is the identifier of an SSOL instance. A negative
