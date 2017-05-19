@@ -79,7 +79,6 @@ spectrum_interpolate
   }
 
   ASSERT(id_next); /* because spectrum_includes_point */
-  ASSERT(ints[id_next] >= ints[id_next - 1]);
   ASSERT(wls[id_next] >= wls[id_next - 1]);
 
   slope = (ints[id_next] - ints[id_next-1]) / (wls[id_next] - wls[id_next-1]);
