@@ -320,6 +320,11 @@ material_release(ref_T* ref)
   ASSERT(ref);
   dev = material->dev;
   if(material->buf) SSOL(param_buffer_ref_put(material->buf));
+  if(material->type == SSOL_MATERIAL_THIN_DIELECTRIC) {
+    ssol_medium_clear(&material->data.thin_dielectric.slab_medium);
+  }
+  ssol_medium_clear(&material->in_medium);
+  ssol_medium_clear(&material->out_medium);
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, material);
   SSOL(device_ref_put(dev));
@@ -500,7 +505,7 @@ ssol_thin_dielectric_setup
   || !check_medium(slab_medium)
   || thickness < 0)
     return RES_BAD_ARG;
-  material->data.thin_dielectric.slab_medium = *slab_medium;
+  ssol_medium_copy(&material->data.thin_dielectric.slab_medium, slab_medium);
   material->data.thin_dielectric.thickness = thickness;
   ssol_medium_copy(&material->out_medium, outside_medium);
   ssol_medium_copy(&material->in_medium, outside_medium);
