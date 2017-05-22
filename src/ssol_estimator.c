@@ -149,7 +149,7 @@ ssol_estimator_get_mc_sampled_x_receiver
   memset(rcv, 0, sizeof(rcv[0]));
 
   mc_samp = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
-  if(!mc_samp || !mc_samp->nb_samples) {
+  if(!mc_samp) {
     /* The sampled instance has no MC estimation */
     return RES_BAD_ARG;
   }
