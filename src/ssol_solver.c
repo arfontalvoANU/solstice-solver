@@ -58,6 +58,7 @@ struct thread_context {
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
   struct darray_path paths; /* paths */
+  size_t realisation_count;
 };
 
 static void
@@ -909,7 +910,8 @@ ssol_solve
   int nthreads = 0;
   int64_t nrealisations = 0;
   int i = 0;
-  ATOMIC res = RES_OK;
+  res_T res = RES_OK;
+  ATOMIC mt_res = RES_OK;
   ASSERT(nrealisations <= INT_MAX);
 
   if(!scn || !rng_state || !realisations_count || !out_estimator)
@@ -975,7 +977,7 @@ ssol_solve
     const int ithread = omp_get_thread_num();
     res_T res_local;
 
-    if(ATOMIC_GET(&res) != RES_OK) continue; /* An error occurs */
+    if(ATOMIC_GET(&mt_res) != RES_OK) continue; /* An error occured */
 
     /* Fetch per thread data */
     thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + ithread;
@@ -984,9 +986,18 @@ ssol_solve
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
       scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker, output);
     if(res_local != RES_OK) {
-      ATOMIC_SET(&res, res_local);
+      if(res_local == RES_BAD_OP /* Inconsistent medium description */
+        && ATOMIC_INCR(&estimator->failed_count) * 100 > nrealisations) {
+        /* Can be due to numerical accuracy: accept up to 1% realisations */
+        ATOMIC_SET(&mt_res, res_local);
+      }
+      if(res_local != RES_BAD_OP) {
+        /* Hard error: immediate stop */
+        ATOMIC_SET(&mt_res, res_local);
+      }
       continue;
     }
+    thread_ctx->realisation_count++;
   }
 
   /* Merge per thread global MC estimations */
@@ -1003,6 +1014,7 @@ ssol_solve
     ACCUM_WEIGHT(missing);
     ACCUM_WEIGHT(atmosphere);
     ACCUM_WEIGHT(reflectivity);
+    estimator->realisation_count += thread_ctx->realisation_count;
     #undef ACCUM_WEIGHT
   }
 
@@ -1071,8 +1083,8 @@ ssol_solve
     }
   }
 
-  estimator->realisation_count = realisations_count;
   estimator->sampled_area = sampled_area;
+  if (mt_res != RES_OK) res = (res_T)mt_res;
 
 exit:
   darray_thread_ctx_release(&thread_ctxs);
@@ -1082,7 +1094,7 @@ exit:
   if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
   if(out_estimator) *out_estimator = estimator;
-  return (res_T)res;
+  return res;
 error:
   if(estimator) {
     SSOL(estimator_ref_put(estimator));

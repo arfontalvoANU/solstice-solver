@@ -444,7 +444,7 @@ path_add_vertex(struct path* path, const double pos[3], const double weight)
  ******************************************************************************/
 struct ssol_estimator {
   size_t realisation_count;
-  size_t failed_count;
+  ATOMIC failed_count;
 
   /* Implicit MC computations */
   struct mc_data cos_factor;
