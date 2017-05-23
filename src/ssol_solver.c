@@ -43,6 +43,9 @@
 #include <limits.h>
 #include <omp.h>
 
+/* How many percent of random walk realisations may fail before an error occurs */
+#define MAX_PERCENT_FAILURES 0.01
+
 /*******************************************************************************
  * Thread context
  ******************************************************************************/
@@ -907,11 +910,13 @@ ssol_solve
   struct ssp_rng_proxy* rng_proxy = NULL;
   double sampled_area;
   double sampled_area_proxy;
-  int nthreads = 0;
   int64_t nrealisations = 0;
+  int64_t max_failures = 0;
+  int nthreads = 0;
   int i = 0;
-  res_T res = RES_OK;
   ATOMIC mt_res = RES_OK;
+  ATOMIC nfailures = 0;
+  res_T res;
   ASSERT(nrealisations <= INT_MAX);
 
   if(!scn || !rng_state || !realisations_count || !out_estimator)
@@ -926,8 +931,9 @@ ssol_solve
     res = RES_BAD_ARG;
     goto error;
   }
-  nrealisations = (int)realisations_count;
-  nthreads = (int) scn->dev->nthreads;
+  nrealisations = (int64_t)realisations_count;
+  max_failures = (int64_t)((double)nrealisations * MAX_PERCENT_FAILURES);
+  nthreads = (int)scn->dev->nthreads;
 
   res = scene_check(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
@@ -985,20 +991,19 @@ ssol_solve
     /* Execute a MC experiment */
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
       scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker, output);
-    if(res_local != RES_OK) {
-      if(res_local == RES_BAD_OP /* Inconsistent medium description */
-        && ATOMIC_INCR(&estimator->failed_count) * 100 > nrealisations) {
-        /* Can be due to numerical accuracy: accept up to 1% realisations */
+
+    if(res_local == RES_BAD_OP) {
+      if(ATOMIC_INCR(&nfailures) >= max_failures) {
+        log_error(scn->dev, "Too many unexpected radiative paths.\n");
         ATOMIC_SET(&mt_res, res_local);
       }
-      if(res_local != RES_BAD_OP) {
-        /* Hard error: immediate stop */
-        ATOMIC_SET(&mt_res, res_local);
-      }
-      continue;
+    } else if(res_local != RES_OK) {
+      ATOMIC_SET(&mt_res, res_local);
     }
+    if(res_local != RES_OK) continue;
     thread_ctx->realisation_count++;
   }
+  estimator->failed_count = (size_t)nfailures;
 
   /* Merge per thread global MC estimations */
   FOR_EACH(i, 0, nthreads) {
@@ -1084,7 +1089,7 @@ ssol_solve
   }
 
   estimator->sampled_area = sampled_area;
-  if (mt_res != RES_OK) res = (res_T)mt_res;
+  if(mt_res != RES_OK) res = (res_T)mt_res;
 
 exit:
   darray_thread_ctx_release(&thread_ctxs);
