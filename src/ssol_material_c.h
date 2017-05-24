@@ -25,7 +25,7 @@ struct ssol_device;
 
 #define MEDIA_EQ(A, B)                                                         \
   (  ssol_data_eq(&((A)->refractive_index), &((B)->refractive_index))          \
-  && ssol_data_eq(&((A)->absorptivity), &((B)->absorptivity)))
+  && ssol_data_eq(&((A)->absorption), &((B)->absorption)))
 
 struct dielectric {
   int dummy;

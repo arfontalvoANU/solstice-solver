@@ -172,13 +172,13 @@ Li(struct ssol_scene* scn,
   wl = ranst_sun_wl_get(ctx->ran_wl, ctx->rng);
 
   for(;;) {
-    double absorptivity;
+    double absorption;
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
-    absorptivity = ssol_data_get_value(&medium.absorptivity, wl);
-    if(absorptivity > 0) {
-      throughput *= exp(-absorptivity * hit.distance);
+    absorption = ssol_data_get_value(&medium.absorption, wl);
+    if(absorption > 0) {
+      throughput *= exp(-absorption * hit.distance);
     }
 
     if(S3D_HIT_NONE(&hit)) { /* Background lighting */

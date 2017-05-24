@@ -258,7 +258,7 @@ struct ssol_data {
 static const struct ssol_data SSOL_DATA_NULL = SSOL_DATA_NULL__;
 
 struct ssol_medium {
-  struct ssol_data absorptivity;
+  struct ssol_data absorption;
   struct ssol_data refractive_index;
 };
 #define SSOL_MEDIUM_VACUUM__ {{SSOL_DATA_REAL, {0}}, {SSOL_DATA_REAL, {1}}}
@@ -1237,7 +1237,7 @@ static FINLINE struct ssol_medium*
 ssol_medium_clear(struct ssol_medium* medium)
 {
   ASSERT(medium);
-  ssol_data_clear(&medium->absorptivity);
+  ssol_data_clear(&medium->absorption);
   ssol_data_clear(&medium->refractive_index);
   return medium;
 }
@@ -1246,7 +1246,7 @@ static FINLINE struct ssol_medium*
 ssol_medium_copy(struct ssol_medium* dst, const struct ssol_medium* src)
 {
   ASSERT(dst && src);
-  ssol_data_copy(&dst->absorptivity, &src->absorptivity);
+  ssol_data_copy(&dst->absorption, &src->absorption);
   ssol_data_copy(&dst->refractive_index, &src->refractive_index);
   return dst;
 }

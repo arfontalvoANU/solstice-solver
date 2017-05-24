@@ -212,7 +212,7 @@ setup_thin_dielectric_bsdf
 {
   struct ssf_bxdf* bxdf = NULL;
   double thickness;
-  double absorptivity;
+  double absorption;
   double eta_i;
   double eta_t;
   res_T res = RES_OK;
@@ -223,8 +223,8 @@ setup_thin_dielectric_bsdf
   eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
   eta_t = ssol_data_get_value
     (&mtl->data.thin_dielectric.slab_medium.refractive_index, wavelength);
-  absorptivity = ssol_data_get_value
-    (&mtl->data.thin_dielectric.slab_medium.absorptivity, wavelength);
+  absorption = ssol_data_get_value
+    (&mtl->data.thin_dielectric.slab_medium.absorption, wavelength);
   thickness = mtl->data.thin_dielectric.thickness;
 
   /* Setup the BxDF */
@@ -232,7 +232,7 @@ setup_thin_dielectric_bsdf
     (mtl->dev->allocator, &ssf_thin_specular_dielectric, &bxdf);
   if(res != RES_OK) goto error;
   res = ssf_thin_specular_dielectric_setup
-    (bxdf, absorptivity, eta_i, eta_t, thickness);
+    (bxdf, absorption, eta_i, eta_t, thickness);
   if(res != RES_OK) goto error;
 
   /* Setup the BSDF */
@@ -280,21 +280,21 @@ check_medium(const struct ssol_medium* medium)
 {
   if(!medium) return 0;
 
-  /* Check absorptivity in [0, INF) */
-  switch(medium->absorptivity.type) {
+  /* Check absorption in [0, INF) */
+  switch(medium->absorption.type) {
     case SSOL_DATA_REAL:
-      if(medium->absorptivity.value.real < 0)
+      if(medium->absorption.value.real < 0)
         return 0;
       break;
     case SSOL_DATA_SPECTRUM:
-      if(!medium->absorptivity.value.spectrum
-      || !spectrum_check_data(medium->absorptivity.value.spectrum, 0, DBL_MAX))
+      if(!medium->absorption.value.spectrum
+      || !spectrum_check_data(medium->absorption.value.spectrum, 0, DBL_MAX))
         return 0;
       break;
     default: FATAL("Unreachable code\n"); break;
   }
 
-  /* Check absorptivity in ]0, INF) */
+  /* Check refractive index in ]0, INF) */
   switch(medium->refractive_index.type) {
     case SSOL_DATA_REAL:
       if(medium->refractive_index.value.real <= 0)

@@ -776,7 +776,7 @@ trace_radiative_path
     struct ssol_medium medium = SSOL_MEDIUM_VACUUM;
     if(scn->atmosphere) {
       /* Assume that the path starts from an uniform atmosphere */
-      ssol_data_set_real(&medium.absorptivity,
+      ssol_data_set_real(&medium.absorption,
         atmosphere_get_absorption(scn->atmosphere, pt.wl));
     }
     /* Setup the ray as if it starts from the current point position in order
@@ -788,7 +788,7 @@ trace_radiative_path
     for(;;) { /* Here we go for the radiative random walk */
       struct ray_data ray_data = RAY_DATA_NULL;
       struct ssol_material* mtl;
-      double absorptivity;
+      double absorption;
 
       /* Compute interaction with material */
       mtl = point_get_material(&pt);
@@ -848,9 +848,9 @@ trace_radiative_path
       depth += mtl->type != SSOL_MATERIAL_VIRTUAL;
 
       /* Take into account the medium attenuation */
-      absorptivity = ssol_data_get_value(&medium.absorptivity, pt.wl);
-      if(absorptivity > 0 && hit.distance > 0) {
-        const double transmissivity = exp(-absorptivity * hit.distance);
+      absorption = ssol_data_get_value(&medium.absorption, pt.wl);
+      if(absorption > 0 && hit.distance > 0) {
+        const double transmissivity = exp(-absorption * hit.distance);
         ASSERT(0 < transmissivity && transmissivity <= 1);
         pt.absorptivity_loss += (1 - transmissivity) * pt.weight;
         pt.weight *= transmissivity;
