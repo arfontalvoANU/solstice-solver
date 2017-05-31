@@ -724,6 +724,7 @@ material_get_next_medium
       if(media_ceq(&mtl->out_medium, medium)) {
         ssol_medium_copy(next_medium, &mtl->in_medium);
       } else {
+        ASSERT(media_ceq(&mtl->in_medium, medium));
         ssol_medium_copy(next_medium, &mtl->out_medium);
       }
       break;

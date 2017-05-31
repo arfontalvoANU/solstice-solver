@@ -746,7 +746,7 @@ trace_radiative_path
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
 
-  if(tracker) {
+if(tracker) {
     /* Add the first point of the starting segment */
     if(tracker->sun_ray_length > 0) {
       double pos[3], wi[3];
@@ -774,9 +774,20 @@ trace_radiative_path
     ACCUM_WEIGHT(thread_ctx->shadowed, pt.weight);
     if(tracker) path.type = SSOL_PATH_SHADOW;
   } else {
-    if(scn->atmosphere) {
-      ssol_data_copy(&medium.absorption, &scn->atmosphere->absorption);
+    struct ssol_material* mtl = point_get_material(&pt);
+
+    /* Define the medium in which the sampled point lies */
+    switch(mtl->type) {
+      case SSOL_MATERIAL_DIELECTRIC:
+      case SSOL_MATERIAL_THIN_DIELECTRIC:
+        ssol_medium_copy(&medium, &mtl->out_medium);
+        break;
+      default:
+        if(scn->atmosphere)
+          ssol_data_copy(&medium.absorption, &scn->atmosphere->absorption);
+        break;
     }
+
     /* Setup the ray as if it starts from the current point position in order
      * to handle the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
@@ -785,7 +796,6 @@ trace_radiative_path
 
     for(;;) { /* Here we go for the radiative random walk */
       struct ray_data ray_data = RAY_DATA_NULL;
-      struct ssol_material* mtl;
       double absorption;
 
       /* Compute interaction with material */
