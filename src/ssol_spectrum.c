@@ -17,11 +17,11 @@
 #include "ssol_spectrum_c.h"
 #include "ssol_device_c.h"
 
-#include <rsys/rsys.h>
+#include <rsys/algorithm.h>
+#include <rsys/hash.h>
+#include <rsys/math.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
-#include <rsys/math.h>
-#include <rsys/algorithm.h>
 
 /*******************************************************************************
  * Helper functions
@@ -196,12 +196,17 @@ ssol_spectrum_setup
     current_wl = *(wavelengths + i);
   }
 
+  spectrum->checksum[0] = hash_fnv64(wavelengths, nwlens*sizeof(double));
+  spectrum->checksum[1] = hash_fnv64(intensities, nwlens*sizeof(double));
+
 exit:
   return res;
 error:
   if(spectrum) {
     darray_double_clear(&spectrum->wavelengths);
     darray_double_clear(&spectrum->intensities);
+    spectrum->checksum[0] = 0;
+    spectrum->checksum[1] = 0;
   }
   goto exit;
 }

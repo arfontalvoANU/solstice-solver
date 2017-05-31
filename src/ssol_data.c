@@ -76,18 +76,6 @@ ssol_data_copy(struct ssol_data* dst, const struct ssol_data* src)
   return dst;
 }
 
-int
-ssol_data_eq(const struct ssol_data* a, const struct ssol_data* b)
-{
-  ASSERT(a && b);
-  if(a->type != b->type) return 0;
-  switch(a->type) {
-    case SSOL_DATA_REAL: return a->value.real == b->value.real;
-    case SSOL_DATA_SPECTRUM: return a->value.spectrum == b->value.spectrum;
-    default: FATAL("Unreachable code.\n"); break;
-  }
-}
-
 double
 ssol_data_get_value(const struct ssol_data* data, const double wavelength)
 {

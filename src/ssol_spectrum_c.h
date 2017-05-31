@@ -22,6 +22,7 @@
 struct ssol_spectrum {
   struct darray_double wavelengths;
   struct darray_double intensities;
+  uint64_t checksum[2];
 
   struct ssol_device* dev;
   ref_T ref;

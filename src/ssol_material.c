@@ -36,6 +36,44 @@
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+/* Define if the submitted ssol_data are *certainly* equals or not. Note that it
+ * does not check explicitly the spectrum data since it would be too expensive;
+ * it compares their checksum and that's why one cannot certify that the data
+ * are strictly equals. Anyway, since this function is used to detect medium
+ * inconsistencies, it is actually really sufficient to use this strategy. */
+static INLINE int
+ssol_data_ceq(const struct ssol_data* a, const struct ssol_data* b)
+{
+  int i;
+  ASSERT(a && b);
+
+  if(a->type != b->type) {
+    i = 0;
+  } else {
+    switch(a->type) {
+      case SSOL_DATA_REAL:
+        i = a->value.real == b->value.real;
+        break;
+      case SSOL_DATA_SPECTRUM:
+        i =  a->value.spectrum->checksum[0] == b->value.spectrum->checksum[0]
+          && a->value.spectrum->checksum[1] == b->value.spectrum->checksum[1];
+        break;
+      default: FATAL("Unreachable code\n"); break;
+    }
+  }
+  return i;
+}
+
+/* Define if the submitted media are *certainly* equals. Refer to the
+ * check_ssol_data for more details. */
+static INLINE int
+media_ceq(const struct ssol_medium* a, const struct ssol_medium* b)
+{
+  ASSERT(a && b);
+  return ssol_data_ceq(&a->refractive_index, &b->refractive_index)
+      && ssol_data_ceq(&a->absorption, &b->absorption);
+}
+
 static void
 shade_normal_default
   (struct ssol_device* dev,
@@ -66,7 +104,7 @@ setup_dielectric_bsdf
   ASSERT(medium && bsdf);
   (void)wavelength, (void)fragment;
 
-  if(!MEDIA_EQ(medium, &mtl->out_medium)) {
+  if(!media_ceq(medium, &mtl->out_medium)) {
     log_error(mtl->dev, "Inconsistent medium description.\n");
     res = RES_BAD_OP;
     goto error;
@@ -683,7 +721,7 @@ material_get_next_medium
   switch(mtl->type) {
     /* The material is an interface between 2 media */
     case SSOL_MATERIAL_DIELECTRIC:
-      if(MEDIA_EQ(&mtl->out_medium, medium)) {
+      if(media_ceq(&mtl->out_medium, medium)) {
         ssol_medium_copy(next_medium, &mtl->in_medium);
       } else {
         ssol_medium_copy(next_medium, &mtl->out_medium);

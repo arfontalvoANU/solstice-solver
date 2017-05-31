@@ -125,15 +125,3 @@ ssol_atmosphere_set_absorption
   return RES_OK;
 }
 
-/*******************************************************************************
- * Local functions
- ******************************************************************************/
-double
-atmosphere_get_absorption
-  (const struct ssol_atmosphere* atmosphere,
-   const double wavelength)
-{
-  ASSERT(atmosphere && wavelength >= 0);
-  return ssol_data_get_value(&atmosphere->absorption, wavelength);
-}
-

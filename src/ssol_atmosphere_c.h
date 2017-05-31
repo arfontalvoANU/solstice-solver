@@ -29,9 +29,5 @@ struct ssol_atmosphere {
   ref_T ref;
 };
 
-extern LOCAL_SYM double
-atmosphere_get_absorption
-  (const struct ssol_atmosphere* atmosphere,
-   const double wavelength);
 
 #endif /* SSOL_ATMOSPHERE_C_H */

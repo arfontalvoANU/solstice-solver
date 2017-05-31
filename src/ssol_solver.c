@@ -729,6 +729,7 @@ trace_radiative_path
    FILE* output) /* May be NULL */
 {
   struct path path;
+  struct ssol_medium medium = SSOL_MEDIUM_VACUUM;
   struct s3d_hit hit = S3D_HIT_NULL;
   struct point pt;
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
@@ -773,11 +774,8 @@ trace_radiative_path
     ACCUM_WEIGHT(thread_ctx->shadowed, pt.weight);
     if(tracker) path.type = SSOL_PATH_SHADOW;
   } else {
-    struct ssol_medium medium = SSOL_MEDIUM_VACUUM;
     if(scn->atmosphere) {
-      /* Assume that the path starts from an uniform atmosphere */
-      ssol_data_set_real(&medium.absorption,
-        atmosphere_get_absorption(scn->atmosphere, pt.wl));
+      ssol_data_copy(&medium.absorption, &scn->atmosphere->absorption);
     }
     /* Setup the ray as if it starts from the current point position in order
      * to handle the points that start from a virtual material */
@@ -872,7 +870,6 @@ trace_radiative_path
     if(tracker) {
       path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
     }
-    ssol_medium_clear(&medium);
   }
 
   if(tracker) {
@@ -880,6 +877,7 @@ trace_radiative_path
     if(res != RES_OK) goto error;
   }
 exit:
+  ssol_medium_clear(&medium);
   if(tracker) path_release(&path);
   return res;
 error:

@@ -23,10 +23,6 @@ struct s3d_primitive;
 struct ssf_bsdf;
 struct ssol_device;
 
-#define MEDIA_EQ(A, B)                                                         \
-  (  ssol_data_eq(&((A)->refractive_index), &((B)->refractive_index))          \
-  && ssol_data_eq(&((A)->absorption), &((B)->absorption)))
-
 struct dielectric {
   int dummy;
 };
