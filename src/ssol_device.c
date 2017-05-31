@@ -91,7 +91,7 @@ ssol_device_create
   res = darray_tile_resize(&dev->tiles, dev->nthreads);
   if(res != RES_OK) goto error;
 
-  res = s3d_device_create(logger, mem_allocator, verbose, &dev->s3d);
+  res = s3d_device_create(logger, mem_allocator, 0, &dev->s3d);
   if(res != RES_OK) goto error;
 
   res = scpr_mesh_create(mem_allocator, &dev->scpr_mesh);

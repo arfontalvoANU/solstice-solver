@@ -710,7 +710,6 @@ material_setup_bsdf
   return res;
 }
 
-
 res_T
 material_get_next_medium
   (const struct ssol_material* mtl,
