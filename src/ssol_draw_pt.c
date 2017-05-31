@@ -14,6 +14,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol_c.h"
+#include "ssol_atmosphere_c.h"
 #include "ssol_camera.h"
 #include "ssol_device_c.h"
 #include "ssol_draw.h"
@@ -171,19 +172,24 @@ Li(struct ssol_scene* scn,
 
   wl = ranst_sun_wl_get(ctx->ran_wl, ctx->rng);
 
+  if(scn->atmosphere) {
+    ssol_data_copy(&medium.absorption, &scn->atmosphere->absorption);
+  }
+
   for(;;) {
     double absorption;
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
-    absorption = ssol_data_get_value(&medium.absorption, wl);
-    if(absorption > 0) {
-      throughput *= exp(-absorption * hit.distance);
-    }
-
     if(S3D_HIT_NONE(&hit)) { /* Background lighting */
       if(f3_dot(ray_dir, ctx->up) > 0)  L += throughput * 1.e-1;
       break;
+    }
+
+    absorption = ssol_data_get_value(&medium.absorption, wl);
+    if(absorption > 0) {
+      throughput *= exp(-absorption * hit.distance);
+      if(throughput <= 0) break;
     }
 
     /* Retrieve the hit shaded shape */
