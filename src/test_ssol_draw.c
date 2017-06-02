@@ -30,6 +30,17 @@
 #define PITCH (WIDTH*sizeof(unsigned char[3]))
 #define PROJ_RATIO ((double)WIDTH/(double)HEIGHT)
 
+static void
+get_wlen(const size_t i, double* wlen, double* data, void* ctx)
+{
+  double wavelengths[3] = { 1, 2, 3 };
+  double intensities[3] = { 1, 0.8, 1 };
+  CHECK(i < 3, 1);
+  (void)ctx;
+  *wlen = wavelengths[i];
+  *data = intensities[i];
+}
+
 static res_T
 write_RGB8
   (void* data,
@@ -175,6 +186,22 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   CHECK(f3_eq_eps(upper, f3(tmp, 552.f, 559.f, 548.f), 1.e-6f), 1);
 }
 
+
+/* Wrap the ssol_draw_pt function to match the ssol_draw_draft profile */
+static INLINE res_T
+draw_pt
+  (struct ssol_scene* scn,
+   struct ssol_camera* cam,
+   const size_t width,
+   const size_t height,
+   const size_t spp,
+   ssol_write_pixels_T writer,
+   void* data)
+{
+  const double up[3] = {0, 0, 1};
+  return ssol_draw_pt(scn, cam, width, height, spp, up, writer, data);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -182,12 +209,15 @@ main(int argc, char** argv)
   struct ssol_device* dev;
   struct ssol_camera* cam;
   struct ssol_scene* scn;
+  struct ssol_spectrum* spectrum;
   struct ssol_sun* sun;
-  unsigned char* pixels = NULL;
+  struct image img;
+  uint8_t* pixels;
   const double pos[3] = {278.0, -1000.0, 273.0};
   const double tgt[3] = {278.0, 0.0, 273.0};
   const double up[3] = {0.0, 0.0, 1.0};
   double dir[3];
+  size_t pitch;
   res_T (*draw_func)
     (struct ssol_scene* scn,
      struct ssol_camera* cam,
@@ -206,7 +236,7 @@ main(int argc, char** argv)
   if(!strcmp(argv[1], "draft")) {
     draw_func = ssol_draw_draft;
   } else if(!strcmp(argv[1], "pt")) {
-    draw_func = ssol_draw_pt;
+    draw_func = draw_pt;
   } else {
     fprintf(stderr, "Usage: %s <draft|pt>\n", argv[0]);
     return -1;
@@ -233,8 +263,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
   CHECK(ssol_scene_attach_sun(scn, sun), RES_OK);
 
-  pixels = MEM_CALLOC(&allocator, HEIGHT, PITCH);
-  NCHECK(pixels, NULL);
+  pitch = WIDTH * sizeof_image_format(IMAGE_RGB8);
+  image_init(&allocator, &img);
+  image_setup(&img, WIDTH, HEIGHT, pitch, IMAGE_RGB8, NULL);
+  pixels = (uint8_t*)img.pixels;
 
   CHECK(draw_func(NULL, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
   CHECK(draw_func(scn, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
@@ -299,14 +331,27 @@ main(int argc, char** argv)
   CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
   CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
   CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, write_RGB8, pixels), RES_BAD_ARG);
+
+  /* No sun spectrum */
+  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+
+  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_OK);
 
-  CHECK(image_ppm_write_stream(stdout, WIDTH, HEIGHT, 3, pixels), RES_OK);
+  CHECK(image_write_ppm_stream(&img, 0, stdout), RES_OK);
 
-  MEM_RM(&allocator, pixels);
+  if(draw_func == draw_pt) {
+    CHECK(ssol_draw_pt
+      (scn, cam, WIDTH, HEIGHT, 4, NULL, write_RGB8, pixels), RES_BAD_ARG);
+  }
+
+  CHECK(image_release(&img), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_camera_ref_put(cam), RES_OK);
   CHECK(ssol_scene_ref_put(scn), RES_OK);
+  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   check_memory_allocator(&allocator);

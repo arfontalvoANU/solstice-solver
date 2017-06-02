@@ -17,11 +17,11 @@
 #include "ssol_spectrum_c.h"
 #include "ssol_device_c.h"
 
-#include <rsys/rsys.h>
+#include <rsys/algorithm.h>
+#include <rsys/hash.h>
+#include <rsys/math.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/ref_count.h>
-#include <rsys/math.h>
-#include <rsys/algorithm.h>
 
 /*******************************************************************************
  * Helper functions
@@ -41,20 +41,6 @@ spectrum_release(ref_T* ref)
 }
 
 static int
-spectrum_includes_point
-  (const struct ssol_spectrum* spectrum,
-   const double wavelength)
-{
-  const double* data;
-  size_t sz;
-  ASSERT(spectrum);
-  sz = darray_double_size_get(&spectrum->wavelengths);
-  ASSERT(sz && sz == darray_double_size_get(&spectrum->intensities));
-  data = darray_double_cdata_get(&spectrum->wavelengths);
-  return data[0] <= wavelength && wavelength <= data[sz - 1];
-}
-
-static int
 eq_dbl(const void* key, const void* base)
 {
   const double k = *(const double*) key;
@@ -67,25 +53,9 @@ eq_dbl(const void* key, const void* base)
 /*******************************************************************************
  * Local ssol_spectrum functions
  ******************************************************************************/
-int
-spectrum_includes
-  (const struct ssol_spectrum* reference,
-   const struct ssol_spectrum* tested)
-{
-  const double* test_data;
-  size_t test_sz;
-  ASSERT(reference && tested);
-
-  test_sz = darray_double_size_get(&tested->wavelengths);
-  test_data = darray_double_cdata_get(&tested->wavelengths);
-  return spectrum_includes_point(reference, test_data[0])
-      && spectrum_includes_point(reference, test_data[test_sz - 1]);
-}
-
 double
 spectrum_interpolate
-  (const struct ssol_spectrum* spectrum,
-   const double wavelength)
+  (const struct ssol_spectrum* spectrum, const double wavelength)
 {
   const double* wls;
   const double* ints;
@@ -93,23 +63,49 @@ spectrum_interpolate
   double slope;
   double intensity;
   size_t id_next, sz;
-  ASSERT(spectrum && spectrum_includes_point(spectrum, wavelength));
+  ASSERT(spectrum);
 
   sz = darray_double_size_get(&spectrum->wavelengths);
   wls = darray_double_cdata_get(&spectrum->wavelengths);
   ints = darray_double_cdata_get(&spectrum->intensities);
   next = search_lower_bound(&wavelength, wls, sz, sizeof(double), &eq_dbl);
-  ASSERT(next); /* because spectrum_includes_point */
+  if(!next) { /* Clamp to upper bound */
+    return ints[sz-1];
+  }
 
   id_next = (size_t)(next - wls);
+  if(!id_next) { /* Clamp to lower bound */
+    return ints[0];
+  }
+
   ASSERT(id_next); /* because spectrum_includes_point */
-  ASSERT(ints[id_next] >= ints[id_next - 1]);
   ASSERT(wls[id_next] >= wls[id_next - 1]);
 
   slope = (ints[id_next] - ints[id_next-1]) / (wls[id_next] - wls[id_next-1]);
   intensity = ints[id_next-1] + (wavelength - wls[id_next - 1]) * slope;
   ASSERT(intensity >= 0);
   return intensity;
+}
+
+int
+spectrum_check_data
+  (const struct ssol_spectrum* spectrum, const double lower, const double upper)
+{
+  size_t sz, i;
+  double current_wl = 0;
+  ASSERT(spectrum && lower <= upper);
+  sz = darray_double_size_get(&spectrum->intensities);
+  if(!sz) return 0;
+  if(sz != darray_double_size_get(&spectrum->wavelengths)) return 0;
+  FOR_EACH(i, 0, sz) {
+    const double wl = darray_double_cdata_get(&spectrum->wavelengths)[i];
+    const double data = darray_double_cdata_get(&spectrum->intensities)[i];
+    if(data < lower || data > upper) return 0;
+    if(wl <= 0) return 0;
+    if(wl <= current_wl) return 0;
+    current_wl = wl;
+  }
+  return 1;
 }
 
 /*******************************************************************************
@@ -175,6 +171,7 @@ ssol_spectrum_setup
 {
   double* wavelengths;
   double* intensities;
+  double current_wl = 0;
   size_t i;
   res_T res = RES_OK;
 
@@ -190,7 +187,17 @@ ssol_spectrum_setup
 
   wavelengths = darray_double_data_get(&spectrum->wavelengths);
   intensities = darray_double_data_get(&spectrum->intensities);
-  FOR_EACH(i, 0, nwlens) get(i, wavelengths+i, intensities+i, ctx);
+  FOR_EACH(i, 0, nwlens) {
+    get(i, wavelengths + i, intensities + i, ctx);
+    if(wavelengths[i] <= current_wl || intensities[i] < 0) {
+      res = RES_BAD_ARG;
+      goto error;
+    }
+    current_wl = *(wavelengths + i);
+  }
+
+  spectrum->checksum[0] = hash_fnv64(wavelengths, nwlens*sizeof(double));
+  spectrum->checksum[1] = hash_fnv64(intensities, nwlens*sizeof(double));
 
 exit:
   return res;
@@ -198,6 +205,8 @@ error:
   if(spectrum) {
     darray_double_clear(&spectrum->wavelengths);
     darray_double_clear(&spectrum->intensities);
+    spectrum->checksum[0] = 0;
+    spectrum->checksum[1] = 0;
   }
   goto exit;
 }

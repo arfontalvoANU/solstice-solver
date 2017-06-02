@@ -17,6 +17,7 @@
 #include "ssol_camera.h"
 #include "ssol_device_c.h"
 #include "ssol_draw.h"
+#include "ssol_material_c.h"
 #include "ssol_object_c.h"
 #include "ssol_scene_c.h"
 #include "ssol_shape_c.h"
@@ -41,6 +42,7 @@ Li
    double val[3])
 {
   const float range[2] = {0, FLT_MAX};
+  struct ssol_surface_fragment frag;
   struct ray_data ray_data = RAY_DATA_NULL;
   struct s3d_hit hit;
   ASSERT(scn && view && org && dir && val);
@@ -52,9 +54,12 @@ Li
     d3_splat(val, 0);
   } else {
     struct ssol_instance* inst;
+    struct ssol_material* mtl;
     const struct shaded_shape* sshape;
     size_t isshape;
-    float N[3]={0};
+    double o[3], wi[3];
+    double N[3]={0};
+    double cos_N_wi;
 
     /* Retrieve the hit shaded shape */
     inst = *htable_instance_find(&scn->instances_rt, &hit.prim.inst_id);
@@ -65,12 +70,28 @@ Li
 
     /* Retrieve and normalized the hit normal */
     switch(sshape->shape->type) {
-      case SHAPE_MESH: f3_normalize(N, hit.normal); break;
-      case SHAPE_PUNCHED: f3_normalize(N, f3_set_d3(N, ray_data.N)); break;
+      case SHAPE_MESH: d3_normalize(N, d3_set_f3(N, hit.normal)); break;
+      case SHAPE_PUNCHED: d3_normalize(N, ray_data.N); break;
+        break;
       default: FATAL("Unreachable code"); break;
     }
-    ASSERT(f3_is_normalized(N));
-    d3_splat(val, fabs(f3_dot(N, dir)));
+
+    d3_set_f3(o, org);
+    d3_set_f3(wi, dir);
+    d3_normalize(wi, wi);
+    if(d3_dot(N, wi) < 0) {
+      mtl = sshape->mtl_front;
+    } else {
+      mtl = sshape->mtl_back;
+      d3_minus(N, N);
+    }
+
+    surface_fragment_setup(&frag, o, wi, N, &hit.prim, hit.uv);
+    material_shade_normal(mtl, &frag, 1/*TODO wavelength*/, N);
+
+    ASSERT(d3_is_normalized(N));
+    cos_N_wi = d3_dot(N, d3_minus(wi, wi));
+    d3_splat(val, MMAX(cos_N_wi, 0));
   }
 }
 
@@ -84,14 +105,14 @@ draw_pixel
    const float pix_sz[2], /* Normalized pixel size */
    const size_t nsamples,
    double pixel[3],
-   void* ctx)
+   void* data)
 {
-  struct darray_float* samples = ctx;
+  struct darray_float* samples = data;
   float samp[2];
   float ray_org[3], ray_dir[3];
   double sum[3] = {0, 0, 0};
   size_t i;
-  ASSERT(scn && cam && view && pix_coords && pix_sz && nsamples && pixel && ctx);
+  ASSERT(scn && cam && view && pix_coords && pix_sz && nsamples && pixel && data);
   (void)ithread;
 
   FOR_EACH(i, 0, nsamples) {
@@ -135,6 +156,10 @@ ssol_draw_draft
   if(!scn || !spp) return RES_BAD_ARG;
 
   darray_float_init(scn->dev->allocator, &samples);
+
+  res = scene_check(scn, FUNC_NAME);
+  if(res != RES_OK) goto error;
+
   res = darray_float_reserve(&samples, spp * 2/*#dimensions*/);
   if(res != RES_OK) goto error;
 

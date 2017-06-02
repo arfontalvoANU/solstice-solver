@@ -14,11 +14,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol_c.h"
+#include "ssol_atmosphere_c.h"
 #include "ssol_camera.h"
 #include "ssol_device_c.h"
 #include "ssol_draw.h"
 #include "ssol_material_c.h"
 #include "ssol_object_c.h"
+#include "ssol_ranst_sun_wl.h"
 #include "ssol_scene_c.h"
 #include "ssol_shape_c.h"
 #include "ssol_sun_c.h"
@@ -37,6 +39,8 @@
 struct thread_context {
   struct ssp_rng* rng;
   struct ssf_bsdf* bsdf;
+  struct ranst_sun_wl* ran_wl;
+  float up[3];
 };
 
 static void
@@ -45,6 +49,7 @@ thread_context_release(struct thread_context* ctx)
   ASSERT(ctx);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
   if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
+  if(ctx->ran_wl) ranst_sun_wl_ref_put(ctx->ran_wl);
 }
 
 static res_T
@@ -67,12 +72,17 @@ error:
 static void
 thread_context_setup
   (struct thread_context* ctx,
-   struct ssp_rng* rng)
+   struct ssp_rng* rng,
+   struct ranst_sun_wl* ran_wl,
+   const double up[3])
 {
-  ASSERT(ctx && rng);
+  ASSERT(ctx && rng && ran_wl && up);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
   SSP(rng_ref_get(rng));
+  ranst_sun_wl_ref_get(ran_wl);
   ctx->rng = rng;
+  ctx->ran_wl = ran_wl;
+  f3_set_d3(ctx->up, up);
 }
 
 /* Declare the container of the per thread contexts */
@@ -108,12 +118,11 @@ sun_lighting
   d3_minus(wi, sun->direction);
 
   /* The point look backward the sun */
-  if(d3_dot(wi, N) < 0) return 0.0;
+  cos_wi_N = d3_dot(wi, N);
+  if(cos_wi_N < 0 || eq_eps(cos_wi_N, 0, 1.e-6)) return 0.0;
 
   R = ssf_bsdf_eval(bsdf, wo, N, wi);
   if(R <= 0) return 0.0;
-
-  cos_wi_N = d3_dot(wi, N);
 
   f3_set_d3(ray_dir, wi);
   S3D(scene_view_trace_ray(view, ray_org, ray_dir, ray_range, ray_data, &hit));
@@ -129,13 +138,13 @@ Li(struct ssol_scene* scn,
    const float dir[3],
    double val[3])
 {
-  struct ssol_medium medium;
+  struct ssol_medium medium = SSOL_MEDIUM_VACUUM;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
   struct ssol_instance* inst;
   struct ssol_material* mtl;
   const struct shaded_shape* sshape;
-  struct surface_fragment frag;
+  struct ssol_surface_fragment frag;
   size_t isshape;
   double throughput = 1.0;
   double wi[3], o[3], uv[3];
@@ -144,6 +153,8 @@ Li(struct ssol_scene* scn,
   double L = 0;
   double R;
   double pdf;
+  double cos_wi_Ng;
+  double wl;
   const float ray_range[2] = {0, FLT_MAX};
   float ray_org[3];
   float ray_dir[3];
@@ -159,20 +170,26 @@ Li(struct ssol_scene* scn,
   f3_set(ray_org, org);
   f3_set(ray_dir, dir);
 
-  /* Assume that the path starts from vacuum */
-  medium = SSOL_MEDIUM_VACUUM;
+  wl = ranst_sun_wl_get(ctx->ran_wl, ctx->rng);
+
+  if(scn->atmosphere) {
+    ssol_data_copy(&medium.absorption, &scn->atmosphere->absorption);
+  }
 
   for(;;) {
+    double absorption;
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
-    if(medium.absorptivity > 0) {
-      throughput *= exp(-medium.absorptivity * hit.distance);
+    if(S3D_HIT_NONE(&hit)) { /* Background lighting */
+      if(f3_dot(ray_dir, ctx->up) > 0)  L += throughput * 1.e-1;
+      break;
     }
 
-    if(S3D_HIT_NONE(&hit)) { /* Background lighting */
-      if(ray_dir[2] > 0) L += throughput * 1.e-1;
-      break;
+    absorption = ssol_data_get_value(&medium.absorption, wl);
+    if(absorption > 0) {
+      throughput *= exp(-absorption * hit.distance);
+      if(throughput <= 0) break;
     }
 
     /* Retrieve the hit shaded shape */
@@ -188,8 +205,12 @@ Li(struct ssol_scene* scn,
 
     /* Retrieve and normalized the hit normal */
     switch(sshape->shape->type) {
-      case SHAPE_MESH: d3_normalize(N, d3_set_f3(N, hit.normal)); break;
-      case SHAPE_PUNCHED: d3_normalize(N, ray_data.N); break;
+      case SHAPE_MESH:
+        d3_normalize(N, d3_set_f3(N, hit.normal));
+        break;
+      case SHAPE_PUNCHED:
+        d3_normalize(N, ray_data.N);
+        break;
       default: FATAL("Unreachable code"); break;
     }
 
@@ -203,16 +224,25 @@ Li(struct ssol_scene* scn,
     }
 
     surface_fragment_setup(&frag, o, wo, N, &hit.prim, hit.uv);
+    material_shade_normal(mtl, &frag, wl, N);
+
+    /* Shaded normal may look backward the outgoing direction */
+    if(d3_dot(N, wo) > 0) break;
+
     SSF(bsdf_clear(ctx->bsdf));
-    res = material_shade_rendering
-      (mtl, &frag, 1/*TODO wavelength*/, &medium, ctx->bsdf);
+    res = material_setup_bsdf
+      (mtl, &frag, wl, &medium, 1/*Rendering*/, ctx->bsdf);
     if(res != RES_OK) goto error;
 
     /* Update the ray */
     ray_data.prim_from = hit.prim;
     ray_data.inst_from = inst;
     ray_data.side_from = side;
-    f3_mulf(ray_dir, ray_dir, hit.distance);
+    switch(sshape->shape->type) {
+      case SHAPE_MESH: f3_mulf(ray_dir, ray_dir, hit.distance); break;
+      case SHAPE_PUNCHED: f3_mulf(ray_dir, ray_dir, (float)ray_data.dst); break;
+      default: FATAL("Unreachable code"); break;
+    }
     f3_add(ray_org, ray_org, ray_dir);
 
     d3_minus(wo, wo);
@@ -221,8 +251,18 @@ Li(struct ssol_scene* scn,
         (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
     }
 
-    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, frag.Ns, wi, &type, &pdf);
+    /* Sampling a bounce direction */
+    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, N, wi, &type, &pdf);
     ASSERT(0 <= R && R <= 1);
+
+    /* Due to the shading normal, the sampled direction may point in the wrong
+     * direction wrt the sampled BSDF component. */
+    cos_wi_Ng = d3_dot(frag.Ng, wi);
+    if((cos_wi_Ng > 0 && (type & SSF_TRANSMISSION))
+    || (cos_wi_Ng < 0 && (type & SSF_REFLECTION))) {
+      R = 0;
+    }
+
     f3_set_d3(ray_dir, wi);
     if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, &medium, &medium);
 
@@ -230,7 +270,7 @@ Li(struct ssol_scene* scn,
       throughput *= fabs(d3_dot(wi, N)) * R;
     } else {
       if(ssp_rng_canonical(ctx->rng) >= R) break;
-      throughput *= d3_dot(wi, N);
+      throughput *= fabs(d3_dot(wi, N));
     }
 
     if(throughput <= 0) break;
@@ -242,6 +282,7 @@ Li(struct ssol_scene* scn,
   d3_splat(val, L);
 
 exit:
+  ssol_medium_clear(&medium);
   return res;
 error:
   d3(val, 1, 1, 0);
@@ -271,7 +312,7 @@ draw_pixel
   ctx = darray_thread_context_data_get(thread_ctxs) + ithread;
 
   FOR_EACH(isample, 0, nsamples) {
-    const int MAX_NFAILURES = 10;
+    const int MAX_NFAILURES = 100;
     double weight[3];
     float samp[2]; /* Pixel sample */
     float ray_org[3], ray_dir[3];
@@ -313,22 +354,29 @@ ssol_draw_pt
    const size_t width,
    const size_t height,
    const size_t spp,
+   const double up[3],
    ssol_write_pixels_T writer,
    void* data)
 {
   struct darray_thread_context thread_ctxs;
   struct ssp_rng_proxy* rng_proxy = NULL;
+  struct ranst_sun_wl* ran_sun_wl = NULL;
   size_t i;
   res_T res = RES_OK;
 
-  if(!scn)
-    return RES_BAD_ARG;
+  if(!scn || !up) return RES_BAD_ARG;
 
   darray_thread_context_init(scn->dev->allocator, &thread_ctxs);
+
+  res = scene_check(scn, FUNC_NAME);
+  if(res != RES_OK) goto error;
 
   /* Create a RNG proxy */
   res = ssp_rng_proxy_create
     (scn->dev->allocator, &ssp_rng_threefry, scn->dev->nthreads, &rng_proxy);
+  if(res != RES_OK) goto error;
+
+  res = sun_create_wavelength_distribution(scn->sun, &ran_sun_wl);
   if(res != RES_OK) goto error;
 
   /* Create the thread contexts */
@@ -343,7 +391,7 @@ ssol_draw_pt
     res = ssp_rng_proxy_create_rng(rng_proxy, i, &rng);
     if(res != RES_OK) goto error;
 
-    thread_context_setup(ctx, rng);
+    thread_context_setup(ctx, rng, ran_sun_wl, up);
     SSP(rng_ref_put(rng));
   }
 
@@ -354,6 +402,7 @@ ssol_draw_pt
 exit:
   darray_thread_context_release(&thread_ctxs);
   if(rng_proxy) SSP(rng_proxy_ref_put(rng_proxy));
+  if(ran_sun_wl) ranst_sun_wl_ref_put(ran_sun_wl);
   return (res_T)res;
 error:
   goto exit;

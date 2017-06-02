@@ -203,7 +203,7 @@ ssol_instance_get_area
   (const struct ssol_instance* instance,
    double* area)
 {
-  if (!instance || !area) return RES_BAD_ARG;;
+  if (!instance || !area) return RES_BAD_ARG;
   /* the area of the 3D surface */
   *area = instance->shape_rt_area;
   return RES_OK;

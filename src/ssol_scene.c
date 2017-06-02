@@ -14,22 +14,23 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>. */
 
 #include "ssol.h"
-#include "ssol_c.h"
 #include "ssol_atmosphere_c.h"
-#include "ssol_scene_c.h"
-#include "ssol_sun_c.h"
+#include "ssol_c.h"
 #include "ssol_device_c.h"
-#include "ssol_material_c.h"
-#include "ssol_shape_c.h"
-#include "ssol_object_c.h"
 #include "ssol_instance_c.h"
+#include "ssol_material_c.h"
+#include "ssol_object_c.h"
+#include "ssol_scene_c.h"
+#include "ssol_shape_c.h"
+#include "ssol_spectrum_c.h"
+#include "ssol_sun_c.h"
 
+#include <rsys/double3.h>
+#include <rsys/float2.h>
+#include <rsys/float3.h>
 #include <rsys/list.h>
 #include <rsys/mem_allocator.h>
 #include <rsys/rsys.h>
-#include <rsys/float2.h>
-#include <rsys/float3.h>
-#include <rsys/double3.h>
 
 /*******************************************************************************
  * Helper functions
@@ -478,10 +479,10 @@ hit_filter_function
       /* Project the hit position into the punched shape */
       d3_set_f3(dir, dirf);
       d3_set_f3(org, orgf);
-      dst = punched_shape_trace_ray(sshape->shape, inst->transform, org, dir,
-        hit->distance, N);
+      dst = shape_trace_ray(sshape->shape, inst->transform, org, dir,
+        hit->distance, N, punched_shape_intersect_local);
       if(dst >= FLT_MAX) {
-        /* No projection is found => the ray does not intersect the quadric */
+        /* No projection found => the ray does not intersect the quadric */
         return 1;
       }
       if((float)dst <= rdata->range_min) {
@@ -514,10 +515,33 @@ hit_filter_function
   }
 
   /* Save the nearest intersected quadric point */
-  if(sshape->shape->type == SHAPE_PUNCHED && rdata->dst >= dst) {
+  if(sshape->shape->type != SHAPE_MESH && rdata->dst >= dst) {
     d3_set(rdata->N, N);
     rdata->dst = dst;
   }
 
   return 0;
 }
+
+res_T
+scene_check(const struct ssol_scene* scene, const char* caller)
+{
+  ASSERT(scene && caller);
+
+  if(!scene->sun) {
+    log_error(scene->dev, "%s: no sun attached.\n", caller);
+    return RES_BAD_ARG;
+  }
+
+  if(!scene->sun->spectrum) {
+    log_error(scene->dev, "%s: sun's spectrum undefined.\n", caller);
+    return RES_BAD_ARG;
+  }
+
+  if(scene->sun->dni <= 0) {
+    log_error(scene->dev, "%s: sun's DNI undefined.\n", caller);
+    return RES_BAD_ARG;
+  }
+  return RES_OK;
+}
+

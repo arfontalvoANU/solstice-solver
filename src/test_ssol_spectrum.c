@@ -77,6 +77,14 @@ main(int argc, char** argv)
   CHECK(wlens_count, 0);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, &desc), RES_OK);
   CHECK(wlens_count, 3);
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, &desc), RES_OK);
+
+  desc.wavelengths[1] = 30;
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, &desc), RES_BAD_ARG);
+
+  desc.wavelengths[1] = 20;
+  desc.data[1] = -2.1;
+  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, &desc), RES_BAD_ARG);
 
   CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
 

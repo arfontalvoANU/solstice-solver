@@ -70,6 +70,7 @@ main(int argc, char** argv)
   struct ssol_mc_receiver mc_rcv;
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
+  double area;
   size_t count;
   FILE* tmp;
   double m, std;
@@ -139,12 +140,13 @@ main(int argc, char** argv)
 #define N__ 20000
   CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
   CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
-  CHECK(ssol_estimator_get_count(estimator, &count), RES_OK);
+  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
   CHECK(fclose(tmp), 0);
   printf("Ir = %g +/- %g\n", m, std);
-#define DNI_cos (1000 * cos(PI / 4))
+#define COS cos(PI / 4)
+#define DNI_cos (1000 * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, 4 * DNI_cos * 2e-1), 1);
 #define SQR(x) ((x)*(x))
   CHECK(eq_eps(std, 
@@ -152,8 +154,10 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 0, 1e-4), 1);
+  CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-4), 1); /* nothing absorbed */
+  CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n", 
@@ -162,6 +166,8 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
+  CHECK(ssol_instance_get_area(heliostat, &area), RES_OK);
+  CHECK(eq_eps(area, 400, DBL_EPSILON), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

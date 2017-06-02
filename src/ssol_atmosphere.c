@@ -33,48 +33,63 @@ atmosphere_release(ref_T* ref)
   ASSERT(ref);
   dev = atmosphere->dev;
   ASSERT(dev && dev->allocator);
-  switch (atmosphere->type) {
-    case ATMOS_UNIFORM:
-      if (atmosphere->data.uniform.spectrum)
-        SSOL(spectrum_ref_put(atmosphere->data.uniform.spectrum));
-      break;
-    default: FATAL("Unreachable code\n"); break;
-  }
+  ssol_data_clear(&atmosphere->absorption);
   MEM_RM(dev->allocator, atmosphere);
   SSOL(device_ref_put(dev));
+}
+
+static INLINE int
+check_absorption(const struct ssol_data* absorption)
+{
+  if(!absorption) return 0;
+
+  /* Check absorptivity in [0, INF) */
+  switch(absorption->type) {
+  case SSOL_DATA_REAL:
+    if(absorption->value.real < 0 || absorption->value.real > 1)
+      return 0;
+    break;
+  case SSOL_DATA_SPECTRUM:
+    if(!absorption->value.spectrum
+      || !spectrum_check_data(absorption->value.spectrum, 0, 1))
+      return 0;
+    break;
+  default: FATAL("Unreachable code\n"); break;
+  }
+
+  return 1;
 }
 
 /*******************************************************************************
  * Exported ssol_atmosphere functions
  ******************************************************************************/
 res_T
-ssol_atmosphere_create_uniform
+ssol_atmosphere_create
   (struct ssol_device* dev,
    struct ssol_atmosphere** out_atmosphere)
 {
   struct ssol_atmosphere* atmosphere = NULL;
   res_T res = RES_OK;
-  if (!dev || !out_atmosphere) {
+  if(!dev || !out_atmosphere) {
     return RES_BAD_ARG;
   }
 
   atmosphere = (struct ssol_atmosphere*)MEM_CALLOC
     (dev->allocator, 1, sizeof(struct ssol_atmosphere));
-  if (!atmosphere) {
+  if(!atmosphere) {
     res = RES_MEM_ERR;
     goto error;
   }
 
   SSOL(device_ref_get(dev));
   atmosphere->dev = dev;
-  atmosphere->type = ATMOS_UNIFORM;
   ref_init(&atmosphere->ref);
 
 exit:
-  if (out_atmosphere) *out_atmosphere = atmosphere;
+  if(out_atmosphere) *out_atmosphere = atmosphere;
   return res;
 error:
-  if (atmosphere) {
+  if(atmosphere) {
     SSOL(atmosphere_ref_put(atmosphere));
     atmosphere = NULL;
   }
@@ -85,8 +100,7 @@ res_T
 ssol_atmosphere_ref_get
   (struct ssol_atmosphere* atmosphere)
 {
-  if (!atmosphere)
-    return RES_BAD_ARG;
+  if(!atmosphere) return RES_BAD_ARG;
   ref_get(&atmosphere->ref);
   return RES_OK;
 }
@@ -95,41 +109,19 @@ res_T
 ssol_atmosphere_ref_put
   (struct ssol_atmosphere* atmosphere)
 {
-  if (!atmosphere)
-    return RES_BAD_ARG;
+  if(!atmosphere) return RES_BAD_ARG;
   ref_put(&atmosphere->ref, atmosphere_release);
   return RES_OK;
 }
 
 res_T
-ssol_atmosphere_set_uniform_absorption
+ssol_atmosphere_set_absorption
   (struct ssol_atmosphere* atmosphere,
-   struct ssol_spectrum* spectrum)
+   struct ssol_data* absorption)
 {
-  struct atm_uniform* uni;
-  if (!atmosphere || !spectrum || atmosphere->type != ATMOS_UNIFORM)
+  if(!atmosphere || !absorption || !check_absorption(absorption))
     return RES_BAD_ARG;
-  uni = &atmosphere->data.uniform;
-  if (spectrum == uni->spectrum) /* no change */
-    return RES_OK;
-  if (uni->spectrum)
-    SSOL(spectrum_ref_put(uni->spectrum));
-  SSOL(spectrum_ref_get(spectrum));
-  uni->spectrum = spectrum;
+  ssol_data_copy(&atmosphere->absorption, absorption);
   return RES_OK;
-}
-
-/*******************************************************************************
- * Local functions
- ******************************************************************************/
-double
-atmosphere_uniform_get_absorption
-  (const struct ssol_atmosphere* atmosphere,
-   const double wavelength)
-{
-  const struct ssol_spectrum* spectrum;
-  ASSERT(atmosphere && atmosphere->type == ATMOS_UNIFORM && wavelength >= 0);
-  spectrum = atmosphere->data.uniform.spectrum;
-  return spectrum_interpolate(spectrum, wavelength);
 }
 

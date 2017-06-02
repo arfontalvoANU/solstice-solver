@@ -92,9 +92,14 @@ enum ssol_pixel_format {
   SSOL_PIXEL_FORMATS_COUNT__
 };
 
-enum ssol_parametrization_type {
-  SSOL_PARAMETRIZATION_TEXCOORD, /* Map from 3D to 2D with texcoord */
-  SSOL_PARAMETRIZATION_PRIMITIVE_ID /* Map from 3D to 1D with primitive id */
+enum ssol_filter_mode {
+  SSOL_FILTER_LINEAR,
+  SSOL_FILTER_NEAREST
+};
+
+enum ssol_address_mode {
+  SSOL_ADDRESS_CLAMP,
+  SSOL_ADDRESS_REPEAT
 };
 
 enum ssol_quadric_type {
@@ -102,6 +107,7 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_PARABOL,
   SSOL_QUADRIC_HYPERBOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
+  SSOL_QUADRIC_HEMISPHERE,
   SSOL_QUADRIC_TYPE_COUNT__
 };
 
@@ -111,6 +117,11 @@ enum ssol_attrib_usage {
   SSOL_NORMAL, /* Shape space 3D vertex normal */
   SSOL_TEXCOORD, /* 2D texture coordinates */
   SSOL_ATTRIBS_COUNT__
+};
+
+enum ssol_data_type {
+  SSOL_DATA_REAL,
+  SSOL_DATA_SPECTRUM
 };
 
 /* Describe a vertex data */
@@ -166,7 +177,7 @@ static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
   SSOL_QUADRIC_PARABOL_NULL__;
 
 struct ssol_quadric_hyperbol {
-  /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0
+  /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0; z > 0
    * with a^2 = f - f^2; b = f -1/2; f = real_focal / (img_focal + real_focal) */
   double img_focal, real_focal;
 };
@@ -181,6 +192,14 @@ struct ssol_quadric_parabolic_cylinder {
 static const struct ssol_quadric_parabolic_cylinder
 SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL = SSOL_QUADRIC_PARABOLIC_CYLINDER_NULL__;
 
+struct ssol_quadric_hemisphere {
+  /* Define x^2 + y^2 + (z-radius)^2 - radius^2 = 0 with z <= r */
+  double radius;
+};
+#define SSOL_QUADRIC_HEMISPHERE_NULL__ { -1.0 }
+static const struct ssol_quadric_hemisphere SSOL_QUADRIC_HEMISPHERE_NULL =
+SSOL_QUADRIC_HEMISPHERE_NULL__;
+
 struct ssol_quadric {
   enum ssol_quadric_type type;
   union {
@@ -188,12 +207,13 @@ struct ssol_quadric {
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_hyperbol hyperbol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
+    struct ssol_quadric_hemisphere hemisphere;
   } data;
 
   /* 3x4 column major transformation of the quadric in object space */
   double transform[12];
 
-  /* Hint on the how to discretised */
+  /* Hint on how to discretise */
   size_t slices_count_hint;
 };
 
@@ -227,23 +247,44 @@ struct ssol_punched_surface {
 static const struct ssol_punched_surface SSOL_PUNCHED_SURFACE_NULL =
   SSOL_PUNCHED_SURFACE_NULL__;
 
-struct ssol_medium {
-  double absorptivity;
-  double refractive_index;
+struct ssol_data {
+  enum ssol_data_type type;
+  union {
+    double real;
+    struct ssol_spectrum* spectrum;
+  } value;
 };
-#define SSOL_MEDIUM_VACUUM__ { 0, 1 }
+#define SSOL_DATA_NULL__ {SSOL_DATA_REAL, {0.0}}
+static const struct ssol_data SSOL_DATA_NULL = SSOL_DATA_NULL__;
+
+struct ssol_medium {
+  struct ssol_data absorption;
+  struct ssol_data refractive_index;
+};
+#define SSOL_MEDIUM_VACUUM__ {{SSOL_DATA_REAL, {0}}, {SSOL_DATA_REAL, {1}}}
 static const struct ssol_medium SSOL_MEDIUM_VACUUM  = SSOL_MEDIUM_VACUUM__;
+
+struct ssol_surface_fragment {
+  double dir[3]; /* World space incoming direction. Point forward the surface */
+  double P[3]; /* World space position */
+  double Ng[3]; /* Normalized world space geometry normal */
+  double Ns[3]; /* Normalized world space shading normal */
+  double uv[2]; /* Texture coordinates */
+  double dPdu[3]; /* Partial derivative of the position in u */
+  double dPdv[3]; /* Partial derivative of the position in v */
+};
+
+#define SSOL_SURFACE_FRAGMENT_NULL__ \
+  {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0}, {0,0,0}, {0,0,0}}
+static const struct ssol_surface_fragment SSOL_SURFACE_FRAGMENT_NULL =
+  SSOL_SURFACE_FRAGMENT_NULL__;
 
 typedef void
 (*ssol_shader_getter_T)
   (struct ssol_device* dev,
    struct ssol_param_buffer* buf,
-   const double wavelength, /* In nanometer */
-   const double P[3], /* World space position */
-   const double Ng[3], /* World space geometry normal */
-   const double Ns[3], /* World space shading normal */
-   const double uv[2], /* Texture coordinates */
-   const double w[3], /* Incoming direction. Point toward the surface */
+   const double wavelength,
+   const struct ssol_surface_fragment* fragment,
    double* val); /* Returned value */
 
 /* Dielectric material shader */
@@ -285,7 +326,6 @@ SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
  * FILE* argument */
 struct ssol_receiver_data {
   uint64_t realization_id;
-  int64_t date;
   uint32_t segment_id;
 
   /* Its absolute value is the identifier of an SSOL instance. A negative
@@ -347,11 +387,17 @@ struct ssol_mc_result {
 static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
 struct ssol_mc_global {
-  struct ssol_mc_result cos_loss; /* In W */
+  struct ssol_mc_result cos_factor; /* [0 1] */
+  struct ssol_mc_result absorbed; /* In W */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
+  struct ssol_mc_result atmosphere; /* In W */
+  struct ssol_mc_result reflectivity; /* In W */
 };
 #define SSOL_MC_GLOBAL_NULL__ {                                                \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__                                                        \
@@ -360,9 +406,9 @@ static const struct ssol_mc_global SSOL_MC_GLOBAL_NULL = SSOL_MC_GLOBAL_NULL__;
 
 struct ssol_mc_receiver {
   struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
-  struct ssol_mc_result cos_loss; /* In W TODO remove this */
 
   /* Internal data */
   size_t N__;
@@ -379,6 +425,14 @@ struct ssol_mc_receiver {
 static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
   SSOL_MC_RECEIVER_NULL__;
 
+#define MC_RCV_NONE__ {                                                        \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    0, NULL, NULL                                                              \
+}
+
 struct ssol_mc_shape {
   /* Internal data */
   size_t N__;
@@ -388,11 +442,17 @@ struct ssol_mc_shape {
 #define SSOL_MC_SHAPE_NULL__ { 0, NULL, NULL }
 static const struct ssol_mc_shape SSOL_MC_SHAPE_NULL = SSOL_MC_SHAPE_NULL__;
 
+struct ssol_mc_sampled {
+  struct ssol_mc_result cos_factor; /* [0 1] */
+  struct ssol_mc_result shadowed;
+  size_t nb_samples;
+};
+
 struct ssol_mc_primitive {
   struct ssol_mc_result integrated_irradiance; /* In W */
+  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
   struct ssol_mc_result absorptivity_loss; /* In W */
   struct ssol_mc_result reflectivity_loss; /* In W */
-  struct ssol_mc_result cos_loss; /* In W TODO remove this */
 };
 #define SSOL_MC_PRIMITIVE_NULL__ {                                             \
   SSOL_MC_RESULT_NULL__,                                                       \
@@ -516,11 +576,20 @@ ssol_image_get_layout
 SSOL_API res_T
 ssol_image_map
   (const struct ssol_image* image,
-   void** memory);
+   char** memory);
 
 SSOL_API res_T
 ssol_image_unmap
   (const struct ssol_image* image);
+
+SSOL_API res_T
+ssol_image_sample
+  (const struct ssol_image* image,
+   const enum ssol_filter_mode filter,
+   const enum ssol_address_mode address_u,
+   const enum ssol_address_mode address_v,
+   const double uv[2],
+   void* val);
 
 /* Helper function that matches the `ssol_write_pixels_T' functor type */
 SSOL_API res_T
@@ -567,7 +636,7 @@ ssol_scene_compute_aabb
 
 /* Detach all the instances from the scene and release the reference that the
  * scene takes onto them.
- * Also detach the attached sun if any. */
+ * Also detach the attached sun and atmosphere if any. */
 SSOL_API res_T
 ssol_scene_clear
   (struct ssol_scene* scn);
@@ -863,7 +932,10 @@ SSOL_API void*
 ssol_param_buffer_allocate
   (struct ssol_param_buffer* buf,
    const size_t size,
-   const size_t alignment); /* Power of 2 in [1, 64] */
+   const size_t alignment, /* Power of 2 in [1, 64] */
+   /* Functor to invoke on the allocated memory priorly to its destruction.
+    * May be NULL */
+   void (*release)(void*));
 
 /* Retrieve the address of the first allocated parameter */
 SSOL_API void*
@@ -971,7 +1043,7 @@ ssol_sun_set_buie_param
  ******************************************************************************/
 /* The atmosphere describes absorption along the light paths */
 SSOL_API res_T
-ssol_atmosphere_create_uniform
+ssol_atmosphere_create
   (struct ssol_device* dev,
    struct ssol_atmosphere** atmosphere);
 
@@ -983,11 +1055,10 @@ SSOL_API res_T
 ssol_atmosphere_ref_put
   (struct ssol_atmosphere* atmosphere);
 
-/* List of per wavelength power of the sun */
 SSOL_API res_T
-ssol_atmosphere_set_uniform_absorption
+ssol_atmosphere_set_absorption
   (struct ssol_atmosphere* atmosphere,
-   struct ssol_spectrum* spectrum);
+   struct ssol_data* absorption);
 
 /*******************************************************************************
 * Estimator API - Describe the state of a simulation.
@@ -1014,7 +1085,7 @@ ssol_estimator_get_mc_sampled_x_receiver
    struct ssol_mc_receiver* rcv);
 
 SSOL_API res_T
-ssol_estimator_get_count
+ssol_estimator_get_realisation_count
   (const struct ssol_estimator* estimator,
    size_t* count);
 
@@ -1028,6 +1099,17 @@ SSOL_API res_T
 ssol_estimator_get_sampled_area
   (const struct ssol_estimator* estimator,
    double* area);
+
+SSOL_API res_T
+ssol_estimator_get_sampled_count
+  (const struct ssol_estimator* estimator,
+   size_t* count);
+
+SSOL_API res_T
+ssol_estimator_get_mc_sampled
+  (struct ssol_estimator* estimator,
+   const struct ssol_instance* samp_instance,
+   struct ssol_mc_sampled* sampled);
 
 /*******************************************************************************
  * Tracked paths
@@ -1110,8 +1192,59 @@ ssol_draw_pt
    const size_t width, /* #pixels in X */
    const size_t height, /* #pixels in Y */
    const size_t spp,
+   const double up[3], /* Direction toward the top of the skydome */
    ssol_write_pixels_T writer,
    void* writer_data);
+
+/*******************************************************************************
+ * Data API
+ ******************************************************************************/
+SSOL_API struct ssol_data*
+ssol_data_set_real
+  (struct ssol_data* data,
+   const double real);
+
+/* Get a reference onto the submitted spectrum */
+SSOL_API struct ssol_data*
+ssol_data_set_spectrum
+  (struct ssol_data* data,
+   struct ssol_spectrum* spectrum);
+
+/* Release the reference on its associated spectrum, if defined */
+SSOL_API struct ssol_data*
+ssol_data_clear
+  (struct ssol_data* data);
+
+SSOL_API struct ssol_data*
+ssol_data_copy
+  (struct ssol_data* dst,
+   const struct ssol_data* src);
+
+SSOL_API double
+ssol_data_get_value
+  (const struct ssol_data* data,
+   const double wavelength);
+
+/*******************************************************************************
+ * Medium API
+ ******************************************************************************/
+static FINLINE struct ssol_medium*
+ssol_medium_clear(struct ssol_medium* medium)
+{
+  ASSERT(medium);
+  ssol_data_clear(&medium->absorption);
+  ssol_data_clear(&medium->refractive_index);
+  return medium;
+}
+
+static FINLINE struct ssol_medium*
+ssol_medium_copy(struct ssol_medium* dst, const struct ssol_medium* src)
+{
+  ASSERT(dst && src);
+  ssol_data_copy(&dst->absorption, &src->absorption);
+  ssol_data_copy(&dst->refractive_index, &src->refractive_index);
+  return dst;
+}
 
 END_DECLS
 

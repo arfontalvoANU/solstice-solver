@@ -60,5 +60,10 @@ scene_create_s3d_views
    double* sampled_area, /* Area of the instance set as "samplable" */
    double* sampled_area_proxy); /* Area of the sampled geometries */
 
+extern LOCAL_SYM res_T
+scene_check
+  (const struct ssol_scene* scene,
+   const char* caller);
+
 #endif /* SSOL_SCENE_C_H */
 

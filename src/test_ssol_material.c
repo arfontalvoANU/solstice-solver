@@ -162,21 +162,21 @@ test_thin_dielectric(struct ssol_device* dev)
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
   shader.normal = get_shader_normal;
 
-  mdm0.absorptivity = -1;
+  ssol_data_set_real(&mdm0.absorption, -1);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
-  mdm0.absorptivity = SSOL_MEDIUM_VACUUM.absorptivity;
+  ssol_data_copy(&mdm0.absorption, &SSOL_MEDIUM_VACUUM.absorption);
 
-  mdm0.refractive_index = 0;
+  ssol_data_set_real(&mdm0.refractive_index, 0);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
-  mdm0.refractive_index = SSOL_MEDIUM_VACUUM.refractive_index;
+  ssol_data_copy(&mdm0.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  mdm1.absorptivity = -1;
+  ssol_data_set_real(&mdm1.absorption, -1);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
-  mdm1.absorptivity = SSOL_MEDIUM_VACUUM.absorptivity;
+  ssol_data_copy(&mdm1.absorption, &SSOL_MEDIUM_VACUUM.absorption);
 
-  mdm1.refractive_index = 0;
+  ssol_data_set_real(&mdm1.refractive_index, 0);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
-  mdm1.refractive_index = SSOL_MEDIUM_VACUUM.refractive_index;
+  ssol_data_copy(&mdm1.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
   CHECK(ssol_material_ref_put(mtl), RES_OK);
 }
@@ -221,21 +221,21 @@ test_dielectric(struct ssol_device* dev)
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
   dielectric.normal = get_shader_normal;
 
-  mdm0.refractive_index = 0;
+  ssol_data_set_real(&mdm0.refractive_index, 0);
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
-  mdm0.refractive_index = SSOL_MEDIUM_VACUUM.refractive_index;
+  ssol_data_copy(&mdm0.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  mdm1.refractive_index = 0;
+  ssol_data_set_real(&mdm1.refractive_index, 0);
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
-  mdm1.refractive_index = SSOL_MEDIUM_VACUUM.refractive_index;
+  ssol_data_copy(&mdm1.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  mdm0.absorptivity = -1;
+  ssol_data_set_real(&mdm0.absorption, -1);
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
-  mdm0.absorptivity = SSOL_MEDIUM_VACUUM.refractive_index;
+  ssol_data_copy(&mdm0.absorption, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  mdm1.absorptivity = -1;
+  ssol_data_set_real(&mdm1.absorption, -1);
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
-  mdm1.refractive_index = SSOL_MEDIUM_VACUUM.refractive_index;
+  ssol_data_copy(&mdm1.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
   CHECK(ssol_material_ref_put(material), RES_OK);
 }

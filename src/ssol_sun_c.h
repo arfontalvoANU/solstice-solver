@@ -54,9 +54,13 @@ struct ssol_sun {
 };
 
 extern LOCAL_SYM res_T
-sun_create_distributions
+sun_create_direction_distribution
   (struct ssol_sun* sun,
-   struct ranst_sun_dir** out_ran_dir,
+   struct ranst_sun_dir** out_ran_dir);
+
+extern LOCAL_SYM res_T
+sun_create_wavelength_distribution
+  (struct ssol_sun* sun,
    struct ranst_sun_wl** out_ran_wl);
 
 #endif /* SSOL_SUN_C_H */
