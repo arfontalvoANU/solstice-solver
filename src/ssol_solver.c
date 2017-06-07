@@ -380,7 +380,7 @@ point_shade
   struct ssol_surface_fragment frag;
   double r = 1;
   double wi[3], N[3], pdf;
-  int type;
+  int type = 0;
   res_T res;
   ASSERT(pt && bsdf && medium && rng && dir);
 
