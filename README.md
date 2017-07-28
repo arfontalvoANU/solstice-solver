@@ -26,6 +26,11 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.2.2
+
+- Fix the estimation of the cosine factor for the  sampled instances: it was
+  not correctly reported and was thus always equal to 0.
+
 ### Version 0.2
 
 - Add normal maps to describe spatially varying normals in the tangent space of
