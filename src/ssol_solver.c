@@ -598,6 +598,7 @@ accum_mc_sampled(struct mc_sampled* dst, struct mc_sampled* src)
     dst->Name.weight += src->Name.weight;                                      \
     dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
+  ACCUM_WEIGHT(cos_factor);
   ACCUM_WEIGHT(shadowed);
   #undef ACCUM_WEIGHT
 
@@ -746,7 +747,7 @@ trace_radiative_path
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, &is_lit);
   if(res != RES_OK) goto error;
 
-if(tracker) {
+  if(tracker) {
     /* Add the first point of the starting segment */
     if(tracker->sun_ray_length > 0) {
       double pos[3], wi[3];
