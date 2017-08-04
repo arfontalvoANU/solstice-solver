@@ -56,8 +56,8 @@ struct thread_context {
   struct mc_data absorbed;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data atmosphere;
-  struct mc_data reflectivity;
+  struct mc_data atmosphere; /* TODO rename in absorptivity_loss */
+  struct mc_data reflectivity; /* TODO rename in reflectivity_loss */
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
   struct darray_path paths; /* paths */
@@ -174,7 +174,7 @@ struct point {
   double incoming_weight, weight;
   double cos_factor; /* local cos at the starting point */
   double absorbed_irradiance; /* current hit only */
-  double absorptivity_loss_before, absorptivity_loss;
+  double absorptivity_loss;
   double reflectivity_loss_before, reflectivity_loss;
   enum ssol_side_flag side;
 };
@@ -189,7 +189,7 @@ struct point {
   {0, 0, 0}, /* Direction */                                                   \
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
-  0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                                     \
+  0, 0, 0, 0, 0, 0, 0,/* MC weights */                                         \
   SSOL_FRONT /* Side */                                                        \
 }
 static const struct point POINT_NULL = POINT_NULL__;
@@ -426,7 +426,6 @@ point_shade
     }
   }
   pt->incoming_weight = pt->weight;
-  pt->absorptivity_loss_before = pt->absorptivity_loss;
   pt->reflectivity_loss_before = pt->reflectivity_loss;
   pt->absorbed_irradiance = (1 - r) * pt->weight;
   pt->reflectivity_loss += pt->absorbed_irradiance;
@@ -441,7 +440,6 @@ point_hit_virtual(struct point* pt)
 {
   pt->absorbed_irradiance = 0;
   pt->incoming_weight = pt->weight;
-  pt->absorptivity_loss_before = pt->absorptivity_loss;
   pt->reflectivity_loss_before = pt->reflectivity_loss;
 }
 
@@ -635,6 +633,12 @@ error:
   goto exit;
 }
 
+/*
+ * FIXME Are the following accumulations OK when the radiative path bounces
+ * several times on the same receiver ? It seems weird to add the overall
+ * absorptivity and reflectivity losses to the corresponding per receiver
+ * accumulators since they already registered some losses.
+ */
 static res_T
 update_mc
   (const struct point* pt,
@@ -652,9 +656,9 @@ update_mc
   if(res != RES_OK) goto error;
 
   /* Global MC accumulation */
-  #define ACCUM_WEIGHT(Res, W) {                                              \
-    Res.weight += (W);                                                        \
-    Res.sqr_weight += (W)*(W);                                                \
+  #define ACCUM_WEIGHT(Res, W) {                                               \
+    Res.weight += (W);                                                         \
+    Res.sqr_weight += (W)*(W);                                                 \
   } (void)0
   ACCUM_WEIGHT(thread_ctx->absorbed, pt->absorbed_irradiance);
   #undef ACCUM_WEIGHT
@@ -669,7 +673,7 @@ update_mc
   } (void)0
   ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
   ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
-  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
   ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
   #undef ACCUM_WEIGHT
 
@@ -684,7 +688,7 @@ update_mc
   } (void)0
   ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
   ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
-  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+  ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
   ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
   #undef ACCUM_WEIGHT
 
@@ -705,7 +709,7 @@ update_mc
     } (void)0
     ACCUM_WEIGHT(integrated_irradiance, pt->incoming_weight);
     ACCUM_WEIGHT(integrated_absorbed_irradiance, pt->absorbed_irradiance);
-    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss_before);
+    ACCUM_WEIGHT(absorptivity_loss, pt->absorptivity_loss);
     ACCUM_WEIGHT(reflectivity_loss, pt->reflectivity_loss_before);
     #undef ACCUM_WEIGHT
   }
@@ -758,14 +762,15 @@ trace_radiative_path
       if(res != RES_OK) goto error;
     }
 
+
     /* Register the init position onto the sampled geometry */
     res = path_add_vertex(&path, pt.pos, pt.weight);
     if(res != RES_OK) goto error;
   }
 
-  #define ACCUM_WEIGHT(Res, W) {                                              \
-    Res.weight += (W);                                                        \
-    Res.sqr_weight += (W)*(W);                                                \
+  #define ACCUM_WEIGHT(Res, W) {                                               \
+    Res.weight += (W);                                                         \
+    Res.sqr_weight += (W)*(W);                                                 \
   } (void)0
   ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
   ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
@@ -873,8 +878,10 @@ trace_radiative_path
         if (res != RES_OK) goto error;
       }
     }
+    /* Handle the overall absorptivity losses along the radiative path, the
+     * total of reflectivity losses and register the remaining power as lost */
     ACCUM_WEIGHT(thread_ctx->atmosphere, pt.absorptivity_loss);
-    /* all the remaining weight is lost */
+    ACCUM_WEIGHT(thread_ctx->reflectivity, pt.reflectivity_loss);
     ACCUM_WEIGHT(thread_ctx->missing, pt.weight);
     #undef ACCUM_WEIGHT
 

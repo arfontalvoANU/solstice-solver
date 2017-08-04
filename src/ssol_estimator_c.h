@@ -451,8 +451,8 @@ struct ssol_estimator {
   struct mc_data absorbed;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data atmosphere;
-  struct mc_data reflectivity;
+  struct mc_data atmosphere; /* TODO rename in absorptivity_loss */
+  struct mc_data reflectivity; /* TODO rename in reflectivity_loss */
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */
