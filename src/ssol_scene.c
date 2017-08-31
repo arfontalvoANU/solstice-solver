@@ -491,7 +491,9 @@ hit_filter_function
         return 1;
       }
       hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
-      if(inst == rdata->inst_from && hit_side != rdata->side_from) {
+      if(inst == rdata->inst_from
+      && sshape == rdata->sshape_from
+      && hit_side != rdata->side_from) {
         /* The intersected instance is the one from which the ray starts,
          * ensure that the ray does not intersect the opposite side of the
          * quadric

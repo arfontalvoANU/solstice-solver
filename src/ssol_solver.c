@@ -300,6 +300,7 @@ point_init
   ray_data.scn = scn;
   ray_data.prim_from = pt->prim;
   ray_data.inst_from = pt->inst;
+  ray_data.sshape_from = pt->sshape;
   ray_data.side_from = pt->side;
   ray_data.discard_virtual_materials = 1; /* Do not intersect virtual mtl */
   ray_data.reversed_ray = 1; /* The ray direction is reversed */
@@ -841,6 +842,7 @@ trace_radiative_path
       ray_data.scn = scn;
       ray_data.prim_from = pt.prim;
       ray_data.inst_from = pt.inst;
+      ray_data.sshape_from = pt.sshape;
       ray_data.side_from = pt.side;
       ray_data.discard_virtual_materials = 0;
       ray_data.reversed_ray = 0;
