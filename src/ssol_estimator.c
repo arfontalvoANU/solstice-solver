@@ -226,15 +226,15 @@ ssol_estimator_get_mc_sampled
   mc = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
   if(!mc) return RES_BAD_ARG;
   sampled->nb_samples = mc->nb_samples;
-  #define SETUP_MC_RESULT(Name) {                                             \
-    const double N = (double)estimator->realisation_count;                    \
+  #define SETUP_MC_RESULT(Name, Count) {                                      \
+    const double N = (double)(Count);                                         \
     const struct mc_data* data = &mc->Name;                                   \
     sampled->Name.E = data->weight / N;                                       \
     sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
     sampled->Name.SE = sampled->Name.V > 0 ? sqrt(sampled->Name.V / N) : 0;   \
   } (void)0
-  SETUP_MC_RESULT(cos_factor);
-  SETUP_MC_RESULT(shadowed);
+  SETUP_MC_RESULT(cos_factor, sampled->nb_samples);
+  SETUP_MC_RESULT(shadowed, estimator->realisation_count);
   #undef SETUP_MC_RESULT
   return RES_OK;
 }
