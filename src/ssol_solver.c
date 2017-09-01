@@ -353,7 +353,9 @@ point_update_from_hit
     case SHAPE_PUNCHED:
       d3_normalize(pt->N, rdata->N);
       d3_muld(tmp, pt->dir, rdata->dst);
-      d3_add(pt->pos, pt->pos, tmp);
+      f3_set_d3(tmpf, tmp);
+      f3_add(tmpf, org, tmpf);
+      d3_set_f3(pt->pos, tmpf);
       break;
     default: FATAL("Unreachable code"); break;
   }
