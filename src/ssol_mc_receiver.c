@@ -56,7 +56,8 @@ ssol_estimator_get_mc_receiver
     const struct mc_data* data = &mc_rcv1->Name;                               \
     rcv->Name.E = data->weight / N;                                            \
     rcv->Name.V = data->sqr_weight/N - rcv->Name.E*rcv->Name.E;                \
-    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
+    rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
+    rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
   SETUP_MC_RESULT(integrated_irradiance);
   SETUP_MC_RESULT(integrated_absorbed_irradiance);
@@ -146,7 +147,8 @@ ssol_mc_shape_get_mc_primitive
       const struct mc_data* data = &mc_prim1->Name;                            \
       prim->Name.E = data->weight / N;                                         \
       prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;           \
-      prim->Name.SE = prim->Name.V > 0 ? sqrt(prim->Name.V / N) : 0;           \
+      prim->Name.V = prim->Name.V > 0 ? prim->Name.V : 0;                      \
+      prim->Name.SE = sqrt(prim->Name.V / N);                                  \
       prim->Name.E /= area;                                                    \
       prim->Name.V /= area*area;                                               \
       prim->Name.SE /= area;                                                   \

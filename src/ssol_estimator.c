@@ -116,7 +116,8 @@ ssol_estimator_get_mc_global
     const struct mc_data* data = &estimator->Name;                             \
     global->Name.E = data->weight / N;                                         \
     global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
-    global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
+    global->Name.V = global->Name.V > 0 ? global->Name.V : 0;                  \
+    global->Name.SE = sqrt(global->Name.V / N);                                \
   } (void)0
   SETUP_MC_RESULT(cos_factor);
   SETUP_MC_RESULT(absorbed);
@@ -167,7 +168,8 @@ ssol_estimator_get_mc_sampled_x_receiver
     const struct mc_data* data = &mc_rcv1->Name;                               \
     rcv->Name.E = data->weight / N;                                            \
     rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;              \
-    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
+    rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
+    rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
   SETUP_MC_RESULT(integrated_irradiance);
   SETUP_MC_RESULT(integrated_absorbed_irradiance);
@@ -231,7 +233,8 @@ ssol_estimator_get_mc_sampled
     const struct mc_data* data = &mc->Name;                                   \
     sampled->Name.E = data->weight / N;                                       \
     sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
-    sampled->Name.SE = sampled->Name.V > 0 ? sqrt(sampled->Name.V / N) : 0;   \
+    sampled->Name.V = sampled->Name.V > 0 ? sampled->Name.V : 0;              \
+    sampled->Name.SE = sqrt(sampled->Name.V / N);                             \
   } (void)0
   SETUP_MC_RESULT(cos_factor, sampled->nb_samples);
   SETUP_MC_RESULT(shadowed, estimator->realisation_count);
