@@ -78,13 +78,13 @@ material_shade_normal
    double N[3]);
 
 extern LOCAL_SYM res_T
-material_setup_bsdf
+material_create_bsdf
   (const struct ssol_material* mtl,
    const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium, /* Current medium */
    const int rendering, /* Is material used for rendering purposes */
-   struct ssf_bsdf* bsdf); /* Bidirectional Scattering Distribution Function */
+   struct ssf_bsdf** bsdf); /* Bidirectional Scattering Distribution Function */
 
 extern LOCAL_SYM res_T
 material_get_next_medium

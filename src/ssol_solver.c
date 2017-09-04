@@ -51,7 +51,6 @@
  ******************************************************************************/
 struct thread_context {
   struct ssp_rng* rng;
-  struct ssf_bsdf* bsdf;
   struct mc_data cos_factor;
   struct mc_data absorbed;
   struct mc_data shadowed;
@@ -69,7 +68,6 @@ thread_context_release(struct thread_context* ctx)
 {
   ASSERT(ctx);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
-  if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
   htable_receiver_release(&ctx->mc_rcvs);
   htable_sampled_release(&ctx->mc_samps);
   darray_path_release(&ctx->paths);
@@ -78,22 +76,12 @@ thread_context_release(struct thread_context* ctx)
 static res_T
 thread_context_init(struct mem_allocator* allocator, struct thread_context* ctx)
 {
-  res_T res = RES_OK;
   ASSERT(ctx);
-
   memset(ctx, 0, sizeof(ctx[0]));
   htable_receiver_init(allocator, &ctx->mc_rcvs);
   htable_sampled_init(allocator, &ctx->mc_samps);
   darray_path_init(allocator, &ctx->paths);
-
-  res = ssf_bsdf_create(allocator, &ctx->bsdf);
-  if(res != RES_OK) goto error;
-
-exit:
-  return res;
-error:
-  thread_context_release(ctx);
-  goto exit;
+  return RES_OK;
 }
 
 /* Define a copy functor only for consistency since this function will not be
@@ -105,7 +93,6 @@ thread_context_copy
   res_T res = RES_OK;
   ASSERT(dst && src);
   dst->rng = src->rng;
-  dst->bsdf = src->bsdf;
   dst->cos_factor = src->cos_factor;
   dst->absorbed = src->absorbed;
   dst->shadowed = src->shadowed;
@@ -374,18 +361,18 @@ point_update_from_hit
 static FINLINE res_T
 point_shade
   (struct point* pt,
-   struct ssf_bsdf* bsdf,
    struct ssol_medium* medium,
    struct ssp_rng* rng,
    double dir[3])
 {
   struct ssol_material* mtl;
   struct ssol_surface_fragment frag;
+  struct ssf_bsdf* bsdf = NULL;
   double r = 1;
   double wi[3], N[3], pdf;
   int type = 0;
   res_T res;
-  ASSERT(pt && bsdf && medium && rng && dir);
+  ASSERT(pt && medium && rng && dir);
 
   /* TODO ensure that if `prim' was sampled, then the surface fragment setup
    * remains valid in *all* situations, i.e. even though the point primitive
@@ -402,9 +389,9 @@ point_shade
 
   /* Shade the surface fragment */
   mtl = point_get_material(pt);
-  SSF(bsdf_clear(bsdf));
-  res = material_setup_bsdf(mtl, &frag, pt->wl, medium, 0, bsdf);
-  if(res != RES_OK) return res;
+
+  res = material_create_bsdf(mtl, &frag, pt->wl, medium, 0, &bsdf);
+  if(res != RES_OK) goto error;
 
   /* Perturbe the normal */
   material_shade_normal(mtl, &frag, pt->wl, N);
@@ -435,7 +422,12 @@ point_shade
   pt->weight = pt->incoming_weight - pt->absorbed_irradiance;
 
   if(type & SSF_TRANSMISSION) material_get_next_medium(mtl, medium, medium);
-  return RES_OK;
+
+exit:
+  if(bsdf) SSF(bsdf_ref_put(bsdf));
+  return res;
+error:
+  goto exit;
 }
 
 static FINLINE void
@@ -814,7 +806,7 @@ trace_radiative_path
       } else {
         /* Modulate the point weight wrt its scattering functions and generate
          * an outgoing direction */
-        res = point_shade(&pt, thread_ctx->bsdf, &medium, thread_ctx->rng, pt.dir);
+        res = point_shade(&pt, &medium, thread_ctx->rng, pt.dir);
         if(res != RES_OK) goto error;
       }
 
