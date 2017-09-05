@@ -18,6 +18,7 @@
 
 #include <rsys/logger.h>
 #include <rsys/mem_allocator.h>
+#include <rsys/mem_lifo_allocator.h>
 
 #include <star/s3d.h>
 #include <star/scpr.h>
@@ -49,6 +50,13 @@ device_release(ref_T* ref)
   ASSERT(ref);
   dev = CONTAINER_OF(ref, struct ssol_device, ref);
   darray_tile_release(&dev->tiles);
+  if(dev->bsdf_allocators) {
+    unsigned i;
+    FOR_EACH(i, 0, dev->nthreads) {
+      mem_shutdown_lifo_allocator(&dev->bsdf_allocators[i]);
+    }
+    MEM_RM(dev->allocator, dev->bsdf_allocators);
+  }
   if(dev->s3d) S3D(device_ref_put(dev->s3d));
   if(dev->scpr_mesh) SCPR(mesh_ref_put(dev->scpr_mesh));
   MEM_RM(dev->allocator, dev);
@@ -67,6 +75,7 @@ ssol_device_create
 {
   struct ssol_device* dev = NULL;
   struct mem_allocator* allocator;
+  unsigned i;
   res_T res = RES_OK;
 
   if(nthreads_hint == 0 || !out_dev) {
@@ -88,12 +97,23 @@ ssol_device_create
   dev->nthreads = MMIN(nthreads_hint, (unsigned)omp_get_num_procs());
   omp_set_num_threads((int)dev->nthreads);
 
+  dev->bsdf_allocators = MEM_CALLOC
+    (dev->allocator, dev->nthreads, sizeof(struct mem_allocator));
+  if(!dev->bsdf_allocators) {
+    res = RES_MEM_ERR;
+    goto error;
+  }
+
+  FOR_EACH(i, 0, dev->nthreads) {
+    res = mem_init_lifo_allocator
+      (&dev->bsdf_allocators[i], dev->allocator, 4096);
+    if(res != RES_OK) goto error;
+  }
+  
   res = darray_tile_resize(&dev->tiles, dev->nthreads);
   if(res != RES_OK) goto error;
-
   res = s3d_device_create(logger, mem_allocator, 0, &dev->s3d);
   if(res != RES_OK) goto error;
-
   res = scpr_mesh_create(mem_allocator, &dev->scpr_mesh);
   if(res != RES_OK) goto error;
 

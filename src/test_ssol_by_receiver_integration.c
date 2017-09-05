@@ -139,22 +139,30 @@ main(int argc, char** argv)
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 2e-1), 1);
+  CHECK(eq_eps
+    (mc_rcv.integrated_irradiance.E, S_DNI_cos,
+     mc_rcv.integrated_irradiance.SE*3), 1);
   CHECK(ssol_solve(scene, rng, 8 * N__, 0, NULL, &estimator2), RES_OK);
   CHECK(GET_MC_RCV(estimator2, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 5e-2), 1);
+  CHECK(eq_eps
+    (mc_rcv.integrated_irradiance.E, S_DNI_cos,
+     mc_rcv.integrated_irradiance.SE*3), 1);
   CHECK(ssol_estimator_ref_put(estimator1), RES_OK);
   CHECK(ssol_solve(scene, rng, 3 * N__, 0, NULL, &estimator1), RES_OK);
   CHECK(GET_MC_RCV(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
+  CHECK(eq_eps
+    (mc_rcv.integrated_irradiance.E, S_DNI_cos,
+     mc_rcv.integrated_irradiance.SE*3), 1);
   CHECK(GET_MC_SAMP_X_RCV(estimator1, heliostat, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(heliostat=>target) = %g +/- %g\n",
     mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S_DNI_cos, S_DNI_cos * 1e-1), 1);
+  CHECK(eq_eps
+    (mc_rcv.integrated_irradiance.E, S_DNI_cos,
+     mc_rcv.integrated_irradiance.SE*3), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

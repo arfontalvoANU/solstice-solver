@@ -32,6 +32,7 @@
 #include <star/ssf.h>
 
 #include <math.h>
+#include <omp.h>
 
 /*******************************************************************************
  * Helper functions
@@ -96,6 +97,7 @@ create_dielectric_bsdf
    struct ssf_bsdf** bsdf)
 {
   double eta_i, eta_t;
+  const int ithread = omp_get_thread_num();
   res_T res = RES_OK;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_DIELECTRIC);
   ASSERT(medium && bsdf);
@@ -111,15 +113,15 @@ create_dielectric_bsdf
   eta_t = ssol_data_get_value(&mtl->in_medium.refractive_index, wavelength);
 
   #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
-  CALL(ssf_bsdf_create
-    (mtl->dev->allocator, &ssf_specular_dielectric_dielectric_interface, bsdf));
+  CALL(ssf_bsdf_create(&mtl->dev->bsdf_allocators[ithread],
+    &ssf_specular_dielectric_dielectric_interface, bsdf));
   CALL(ssf_specular_dielectric_dielectric_interface_setup(*bsdf, eta_i, eta_t));
   #undef CALL
 
 exit:
   return res;
 error:
-  if(bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
@@ -131,6 +133,7 @@ create_matte_bsdf
    struct ssf_bsdf** bsdf)
 {
   double reflectivity;
+  const int ithread = omp_get_thread_num();
   res_T res;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MATTE);
   ASSERT(bsdf);
@@ -140,7 +143,8 @@ create_matte_bsdf
     (mtl->dev, mtl->buf, wavelength, fragment, &reflectivity);
 
   /* Setup the BRDF */
-  res = ssf_bsdf_create(mtl->dev->allocator, &ssf_lambertian_reflection, bsdf);
+  res = ssf_bsdf_create
+    (&mtl->dev->bsdf_allocators[ithread], &ssf_lambertian_reflection, bsdf);
   if(res != RES_OK) goto error;
   res = ssf_lambertian_reflection_setup(*bsdf, reflectivity);
   if(res != RES_OK) goto error;
@@ -148,7 +152,7 @@ create_matte_bsdf
 exit:
   return res;
 error:
-  if(bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
@@ -164,6 +168,7 @@ create_mirror_bsdf
   struct ssf_microfacet_distribution* distrib = NULL;
   double roughness;
   double reflectivity;
+  const int ithread = omp_get_thread_num();
   res_T res;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MIRROR);
   ASSERT(bsdf);
@@ -182,7 +187,8 @@ create_mirror_bsdf
 
   /* Setup the BRDF */
   if(roughness == 0) { /* Purely specular reflection */
-    res = ssf_bsdf_create(mtl->dev->allocator, &ssf_specular_reflection, bsdf);
+    res = ssf_bsdf_create
+      (&mtl->dev->bsdf_allocators[ithread], &ssf_specular_reflection, bsdf);
     if(res != RES_OK) goto error;
     res = ssf_specular_reflection_setup(*bsdf, fresnel);
     if(res != RES_OK) goto error;
@@ -198,10 +204,10 @@ create_mirror_bsdf
      * lighting. */
     if(rendering) {
       res = ssf_bsdf_create
-        (mtl->dev->allocator, &ssf_microfacet_reflection, bsdf);
+        (&mtl->dev->bsdf_allocators[ithread], &ssf_microfacet_reflection, bsdf);
     } else {
       res = ssf_bsdf_create
-        (mtl->dev->allocator, &ssf_microfacet2_reflection, bsdf);
+        (&mtl->dev->bsdf_allocators[ithread], &ssf_microfacet2_reflection, bsdf);
     }
     if(res != RES_OK) goto error;
     res = ssf_microfacet_reflection_setup(*bsdf, fresnel, distrib);
@@ -213,7 +219,7 @@ exit:
   if(distrib) SSF(microfacet_distribution_ref_put(distrib));
   return res;
 error:
-  if(bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
@@ -228,6 +234,7 @@ create_thin_dielectric_bsdf
   double absorption;
   double eta_i;
   double eta_t;
+  const int ithread = omp_get_thread_num();
   res_T res = RES_OK;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_THIN_DIELECTRIC);
   ASSERT(bsdf);
@@ -242,7 +249,7 @@ create_thin_dielectric_bsdf
 
   /* Setup the BxDF */
   res = ssf_bsdf_create
-    (mtl->dev->allocator, &ssf_thin_specular_dielectric, bsdf);
+    (&mtl->dev->bsdf_allocators[ithread], &ssf_thin_specular_dielectric, bsdf);
   if(res != RES_OK) goto error;
   res = ssf_thin_specular_dielectric_setup
     (*bsdf, absorption, eta_i, eta_t, thickness);
@@ -251,7 +258,7 @@ create_thin_dielectric_bsdf
 exit:
   return res;
 error:
-  if(bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
