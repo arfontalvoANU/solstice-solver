@@ -18,7 +18,6 @@
 
 #include <rsys/logger.h>
 #include <rsys/mem_allocator.h>
-#include <rsys/mem_lifo_allocator.h>
 
 #include <star/s3d.h>
 #include <star/scpr.h>
