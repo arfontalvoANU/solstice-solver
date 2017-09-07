@@ -482,8 +482,8 @@ point_shade
   pt->kabs_at_pt = (1 - propagated);
   pt->outgoing_flux = pt->incoming_flux * propagated;
   pt->outgoing_if_no_atm_loss = pt->incoming_if_no_atm_loss * propagated;
-  pt->outgoing_if_no_field_loss = point_is_receiver(pt) ?
-    pt->incoming_if_no_field_loss * propagated : pt->incoming_if_no_field_loss;
+  pt->outgoing_if_no_field_loss = point_is_receiver(pt) 
+    ? pt->incoming_if_no_field_loss*propagated : pt->incoming_if_no_field_loss;
 
   if(type & SSF_TRANSMISSION) {
     material_get_next_medium(mtl, in_medium, out_medium);
@@ -581,10 +581,6 @@ accum_mc_receivers_1side
   res_T res = RES_OK;
   ASSERT(dst && src);
 
-  #define ACCUM_WEIGHT(Name) {                                                 \
-    dst->Name.weight += src->Name.weight;                                      \
-    dst->Name.sqr_weight += src->Name.sqr_weight;                              \
-  } (void)0
   #define ACCUM_ALL {                                                          \
     ACCUM_WEIGHT(incoming_flux);                                               \
     ACCUM_WEIGHT(incoming_if_no_atm_loss);                                     \
@@ -596,6 +592,11 @@ accum_mc_receivers_1side
     ACCUM_WEIGHT(absorbed_if_no_field_loss);                                   \
     ACCUM_WEIGHT(absorbed_lost_in_field);                                      \
     ACCUM_WEIGHT(absorbed_lost_in_atmosphere);                                 \
+  } (void)0
+
+  #define ACCUM_WEIGHT(Name) {                                                 \
+    dst->Name.weight += src->Name.weight;                                      \
+    dst->Name.sqr_weight += src->Name.sqr_weight;                              \
   } (void)0
   ACCUM_ALL;
   #undef ACCUM_WEIGHT
@@ -633,12 +634,12 @@ accum_mc_receivers_1side
       } (void)0
       ACCUM_ALL;
       #undef ACCUM_WEIGHT
-      #undef ACCUM_ALL
 
       htable_prim2mc_iterator_next(&it_prim);
     }
     htable_shape2mc_iterator_next(&it_shape);
   }
+  #undef ACCUM_ALL
 
 exit:
   return res;
@@ -725,10 +726,6 @@ update_mc
   res = get_mc_receiver_1side(&thread_ctx->mc_rcvs, pt->inst, pt->side, &mc_rcv1);
   if(res != RES_OK) goto error;
 
-  #define ACCUM_WEIGHT(Name, W) {                                              \
-    mc_rcv1->Name.weight += (W);                                               \
-    mc_rcv1->Name.sqr_weight += (W)*(W);                                       \
-  } (void)0
   #define ACCUM_ALL {                                                          \
     ACCUM_WEIGHT(incoming_flux, pt->incoming_flux);                            \
     ACCUM_WEIGHT(incoming_if_no_atm_loss, pt->incoming_if_no_atm_loss);        \
@@ -746,6 +743,11 @@ update_mc
       (pt->incoming_if_no_field_loss - pt->incoming_flux) * pt->kabs_at_pt);   \
     ACCUM_WEIGHT(absorbed_lost_in_atmosphere,                                  \
       (pt->incoming_if_no_atm_loss - pt->incoming_flux) * pt->kabs_at_pt);     \
+  } (void)0
+
+  #define ACCUM_WEIGHT(Name, W) {                                              \
+    mc_rcv1->Name.weight += (W);                                               \
+    mc_rcv1->Name.sqr_weight += (W)*(W);                                       \
   } (void)0
   ACCUM_ALL;
   #undef ACCUM_WEIGHT
@@ -779,8 +781,8 @@ update_mc
     } (void)0
     ACCUM_ALL;
     #undef ACCUM_WEIGHT
-    #undef ACCUM_ALL
   }
+  #undef ACCUM_ALL
 
 exit:
   return res;
@@ -969,7 +971,7 @@ trace_radiative_path
       ssol_medium_copy(&in_medium, &out_medium);
     }
     /* Check conservation of energy */
-    ASSERT(depth * pt.initial_flux * DBL_EPSILON >=
+    ASSERT((double)depth * pt.initial_flux * DBL_EPSILON >=
       fabs(pt.initial_flux -
         (pt.outgoing_flux + pt.partial_recv + pt.partial_atm + pt.partial_other)));
 
