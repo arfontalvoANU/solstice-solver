@@ -202,12 +202,12 @@ main(int argc, char** argv)
   CHECK(GET_MC_RCV(estimator, heliostat1, SSOL_BACK, &mc_rcv), RES_BAD_ARG);
   CHECK(GET_MC_RCV(estimator, secondary, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(secondary) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat1), RES_OK);

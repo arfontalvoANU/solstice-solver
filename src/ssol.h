@@ -388,11 +388,11 @@ static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
 struct ssol_mc_global {
   struct ssol_mc_result cos_factor; /* [0 1] */
-  struct ssol_mc_result absorbed; /* In W */
+  struct ssol_mc_result absorbed_by_receivers; /* In W */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
-  struct ssol_mc_result atmosphere; /* In W */
-  struct ssol_mc_result reflectivity; /* In W */
+  struct ssol_mc_result absorbed_by_atmosphere; /* In W */
+  struct ssol_mc_result other_absorbed; /* In W */
 };
 #define SSOL_MC_GLOBAL_NULL__ {                                                \
   SSOL_MC_RESULT_NULL__,                                                       \
@@ -405,10 +405,16 @@ struct ssol_mc_global {
 static const struct ssol_mc_global SSOL_MC_GLOBAL_NULL = SSOL_MC_GLOBAL_NULL__;
 
 struct ssol_mc_receiver {
-  struct ssol_mc_result integrated_irradiance; /* In W */
-  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
-  struct ssol_mc_result absorptivity_loss; /* In W */
-  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result incoming_flux; /* In W */
+  struct ssol_mc_result incoming_if_no_atm_loss; /* In W */
+  struct ssol_mc_result incoming_if_no_field_loss; /* In W */
+  struct ssol_mc_result incoming_lost_in_field; /* In W */
+  struct ssol_mc_result incoming_lost_in_atmosphere; /* In W */
+  struct ssol_mc_result absorbed_flux; /* In W */
+  struct ssol_mc_result absorbed_if_no_atm_loss; /* In W */
+  struct ssol_mc_result absorbed_if_no_field_loss; /* In W */
+  struct ssol_mc_result absorbed_lost_in_field; /* In W */
+  struct ssol_mc_result absorbed_lost_in_atmosphere; /* In W */
 
   /* Internal data */
   size_t N__;
@@ -420,12 +426,24 @@ struct ssol_mc_receiver {
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   0, NULL, NULL                                                                \
 }
 static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
   SSOL_MC_RECEIVER_NULL__;
 
 #define MC_RCV_NONE__ {                                                        \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
     { -1, -1, -1 },                                                            \
     { -1, -1, -1 },                                                            \
     { -1, -1, -1 },                                                            \
@@ -449,12 +467,24 @@ struct ssol_mc_sampled {
 };
 
 struct ssol_mc_primitive {
-  struct ssol_mc_result integrated_irradiance; /* In W */
-  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
-  struct ssol_mc_result absorptivity_loss; /* In W */
-  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result incoming_flux; /* In W */
+  struct ssol_mc_result incoming_if_no_atm_loss; /* In W */
+  struct ssol_mc_result incoming_if_no_field_loss; /* In W */
+  struct ssol_mc_result incoming_lost_in_field; /* In W */
+  struct ssol_mc_result incoming_lost_in_atmosphere; /* In W */
+  struct ssol_mc_result absorbed_flux; /* In W */
+  struct ssol_mc_result absorbed_if_no_atm_loss; /* In W */
+  struct ssol_mc_result absorbed_if_no_field_loss; /* In W */
+  struct ssol_mc_result absorbed_lost_in_field; /* In W */
+  struct ssol_mc_result absorbed_lost_in_atmosphere; /* In W */
 };
 #define SSOL_MC_PRIMITIVE_NULL__ {                                             \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \

@@ -158,9 +158,9 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 

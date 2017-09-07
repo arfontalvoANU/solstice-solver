@@ -120,11 +120,11 @@ ssol_estimator_get_mc_global
     global->Name.SE = sqrt(global->Name.V / N);                                \
   } (void)0
   SETUP_MC_RESULT(cos_factor);
-  SETUP_MC_RESULT(absorbed);
+  SETUP_MC_RESULT(absorbed_by_receivers);
   SETUP_MC_RESULT(shadowed);
   SETUP_MC_RESULT(missing);
-  SETUP_MC_RESULT(atmosphere);
-  SETUP_MC_RESULT(reflectivity);
+  SETUP_MC_RESULT(absorbed_by_atmosphere);
+  SETUP_MC_RESULT(other_absorbed);
   #undef SETUP_MC_RESULT
   return RES_OK;
 }
@@ -171,10 +171,16 @@ ssol_estimator_get_mc_sampled_x_receiver
     rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
     rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
-  SETUP_MC_RESULT(integrated_irradiance);
-  SETUP_MC_RESULT(integrated_absorbed_irradiance);
-  SETUP_MC_RESULT(absorptivity_loss);
-  SETUP_MC_RESULT(reflectivity_loss);
+  SETUP_MC_RESULT(incoming_flux);
+  SETUP_MC_RESULT(incoming_if_no_atm_loss);
+  SETUP_MC_RESULT(incoming_if_no_field_loss);
+  SETUP_MC_RESULT(incoming_lost_in_field);
+  SETUP_MC_RESULT(incoming_lost_in_atmosphere);
+  SETUP_MC_RESULT(absorbed_flux);
+  SETUP_MC_RESULT(absorbed_if_no_atm_loss);
+  SETUP_MC_RESULT(absorbed_if_no_field_loss);
+  SETUP_MC_RESULT(absorbed_lost_in_field);
+  SETUP_MC_RESULT(absorbed_lost_in_atmosphere);
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__ = mc_samp->nb_samples;

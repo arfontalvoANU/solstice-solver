@@ -170,14 +170,14 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-2), 1); /* nothing absorbed */
   CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m1, 1e-2), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std1, 1e-2), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m1, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std1, 1e-2), 1);
   CHECK(GET_MC_RCV(estimator, target2, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target2) = %g +/- %g\n",
-   mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m2, 1e-2), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std2, 1e-2), 1);
+   mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m2, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std2, 1e-2), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 

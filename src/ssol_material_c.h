@@ -92,5 +92,8 @@ material_get_next_medium
    const struct ssol_medium* medium, /* Current mediu */
    struct ssol_medium* next_medium);
 
+extern LOCAL_SYM int
+media_ceq(const struct ssol_medium* a, const struct ssol_medium* b);
+
 #endif /* SSOL_MATERIAL_C_H */
 

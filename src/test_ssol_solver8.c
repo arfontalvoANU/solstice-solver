@@ -159,9 +159,9 @@ main(int argc, char** argv)
     3 * mc_global.missing.SE), 1); /* nothing absorbed */
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, S * DNI,
-    2 * mc_rcv.integrated_irradiance.SE), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, S * DNI,
+    2 * mc_rcv.incoming_flux.SE), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

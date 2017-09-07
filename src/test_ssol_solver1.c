@@ -118,7 +118,8 @@ main(int argc, char** argv)
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
-  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+#define DNI 1000
+  CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
 
   CHECK(ssol_solve(NULL, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
@@ -263,7 +264,7 @@ main(int argc, char** argv)
   /* Sun with no spectrum */
   CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
-  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
@@ -275,7 +276,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
   CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
 
   /* No receiver in scene */
   CHECK(ssol_instance_set_receiver(heliostat, 0, 0), RES_OK);
@@ -302,7 +303,6 @@ main(int argc, char** argv)
   CHECK(fcount, 0);
   printf("Ir = %g +/- %g; ", m, std);
 #define COS cos(PI / 4)
-#define DNI 1000
 #define DNI_cos (DNI * COS)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, 2*std)), 1);
 #define SQR(x) ((x)*(x))
@@ -310,9 +310,7 @@ main(int argc, char** argv)
   CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
   /* Target was sampled but shadowed by secondary */
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
+  PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, m, 2 * dbl), 1);
   CHECK(eq_eps(mc_global.missing.E, 2*m, 2*mc_global.missing.SE), 1);
   CHECK(GET_MC_RCV(NULL, NULL, SSOL_BACK, NULL), RES_BAD_ARG);
@@ -332,9 +330,9 @@ main(int argc, char** argv)
   CHECK(GET_MC_RCV(NULL, target, SSOL_FRONT, &mc_rcv), RES_BAD_ARG);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Sample primary mirror only; variance is low */
@@ -351,17 +349,15 @@ main(int argc, char** argv)
   CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
+  PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, m, 1e-4), 1);
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Check atmosphere model; with no absorption result is unchanged */
@@ -383,17 +379,15 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
+  PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, m, 1e-4), 1);
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
@@ -433,46 +427,23 @@ main(int argc, char** argv)
     MMAX(4 * K * DNI_cos * 1e-1, a_std)), 1);
   CHECK(eq_eps(a_std, 0, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
-  printf("Atmosphere = %g +/- %g; ", mc_global.atmosphere.E, mc_global.atmosphere.SE);
-  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
+  PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E + mc_global.atmosphere.E + mc_global.absorbed.E,
-    m, 1e-4), 1);
+  CHECK(eq_eps(
+    mc_global.missing.E + mc_global.shadowed.E + mc_global.absorbed_by_receivers.E
+    + mc_global.absorbed_by_atmosphere.E + mc_global.other_absorbed.E,
+    m,
+    1e-4), 1);
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
-  printf
-    ("\tIr(target)                = %g +/- %g (%.2g %%)\n",
-     mc_rcv.integrated_irradiance.E,
-     mc_rcv.integrated_irradiance.SE,
-     100 * mc_rcv.integrated_irradiance.E / m);
-  printf
-    ("\tAtmospheric Loss(target)  = %g +/- %g (%.2g %%)\n",
-     mc_rcv.absorptivity_loss.E,
-     mc_rcv.absorptivity_loss.SE,
-     100 * mc_rcv.absorptivity_loss.E / m);
-  printf
-    ("\tReflectivity Loss(target) = %g +/- %g (%.2g %%)\n",
-     mc_rcv.reflectivity_loss.E,
-     mc_rcv.reflectivity_loss.SE,
-     100 * mc_rcv.reflectivity_loss.E / m);
-
+  PRINT_RCV(mc_rcv);
   CHECK(ssol_estimator_get_sampled_count(estimator, &scount), RES_OK);
   CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat2, &sampled), RES_OK);
 
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, a_m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, a_std, 1e-4), 1);
-  CHECK(eq_eps
-    ( mc_rcv.integrated_irradiance.E
-    + mc_rcv.absorptivity_loss.E
-    + mc_rcv.reflectivity_loss.E, m, 1e-8), 1);
-  CHECK(eq_eps
-    ( mc_rcv.integrated_irradiance.E
-    + mc_rcv.absorptivity_loss.E
-    + mc_rcv.reflectivity_loss.E
-    + (1 - mc_global.cos_factor.E) * 4 * DNI, 4 * DNI, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, a_m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, a_std, 1e-4), 1);
+
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(&mc_rcv, NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, square, NULL), RES_BAD_ARG);
@@ -505,7 +476,7 @@ main(int argc, char** argv)
     area = d3_len(d3_cross(N, d3_sub(E1, v1, v0), d3_sub(E2, v2, v0))) * 0.5;
 
     CHECK(ssol_mc_shape_get_mc_primitive(&mc_shape, (unsigned)i, &mc_prim), RES_OK);
-    dbl += mc_prim.integrated_irradiance.E * area;
+    dbl += mc_prim.incoming_flux.E * area;
   }
 
   CHECK(eq_eps(dbl, a_m, 1.e-6), 1);
@@ -523,7 +494,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_create_directional(dev, &sun_mono), RES_OK);
   CHECK(ssol_sun_set_direction(sun_mono, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun_mono, spectrum), RES_OK);
-  CHECK(ssol_sun_set_dni(sun_mono, 1000), RES_OK);
+  CHECK(ssol_sun_set_dni(sun_mono, DNI), RES_OK);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun_mono), RES_OK);
   ka[1] = 0.2; ka[0] = ka[2] = 0.1;
@@ -547,17 +518,16 @@ main(int argc, char** argv)
   CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
   CHECK(eq_eps(std, 0, 1e-4), 1);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g; ", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g; ", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g; ", mc_global.cos_factor.E, mc_global.cos_factor.SE);
+  PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(mc_global.missing.E, m, 1e-4), 1);
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  PRINT_RCV(mc_rcv);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat2), RES_OK);
