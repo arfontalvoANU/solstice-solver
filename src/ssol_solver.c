@@ -581,10 +581,7 @@ accum_mc_receivers_1side
   res_T res = RES_OK;
   ASSERT(dst && src);
 
-  #define ACCUM_WEIGHT(Name) {                                                 \
-    dst->Name.weight += src->Name.weight;                                      \
-    dst->Name.sqr_weight += src->Name.sqr_weight;                              \
-  } (void)0
+  #define ACCUM_WEIGHT(Name) mc_data_accum(&dst->Name, &src->Name)
   #define ACCUM_ALL {                                                          \
     ACCUM_WEIGHT(incoming_flux);                                               \
     ACCUM_WEIGHT(incoming_if_no_atm_loss);                                     \
@@ -627,10 +624,8 @@ accum_mc_receivers_1side
       res = mc_shape_1side_get_mc_primitive(mc_shape1_dst, iprim, &mc_prim1_dst);
       if(res != RES_OK) goto error;
 
-      #define ACCUM_WEIGHT(Name) {                                             \
-        mc_prim1_dst->Name.weight += mc_prim1_src->Name.weight;                \
-        mc_prim1_dst->Name.sqr_weight += mc_prim1_src->Name.sqr_weight;        \
-      } (void)0
+      #define ACCUM_WEIGHT(Name)\
+        mc_data_accum(&mc_prim1_dst->Name, &mc_prim1_src->Name)
       ACCUM_ALL;
       #undef ACCUM_WEIGHT
       #undef ACCUM_ALL
@@ -656,10 +651,7 @@ accum_mc_sampled(struct mc_sampled* dst, struct mc_sampled* src)
 
   mc_receiver_init(NULL, &mc_rcv_null);
 
-  #define ACCUM_WEIGHT(Name) {                                                 \
-    dst->Name.weight += src->Name.weight;                                      \
-    dst->Name.sqr_weight += src->Name.sqr_weight;                              \
-  } (void)0
+  #define ACCUM_WEIGHT(Name) mc_data_accum(&dst->Name, &src->Name)
   ACCUM_WEIGHT(cos_factor);
   ACCUM_WEIGHT(shadowed);
   #undef ACCUM_WEIGHT
@@ -725,10 +717,8 @@ update_mc
   res = get_mc_receiver_1side(&thread_ctx->mc_rcvs, pt->inst, pt->side, &mc_rcv1);
   if(res != RES_OK) goto error;
 
-  #define ACCUM_WEIGHT(Name, W) {                                              \
-    mc_rcv1->Name.weight += (W);                                               \
-    mc_rcv1->Name.sqr_weight += (W)*(W);                                       \
-  } (void)0
+  #define ACCUM_WEIGHT(Name, W)\
+    mc_data_add_weight(&mc_rcv1->Name, irealisation, W)
   #define ACCUM_ALL {                                                          \
     ACCUM_WEIGHT(incoming_flux, pt->incoming_flux);                            \
     ACCUM_WEIGHT(incoming_if_no_atm_loss, pt->incoming_if_no_atm_loss);        \
@@ -755,10 +745,8 @@ update_mc
     (pt->mc_samp, pt->inst, pt->side, &mc_samp_x_rcv1);
   if(res != RES_OK) goto error;
 
-  #define ACCUM_WEIGHT(Name, W) {                                              \
-    mc_samp_x_rcv1->Name.weight += (W);                                        \
-    mc_samp_x_rcv1->Name.sqr_weight += (W)*(W);                                \
-  } (void)0
+  #define ACCUM_WEIGHT(Name, W)\
+    mc_data_add_weight(&mc_samp_x_rcv1->Name, irealisation, W)
   ACCUM_ALL;
   #undef ACCUM_WEIGHT
 
@@ -773,10 +761,8 @@ update_mc
     res = mc_shape_1side_get_mc_primitive(mc_shape1, pt->prim.prim_id, &mc_prim1);
     if(res != RES_OK) goto error;
 
-    #define ACCUM_WEIGHT(Name, W) {                                            \
-      mc_prim1->Name.weight += (W);                                            \
-      mc_prim1->Name.sqr_weight += (W)*(W);                                    \
-    } (void)0
+    #define ACCUM_WEIGHT(Name, W)\
+      mc_data_add_weight(&mc_prim1->Name, irealisation, W)
     ACCUM_ALL;
     #undef ACCUM_WEIGHT
     #undef ACCUM_ALL
@@ -790,7 +776,7 @@ error:
 
 static res_T
 trace_radiative_path
-  (const size_t path_id, /* Unique id of the radiative path */
+  (const size_t irealisation, /* Unique id of the realisation */
    const double sampled_area_proxy, /* Overall area of the sampled geometries */
    struct thread_context* thread_ctx,
    struct ssol_scene* scn,
@@ -837,10 +823,7 @@ trace_radiative_path
     if(res != RES_OK) goto error;
   }
 
-  #define ACCUM_WEIGHT(Res, W) {                                               \
-    Res.weight += (W);                                                         \
-    Res.sqr_weight += (W)*(W);                                                 \
-  } (void)0
+  #define ACCUM_WEIGHT(Res, W) mc_data_add_weight(&Res, irealisation, W)
 
   if(!is_lit) { /* The starting point is not lit */
     ACCUM_WEIGHT(pt.mc_samp->shadowed, pt.initial_flux);
@@ -889,7 +872,7 @@ trace_radiative_path
       /* If receiver update MC results */
       if(hit_receiver) {
         hit_a_receiver = 1;
-        res = update_mc(&pt, path_id, depth, thread_ctx, output);
+        res = update_mc(&pt, irealisation, depth, thread_ctx, output);
         if(res != RES_OK) goto error;
       } else {
         pt.partial_other += pt.incoming_flux * pt.kabs_at_pt;
@@ -1128,12 +1111,10 @@ ssol_solve
 
   /* Merge per thread global MC estimations */
   FOR_EACH(i, 0, nthreads) {
-    const struct thread_context* thread_ctx;
-    thread_ctx = darray_thread_ctx_cdata_get(&thread_ctxs)+i;
-    #define ACCUM_WEIGHT(Name) {                                               \
-      estimator->Name.weight += thread_ctx->Name.weight;                       \
-      estimator->Name.sqr_weight += thread_ctx->Name.sqr_weight;               \
-    } (void)0
+    struct thread_context* thread_ctx;
+    thread_ctx = darray_thread_ctx_data_get(&thread_ctxs)+i;
+    #define ACCUM_WEIGHT(Name) \
+      mc_data_accum(&estimator->Name, &thread_ctx->Name)
     ACCUM_WEIGHT(cos_factor);
     ACCUM_WEIGHT(absorbed_by_receivers);
     ACCUM_WEIGHT(shadowed);

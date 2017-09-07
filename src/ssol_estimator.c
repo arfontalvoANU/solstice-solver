@@ -107,15 +107,17 @@ ssol_estimator_ref_put(struct ssol_estimator* estimator)
 
 res_T
 ssol_estimator_get_mc_global
-  (const struct ssol_estimator* estimator,
+  (struct ssol_estimator* estimator,
    struct ssol_mc_global* global)
 {
   if(!estimator || !global) return RES_BAD_ARG;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &estimator->Name;                             \
-    global->Name.E = data->weight / N;                                         \
-    global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
+    struct mc_data* data = &estimator->Name;                                   \
+    double weight, sqr_weight;                                                 \
+    mc_data_get(data, &weight, &sqr_weight);                                   \
+    global->Name.E = weight / N;                                               \
+    global->Name.V = sqr_weight / N - global->Name.E*global->Name.E;           \
     global->Name.V = global->Name.V > 0 ? global->Name.V : 0;                  \
     global->Name.SE = sqrt(global->Name.V / N);                                \
   } (void)0
@@ -165,9 +167,11 @@ ssol_estimator_get_mc_sampled_x_receiver
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &mc_rcv1->Name;                               \
-    rcv->Name.E = data->weight / N;                                            \
-    rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;              \
+    struct mc_data* data = &mc_rcv1->Name;                                     \
+    double weight, sqr_weight;                                                 \
+    mc_data_get(data, &weight, &sqr_weight);                                   \
+    rcv->Name.E = weight / N;                                                  \
+    rcv->Name.V = sqr_weight / N - rcv->Name.E*rcv->Name.E;                    \
     rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
     rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
@@ -236,9 +240,11 @@ ssol_estimator_get_mc_sampled
   sampled->nb_samples = mc->nb_samples;
   #define SETUP_MC_RESULT(Name, Count) {                                      \
     const double N = (double)(Count);                                         \
-    const struct mc_data* data = &mc->Name;                                   \
-    sampled->Name.E = data->weight / N;                                       \
-    sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
+    struct mc_data* data = &mc->Name;                                         \
+    double weight, sqr_weight;                                                \
+    mc_data_get(data, &weight, &sqr_weight);                                  \
+    sampled->Name.E = weight / N;                                             \
+    sampled->Name.V = sqr_weight/N - sampled->Name.E*sampled->Name.E;         \
     sampled->Name.V = sampled->Name.V > 0 ? sampled->Name.V : 0;              \
     sampled->Name.SE = sqrt(sampled->Name.V / N);                             \
   } (void)0

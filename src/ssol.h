@@ -1103,7 +1103,7 @@ ssol_estimator_ref_put
 
 SSOL_API res_T
 ssol_estimator_get_mc_global
-  (const struct ssol_estimator* estimator,
+  (struct ssol_estimator* estimator,
    struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
