@@ -1202,7 +1202,6 @@ ssol_solve
    struct ssp_rng* rng,
    const size_t realisations_count,
    const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */
-   FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator** estimator);
 
 SSOL_API res_T

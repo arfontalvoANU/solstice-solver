@@ -86,10 +86,8 @@ main(int argc, char** argv)
   double transform2[12]; /* 3x4 column major matrix */
   double dbl;
   size_t i, count, fcount, scount;
-  FILE* tmp = NULL;
   double m, std;
   double a_m, a_std;
-  uint32_t r_id;
   unsigned ntris;
   (void) argc, (void) argv;
 
@@ -122,14 +120,14 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
 
-  CHECK(ssol_solve(NULL, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, NULL, 10, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 0, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_solve(NULL, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, NULL, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, NULL), RES_BAD_ARG);
 
   /* No geometry */
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
 
   /* Create scene content */
   CHECK(ssol_shape_create_mesh(dev, &dummy), RES_OK);
@@ -165,14 +163,14 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   /* No sun */
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
 
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_solve
-    (scene, rng, 1, &SSOL_PATH_TRACKER_DEFAULT, NULL, &estimator), RES_OK);
+    (scene, rng, 1, &SSOL_PATH_TRACKER_DEFAULT, &estimator), RES_OK);
 
   CHECK(ssol_estimator_get_tracked_paths_count(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_tracked_paths_count(estimator, NULL), RES_BAD_ARG);
@@ -249,7 +247,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
   CHECK(ssol_instance_sample(heliostat, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
 
   CHECK(ssol_instance_sample(target, 1), RES_OK);
@@ -258,7 +256,7 @@ main(int argc, char** argv)
 
   /* No attached sun */
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   /* Sun with no spectrum */
@@ -266,7 +264,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
@@ -275,39 +273,34 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
 
   /* No receiver in scene */
   CHECK(ssol_instance_set_receiver(heliostat, 0, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, 0, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(target, 0, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Can sample any geometry; variance is high */
-  NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 #define GET_MC_GLOBAL ssol_estimator_get_mc_global
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
-  CHECK(fclose(tmp), 0);
   CHECK(ssol_estimator_get_failed_count(estimator, &fcount), RES_OK);
   CHECK(fcount, 0);
-  printf("Ir = %g +/- %g; ", m, std);
 #define COS cos(PI / 4)
 #define DNI_cos (DNI * COS)
-  CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, 2*std)), 1);
+  m = 4 * DNI_cos;
 #define SQR(x) ((x)*(x))
   dbl = sqrt((SQR(12 * DNI_cos) / 3 - SQR(4 * DNI_cos)) / (double)count);
-  CHECK(eq_eps(std, dbl, dbl*1e-2), 1);
+  std = dbl;
   /* Target was sampled but shadowed by secondary */
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   PRINT_GLOBAL(mc_global);
@@ -331,23 +324,19 @@ main(int argc, char** argv)
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
-  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 2 * std), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-1), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   /* Sample primary mirror only; variance is low */
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
-  CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g; ", m, std);
-  CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
-  CHECK(eq_eps(std, 0, 1e-4), 1);
+  m = 4 * DNI_cos;
+  std = 0;
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
@@ -367,15 +356,11 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
-  CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g; ", m, std);
-  CHECK(eq_eps(m, 4 * DNI_cos, MMAX(4 * DNI_cos * 1e-2, std)), 1);
-  CHECK(eq_eps(std, 0, 1e-4), 1);
+  m = 4 * DNI_cos;
+  std = 0;
   CHECK(ssol_scene_detach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
@@ -415,17 +400,12 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 1), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &a_m, &a_std), RES_OK);
-  CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g; ", a_m, a_std);
 #define K (exp(-KA * 4 * sqrt(2)))
-  CHECK(eq_eps(a_m, REFLECTIVITY * 4 * K * DNI_cos,
-    MMAX(4 * K * DNI_cos * 1e-1, a_std)), 1);
-  CHECK(eq_eps(a_std, 0, 1e-4), 1);
+  a_m = REFLECTIVITY * 4 * K * DNI_cos;
+  a_std = 0;
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
@@ -441,7 +421,7 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat2, &sampled), RES_OK);
 
-  CHECK(eq_eps(mc_rcv.incoming_flux.E, a_m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, a_m, 1e-4), 1);
   CHECK(eq_eps(mc_rcv.incoming_flux.SE, a_std, 1e-4), 1);
 
   CHECK(ssol_mc_receiver_get_mc_shape(NULL, NULL, NULL), RES_BAD_ARG);
@@ -479,7 +459,7 @@ main(int argc, char** argv)
     dbl += mc_prim.incoming_flux.E * area;
   }
 
-  CHECK(eq_eps(dbl, a_m, 1.e-6), 1);
+  CHECK(eq_eps(dbl, a_m, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_scene_detach_instance(scene, heliostat2), RES_OK);
@@ -507,16 +487,12 @@ main(int argc, char** argv)
   abs_data.value.spectrum = abs_spectrum;
   CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
-  CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g; ", m, std);
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
-  CHECK(eq_eps(m, 4 * K2 * DNI_cos, MMAX(4 * K2 * DNI_cos * 1e-4, std)), 1);
-  CHECK(eq_eps(std, 0, 1e-4), 1);
+  m = 4 * K2 * DNI_cos;
+  std = 0;
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
@@ -526,7 +502,7 @@ main(int argc, char** argv)
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
   PRINT_RCV(mc_rcv);
-  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-4), 1);
   CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
 
   /* Free data */

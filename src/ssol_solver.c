@@ -514,31 +514,6 @@ point_get_id(const struct point* pt)
   return pt->side == SSOL_FRONT ? (int32_t)inst_id : -(int32_t)inst_id;
 }
 
-static FINLINE res_T
-point_dump
-  (const struct point* pt,
-   const size_t irealisation,
-   const size_t isegment,
-   FILE* stream)
-{
-  struct ssol_receiver_data out;
-  size_t n;
-
-  if(!stream) return RES_OK;
-
-  out.realization_id = irealisation;
-  out.segment_id = (uint32_t)isegment;
-  out.receiver_id = point_get_id(pt);
-  out.wavelength = (float)pt->wl;
-  f3_set_d3(out.pos, pt->pos);
-  f3_set_d3(out.in_dir, pt->dir);
-  f3_set_d3(out.normal, pt->N);
-  f2_set(out.uv, pt->uv);
-  out.weight = pt->outgoing_flux;
-  n = fwrite(&out, sizeof(out), 1, stream);
-  return n != 1 ? RES_IO_ERR : RES_OK;
-}
-
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
@@ -699,17 +674,12 @@ static res_T
 update_mc
   (struct point* pt,
    const size_t irealisation,
-   const size_t ibounce,
-   struct thread_context* thread_ctx,
-   FILE* output)
+   struct thread_context* thread_ctx)
 {
   struct mc_receiver_1side* mc_rcv1 = NULL;
   struct mc_receiver_1side* mc_samp_x_rcv1 = NULL;
   res_T res = RES_OK;
   ASSERT(pt && thread_ctx && point_is_receiver(pt));
-
-  res = point_dump(pt, irealisation, ibounce, output);
-  if(res != RES_OK) goto error;
 
   pt->partial_recv += pt->incoming_flux - pt->outgoing_flux;
 
@@ -784,8 +754,7 @@ trace_radiative_path
    struct s3d_scene_view* view_rt,
    struct ranst_sun_dir* ran_sun_dir,
    struct ranst_sun_wl* ran_sun_wl,
-   const struct ssol_path_tracker* tracker, /* May be NULL */
-   FILE* output) /* May be NULL */
+   const struct ssol_path_tracker* tracker) /* May be NULL */
 {
   struct path path;
   struct ssol_medium in_medium = SSOL_MEDIUM_VACUUM;
@@ -872,7 +841,7 @@ trace_radiative_path
       /* If receiver update MC results */
       if(hit_receiver) {
         hit_a_receiver = 1;
-        res = update_mc(&pt, irealisation, depth, thread_ctx, output);
+        res = update_mc(&pt, irealisation, thread_ctx);
         if(res != RES_OK) goto error;
       } else {
         pt.partial_other += pt.incoming_flux * pt.kabs_at_pt;
@@ -993,7 +962,6 @@ ssol_solve
    struct ssp_rng* rng_state,
    const size_t realisations_count,
    const struct ssol_path_tracker* path_tracker,
-   FILE* output,
    struct ssol_estimator** out_estimator)
 {
   struct htable_receiver_iterator r_it, r_end;
@@ -1094,7 +1062,7 @@ ssol_solve
 
     /* Execute a MC experiment */
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
-      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker, output);
+      scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker);
 
     if(res_local == RES_BAD_OP) {
       if(ATOMIC_INCR(&nfailures) >= max_failures) {

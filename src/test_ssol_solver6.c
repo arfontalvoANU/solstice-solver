@@ -78,7 +78,6 @@ main(int argc, char** argv)
   struct ssol_mc_receiver mc_rcv;
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
-  FILE* tmp;
 
   (void) argc, (void) argv;
 
@@ -175,11 +174,9 @@ main(int argc, char** argv)
   transform[11] = 10;
   CHECK(ssol_instance_set_transform(target2, transform), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(fclose(tmp), 0);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 100000, 2 * 100000/sqrt(N__)), 1);
