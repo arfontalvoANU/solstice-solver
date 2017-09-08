@@ -26,6 +26,17 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.3
+
+- Full rewrite of the estimated values. The global results report the cosine
+  factor, and the overall flux that is: absorbed by the receivers, atmosphere
+  or others entities; occluded before it reaches a primary entity; missed
+  because it does not reaches any surface. The per receiver results include the
+  incoming/absorbed flux in 3 situations: all phenomenons are taken into
+  account; the atmosphere is disabled; the material propagate the whole
+  incoming flux, i.e. they absorbed nothing.
+- Update the `ssol_solve` API. Streamed binary outputs are removed.
+
 ### Version 0.2.2
 
 - Fix the estimation of the cosine factor for the  sampled instances: it was
