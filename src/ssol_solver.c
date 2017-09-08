@@ -56,7 +56,7 @@ struct thread_context {
   struct mc_data absorbed_by_receivers;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data absorbed_by_atmosphere;
+  struct mc_data extinguished_by_atmosphere;
   struct mc_data other_absorbed;
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
@@ -110,7 +110,7 @@ thread_context_copy
   dst->absorbed_by_receivers = src->absorbed_by_receivers;
   dst->shadowed = src->shadowed;
   dst->missing = src->missing;
-  dst->absorbed_by_atmosphere = src->absorbed_by_atmosphere;
+  dst->extinguished_by_atmosphere = src->extinguished_by_atmosphere;
   dst->other_absorbed = src->other_absorbed;
   res = htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
   if(res != RES_OK) return res;
@@ -307,7 +307,6 @@ point_init
     w0 = scn->sun->dni * sampled_area_proxy * cos_ratio;
     pt->cos_factor = surface_sun_cos;
   }
-
   pt->energy_loss = w0;
   pt->initial_flux = w0;
   pt->prev_outgoing_flux = w0;
@@ -806,7 +805,7 @@ trace_radiative_path
      * to handle the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
     f3_set_d3(dir, pt.dir);
-    hit.distance = 0; /* first loop has no atmospheric absorption */
+    hit.distance = 0; /* first loop has no atmospheric extinction */
 
     for(;;) { /* Here we go for the radiative random walk */
       const int in_atm = media_ceq(&in_medium, &scn->air);
@@ -816,12 +815,12 @@ trace_radiative_path
       struct ray_data ray_data = RAY_DATA_NULL;
       double trans = 1;
 
-      /* Compute medium absorption along the incoming segment. */
+      /* Compute medium extinction along the incoming segment. */
       if(hit.distance > 0) {
-        const double kabs = ssol_data_get_value(&in_medium.absorption, pt.wl);
-        ASSERT(0 <= kabs && kabs <= 1);
-        if(kabs > 0) {
-          trans = exp(-kabs * hit.distance);
+        const double k_ext = ssol_data_get_value(&in_medium.extinction, pt.wl);
+        ASSERT(0 <= k_ext && k_ext <= 1);
+        if(k_ext > 0) {
+          trans = exp(-k_ext * hit.distance);
         }
       }
       pt.incoming_flux = pt.prev_outgoing_flux * trans;
@@ -898,13 +897,13 @@ trace_radiative_path
         }
       }
 
-      /* Don't change prev_outgoing weigths nor record segment absorption until
+      /* Don't change prev_outgoing weigths nor record segment extinction until
        * a non-virtual material is hit or this segment is the last one.
        * This is because propagation is restarted from the same origin until
        * a non-virtual material is hit or no further hit can be found. */
       if(last_segment || !hit_virtual) {
         if(in_atm) {
-          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere,
+          ACCUM_WEIGHT(thread_ctx->extinguished_by_atmosphere,
             pt.prev_outgoing_flux - pt.incoming_flux);
         } else {
           ACCUM_WEIGHT(thread_ctx->other_absorbed,
@@ -934,10 +933,10 @@ trace_radiative_path
 
       ssol_medium_copy(&in_medium, &out_medium);
     }
-
     /* Register the remaining flux as missing */
     ACCUM_WEIGHT(thread_ctx->missing, pt.outgoing_flux);
     pt.energy_loss -= pt.outgoing_flux;
+
 
     if(tracker) {
       path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
@@ -997,7 +996,7 @@ cancel_mc
 
   /* Cancel global MC estimations */
   mc_data_cancel(&thread_ctx->cos_factor, irealisation);
-  mc_data_cancel(&thread_ctx->absorbed_by_atmosphere, irealisation);
+  mc_data_cancel(&thread_ctx->extinguished_by_atmosphere, irealisation);
   mc_data_cancel(&thread_ctx->absorbed_by_receivers, irealisation);
   mc_data_cancel(&thread_ctx->other_absorbed, irealisation);
   mc_data_cancel(&thread_ctx->missing, irealisation);
@@ -1100,9 +1099,9 @@ ssol_solve
 
   /* init air properties */
   if(scn->atmosphere)
-    ssol_data_copy(&scn->air.absorption, &scn->atmosphere->absorption);
+    ssol_data_copy(&scn->air.extinction, &scn->atmosphere->extinction);
   else
-    ssol_data_copy(&scn->air.absorption, &SSOL_MEDIUM_VACUUM.absorption);
+    ssol_data_copy(&scn->air.extinction, &SSOL_MEDIUM_VACUUM.extinction);
 
   /* Create data structures shared by all threads */
   res = scene_create_s3d_views(scn, &view_rt, &view_samp, &sampled_area,
@@ -1184,7 +1183,7 @@ ssol_solve
     ACCUM_WEIGHT(absorbed_by_receivers);
     ACCUM_WEIGHT(shadowed);
     ACCUM_WEIGHT(missing);
-    ACCUM_WEIGHT(absorbed_by_atmosphere);
+    ACCUM_WEIGHT(extinguished_by_atmosphere);
     ACCUM_WEIGHT(other_absorbed);
     estimator->realisation_count += thread_ctx->realisation_count;
     #undef ACCUM_WEIGHT

@@ -78,7 +78,7 @@ main(int argc, char** argv)
   struct ssol_scene* scene2;
   struct ssol_atmosphere* atm;
   struct ssol_atmosphere* atm2;
-  struct ssol_data absorption;
+  struct ssol_data extinction;
   struct ssol_vertex_data vdata;
   struct scene_ctx ctx;
   struct desc desc;
@@ -169,11 +169,11 @@ main(int argc, char** argv)
   CHECK(ssol_scene_detach_sun(scene2, sun), RES_OK);
 
   CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
-  absorption.type = SSOL_DATA_REAL;
-  absorption.value.real = 0.1;
-  CHECK(ssol_atmosphere_set_absorption(atm, &absorption), RES_OK);
+  extinction.type = SSOL_DATA_REAL;
+  extinction.value.real = 0.1;
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
   CHECK(ssol_atmosphere_create(dev, &atm2), RES_OK);
-  CHECK(ssol_atmosphere_set_absorption(atm2, &absorption), RES_OK);
+  CHECK(ssol_atmosphere_set_extinction(atm2, &extinction), RES_OK);
 
   CHECK(ssol_scene_attach_atmosphere(NULL, atm), RES_BAD_ARG);
   CHECK(ssol_scene_attach_atmosphere(scene, NULL), RES_BAD_ARG);

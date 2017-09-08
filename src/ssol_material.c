@@ -243,8 +243,9 @@ setup_thin_dielectric_bsdf
   eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
   eta_t = ssol_data_get_value
     (&mtl->data.thin_dielectric.slab_medium.refractive_index, wavelength);
+  /* Here extinction is absorption only */
   absorption = ssol_data_get_value
-    (&mtl->data.thin_dielectric.slab_medium.absorption, wavelength);
+    (&mtl->data.thin_dielectric.slab_medium.extinction, wavelength);
   thickness = mtl->data.thin_dielectric.thickness;
 
   /* Setup the BxDF */
@@ -300,15 +301,15 @@ check_medium(const struct ssol_medium* medium)
 {
   if(!medium) return 0;
 
-  /* Check absorption in [0, INF) */
-  switch(medium->absorption.type) {
+  /* Check extinction in [0, INF) */
+  switch(medium->extinction.type) {
     case SSOL_DATA_REAL:
-      if(medium->absorption.value.real < 0)
+      if(medium->extinction.value.real < 0)
         return 0;
       break;
     case SSOL_DATA_SPECTRUM:
-      if(!medium->absorption.value.spectrum
-      || !spectrum_check_data(medium->absorption.value.spectrum, 0, DBL_MAX))
+      if(!medium->extinction.value.spectrum
+      || !spectrum_check_data(medium->extinction.value.spectrum, 0, DBL_MAX))
         return 0;
       break;
     default: FATAL("Unreachable code\n"); break;
@@ -727,5 +728,5 @@ media_ceq(const struct ssol_medium* a, const struct ssol_medium* b)
 {
   ASSERT(a && b);
   return ssol_data_ceq(&a->refractive_index, &b->refractive_index)
-    && ssol_data_ceq(&a->absorption, &b->absorption);
+    && ssol_data_ceq(&a->extinction, &b->extinction);
 }

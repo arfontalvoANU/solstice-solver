@@ -23,7 +23,7 @@ struct ssol_scene;
 
 struct ssol_atmosphere {
   struct ssol_scene* scene_attachment;
-  struct ssol_data absorption;
+  struct ssol_data extinction;
 
   struct ssol_device* dev;
   ref_T ref;

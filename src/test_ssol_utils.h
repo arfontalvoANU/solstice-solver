@@ -36,7 +36,7 @@ check_memory_allocator(struct mem_allocator* allocator)
   printf("Receivers = %g +/- %g; ",                                            \
     (Mc).absorbed_by_receivers.E, (Mc).absorbed_by_receivers.SE);              \
   printf("Atmosphere = %g +/- %g; ",                                           \
-    (Mc).absorbed_by_atmosphere.E, (Mc).absorbed_by_atmosphere.SE);            \
+    (Mc).extinguished_by_atmosphere.E, (Mc).extinguished_by_atmosphere.SE);    \
   printf("Other absorbed = %g +/- %g; ",                                       \
     (Mc).other_absorbed.E, (Mc).other_absorbed.SE);                            \
   printf("Cos = %g +/- %g\n", (Mc).cos_factor.E, (Mc).cos_factor.SE);          \

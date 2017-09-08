@@ -542,7 +542,7 @@ struct ssol_estimator {
   struct mc_data absorbed_by_receivers;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data absorbed_by_atmosphere;
+  struct mc_data extinguished_by_atmosphere;
   struct mc_data other_absorbed;
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
