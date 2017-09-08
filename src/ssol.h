@@ -28,8 +28,8 @@
 #endif
 
 /* Helper macro that asserts if the invocation of the Solstice function `Func'
- * returns an error. One should use this macro on Solstice function calls for which
- * no explicit error checking is performed */
+ * returns an error. One should use this macro on Solstice function calls for
+ * which no explicit error checking is performed */
 #ifndef NDEBUG
   #define SSOL(Func) ASSERT(ssol_ ## Func == RES_OK)
 #else
@@ -178,7 +178,7 @@ static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
 
 struct ssol_quadric_hyperbol {
   /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0; z > 0
-   * with a^2 = f - f^2; b = f -1/2; f = real_focal / (img_focal + real_focal) */
+   * with a^2 = f - f^2; b = f -1/2; f = real_focal/(img_focal + real_focal) */
   double img_focal, real_focal;
 };
 #define SSOL_QUADRIC_HYPERBOL_NULL__ { -1.0 , -1.0 }
@@ -321,26 +321,6 @@ struct ssol_thin_dielectric_shader {
 #define SSOL_THIN_DIELECTRIC_SHADER_NULL__ { NULL }
 static const struct ssol_thin_dielectric_shader
 SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
-
-/* The type of data produced on receiver hits as ssol_solve() write them on its
- * FILE* argument */
-struct ssol_receiver_data {
-  uint64_t realization_id;
-  uint32_t segment_id;
-
-  /* Its absolute value is the identifier of an SSOL instance. A negative
-   * value means for back faces primitive */
-  int32_t receiver_id;
-
-  float wavelength;
-  float pos[3];
-  float in_dir[3];
-  float normal[3];
-  double weight;
-  float uv[2];
-
-  /* TODO Add the geometry and primitive identifier */
-};
 
 struct ssol_instantiated_shaded_shape {
   struct ssol_shape* shape;
@@ -742,7 +722,7 @@ ssol_shape_get_triangle_indices
    const unsigned itri,
    unsigned ids[3]);
 
-/* Define a punched surface in local space, i.e. no translation & no orientation */
+/* Define a punched surface in local space, i.e. no transformation */
 SSOL_API res_T
 ssol_punched_surface_setup
   (struct ssol_shape* shape,
@@ -1091,8 +1071,8 @@ ssol_atmosphere_set_absorption
    struct ssol_data* absorption);
 
 /*******************************************************************************
-* Estimator API - Describe the state of a simulation.
-******************************************************************************/
+ * Estimator API - Describe the state of a simulation.
+ ******************************************************************************/
 SSOL_API res_T
 ssol_estimator_ref_get
   (struct ssol_estimator* estimator);
