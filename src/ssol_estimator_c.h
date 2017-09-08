@@ -79,7 +79,7 @@ mc_data_add_weight(struct mc_data* data, size_t irealisation, double w)
     mc_data_flush(data);
     data->irealisation = irealisation;
   }
-  data->tmp = w;
+  data->tmp += w;
 }
 
 static INLINE void
