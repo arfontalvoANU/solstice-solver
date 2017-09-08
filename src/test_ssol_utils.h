@@ -30,14 +30,6 @@ check_memory_allocator(struct mem_allocator* allocator)
   }
 }
 
-extern LOCAL_SYM res_T
-pp_sum
-  (FILE* f,
-   const int32_t receiver_id,
-   const size_t count,
-   double* mean,
-   double* std);
-
 #define PRINT_GLOBAL(Mc) {                                                    \
   printf("Shadows = %g +/- %g; ", (Mc).shadowed.E, (Mc).shadowed.SE);         \
   printf("Missing = %g +/- %g; ", (Mc).missing.E, (Mc).missing.SE);           \

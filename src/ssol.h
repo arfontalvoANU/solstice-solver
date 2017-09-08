@@ -1103,7 +1103,7 @@ ssol_estimator_ref_put
 
 SSOL_API res_T
 ssol_estimator_get_mc_global
-  (const struct ssol_estimator* estimator,
+  (struct ssol_estimator* estimator,
    struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
@@ -1202,7 +1202,6 @@ ssol_solve
    struct ssp_rng* rng,
    const size_t realisations_count,
    const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */
-   FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator** estimator);
 
 SSOL_API res_T

@@ -133,7 +133,7 @@ if(NOT NO_TEST)
   function(build_test _name)
     add_executable(${_name} ${SSOL_SOURCE_DIR}/${_name}.c)
     target_link_libraries(${_name}
-      solstice-solver solstice-test RSys Star3D StarSP)
+      solstice-solver RSys Star3D StarSP)
   endfunction()
 
   function(register_test _name)
@@ -145,13 +145,7 @@ if(NOT NO_TEST)
     build_test(${_name})
     register_test(${_name} ${_name})
   endfunction()
-
-  add_library(solstice-test STATIC
-    ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
-    ${SSOL_SOURCE_DIR}/test_ssol_materials.h
-    ${SSOL_SOURCE_DIR}/test_ssol_utils.h
-    ${SSOL_SOURCE_DIR}/test_ssol_utils.c)
-
+  
   new_test(test_ssol_atmosphere)
   new_test(test_ssol_by_receiver_integration)
   new_test(test_ssol_camera)

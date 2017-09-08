@@ -53,9 +53,11 @@ ssol_estimator_get_mc_receiver
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &mc_rcv1->Name;                               \
-    rcv->Name.E = data->weight / N;                                            \
-    rcv->Name.V = data->sqr_weight/N - rcv->Name.E*rcv->Name.E;                \
+    struct mc_data* data = &mc_rcv1->Name;                                     \
+    double weight, sqr_weight;                                                 \
+    mc_data_get(data, &weight, &sqr_weight);                                   \
+    rcv->Name.E = weight / N;                                                  \
+    rcv->Name.V = sqr_weight/N - rcv->Name.E*rcv->Name.E;                      \
     rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
     rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
@@ -150,9 +152,11 @@ ssol_mc_shape_get_mc_primitive
 
     #define SETUP_MC_RESULT(Name) {                                            \
       const double N = (double)shape->N__;                                     \
-      const struct mc_data* data = &mc_prim1->Name;                            \
-      prim->Name.E = data->weight / N;                                         \
-      prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;           \
+      struct mc_data* data = &mc_prim1->Name;                                  \
+      double weight, sqr_weight;                                               \
+      mc_data_get(data, &weight, &sqr_weight);                                 \
+      prim->Name.E = weight / N;                                               \
+      prim->Name.V = sqr_weight/N - prim->Name.E*prim->Name.E;                 \
       prim->Name.V = prim->Name.V > 0 ? prim->Name.V : 0;                      \
       prim->Name.SE = sqrt(prim->Name.V / N);                                  \
       prim->Name.E /= area;                                                    \

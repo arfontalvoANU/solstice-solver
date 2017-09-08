@@ -82,7 +82,6 @@ main(int argc, char** argv)
   struct ssol_mc_receiver mc_rcv;
   double dir[3], area;
   double transform[12]; /* 3x4 column major matrix */
-  FILE* tmp;
   /* primary is a parabol */
   struct ssol_quadric quadric1 = SSOL_QUADRIC_DEFAULT;
   struct ssol_punched_surface punched1 = SSOL_PUNCHED_SURFACE_NULL;
@@ -192,9 +191,7 @@ main(int argc, char** argv)
 #define TOTAL (HELIOSTAT_SZ * HELIOSTAT_SZ * DNI_cos)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 
-  NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(fclose(tmp), 0);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
 
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   CHECK(ssol_estimator_get_sampled_area(estimator, &area), RES_OK);

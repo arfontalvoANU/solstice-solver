@@ -29,10 +29,14 @@ struct ssol_instance;
 
 /* Monte carlo data */
 struct mc_data {
-  double weight;
-  double sqr_weight;
+  size_t irealisation;
+  double tmp;
+
+  /* Internal data; use get() */
+  double __weight;
+  double __sqr_weight;
 };
-#define MC_DATA_NULL__ { 0, 0 }
+#define MC_DATA_NULL__ { SIZE_MAX, 0, 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
 #define MC_RECEIVER_DATA                                                       \
@@ -46,6 +50,56 @@ static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
   struct mc_data absorbed_if_no_field_loss; /* In W */                         \
   struct mc_data absorbed_lost_in_field; /* In W */                            \
   struct mc_data absorbed_lost_in_atmosphere; /* In W */
+
+/*******************************************************************************
+ * Deferred MC data accumulators
+ ******************************************************************************/
+static INLINE void
+mc_data_init(struct mc_data* data)
+{
+  ASSERT(data);
+  *data = MC_DATA_NULL;
+}
+
+static INLINE void
+mc_data_flush(struct mc_data* data)
+{
+  ASSERT(data);
+  data->__weight += data->tmp;
+  data->__sqr_weight += data->tmp * data->tmp;
+  data->tmp = 0;
+}
+
+static INLINE void
+mc_data_add_weight(struct mc_data* data, size_t irealisation, double w)
+{
+  ASSERT(data);
+  ASSERT(irealisation != SIZE_MAX);
+  if(irealisation != data->irealisation) {
+    mc_data_flush(data);
+    data->irealisation = irealisation;
+  }
+  data->tmp = w;
+}
+
+static INLINE void
+mc_data_accum(struct mc_data* dst, struct mc_data* src)
+{
+  ASSERT(dst && src);
+  mc_data_flush(dst);
+  mc_data_flush(src);
+  dst->__weight += src->__weight;
+  dst->__sqr_weight += src->__sqr_weight;
+}
+
+static INLINE void
+mc_data_get(struct mc_data* data, double* weight, double* sqr_weight)
+{
+  ASSERT(data && weight && sqr_weight);
+  mc_data_flush(data);
+  *weight = data->__weight;
+  *sqr_weight = data->__sqr_weight;
+}
 
 /*******************************************************************************
  * One sided per shape MC data

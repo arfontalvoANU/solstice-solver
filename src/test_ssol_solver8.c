@@ -75,8 +75,6 @@ main(int argc, char** argv)
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
-  FILE* tmp;
-  uint32_t r_id;
 
   (void) argc, (void) argv;
   d3_splat(transform + 9, 0);
@@ -139,14 +137,11 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
 #define N__ 100000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(fclose(tmp), 0);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 #define S (sqrt(2) * X_SZ * Y_SZ)
