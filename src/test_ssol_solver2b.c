@@ -200,7 +200,7 @@ main(int argc, char** argv)
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
   CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 2 * std), 1);
-  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-3), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 
