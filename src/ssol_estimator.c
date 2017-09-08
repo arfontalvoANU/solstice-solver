@@ -107,23 +107,26 @@ ssol_estimator_ref_put(struct ssol_estimator* estimator)
 
 res_T
 ssol_estimator_get_mc_global
-  (const struct ssol_estimator* estimator,
+  (struct ssol_estimator* estimator,
    struct ssol_mc_global* global)
 {
   if(!estimator || !global) return RES_BAD_ARG;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &estimator->Name;                             \
-    global->Name.E = data->weight / N;                                         \
-    global->Name.V = data->sqr_weight / N - global->Name.E*global->Name.E;     \
-    global->Name.SE = global->Name.V > 0 ? sqrt(global->Name.V / N) : 0;       \
+    struct mc_data* data = &estimator->Name;                                   \
+    double weight, sqr_weight;                                                 \
+    mc_data_get(data, &weight, &sqr_weight);                                   \
+    global->Name.E = weight / N;                                               \
+    global->Name.V = sqr_weight / N - global->Name.E*global->Name.E;           \
+    global->Name.V = global->Name.V > 0 ? global->Name.V : 0;                  \
+    global->Name.SE = sqrt(global->Name.V / N);                                \
   } (void)0
   SETUP_MC_RESULT(cos_factor);
-  SETUP_MC_RESULT(absorbed);
+  SETUP_MC_RESULT(absorbed_by_receivers);
   SETUP_MC_RESULT(shadowed);
   SETUP_MC_RESULT(missing);
-  SETUP_MC_RESULT(atmosphere);
-  SETUP_MC_RESULT(reflectivity);
+  SETUP_MC_RESULT(absorbed_by_atmosphere);
+  SETUP_MC_RESULT(other_absorbed);
   #undef SETUP_MC_RESULT
   return RES_OK;
 }
@@ -164,15 +167,24 @@ ssol_estimator_get_mc_sampled_x_receiver
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &mc_rcv1->Name;                               \
-    rcv->Name.E = data->weight / N;                                            \
-    rcv->Name.V = data->sqr_weight / N - rcv->Name.E*rcv->Name.E;              \
-    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
+    struct mc_data* data = &mc_rcv1->Name;                                     \
+    double weight, sqr_weight;                                                 \
+    mc_data_get(data, &weight, &sqr_weight);                                   \
+    rcv->Name.E = weight / N;                                                  \
+    rcv->Name.V = sqr_weight / N - rcv->Name.E*rcv->Name.E;                    \
+    rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
+    rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
-  SETUP_MC_RESULT(integrated_irradiance);
-  SETUP_MC_RESULT(integrated_absorbed_irradiance);
-  SETUP_MC_RESULT(absorptivity_loss);
-  SETUP_MC_RESULT(reflectivity_loss);
+  SETUP_MC_RESULT(incoming_flux);
+  SETUP_MC_RESULT(incoming_if_no_atm_loss);
+  SETUP_MC_RESULT(incoming_if_no_field_loss);
+  SETUP_MC_RESULT(incoming_lost_in_field);
+  SETUP_MC_RESULT(incoming_lost_in_atmosphere);
+  SETUP_MC_RESULT(absorbed_flux);
+  SETUP_MC_RESULT(absorbed_if_no_atm_loss);
+  SETUP_MC_RESULT(absorbed_if_no_field_loss);
+  SETUP_MC_RESULT(absorbed_lost_in_field);
+  SETUP_MC_RESULT(absorbed_lost_in_atmosphere);
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__ = mc_samp->nb_samples;
@@ -226,15 +238,18 @@ ssol_estimator_get_mc_sampled
   mc = htable_sampled_find(&estimator->mc_sampled, &samp_instance);
   if(!mc) return RES_BAD_ARG;
   sampled->nb_samples = mc->nb_samples;
-  #define SETUP_MC_RESULT(Name) {                                             \
-    const double N = (double)estimator->realisation_count;                    \
-    const struct mc_data* data = &mc->Name;                                   \
-    sampled->Name.E = data->weight / N;                                       \
-    sampled->Name.V = data->sqr_weight/N - sampled->Name.E*sampled->Name.E;   \
-    sampled->Name.SE = sampled->Name.V > 0 ? sqrt(sampled->Name.V / N) : 0;   \
+  #define SETUP_MC_RESULT(Name, Count) {                                      \
+    const double N = (double)(Count);                                         \
+    struct mc_data* data = &mc->Name;                                         \
+    double weight, sqr_weight;                                                \
+    mc_data_get(data, &weight, &sqr_weight);                                  \
+    sampled->Name.E = weight / N;                                             \
+    sampled->Name.V = sqr_weight/N - sampled->Name.E*sampled->Name.E;         \
+    sampled->Name.V = sampled->Name.V > 0 ? sampled->Name.V : 0;              \
+    sampled->Name.SE = sqrt(sampled->Name.V / N);                             \
   } (void)0
-  SETUP_MC_RESULT(cos_factor);
-  SETUP_MC_RESULT(shadowed);
+  SETUP_MC_RESULT(cos_factor, sampled->nb_samples);
+  SETUP_MC_RESULT(shadowed, estimator->realisation_count);
   #undef SETUP_MC_RESULT
   return RES_OK;
 }

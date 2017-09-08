@@ -28,8 +28,8 @@
 #endif
 
 /* Helper macro that asserts if the invocation of the Solstice function `Func'
- * returns an error. One should use this macro on Solstice function calls for which
- * no explicit error checking is performed */
+ * returns an error. One should use this macro on Solstice function calls for
+ * which no explicit error checking is performed */
 #ifndef NDEBUG
   #define SSOL(Func) ASSERT(ssol_ ## Func == RES_OK)
 #else
@@ -178,7 +178,7 @@ static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
 
 struct ssol_quadric_hyperbol {
   /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0; z > 0
-   * with a^2 = f - f^2; b = f -1/2; f = real_focal / (img_focal + real_focal) */
+   * with a^2 = f - f^2; b = f -1/2; f = real_focal/(img_focal + real_focal) */
   double img_focal, real_focal;
 };
 #define SSOL_QUADRIC_HYPERBOL_NULL__ { -1.0 , -1.0 }
@@ -322,26 +322,6 @@ struct ssol_thin_dielectric_shader {
 static const struct ssol_thin_dielectric_shader
 SSOL_THIN_DIELECTRIC_SHADER_NULL = SSOL_THIN_DIELECTRIC_SHADER_NULL__;
 
-/* The type of data produced on receiver hits as ssol_solve() write them on its
- * FILE* argument */
-struct ssol_receiver_data {
-  uint64_t realization_id;
-  uint32_t segment_id;
-
-  /* Its absolute value is the identifier of an SSOL instance. A negative
-   * value means for back faces primitive */
-  int32_t receiver_id;
-
-  float wavelength;
-  float pos[3];
-  float in_dir[3];
-  float normal[3];
-  double weight;
-  float uv[2];
-
-  /* TODO Add the geometry and primitive identifier */
-};
-
 struct ssol_instantiated_shaded_shape {
   struct ssol_shape* shape;
   struct ssol_material* mtl_front;
@@ -388,11 +368,11 @@ static const struct ssol_mc_result SSOL_MC_RESULT_NULL = SSOL_MC_RESULT_NULL__;
 
 struct ssol_mc_global {
   struct ssol_mc_result cos_factor; /* [0 1] */
-  struct ssol_mc_result absorbed; /* In W */
+  struct ssol_mc_result absorbed_by_receivers; /* In W */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
-  struct ssol_mc_result atmosphere; /* In W */
-  struct ssol_mc_result reflectivity; /* In W */
+  struct ssol_mc_result absorbed_by_atmosphere; /* In W */
+  struct ssol_mc_result other_absorbed; /* In W */
 };
 #define SSOL_MC_GLOBAL_NULL__ {                                                \
   SSOL_MC_RESULT_NULL__,                                                       \
@@ -405,10 +385,16 @@ struct ssol_mc_global {
 static const struct ssol_mc_global SSOL_MC_GLOBAL_NULL = SSOL_MC_GLOBAL_NULL__;
 
 struct ssol_mc_receiver {
-  struct ssol_mc_result integrated_irradiance; /* In W */
-  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
-  struct ssol_mc_result absorptivity_loss; /* In W */
-  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result incoming_flux; /* In W */
+  struct ssol_mc_result incoming_if_no_atm_loss; /* In W */
+  struct ssol_mc_result incoming_if_no_field_loss; /* In W */
+  struct ssol_mc_result incoming_lost_in_field; /* In W */
+  struct ssol_mc_result incoming_lost_in_atmosphere; /* In W */
+  struct ssol_mc_result absorbed_flux; /* In W */
+  struct ssol_mc_result absorbed_if_no_atm_loss; /* In W */
+  struct ssol_mc_result absorbed_if_no_field_loss; /* In W */
+  struct ssol_mc_result absorbed_lost_in_field; /* In W */
+  struct ssol_mc_result absorbed_lost_in_atmosphere; /* In W */
 
   /* Internal data */
   size_t N__;
@@ -420,12 +406,24 @@ struct ssol_mc_receiver {
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   0, NULL, NULL                                                                \
 }
 static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
   SSOL_MC_RECEIVER_NULL__;
 
 #define MC_RCV_NONE__ {                                                        \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
+    { -1, -1, -1 },                                                            \
     { -1, -1, -1 },                                                            \
     { -1, -1, -1 },                                                            \
     { -1, -1, -1 },                                                            \
@@ -449,12 +447,24 @@ struct ssol_mc_sampled {
 };
 
 struct ssol_mc_primitive {
-  struct ssol_mc_result integrated_irradiance; /* In W */
-  struct ssol_mc_result integrated_absorbed_irradiance; /* In W */
-  struct ssol_mc_result absorptivity_loss; /* In W */
-  struct ssol_mc_result reflectivity_loss; /* In W */
+  struct ssol_mc_result incoming_flux; /* In W */
+  struct ssol_mc_result incoming_if_no_atm_loss; /* In W */
+  struct ssol_mc_result incoming_if_no_field_loss; /* In W */
+  struct ssol_mc_result incoming_lost_in_field; /* In W */
+  struct ssol_mc_result incoming_lost_in_atmosphere; /* In W */
+  struct ssol_mc_result absorbed_flux; /* In W */
+  struct ssol_mc_result absorbed_if_no_atm_loss; /* In W */
+  struct ssol_mc_result absorbed_if_no_field_loss; /* In W */
+  struct ssol_mc_result absorbed_lost_in_field; /* In W */
+  struct ssol_mc_result absorbed_lost_in_atmosphere; /* In W */
 };
 #define SSOL_MC_PRIMITIVE_NULL__ {                                             \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
+  SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
   SSOL_MC_RESULT_NULL__,                                                       \
@@ -712,7 +722,7 @@ ssol_shape_get_triangle_indices
    const unsigned itri,
    unsigned ids[3]);
 
-/* Define a punched surface in local space, i.e. no translation & no orientation */
+/* Define a punched surface in local space, i.e. no transformation */
 SSOL_API res_T
 ssol_punched_surface_setup
   (struct ssol_shape* shape,
@@ -1061,8 +1071,8 @@ ssol_atmosphere_set_absorption
    struct ssol_data* absorption);
 
 /*******************************************************************************
-* Estimator API - Describe the state of a simulation.
-******************************************************************************/
+ * Estimator API - Describe the state of a simulation.
+ ******************************************************************************/
 SSOL_API res_T
 ssol_estimator_ref_get
   (struct ssol_estimator* estimator);
@@ -1073,7 +1083,7 @@ ssol_estimator_ref_put
 
 SSOL_API res_T
 ssol_estimator_get_mc_global
-  (const struct ssol_estimator* estimator,
+  (struct ssol_estimator* estimator,
    struct ssol_mc_global* mc_global);
 
 SSOL_API res_T
@@ -1172,7 +1182,6 @@ ssol_solve
    struct ssp_rng* rng,
    const size_t realisations_count,
    const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */
-   FILE* output, /* May be NULL <=> does not ouput ssol_receiver_data */
    struct ssol_estimator** estimator);
 
 SSOL_API res_T

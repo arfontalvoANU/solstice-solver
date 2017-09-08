@@ -82,7 +82,6 @@ main(int argc, char** argv)
   struct ssol_mc_receiver mc_rcv;
   double dir[3], area;
   double transform[12]; /* 3x4 column major matrix */
-  FILE* tmp;
   /* primary is a parabol */
   struct ssol_quadric quadric1 = SSOL_QUADRIC_DEFAULT;
   struct ssol_punched_surface punched1 = SSOL_PUNCHED_SURFACE_NULL;
@@ -192,30 +191,24 @@ main(int argc, char** argv)
 #define TOTAL (HELIOSTAT_SZ * HELIOSTAT_SZ * DNI_cos)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 
-  NCHECK(tmp = tmpfile(), 0);
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(fclose(tmp), 0);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
 
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   CHECK(ssol_estimator_get_sampled_area(estimator, &area), RES_OK);
   printf("Total = %g\n", area * DNI_cos);
   CHECK(eq_eps(area * DNI_cos, TOTAL, TOTAL * 1e-4), 1);
-  printf("Absorbed = %g +/- %g\n", mc_global.absorbed.E, mc_global.absorbed.SE);
-  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
-  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
-  CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  PRINT_GLOBAL(mc_global);
 
   CHECK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Abs(target1) = %g +/- %g\n",
-    mc_rcv.integrated_absorbed_irradiance.E, 
-    mc_rcv.integrated_absorbed_irradiance.SE);
+    mc_rcv.absorbed_flux.E, 
+    mc_rcv.absorbed_flux.SE);
   printf("Ir(target1) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, TOTAL, TOTAL * 1e-4), 1);
-  CHECK(eq_eps(mc_rcv.integrated_absorbed_irradiance.E, 
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, TOTAL, TOTAL * 1e-4), 1);
+  CHECK(eq_eps(mc_rcv.absorbed_flux.E, 
     (1 - REFLECTIVITY) * TOTAL, (1 - REFLECTIVITY) *TOTAL * 1e-4), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, 0, 1e-2), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, 0, 1e-2), 1);
 
   /* Free data */
   CHECK(ssol_instance_ref_put(heliostat), RES_OK);

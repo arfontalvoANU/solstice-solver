@@ -71,9 +71,7 @@ main(int argc, char** argv)
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
   size_t count;
-  FILE* tmp;
   double m, std;
-  uint32_t r_id;
   (void) argc, (void) argv;
 
 #define FOCAL 10
@@ -136,19 +134,14 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
-  NCHECK(tmp = tmpfile(), 0);
 #define N__ 10000
-  CHECK(ssol_solve(scene, rng, N__, 0, tmp, &estimator), RES_OK);
-  CHECK(ssol_instance_get_id(target, &r_id), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
-  CHECK(pp_sum(tmp, (int32_t)r_id, count, &m, &std), RES_OK);
-  CHECK(fclose(tmp), 0);
-  printf("Ir = %g +/- %g\n", m, std);
 #define COS cos(0)
 #define DNI_cos (1000 * COS)
-  CHECK(eq_eps(m, 400 * DNI_cos, 20), 1);
-  CHECK(eq_eps(std, 0, 1), 1);
+  m = 400 * DNI_cos;
+  std = 0;
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
   printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
@@ -158,9 +151,9 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_get_mc_receiver
     (estimator, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
-    mc_rcv.integrated_irradiance.E, mc_rcv.integrated_irradiance.SE);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.E, m, 1e-8), 1);
-  CHECK(eq_eps(mc_rcv.integrated_irradiance.SE, std, 1e-4), 1);
+    mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
+  CHECK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-8), 1);
+  CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
   CHECK(count, 0);
 

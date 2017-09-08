@@ -53,15 +53,27 @@ ssol_estimator_get_mc_receiver
   mc_rcv1 = side == SSOL_FRONT ? &mc_rcv->front : &mc_rcv->back;
   #define SETUP_MC_RESULT(Name) {                                              \
     const double N = (double)estimator->realisation_count;                     \
-    const struct mc_data* data = &mc_rcv1->Name;                               \
-    rcv->Name.E = data->weight / N;                                            \
-    rcv->Name.V = data->sqr_weight/N - rcv->Name.E*rcv->Name.E;                \
-    rcv->Name.SE = rcv->Name.V > 0 ? sqrt(rcv->Name.V / N) : 0;                \
+    struct mc_data* data = &mc_rcv1->Name;                                     \
+    double weight, sqr_weight;                                                 \
+    mc_data_get(data, &weight, &sqr_weight);                                   \
+    rcv->Name.E = weight / N;                                                  \
+    rcv->Name.V = sqr_weight/N - rcv->Name.E*rcv->Name.E;                      \
+    rcv->Name.V = rcv->Name.V > 0 ? rcv->Name.V : 0;                           \
+    rcv->Name.SE = sqrt(rcv->Name.V / N);                                      \
   } (void)0
-  SETUP_MC_RESULT(integrated_irradiance);
-  SETUP_MC_RESULT(integrated_absorbed_irradiance);
-  SETUP_MC_RESULT(absorptivity_loss);
-  SETUP_MC_RESULT(reflectivity_loss);
+  #define MC_SETUP_ALL {                                                       \
+    SETUP_MC_RESULT(incoming_flux);                                            \
+    SETUP_MC_RESULT(incoming_if_no_atm_loss);                                  \
+    SETUP_MC_RESULT(incoming_if_no_field_loss);                                \
+    SETUP_MC_RESULT(incoming_lost_in_atmosphere);                              \
+    SETUP_MC_RESULT(incoming_lost_in_field);                                   \
+    SETUP_MC_RESULT(absorbed_flux);                                            \
+    SETUP_MC_RESULT(absorbed_if_no_atm_loss);                                  \
+    SETUP_MC_RESULT(absorbed_if_no_field_loss);                                \
+    SETUP_MC_RESULT(absorbed_lost_in_atmosphere);                              \
+    SETUP_MC_RESULT(absorbed_lost_in_field);                                   \
+  } (void)0
+  MC_SETUP_ALL;
   #undef SETUP_MC_RESULT
   rcv->mc__ = mc_rcv1;
   rcv->N__  = estimator->realisation_count;
@@ -108,10 +120,7 @@ ssol_mc_shape_get_mc_primitive
       prim->Name.V = 0;                                                        \
       prim->Name.SE = 0;                                                       \
     } (void)0
-    SETUP_MC_RESULT(integrated_irradiance);
-    SETUP_MC_RESULT(integrated_absorbed_irradiance);
-    SETUP_MC_RESULT(absorptivity_loss);
-    SETUP_MC_RESULT(reflectivity_loss);
+    MC_SETUP_ALL;
     #undef SETUP_MC_RESULT
   } else {
     struct s3d_attrib attr;
@@ -143,19 +152,20 @@ ssol_mc_shape_get_mc_primitive
 
     #define SETUP_MC_RESULT(Name) {                                            \
       const double N = (double)shape->N__;                                     \
-      const struct mc_data* data = &mc_prim1->Name;                            \
-      prim->Name.E = data->weight / N;                                         \
-      prim->Name.V = data->sqr_weight/N - prim->Name.E*prim->Name.E;           \
-      prim->Name.SE = prim->Name.V > 0 ? sqrt(prim->Name.V / N) : 0;           \
+      struct mc_data* data = &mc_prim1->Name;                                  \
+      double weight, sqr_weight;                                               \
+      mc_data_get(data, &weight, &sqr_weight);                                 \
+      prim->Name.E = weight / N;                                               \
+      prim->Name.V = sqr_weight/N - prim->Name.E*prim->Name.E;                 \
+      prim->Name.V = prim->Name.V > 0 ? prim->Name.V : 0;                      \
+      prim->Name.SE = sqrt(prim->Name.V / N);                                  \
       prim->Name.E /= area;                                                    \
       prim->Name.V /= area*area;                                               \
       prim->Name.SE /= area;                                                   \
     } (void)0
-    SETUP_MC_RESULT(integrated_irradiance);
-    SETUP_MC_RESULT(integrated_absorbed_irradiance);
-    SETUP_MC_RESULT(absorptivity_loss);
-    SETUP_MC_RESULT(reflectivity_loss);
+    MC_SETUP_ALL;
     #undef SETUP_MC_RESULT
+    #undef MC_SETUP_ALL
   }
 
   return RES_OK;

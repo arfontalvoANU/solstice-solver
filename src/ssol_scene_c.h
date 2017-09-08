@@ -45,6 +45,7 @@ struct ssol_scene {
 
   struct ssol_sun* sun; /* Sun of the scene */
   struct ssol_atmosphere* atmosphere; /* Atmosphere of the scene */
+  struct ssol_medium air; /* Defined according to atmosphere's properties */
 
   struct ssol_device* dev;
   ref_T ref;

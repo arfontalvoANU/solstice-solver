@@ -29,23 +29,77 @@ struct ssol_instance;
 
 /* Monte carlo data */
 struct mc_data {
-  double weight;
-  double sqr_weight;
+  size_t irealisation;
+  double tmp;
+
+  /* Internal data; use get() */
+  double weight__;
+  double sqr_weight__;
 };
-#define MC_DATA_NULL__ { 0, 0 }
+#define MC_DATA_NULL__ { SIZE_MAX, 0, 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
 
 #define MC_RECEIVER_DATA                                                       \
-  struct mc_data integrated_irradiance; /* In W */                             \
-  struct mc_data integrated_absorbed_irradiance; /* In W */                    \
-  struct mc_data absorptivity_loss; /* In W */                                 \
-  struct mc_data reflectivity_loss; /* In W */
+  struct mc_data incoming_flux; /* In W */                                     \
+  struct mc_data incoming_if_no_atm_loss; /* In W */                           \
+  struct mc_data incoming_if_no_field_loss; /* In W */                         \
+  struct mc_data incoming_lost_in_field; /* In W */                            \
+  struct mc_data incoming_lost_in_atmosphere; /* In W */                       \
+  struct mc_data absorbed_flux; /* In W */                                     \
+  struct mc_data absorbed_if_no_atm_loss; /* In W */                           \
+  struct mc_data absorbed_if_no_field_loss; /* In W */                         \
+  struct mc_data absorbed_lost_in_field; /* In W */                            \
+  struct mc_data absorbed_lost_in_atmosphere; /* In W */
 
-#define MC_RECEIVER_DATA_NULL__                                                \
-  MC_DATA_NULL__,                                                              \
-  MC_DATA_NULL__,                                                              \
-  MC_DATA_NULL__,                                                              \
-  MC_DATA_NULL__
+/*******************************************************************************
+ * Deferred MC data accumulators
+ ******************************************************************************/
+static INLINE void
+mc_data_init(struct mc_data* data)
+{
+  ASSERT(data);
+  *data = MC_DATA_NULL;
+}
+
+static INLINE void
+mc_data_flush(struct mc_data* data)
+{
+  ASSERT(data);
+  data->weight__ += data->tmp;
+  data->sqr_weight__ += data->tmp * data->tmp;
+  data->tmp = 0;
+}
+
+static INLINE void
+mc_data_add_weight(struct mc_data* data, size_t irealisation, double w)
+{
+  ASSERT(data);
+  ASSERT(irealisation != SIZE_MAX);
+  if(irealisation != data->irealisation) {
+    mc_data_flush(data);
+    data->irealisation = irealisation;
+  }
+  data->tmp += w;
+}
+
+static INLINE void
+mc_data_accum(struct mc_data* dst, struct mc_data* src)
+{
+  ASSERT(dst && src);
+  mc_data_flush(dst);
+  mc_data_flush(src);
+  dst->weight__ += src->weight__;
+  dst->sqr_weight__ += src->sqr_weight__;
+}
+
+static INLINE void
+mc_data_get(struct mc_data* data, double* weight, double* sqr_weight)
+{
+  ASSERT(data && weight && sqr_weight);
+  mc_data_flush(data);
+  *weight = data->weight__;
+  *sqr_weight = data->sqr_weight__;
+}
 
 /*******************************************************************************
  * One sided per shape MC data
@@ -54,7 +108,19 @@ struct mc_primitive_1side {
   MC_RECEIVER_DATA
 };
 
-#define MC_PRIMITIVE_1SIDE_NULL__ { MC_RECEIVER_DATA_NULL__ }
+#define MC_PRIMITIVE_1SIDE_NULL__ {                                            \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__,                                                              \
+  MC_DATA_NULL__                                                               \
+}
+
 static const struct mc_primitive_1side MC_PRIMITIVE_1SIDE_NULL =
   MC_PRIMITIVE_1SIDE_NULL__;
 
@@ -142,15 +208,38 @@ struct mc_receiver_1side {
   struct htable_shape2mc shape2mc;
 };
 
+static FINLINE void
+mc_receiver_1side_copy_mc_weights__
+  (struct mc_receiver_1side* dst, const struct mc_receiver_1side* src)
+{
+  ASSERT(dst && src);
+  dst->incoming_flux = src->incoming_flux;
+  dst->incoming_if_no_atm_loss = src->incoming_if_no_atm_loss;
+  dst->incoming_if_no_field_loss = src->incoming_if_no_field_loss;
+  dst->incoming_lost_in_atmosphere = src->incoming_lost_in_atmosphere;
+  dst->incoming_lost_in_field = src->incoming_lost_in_field;
+  dst->absorbed_flux = src->absorbed_flux;
+  dst->absorbed_if_no_atm_loss = src->absorbed_if_no_atm_loss;
+  dst->absorbed_if_no_field_loss = src->absorbed_if_no_field_loss;
+  dst->absorbed_lost_in_atmosphere = src->absorbed_lost_in_atmosphere;
+  dst->absorbed_lost_in_field = src->absorbed_lost_in_field;
+}
+
 static INLINE void
 mc_receiver_1side_init
   (struct mem_allocator* allocator, struct mc_receiver_1side* mc)
 {
   ASSERT(mc);
-  mc->integrated_irradiance = MC_DATA_NULL;
-  mc->integrated_absorbed_irradiance = MC_DATA_NULL;
-  mc->absorptivity_loss = MC_DATA_NULL;
-  mc->reflectivity_loss = MC_DATA_NULL;
+  mc->incoming_flux = MC_DATA_NULL;
+  mc->incoming_if_no_atm_loss = MC_DATA_NULL;
+  mc->incoming_if_no_field_loss = MC_DATA_NULL;
+  mc->incoming_lost_in_atmosphere = MC_DATA_NULL;
+  mc->incoming_lost_in_field = MC_DATA_NULL;
+  mc->absorbed_flux = MC_DATA_NULL;
+  mc->absorbed_if_no_atm_loss = MC_DATA_NULL;
+  mc->absorbed_if_no_field_loss = MC_DATA_NULL;
+  mc->absorbed_lost_in_atmosphere = MC_DATA_NULL;
+  mc->absorbed_lost_in_field = MC_DATA_NULL;
   htable_shape2mc_init(allocator, &mc->shape2mc);
 }
 
@@ -166,10 +255,7 @@ mc_receiver_1side_copy
   (struct mc_receiver_1side* dst, const struct mc_receiver_1side* src)
 {
   ASSERT(dst && src);
-  dst->integrated_irradiance = src->integrated_irradiance;
-  dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
-  dst->absorptivity_loss = src->absorptivity_loss;
-  dst->reflectivity_loss = src->reflectivity_loss;
+  mc_receiver_1side_copy_mc_weights__(dst, src);
   return htable_shape2mc_copy(&dst->shape2mc, &src->shape2mc);
 }
 
@@ -178,10 +264,7 @@ mc_receiver_1side_copy_and_release
   (struct mc_receiver_1side* dst, struct mc_receiver_1side* src)
 {
   ASSERT(dst && src);
-  dst->integrated_irradiance = src->integrated_irradiance;
-  dst->integrated_absorbed_irradiance = src->integrated_absorbed_irradiance;
-  dst->absorptivity_loss = src->absorptivity_loss;
-  dst->reflectivity_loss = src->reflectivity_loss;
+  mc_receiver_1side_copy_mc_weights__(dst, src);
   return htable_shape2mc_copy_and_release(&dst->shape2mc, &src->shape2mc);
 }
 
@@ -448,11 +531,11 @@ struct ssol_estimator {
 
   /* Implicit MC computations */
   struct mc_data cos_factor;
-  struct mc_data absorbed;
+  struct mc_data absorbed_by_receivers;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data atmosphere;
-  struct mc_data reflectivity;
+  struct mc_data absorbed_by_atmosphere;
+  struct mc_data other_absorbed;
 
   struct htable_receiver mc_receivers; /* Per receiver MC */
   struct htable_sampled mc_sampled; /* Per sampled instance MC */

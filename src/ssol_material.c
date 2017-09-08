@@ -64,16 +64,6 @@ ssol_data_ceq(const struct ssol_data* a, const struct ssol_data* b)
   return i;
 }
 
-/* Define if the submitted media are *certainly* equals. Refer to the
- * check_ssol_data for more details. */
-static INLINE int
-media_ceq(const struct ssol_medium* a, const struct ssol_medium* b)
-{
-  ASSERT(a && b);
-  return ssol_data_ceq(&a->refractive_index, &b->refractive_index)
-      && ssol_data_ceq(&a->absorption, &b->absorption);
-}
-
 static void
 shade_normal_default
   (struct ssol_device* dev,
@@ -738,3 +728,12 @@ material_get_next_medium
   return RES_OK;
 }
 
+/* Define if the submitted media are *certainly* equals. Refer to the
+* check_ssol_data for more details. */
+int
+media_ceq(const struct ssol_medium* a, const struct ssol_medium* b)
+{
+  ASSERT(a && b);
+  return ssol_data_ceq(&a->refractive_index, &b->refractive_index)
+    && ssol_data_ceq(&a->absorption, &b->absorption);
+}

@@ -28,7 +28,7 @@ find_package(RSys 0.4 REQUIRED)
 find_package(Star3D 0.4.1 REQUIRED)
 find_package(Star3DUT 0.2 REQUIRED)
 find_package(StarCPR 0.1 REQUIRED)
-find_package(StarSF 0.1 REQUIRED)
+find_package(StarSF 0.2 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
@@ -50,8 +50,8 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 2)
-set(VERSION_PATCH 2)
+set(VERSION_MINOR 3)
+set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
@@ -133,7 +133,7 @@ if(NOT NO_TEST)
   function(build_test _name)
     add_executable(${_name} ${SSOL_SOURCE_DIR}/${_name}.c)
     target_link_libraries(${_name}
-      solstice-solver solstice-test RSys Star3D StarSP)
+      solstice-solver RSys Star3D StarSP)
   endfunction()
 
   function(register_test _name)
@@ -145,13 +145,7 @@ if(NOT NO_TEST)
     build_test(${_name})
     register_test(${_name} ${_name})
   endfunction()
-
-  add_library(solstice-test STATIC
-    ${SSOL_SOURCE_DIR}/test_ssol_geometries.h
-    ${SSOL_SOURCE_DIR}/test_ssol_materials.h
-    ${SSOL_SOURCE_DIR}/test_ssol_utils.h
-    ${SSOL_SOURCE_DIR}/test_ssol_utils.c)
-
+  
   new_test(test_ssol_atmosphere)
   new_test(test_ssol_by_receiver_integration)
   new_test(test_ssol_camera)

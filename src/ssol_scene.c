@@ -85,6 +85,9 @@ ssol_scene_create
   res = s3d_scene_create(dev->s3d, &scene->scn_samp);
   if(res != RES_OK) goto error;
 
+  /* default air medium */
+  ssol_medium_copy(&scene->air, &SSOL_MEDIUM_VACUUM);
+
 exit:
   if(out_scene) *out_scene = scene;
   return res;
@@ -231,6 +234,7 @@ ssol_scene_clear(struct ssol_scene* scene)
   htable_instance_clear(&scene->instances_samp);
   S3D(scene_clear(scene->scn_rt));
   S3D(scene_clear(scene->scn_samp));
+  ssol_medium_clear(&scene->air);
   if(scene->sun) SSOL(scene_detach_sun(scene, scene->sun));
   if(scene->atmosphere) SSOL(scene_detach_atmosphere(scene, scene->atmosphere));
   return RES_OK;
@@ -491,7 +495,9 @@ hit_filter_function
         return 1;
       }
       hit_side = d3_dot(dir, N) < 0 ? SSOL_FRONT : SSOL_BACK;
-      if(inst == rdata->inst_from && hit_side != rdata->side_from) {
+      if(inst == rdata->inst_from
+      && sshape == rdata->sshape_from
+      && hit_side != rdata->side_from) {
         /* The intersected instance is the one from which the ray starts,
          * ensure that the ray does not intersect the opposite side of the
          * quadric
