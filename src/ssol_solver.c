@@ -849,6 +849,7 @@ trace_radiative_path
       } else {
         ACCUM_WEIGHT(thread_ctx->other_absorbed,
           pt.incoming_flux * pt.kabs_at_pt);
+        pt.energy_loss -= (pt.incoming_flux * pt.kabs_at_pt);
       }
 
       /* Stop the radiative random walk if no more flux */
