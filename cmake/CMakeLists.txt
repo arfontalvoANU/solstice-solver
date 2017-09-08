@@ -28,7 +28,7 @@ find_package(RSys 0.4 REQUIRED)
 find_package(Star3D 0.4.1 REQUIRED)
 find_package(Star3DUT 0.2 REQUIRED)
 find_package(StarCPR 0.1 REQUIRED)
-find_package(StarSF 0.2 REQUIRED)
+find_package(StarSF 0.1 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
@@ -50,8 +50,8 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 3)
-set(VERSION_PATCH 0)
+set(VERSION_MINOR 2)
+set(VERSION_PATCH 2)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
@@ -130,8 +130,20 @@ rcmake_setup_devel(solstice-solver SolSolver ${VERSION} solstice/ssol_version.h)
 # Add tests
 ################################################################################
 if(NOT NO_TEST)
+  set(SSOL_TEST_FILES_INC
+    test_ssol_circ2D_geometry.h
+    test_ssol_geometries.h
+    test_ssol_rect_geometry.h
+    test_ssol_utils.h
+    test_ssol_cube_geometry.h
+    test_ssol_materials.h
+    test_ssol_rect2D_geometry.h
+  )
+
+  rcmake_prepend_path(SSOL_TEST_FILES_INC ${SSOL_SOURCE_DIR})
+
   function(build_test _name)
-    add_executable(${_name} ${SSOL_SOURCE_DIR}/${_name}.c)
+    add_executable(${_name} ${SSOL_SOURCE_DIR}/${_name}.c ${SSOL_TEST_FILES_INC})
     target_link_libraries(${_name}
       solstice-solver RSys Star3D StarSP)
   endfunction()
@@ -174,7 +186,6 @@ if(NOT NO_TEST)
   build_test(test_ssol_draw)
   register_test(test_ssol_draw_draft test_ssol_draw draft)
   register_test(test_ssol_draw_pt test_ssol_draw pt)
-
 endif()
 
 ################################################################################
