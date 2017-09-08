@@ -667,12 +667,6 @@ error:
   goto exit;
 }
 
-/*
- * FIXME Are the following accumulations OK when the radiative path bounces
- * several times on the same receiver ? It seems weird to add the overall
- * absorptivity and reflectivity losses to the corresponding per receiver
- * accumulators since they already registered some losses.
- */
 static res_T
 update_mc
   (struct point* pt,
