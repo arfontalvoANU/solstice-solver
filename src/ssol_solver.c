@@ -717,7 +717,7 @@ update_mc
     (pt->mc_samp, pt->inst, pt->side, &mc_samp_x_rcv1);
   if(res != RES_OK) goto error;
 
-  #define ACCUM_WEIGHT(Name, W)\
+  #define ACCUM_WEIGHT(Name, W) \
     mc_data_add_weight(&mc_samp_x_rcv1->Name, irealisation, W)
   ACCUM_ALL;
   #undef ACCUM_WEIGHT
@@ -733,7 +733,7 @@ update_mc
     res = mc_shape_1side_get_mc_primitive(mc_shape1, pt->prim.prim_id, &mc_prim1);
     if(res != RES_OK) goto error;
 
-    #define ACCUM_WEIGHT(Name, W)\
+    #define ACCUM_WEIGHT(Name, W) \
       mc_data_add_weight(&mc_prim1->Name, irealisation, W)
     ACCUM_ALL;
     #undef ACCUM_WEIGHT

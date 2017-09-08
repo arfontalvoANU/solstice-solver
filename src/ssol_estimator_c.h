@@ -33,8 +33,8 @@ struct mc_data {
   double tmp;
 
   /* Internal data; use get() */
-  double __weight;
-  double __sqr_weight;
+  double weight__;
+  double sqr_weight__;
 };
 #define MC_DATA_NULL__ { SIZE_MAX, 0, 0, 0 }
 static const struct mc_data MC_DATA_NULL = MC_DATA_NULL__;
@@ -65,8 +65,8 @@ static INLINE void
 mc_data_flush(struct mc_data* data)
 {
   ASSERT(data);
-  data->__weight += data->tmp;
-  data->__sqr_weight += data->tmp * data->tmp;
+  data->weight__ += data->tmp;
+  data->sqr_weight__ += data->tmp * data->tmp;
   data->tmp = 0;
 }
 
@@ -88,8 +88,8 @@ mc_data_accum(struct mc_data* dst, struct mc_data* src)
   ASSERT(dst && src);
   mc_data_flush(dst);
   mc_data_flush(src);
-  dst->__weight += src->__weight;
-  dst->__sqr_weight += src->__sqr_weight;
+  dst->weight__ += src->weight__;
+  dst->sqr_weight__ += src->sqr_weight__;
 }
 
 static INLINE void
@@ -97,8 +97,8 @@ mc_data_get(struct mc_data* data, double* weight, double* sqr_weight)
 {
   ASSERT(data && weight && sqr_weight);
   mc_data_flush(data);
-  *weight = data->__weight;
-  *sqr_weight = data->__sqr_weight;
+  *weight = data->weight__;
+  *sqr_weight = data->sqr_weight__;
 }
 
 /*******************************************************************************
