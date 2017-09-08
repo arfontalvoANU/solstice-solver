@@ -173,7 +173,8 @@ struct point {
   const struct ssol_material* material;
   /* tmp quantities to compute weights */
   double kabs_at_pt;
-  double partial_atm, partial_recv, partial_other;
+  /* for conservation of energy check */
+  double energy_loss;
   /* MC weights */
   /* Set once */
   double initial_flux; /* the initial flux*/
@@ -204,7 +205,8 @@ struct point {
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
   NULL, /* Material */                                                         \
-  0, 0, 0, 0, /* tmp values */                                                 \
+  0, /* tmp values */                                                          \
+  0,  /* Energy loss */                                                        \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                            \
   SSOL_FRONT /* Side */                                                        \
 }
@@ -306,7 +308,7 @@ point_init
     pt->cos_factor = surface_sun_cos;
   }
 
-  pt->partial_atm = pt->partial_recv = pt->partial_other = 0;
+  pt->energy_loss = w0;
   pt->initial_flux = w0;
   pt->prev_outgoing_flux = w0;
   pt->prev_outgoing_if_no_atm_loss = w0;
@@ -682,7 +684,11 @@ update_mc
   res_T res = RES_OK;
   ASSERT(pt && thread_ctx && point_is_receiver(pt));
 
-  pt->partial_recv += pt->incoming_flux - pt->outgoing_flux;
+  #define ACCUM_WEIGHT(Name, W)\
+    mc_data_add_weight(&thread_ctx->Name, irealisation, W)
+  ACCUM_WEIGHT(absorbed_by_receivers, pt->incoming_flux - pt->outgoing_flux);
+  pt->energy_loss -= (pt->incoming_flux - pt->outgoing_flux);
+  #undef ACCUM_WEIGHT
 
   /* Per receiver MC accumulation */
   res = get_mc_receiver_1side(&thread_ctx->mc_rcvs, pt->inst, pt->side, &mc_rcv1);
@@ -799,6 +805,7 @@ trace_radiative_path
   if(!is_lit) { /* The starting point is not lit */
     ACCUM_WEIGHT(pt.mc_samp->shadowed, pt.initial_flux);
     ACCUM_WEIGHT(thread_ctx->shadowed, pt.initial_flux);
+    pt.energy_loss -= pt.initial_flux;
     if(tracker) path.type = SSOL_PATH_SHADOW;
   } else {
     /* Setup the ray as if it starts from the current point position in order
@@ -846,7 +853,8 @@ trace_radiative_path
         res = update_mc(&pt, irealisation, thread_ctx);
         if(res != RES_OK) goto error;
       } else {
-        pt.partial_other += pt.incoming_flux * pt.kabs_at_pt;
+        ACCUM_WEIGHT(thread_ctx->other_absorbed,
+          pt.incoming_flux * pt.kabs_at_pt);
       }
 
       /* Stop the radiative random walk if no more flux */
@@ -897,10 +905,14 @@ trace_radiative_path
        * a non-virtual material is hit or no further hit can be found. */
       if(last_segment || !hit_virtual) {
         if(in_atm) {
-          pt.partial_atm += pt.prev_outgoing_flux - pt.incoming_flux;
+          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere,
+            pt.prev_outgoing_flux - pt.incoming_flux);
         } else {
-          pt.partial_other += pt.prev_outgoing_flux - pt.incoming_flux;
+          ACCUM_WEIGHT(thread_ctx->other_absorbed,
+            pt.prev_outgoing_flux - pt.incoming_flux);
         }
+        pt.energy_loss -= (pt.prev_outgoing_flux - pt.incoming_flux);
+
         if(last_segment) {
           break;
         }
@@ -922,21 +934,17 @@ trace_radiative_path
       
       ssol_medium_copy(&in_medium, &out_medium);
     }
-    /* Check conservation of energy */
-    ASSERT((double)depth * pt.initial_flux * DBL_EPSILON >=
-      fabs(pt.initial_flux -
-        (pt.outgoing_flux + pt.partial_recv + pt.partial_atm + pt.partial_other)));
 
     /* Now that the sample ends successfully,
      * record MC weights and register the remaining power as missing */
     ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
     ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
     ACCUM_WEIGHT(thread_ctx->missing, pt.outgoing_flux);
-    ACCUM_WEIGHT(thread_ctx->absorbed_by_receivers, pt.partial_recv);
-    ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere, pt.partial_atm);
-    ACCUM_WEIGHT(thread_ctx->other_absorbed, pt.partial_other);
+    pt.energy_loss -= pt.outgoing_flux;
     #undef ACCUM_WEIGHT
 
+    /* Check conservation of energy */
+    ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
     if(tracker) {
       path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
     }
