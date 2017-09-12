@@ -101,7 +101,8 @@ setup_dielectric_bsdf
   eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
   eta_t = ssol_data_get_value(&mtl->in_medium.refractive_index, wavelength);
 
-  res = ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_reflection, &bxdf);
+  res = ssf_bxdf_create
+    (mtl->dev->allocator, &ssf_specular_dielectric_dielectric_interface, &bxdf);
   if(res != RES_OK) goto error;
 
   res = ssf_specular_dielectric_dielectric_interface_setup
