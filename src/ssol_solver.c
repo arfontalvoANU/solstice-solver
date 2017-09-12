@@ -930,20 +930,21 @@ trace_radiative_path
       ssol_medium_copy(&in_medium, &out_medium);
     }
 
-    /* Now that the sample ends successfully,
-     * record MC weights and register the remaining power as missing */
-    ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
-    ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
+    /* Register the remaining flux as missing */
     ACCUM_WEIGHT(thread_ctx->missing, pt.outgoing_flux);
     pt.energy_loss -= pt.outgoing_flux;
-    #undef ACCUM_WEIGHT
 
-    /* Check conservation of energy */
-    ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
     if(tracker) {
       path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
     }
   }
+  /* Now that the sample ends successfully, record MC weights */
+  ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
+  ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
+  #undef ACCUM_WEIGHT
+
+  /* Check conservation of energy at the realisation level */
+  ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
 
   if(tracker) {
     res = path_register_and_clear(&thread_ctx->paths, &path);
