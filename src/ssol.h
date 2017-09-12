@@ -417,20 +417,6 @@ struct ssol_mc_receiver {
 static const struct ssol_mc_receiver SSOL_MC_RECEIVER_NULL =
   SSOL_MC_RECEIVER_NULL__;
 
-#define MC_RCV_NONE__ {                                                        \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    { -1, -1, -1 },                                                            \
-    0, NULL, NULL                                                              \
-}
-
 struct ssol_mc_shape {
   /* Internal data */
   size_t N__;
