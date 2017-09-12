@@ -484,7 +484,7 @@ point_shade
   pt->kabs_at_pt = (1 - propagated);
   pt->outgoing_flux = pt->incoming_flux * propagated;
   pt->outgoing_if_no_atm_loss = pt->incoming_if_no_atm_loss * propagated;
-  pt->outgoing_if_no_field_loss = point_is_receiver(pt) 
+  pt->outgoing_if_no_field_loss = point_is_receiver(pt)
     ? pt->incoming_if_no_field_loss*propagated : pt->incoming_if_no_field_loss;
 
   if(type & SSF_TRANSMISSION) {
@@ -774,7 +774,7 @@ trace_radiative_path
 
   /* Find a new starting point of the radiative random walk */
   res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
-    view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, 
+    view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng,
     &in_medium, &is_lit);
   if(res != RES_OK) goto error;
 
@@ -917,7 +917,8 @@ trace_radiative_path
       }
 
       depth += !hit_virtual;
-      ASSERT(depth < 100); /* FIXME: create a true cancel path for this MC sample */
+      /* FIXME: create a true cancel path for this MC sample */
+      ASSERT(depth < 100);
 
       /* Update the point */
       point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
@@ -926,7 +927,7 @@ trace_radiative_path
         res = path_add_vertex(&path, pt.pos, pt.outgoing_flux);
         if (res != RES_OK) goto error;
       }
-      
+
       ssol_medium_copy(&in_medium, &out_medium);
     }
 
@@ -1086,7 +1087,7 @@ ssol_solve
 
   res = scene_check(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
-  
+
   /* init air properties */
   if(scn->atmosphere)
     ssol_data_copy(&scn->air.absorption, &scn->atmosphere->absorption);
