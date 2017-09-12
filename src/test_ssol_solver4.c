@@ -154,11 +154,9 @@ main(int argc, char** argv)
   m2 = m1;
   std2 = std1;
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
-  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
+  PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
-  CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-2), 1); /* nothing absorbed */
+  CHECK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-2), 1); /* virtual => 100 % missing */
   CHECK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target1) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);

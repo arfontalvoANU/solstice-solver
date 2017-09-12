@@ -959,6 +959,83 @@ error:
   goto exit;
 }
 
+static void
+cancel_mc_receiver_1side
+  (struct mc_receiver_1side* rcv,
+   size_t irealisation)
+{
+  mc_data_cancel(&rcv->incoming_flux, irealisation);
+  mc_data_cancel(&rcv->incoming_if_no_atm_loss, irealisation);
+  mc_data_cancel(&rcv->incoming_if_no_field_loss, irealisation);
+  mc_data_cancel(&rcv->incoming_lost_in_field, irealisation);
+  mc_data_cancel(&rcv->incoming_lost_in_atmosphere, irealisation);
+  mc_data_cancel(&rcv->absorbed_flux, irealisation);
+  mc_data_cancel(&rcv->absorbed_if_no_atm_loss, irealisation);
+  mc_data_cancel(&rcv->absorbed_if_no_field_loss, irealisation);
+  mc_data_cancel(&rcv->absorbed_lost_in_field, irealisation);
+  mc_data_cancel(&rcv->absorbed_lost_in_atmosphere, irealisation);
+}
+
+static void
+cancel_mc
+  (struct thread_context* thread_ctx,
+   size_t irealisation)
+{
+  struct htable_receiver_iterator r_it, r_end;
+  struct htable_sampled_iterator s_it, s_end;
+
+  /* Cancel global MC estimations */
+  mc_data_cancel(&thread_ctx->cos_factor, irealisation);
+  mc_data_cancel(&thread_ctx->absorbed_by_atmosphere, irealisation);
+  mc_data_cancel(&thread_ctx->absorbed_by_receivers, irealisation);
+  mc_data_cancel(&thread_ctx->other_absorbed, irealisation);
+  mc_data_cancel(&thread_ctx->missing, irealisation);
+  mc_data_cancel(&thread_ctx->shadowed, irealisation);
+
+  /* Cancel receiver MC estimations */
+  htable_receiver_begin(&thread_ctx->mc_rcvs, &r_it);
+  htable_receiver_end(&thread_ctx->mc_rcvs, &r_end);
+  while (!htable_receiver_iterator_eq(&r_it, &r_end)) {
+    struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+
+    htable_receiver_iterator_next(&r_it);
+
+    if (inst->receiver_mask & (int)SSOL_FRONT) {
+      cancel_mc_receiver_1side(&mc_rcv->front, irealisation);
+    }
+    if (inst->receiver_mask & (int)SSOL_BACK) {
+      cancel_mc_receiver_1side(&mc_rcv->back, irealisation);
+    }
+  }
+  /* Cancel sampled instance MC estimations */
+  htable_sampled_begin(&thread_ctx->mc_samps, &s_it);
+  htable_sampled_end(&thread_ctx->mc_samps, &s_end);
+  while (!htable_sampled_iterator_eq(&s_it, &s_end)) {
+    struct mc_sampled* mc_samp = htable_sampled_iterator_data_get(&s_it);
+    htable_sampled_iterator_next(&s_it);
+
+    mc_data_cancel(&mc_samp->cos_factor, irealisation);
+    mc_data_cancel(&mc_samp->shadowed, irealisation);
+
+    /* dst->by_receiver += src->by_receiver; */
+    htable_receiver_begin(&mc_samp->mc_rcvs, &r_it);
+    htable_receiver_end(&mc_samp->mc_rcvs, &r_end);
+    while (!htable_receiver_iterator_eq(&r_it, &r_end)) {
+      struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+      const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+      htable_receiver_iterator_next(&r_it);
+
+      if (inst->receiver_mask & (int)SSOL_FRONT) {
+        cancel_mc_receiver_1side(&mc_rcv->front, irealisation);
+      }
+      if (inst->receiver_mask & (int)SSOL_BACK) {
+        cancel_mc_receiver_1side(&mc_rcv->back, irealisation);
+      }
+    }
+  }
+}
+
 /*******************************************************************************
  * Exported functions
  ******************************************************************************/
@@ -1069,7 +1146,10 @@ ssol_solve
     /* Execute a MC experiment */
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
       scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker);
-
+    if(res_local != RES_OK) {
+      /* Cancel partial MC results */
+      cancel_mc(thread_ctx, (size_t)i);
+    }
     if(res_local == RES_BAD_OP) {
       if(ATOMIC_INCR(&nfailures) >= max_failures) {
         log_error(scn->dev, "Too many unexpected radiative paths.\n");

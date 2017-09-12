@@ -101,6 +101,14 @@ mc_data_get(struct mc_data* data, double* weight, double* sqr_weight)
   *sqr_weight = data->sqr_weight__;
 }
 
+static INLINE void
+mc_data_cancel(struct mc_data* data, size_t irealisation)
+{
+  ASSERT(data);
+  if(data->irealisation!=irealisation) return;
+  data->tmp = 0;
+}
+
 /*******************************************************************************
  * One sided per shape MC data
  ******************************************************************************/
