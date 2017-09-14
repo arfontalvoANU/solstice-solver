@@ -951,16 +951,22 @@ trace_radiative_path
   /* Check conservation of energy at the realisation level */
   ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
 
-  if(tracker) {
-    res = path_register_and_clear(&thread_ctx->paths, &path);
-    if(res != RES_OK) goto error;
-  }
 exit:
+  if(tracker) {
+    res_T tmp_res = path_register_and_clear(&thread_ctx->paths, &path);
+    if(tmp_res != RES_OK && res == RES_OK) {
+      res = tmp_res;
+      goto error;
+    }
+  }
   ssol_medium_clear(&in_medium);
   ssol_medium_clear(&out_medium);
   if(tracker) path_release(&path);
   return res;
 error:
+  if (tracker) {
+    path.type = SSOL_PATH_ERROR;
+  }
   goto exit;
 }
 

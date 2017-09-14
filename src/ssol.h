@@ -68,8 +68,9 @@ enum ssol_side_flag {
 
 enum ssol_path_type {
   SSOL_PATH_MISSING, /* The path misses the receivers */
-  SSOL_PATH_SHADOW, /* The path is occluded before the sampled geometry */
-  SSOL_PATH_SUCCESS /* The path contributes to at least one receiver */
+  SSOL_PATH_SHADOW,  /* The path is occluded before the sampled geometry */
+  SSOL_PATH_SUCCESS, /* The path contributes to at least one receiver */
+  SSOL_PATH_ERROR    /* The path was canceled due to a path-related error */
 };
 
 enum ssol_material_type {
