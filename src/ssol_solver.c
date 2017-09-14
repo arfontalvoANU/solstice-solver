@@ -893,7 +893,8 @@ trace_radiative_path
         last_segment = 1; /* Path reached its last segment */
         if(!in_atm) {
           log_error(scn->dev, "Inconsistent medium description.\n");
-          return RES_BAD_OP;
+          res = RES_BAD_OP;
+          goto error;
         }
       }
 
