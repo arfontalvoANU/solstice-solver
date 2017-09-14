@@ -891,7 +891,10 @@ trace_radiative_path
           if (res != RES_OK) goto error;
         }
         last_segment = 1; /* Path reached its last segment */
-        ASSERT(in_atm);
+        if(!in_atm) {
+          log_error(scn->dev, "Inconsistent medium description.\n");
+          return RES_BAD_OP;
+        }
       }
 
       /* Don't change prev_outgoing weigths nor record segment absorption until
