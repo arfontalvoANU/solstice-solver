@@ -891,7 +891,12 @@ trace_radiative_path
           if (res != RES_OK) goto error;
         }
         last_segment = 1; /* Path reached its last segment */
-        if(!in_atm) {
+
+        /* Check medium consistency. Note that one has to check `out_medium' -
+         * and not `in_medium' - against the atmosphere since it is actually
+         * the medium in which the ray was traced; at this step, `in_medium' is
+         * still the medium of the previous path segment. */
+        if(!media_ceq(&out_medium, &scn->air)) {
           log_error(scn->dev, "Inconsistent medium description.\n");
           res = RES_BAD_OP;
           goto error;
