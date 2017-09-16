@@ -26,6 +26,15 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.4
+
+- Add the `SSOL_PATH_ERROR` type used for the paths that travel unforeseen
+  mediums.
+- Fix the cosine factor estimation that did not take into account the
+  shadowed realisations.
+- Ensure the energy conservation property for dielectric materials. Previously,
+  some energy was lost even for dielectric materials with no absorption.
+
 ### Version 0.3
 
 - Full rewrite of the estimated values. The global results report the cosine
