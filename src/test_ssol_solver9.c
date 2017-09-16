@@ -141,9 +141,8 @@ main(int argc, char** argv)
 #define DNI_TGT_S (DNI * TGT_X * TGT_Y)
 #define DNI_S (DNI * SZ * SZ)
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
-  printf("Cos = %g +/- %g\n", mc_global.cos_factor.E, mc_global.cos_factor.SE);
-  printf("Shadows = %g +/- %g\n", mc_global.shadowed.E, mc_global.shadowed.SE);
-  printf("Missing = %g +/- %g\n", mc_global.missing.E, mc_global.missing.SE);
+  PRINT_GLOBAL(mc_global);
+  CHECK(eq_eps(mc_global.cos_factor.E, 1./3., 3 * mc_global.cos_factor.SE), 1);
   CHECK(eq_eps(mc_global.shadowed.E, DNI_S, 3 * mc_global.shadowed.SE), 1);
   CHECK(eq_eps(mc_global.missing.E, MMAX(DNI_S, DNI_TGT_S), 
     3 * mc_global.missing.SE), 1);

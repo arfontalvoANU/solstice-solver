@@ -85,9 +85,7 @@ setup_dielectric_bsdf
    const struct ssol_medium* medium,
    struct ssf_bsdf* bsdf)
 {
-  struct ssf_bxdf* brdf = NULL;
-  struct ssf_bxdf* btdf = NULL;
-  struct ssf_fresnel* fresnel = NULL;
+  struct ssf_bxdf* bxdf = NULL;
   double eta_i, eta_t;
   res_T res = RES_OK;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_DIELECTRIC);
@@ -103,25 +101,19 @@ setup_dielectric_bsdf
   eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
   eta_t = ssol_data_get_value(&mtl->in_medium.refractive_index, wavelength);
 
-  #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
-  /* Setup the reflective part */
-  CALL(ssf_fresnel_create
-    (mtl->dev->allocator, &ssf_fresnel_dielectric_dielectric, &fresnel));
-  CALL(ssf_fresnel_dielectric_dielectric_setup(fresnel, eta_i, eta_t));
-  CALL(ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_reflection, &brdf));
-  CALL(ssf_specular_reflection_setup(brdf, fresnel));
-  /* Setup the transmissive part */
-  CALL(ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_transmission, &btdf));
-  CALL(ssf_specular_transmission_setup(btdf, eta_i, eta_t));
-  /* Setup the scattering function */
-  CALL(ssf_bsdf_add(bsdf, brdf, 0.5));
-  CALL(ssf_bsdf_add(bsdf, btdf, 0.5));
-  #undef CALL
+  res = ssf_bxdf_create
+    (mtl->dev->allocator, &ssf_specular_dielectric_dielectric_interface, &bxdf);
+  if(res != RES_OK) goto error;
+
+  res = ssf_specular_dielectric_dielectric_interface_setup
+    (bxdf, eta_i, eta_t);
+  if(res != RES_OK) goto error;
+
+  res = ssf_bsdf_add(bsdf, bxdf, 1.0);
+  if(res != RES_OK) goto error;
 
 exit:
-  if(brdf) SSF(bxdf_ref_put(brdf));
-  if(btdf) SSF(bxdf_ref_put(btdf));
-  if(fresnel) SSF(fresnel_ref_put(fresnel));
+  if(bxdf) SSF(bxdf_ref_put(bxdf));
   return res;
 error:
   goto exit;

@@ -173,7 +173,8 @@ struct point {
   const struct ssol_material* material;
   /* tmp quantities to compute weights */
   double kabs_at_pt;
-  double partial_atm, partial_recv, partial_other;
+  /* for conservation of energy check */
+  double energy_loss;
   /* MC weights */
   /* Set once */
   double initial_flux; /* the initial flux*/
@@ -204,7 +205,8 @@ struct point {
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
   NULL, /* Material */                                                         \
-  0, 0, 0, 0, /* tmp values */                                                 \
+  0, /* tmp values */                                                          \
+  0,  /* Energy loss */                                                        \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                            \
   SSOL_FRONT /* Side */                                                        \
 }
@@ -306,7 +308,7 @@ point_init
     pt->cos_factor = surface_sun_cos;
   }
 
-  pt->partial_atm = pt->partial_recv = pt->partial_other = 0;
+  pt->energy_loss = w0;
   pt->initial_flux = w0;
   pt->prev_outgoing_flux = w0;
   pt->prev_outgoing_if_no_atm_loss = w0;
@@ -482,7 +484,7 @@ point_shade
   pt->kabs_at_pt = (1 - propagated);
   pt->outgoing_flux = pt->incoming_flux * propagated;
   pt->outgoing_if_no_atm_loss = pt->incoming_if_no_atm_loss * propagated;
-  pt->outgoing_if_no_field_loss = point_is_receiver(pt) 
+  pt->outgoing_if_no_field_loss = point_is_receiver(pt)
     ? pt->incoming_if_no_field_loss*propagated : pt->incoming_if_no_field_loss;
 
   if(type & SSF_TRANSMISSION) {
@@ -665,12 +667,6 @@ error:
   goto exit;
 }
 
-/*
- * FIXME Are the following accumulations OK when the radiative path bounces
- * several times on the same receiver ? It seems weird to add the overall
- * absorptivity and reflectivity losses to the corresponding per receiver
- * accumulators since they already registered some losses.
- */
 static res_T
 update_mc
   (struct point* pt,
@@ -682,7 +678,11 @@ update_mc
   res_T res = RES_OK;
   ASSERT(pt && thread_ctx && point_is_receiver(pt));
 
-  pt->partial_recv += pt->incoming_flux - pt->outgoing_flux;
+  #define ACCUM_WEIGHT(Name, W)\
+    mc_data_add_weight(&thread_ctx->Name, irealisation, W)
+  ACCUM_WEIGHT(absorbed_by_receivers, pt->incoming_flux - pt->outgoing_flux);
+  pt->energy_loss -= (pt->incoming_flux - pt->outgoing_flux);
+  #undef ACCUM_WEIGHT
 
   /* Per receiver MC accumulation */
   res = get_mc_receiver_1side(&thread_ctx->mc_rcvs, pt->inst, pt->side, &mc_rcv1);
@@ -774,7 +774,7 @@ trace_radiative_path
 
   /* Find a new starting point of the radiative random walk */
   res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
-    view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng, 
+    view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng,
     &in_medium, &is_lit);
   if(res != RES_OK) goto error;
 
@@ -799,6 +799,7 @@ trace_radiative_path
   if(!is_lit) { /* The starting point is not lit */
     ACCUM_WEIGHT(pt.mc_samp->shadowed, pt.initial_flux);
     ACCUM_WEIGHT(thread_ctx->shadowed, pt.initial_flux);
+    pt.energy_loss -= pt.initial_flux;
     if(tracker) path.type = SSOL_PATH_SHADOW;
   } else {
     /* Setup the ray as if it starts from the current point position in order
@@ -846,7 +847,9 @@ trace_radiative_path
         res = update_mc(&pt, irealisation, thread_ctx);
         if(res != RES_OK) goto error;
       } else {
-        pt.partial_other += pt.incoming_flux * pt.kabs_at_pt;
+        ACCUM_WEIGHT(thread_ctx->other_absorbed,
+          pt.incoming_flux * pt.kabs_at_pt);
+        pt.energy_loss -= (pt.incoming_flux * pt.kabs_at_pt);
       }
 
       /* Stop the radiative random walk if no more flux */
@@ -888,7 +891,11 @@ trace_radiative_path
           if (res != RES_OK) goto error;
         }
         last_segment = 1; /* Path reached its last segment */
-        ASSERT(in_atm);
+        if(!in_atm) {
+          log_error(scn->dev, "Inconsistent medium description.\n");
+          res = RES_BAD_OP;
+          goto error;
+        }
       }
 
       /* Don't change prev_outgoing weigths nor record segment absorption until
@@ -897,10 +904,14 @@ trace_radiative_path
        * a non-virtual material is hit or no further hit can be found. */
       if(last_segment || !hit_virtual) {
         if(in_atm) {
-          pt.partial_atm += pt.prev_outgoing_flux - pt.incoming_flux;
+          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere,
+            pt.prev_outgoing_flux - pt.incoming_flux);
         } else {
-          pt.partial_other += pt.prev_outgoing_flux - pt.incoming_flux;
+          ACCUM_WEIGHT(thread_ctx->other_absorbed,
+            pt.prev_outgoing_flux - pt.incoming_flux);
         }
+        pt.energy_loss -= (pt.prev_outgoing_flux - pt.incoming_flux);
+
         if(last_segment) {
           break;
         }
@@ -910,7 +921,8 @@ trace_radiative_path
       }
 
       depth += !hit_virtual;
-      ASSERT(depth < 100); /* FIXME: create a true cancel path for this MC sample */
+      /* FIXME: create a true cancel path for this MC sample */
+      ASSERT(depth < 100);
 
       /* Update the point */
       point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
@@ -919,40 +931,120 @@ trace_radiative_path
         res = path_add_vertex(&path, pt.pos, pt.outgoing_flux);
         if (res != RES_OK) goto error;
       }
-      
+
       ssol_medium_copy(&in_medium, &out_medium);
     }
-    /* Check conservation of energy */
-    ASSERT((double)depth * pt.initial_flux * DBL_EPSILON >=
-      fabs(pt.initial_flux -
-        (pt.outgoing_flux + pt.partial_recv + pt.partial_atm + pt.partial_other)));
 
-    /* Now that the sample ends successfully,
-     * record MC weights and register the remaining power as missing */
-    ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
-    ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
+    /* Register the remaining flux as missing */
     ACCUM_WEIGHT(thread_ctx->missing, pt.outgoing_flux);
-    ACCUM_WEIGHT(thread_ctx->absorbed_by_receivers, pt.partial_recv);
-    ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere, pt.partial_atm);
-    ACCUM_WEIGHT(thread_ctx->other_absorbed, pt.partial_other);
-    #undef ACCUM_WEIGHT
+    pt.energy_loss -= pt.outgoing_flux;
 
     if(tracker) {
       path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
     }
   }
+  /* Now that the sample ends successfully, record MC weights */
+  ACCUM_WEIGHT(pt.mc_samp->cos_factor, pt.cos_factor);
+  ACCUM_WEIGHT(thread_ctx->cos_factor, pt.cos_factor);
+  #undef ACCUM_WEIGHT
 
-  if(tracker) {
-    res = path_register_and_clear(&thread_ctx->paths, &path);
-    if(res != RES_OK) goto error;
-  }
+  /* Check conservation of energy at the realisation level */
+  ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
+
 exit:
+  if(tracker) {
+    res_T tmp_res = path_register_and_clear(&thread_ctx->paths, &path);
+    if(tmp_res != RES_OK && res == RES_OK) {
+      res = tmp_res;
+      goto error;
+    }
+  }
   ssol_medium_clear(&in_medium);
   ssol_medium_clear(&out_medium);
   if(tracker) path_release(&path);
   return res;
 error:
+  if (tracker) {
+    path.type = SSOL_PATH_ERROR;
+  }
   goto exit;
+}
+
+static void
+cancel_mc_receiver_1side
+  (struct mc_receiver_1side* rcv,
+   size_t irealisation)
+{
+  mc_data_cancel(&rcv->incoming_flux, irealisation);
+  mc_data_cancel(&rcv->incoming_if_no_atm_loss, irealisation);
+  mc_data_cancel(&rcv->incoming_if_no_field_loss, irealisation);
+  mc_data_cancel(&rcv->incoming_lost_in_field, irealisation);
+  mc_data_cancel(&rcv->incoming_lost_in_atmosphere, irealisation);
+  mc_data_cancel(&rcv->absorbed_flux, irealisation);
+  mc_data_cancel(&rcv->absorbed_if_no_atm_loss, irealisation);
+  mc_data_cancel(&rcv->absorbed_if_no_field_loss, irealisation);
+  mc_data_cancel(&rcv->absorbed_lost_in_field, irealisation);
+  mc_data_cancel(&rcv->absorbed_lost_in_atmosphere, irealisation);
+}
+
+static void
+cancel_mc
+  (struct thread_context* thread_ctx,
+   size_t irealisation)
+{
+  struct htable_receiver_iterator r_it, r_end;
+  struct htable_sampled_iterator s_it, s_end;
+
+  /* Cancel global MC estimations */
+  mc_data_cancel(&thread_ctx->cos_factor, irealisation);
+  mc_data_cancel(&thread_ctx->absorbed_by_atmosphere, irealisation);
+  mc_data_cancel(&thread_ctx->absorbed_by_receivers, irealisation);
+  mc_data_cancel(&thread_ctx->other_absorbed, irealisation);
+  mc_data_cancel(&thread_ctx->missing, irealisation);
+  mc_data_cancel(&thread_ctx->shadowed, irealisation);
+
+  /* Cancel receiver MC estimations */
+  htable_receiver_begin(&thread_ctx->mc_rcvs, &r_it);
+  htable_receiver_end(&thread_ctx->mc_rcvs, &r_end);
+  while (!htable_receiver_iterator_eq(&r_it, &r_end)) {
+    struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+
+    htable_receiver_iterator_next(&r_it);
+
+    if (inst->receiver_mask & (int)SSOL_FRONT) {
+      cancel_mc_receiver_1side(&mc_rcv->front, irealisation);
+    }
+    if (inst->receiver_mask & (int)SSOL_BACK) {
+      cancel_mc_receiver_1side(&mc_rcv->back, irealisation);
+    }
+  }
+  /* Cancel sampled instance MC estimations */
+  htable_sampled_begin(&thread_ctx->mc_samps, &s_it);
+  htable_sampled_end(&thread_ctx->mc_samps, &s_end);
+  while (!htable_sampled_iterator_eq(&s_it, &s_end)) {
+    struct mc_sampled* mc_samp = htable_sampled_iterator_data_get(&s_it);
+    htable_sampled_iterator_next(&s_it);
+
+    mc_data_cancel(&mc_samp->cos_factor, irealisation);
+    mc_data_cancel(&mc_samp->shadowed, irealisation);
+
+    /* dst->by_receiver += src->by_receiver; */
+    htable_receiver_begin(&mc_samp->mc_rcvs, &r_it);
+    htable_receiver_end(&mc_samp->mc_rcvs, &r_end);
+    while (!htable_receiver_iterator_eq(&r_it, &r_end)) {
+      struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+      const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+      htable_receiver_iterator_next(&r_it);
+
+      if (inst->receiver_mask & (int)SSOL_FRONT) {
+        cancel_mc_receiver_1side(&mc_rcv->front, irealisation);
+      }
+      if (inst->receiver_mask & (int)SSOL_BACK) {
+        cancel_mc_receiver_1side(&mc_rcv->back, irealisation);
+      }
+    }
+  }
 }
 
 /*******************************************************************************
@@ -1005,7 +1097,7 @@ ssol_solve
 
   res = scene_check(scn, FUNC_NAME);
   if(res != RES_OK) goto error;
-  
+
   /* init air properties */
   if(scn->atmosphere)
     ssol_data_copy(&scn->air.absorption, &scn->atmosphere->absorption);
@@ -1065,7 +1157,10 @@ ssol_solve
     /* Execute a MC experiment */
     res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
       scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker);
-
+    if(res_local != RES_OK) {
+      /* Cancel partial MC results */
+      cancel_mc(thread_ctx, (size_t)i);
+    }
     if(res_local == RES_BAD_OP) {
       if(ATOMIC_INCR(&nfailures) >= max_failures) {
         log_error(scn->dev, "Too many unexpected radiative paths.\n");
