@@ -26,6 +26,11 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.4.1
+
+- Fix a wrong "path inconsistency" check. The paths going from a dielectric to
+  infinity were wrongly detected as inconsistent.
+
 ### Version 0.4
 
 - Add the `SSOL_PATH_ERROR` type used for the paths that travel unforeseen
