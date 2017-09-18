@@ -813,6 +813,7 @@ trace_radiative_path
       const int hit_receiver = point_is_receiver(&pt);
       const int hit_virtual = pt.material->type == SSOL_MATERIAL_VIRTUAL;
       int last_segment = 0;
+      int weight_is_zero = 0;
       struct ray_data ray_data = RAY_DATA_NULL;
       double trans = 1;
 
@@ -854,52 +855,54 @@ trace_radiative_path
 
       /* Stop the radiative random walk if no more flux */
       if(!pt.outgoing_flux) {
-        break;
+        weight_is_zero = 1;
       }
 
       /* Setup new ray parameters */
-      if(hit_virtual) {
-        /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
-         * are not updated to ensure that it pursues its traversal without any
-         * accuracy issue */
-        range[0] = nextafterf(hit.distance, FLT_MAX);
-        range[1] = FLT_MAX;
-      } else {
-        f2(range, 0, FLT_MAX);
-        f3_set_d3(org, pt.pos);
-        f3_set_d3(dir, pt.dir);
-      }
-
-      /* Trace the next ray */
-      ray_data.scn = scn;
-      ray_data.prim_from = pt.prim;
-      ray_data.inst_from = pt.inst;
-      ray_data.sshape_from = pt.sshape;
-      ray_data.side_from = pt.side;
-      ray_data.discard_virtual_materials = 0;
-      ray_data.reversed_ray = 0;
-      ray_data.range_min = range[0];
-      ray_data.dst = FLT_MAX;
-      S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
-      if(S3D_HIT_NONE(&hit)) { /* The ray is lost! */
-        /* Add the  point of the last path segment going to the infinite */
-        if(tracker && tracker->infinite_ray_length > 0) {
-          double pos[3], wi[3];
-          d3_set_f3(wi, dir);
-          d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->infinite_ray_length));
-          res = path_add_vertex(&path, pos, pt.outgoing_flux);
-          if (res != RES_OK) goto error;
+      if(!weight_is_zero) {
+        if(hit_virtual) {
+          /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
+           * are not updated to ensure that it pursues its traversal without any
+           * accuracy issue */
+          range[0] = nextafterf(hit.distance, FLT_MAX);
+          range[1] = FLT_MAX;
+        } else {
+          f2(range, 0, FLT_MAX);
+          f3_set_d3(org, pt.pos);
+          f3_set_d3(dir, pt.dir);
         }
-        last_segment = 1; /* Path reached its last segment */
 
-        /* Check medium consistency. Note that one has to check `out_medium' -
-         * and not `in_medium' - against the atmosphere since it is actually
-         * the medium in which the ray was traced; at this step, `in_medium' is
-         * still the medium of the previous path segment. */
-        if(!media_ceq(&out_medium, &scn->air)) {
-          log_error(scn->dev, "Inconsistent medium description.\n");
-          res = RES_BAD_OP;
-          goto error;
+        /* Trace the next ray */
+        ray_data.scn = scn;
+        ray_data.prim_from = pt.prim;
+        ray_data.inst_from = pt.inst;
+        ray_data.sshape_from = pt.sshape;
+        ray_data.side_from = pt.side;
+        ray_data.discard_virtual_materials = 0;
+        ray_data.reversed_ray = 0;
+        ray_data.range_min = range[0];
+        ray_data.dst = FLT_MAX;
+        S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
+        if(S3D_HIT_NONE(&hit)) { /* The ray is lost! */
+          /* Add the  point of the last path segment going to the infinite */
+          if(tracker && tracker->infinite_ray_length > 0) {
+            double pos[3], wi[3];
+            d3_set_f3(wi, dir);
+            d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->infinite_ray_length));
+            res = path_add_vertex(&path, pos, pt.outgoing_flux);
+            if (res != RES_OK) goto error;
+          }
+          last_segment = 1; /* Path reached its last segment */
+
+          /* Check medium consistency. Note that one has to check `out_medium' -
+           * and not `in_medium' - against the atmosphere since it is actually
+           * the medium in which the ray was traced; at this step, `in_medium' is
+           * still the medium of the previous path segment. */
+          if(!media_ceq(&out_medium, &scn->air)) {
+            log_error(scn->dev, "Inconsistent medium description.\n");
+            res = RES_BAD_OP;
+            goto error;
+          }
         }
       }
 
@@ -907,17 +910,16 @@ trace_radiative_path
        * a non-virtual material is hit or this segment is the last one.
        * This is because propagation is restarted from the same origin until
        * a non-virtual material is hit or no further hit can be found. */
-      if(last_segment || !hit_virtual) {
+      if(weight_is_zero || last_segment || !hit_virtual) {
+        const double absorbed = pt.prev_outgoing_flux - pt.incoming_flux;
         if(in_atm) {
-          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere,
-            pt.prev_outgoing_flux - pt.incoming_flux);
+          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere, absorbed);
         } else {
-          ACCUM_WEIGHT(thread_ctx->other_absorbed,
-            pt.prev_outgoing_flux - pt.incoming_flux);
+          ACCUM_WEIGHT(thread_ctx->other_absorbed, absorbed);
         }
-        pt.energy_loss -= (pt.prev_outgoing_flux - pt.incoming_flux);
+        pt.energy_loss -= absorbed;
 
-        if(last_segment) {
+        if(weight_is_zero || last_segment) {
           break;
         }
         pt.prev_outgoing_flux = pt.outgoing_flux;
