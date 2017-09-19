@@ -71,7 +71,10 @@ mc_data_flush(struct mc_data* data)
 }
 
 static INLINE void
-mc_data_add_weight(struct mc_data* data, size_t irealisation, double w)
+mc_data_add_weight
+  (struct mc_data* data,
+   const size_t irealisation,
+   const double w)
 {
   ASSERT(data);
   ASSERT(irealisation != SIZE_MAX);
@@ -102,11 +105,22 @@ mc_data_get(struct mc_data* data, double* weight, double* sqr_weight)
 }
 
 static INLINE void
-mc_data_cancel(struct mc_data* data, size_t irealisation)
+mc_data_cancel(struct mc_data* data, const size_t irealisation)
 {
   ASSERT(data);
   if(data->irealisation!=irealisation) return;
   data->tmp = 0;
+}
+
+static INLINE void
+mc_data_apply_factor
+  (struct mc_data* data,
+   const size_t irealisation,
+   const double factor)
+{
+  ASSERT(data);
+  if(data->irealisation != irealisation) return;
+  data->tmp *= factor;
 }
 
 /*******************************************************************************
