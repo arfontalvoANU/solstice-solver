@@ -1033,10 +1033,10 @@ trace_radiative_path
         double p = ssp_rng_canonical(thread_ctx->rng);
         if(p > 0.5) {
           pt.survivor_score += 1; /* This path survived once more */
+          roulette_interval = typical_max_depth;
         } else {
           cancel_mc(thread_ctx, irealisation);
           killed_by_roulette = 1;
-          roulette_interval = typical_max_depth;
           goto exit; /* break is not enough */
         }
       }
