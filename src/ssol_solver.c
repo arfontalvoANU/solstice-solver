@@ -1068,7 +1068,7 @@ trace_radiative_path
   /* Check conservation of energy at the realisation level */
   ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
 
-  /* this realisation count account for many that where canceled */
+  /* this realisation accounts for many that where canceled */
   if(pt.survivor_score) {
     const double factor = (double)(1 << pt.survivor_score);
     apply_factor_mc(thread_ctx, irealisation, factor);
