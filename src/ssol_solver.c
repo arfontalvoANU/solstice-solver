@@ -1022,7 +1022,7 @@ trace_radiative_path
 
       depth += !hit_virtual;
       if(depth > roulette_interval && depth % roulette_interval == 1) {
-        /* This could be in an infinite reflection path.
+        /* This could be in an infinite path.
          * To avoid to crash the app while preserving MC weights
          * we have to use a russian roulette:
          * 1/2 probability to end the path now compensated by a 2x factor
