@@ -26,6 +26,14 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.4.2
+
+- Energy conservation property might not be ensured when the radiative paths
+  were fully absorbed.
+- Handle infinite radiative paths, i.e. paths that bounces infinitely due to
+  the material properties and/or numerical inaccuracies. Use a Russian roulette
+  to stop the radiative random walk without bias.
+
 ### Version 0.4.1
 
 - Fix a wrong "path inconsistency" check. The paths going from a dielectric to

@@ -173,6 +173,7 @@ struct point {
   const struct ssol_material* material;
   /* tmp quantities to compute weights */
   double kabs_at_pt;
+  size_t survivor_score;
   /* for conservation of energy check */
   double energy_loss;
   /* MC weights */
@@ -205,7 +206,7 @@ struct point {
   {0, 0}, /* UV */                                                             \
   0, /* Wavelength */                                                          \
   NULL, /* Material */                                                         \
-  0, /* tmp values */                                                          \
+  0, 0, /* tmp values */                                                       \
   0,  /* Energy loss */                                                        \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* MC weights */                            \
   SSOL_FRONT /* Side */                                                        \
@@ -313,6 +314,7 @@ point_init
   pt->prev_outgoing_flux = w0;
   pt->prev_outgoing_if_no_atm_loss = w0;
   pt->prev_outgoing_if_no_field_loss = w0;
+  pt->survivor_score = 0;
   d3_set(pt->N, N);
   ASSERT(d3_dot(pt->N, pt->dir) <= 0);
 
@@ -746,6 +748,92 @@ error:
   goto exit;
 }
 
+static void
+apply_factor_mc_receiver_1side
+  (struct mc_receiver_1side* rcv,
+   const size_t irealisation,
+   const double factor)
+{
+  mc_data_apply_factor(&rcv->incoming_flux, irealisation, factor);
+  mc_data_apply_factor(&rcv->incoming_if_no_atm_loss, irealisation, factor);
+  mc_data_apply_factor(&rcv->incoming_if_no_field_loss, irealisation, factor);
+  mc_data_apply_factor(&rcv->incoming_lost_in_field, irealisation, factor);
+  mc_data_apply_factor(&rcv->incoming_lost_in_atmosphere, irealisation, factor);
+  mc_data_apply_factor(&rcv->absorbed_flux, irealisation, factor);
+  mc_data_apply_factor(&rcv->absorbed_if_no_atm_loss, irealisation, factor);
+  mc_data_apply_factor(&rcv->absorbed_if_no_field_loss, irealisation, factor);
+  mc_data_apply_factor(&rcv->absorbed_lost_in_field, irealisation, factor);
+  mc_data_apply_factor(&rcv->absorbed_lost_in_atmosphere, irealisation, factor);
+}
+
+static void
+apply_factor_mc
+  (struct thread_context* thread_ctx,
+   const size_t irealisation,
+   const double factor)
+{
+  struct htable_receiver_iterator r_it, r_end;
+  struct htable_sampled_iterator s_it, s_end;
+
+  /* Cancel global MC estimations */
+  mc_data_apply_factor(&thread_ctx->cos_factor, irealisation, factor);
+  mc_data_apply_factor(&thread_ctx->absorbed_by_atmosphere, irealisation, factor);
+  mc_data_apply_factor(&thread_ctx->absorbed_by_receivers, irealisation, factor);
+  mc_data_apply_factor(&thread_ctx->other_absorbed, irealisation, factor);
+  mc_data_apply_factor(&thread_ctx->missing, irealisation, factor);
+  mc_data_apply_factor(&thread_ctx->shadowed, irealisation, factor);
+
+  /* Cancel receiver MC estimations */
+  htable_receiver_begin(&thread_ctx->mc_rcvs, &r_it);
+  htable_receiver_end(&thread_ctx->mc_rcvs, &r_end);
+  while(!htable_receiver_iterator_eq(&r_it, &r_end)) {
+    struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+
+    htable_receiver_iterator_next(&r_it);
+
+    if(inst->receiver_mask & (int)SSOL_FRONT) {
+      apply_factor_mc_receiver_1side(&mc_rcv->front, irealisation, factor);
+    }
+    if(inst->receiver_mask & (int)SSOL_BACK) {
+      apply_factor_mc_receiver_1side(&mc_rcv->back, irealisation, factor);
+    }
+  }
+  /* Cancel sampled instance MC estimations */
+  htable_sampled_begin(&thread_ctx->mc_samps, &s_it);
+  htable_sampled_end(&thread_ctx->mc_samps, &s_end);
+  while(!htable_sampled_iterator_eq(&s_it, &s_end)) {
+    struct mc_sampled* mc_samp = htable_sampled_iterator_data_get(&s_it);
+    htable_sampled_iterator_next(&s_it);
+
+    mc_data_apply_factor(&mc_samp->cos_factor, irealisation, factor);
+    mc_data_apply_factor(&mc_samp->shadowed, irealisation, factor);
+
+    /* dst->by_receiver += src->by_receiver; */
+    htable_receiver_begin(&mc_samp->mc_rcvs, &r_it);
+    htable_receiver_end(&mc_samp->mc_rcvs, &r_end);
+    while(!htable_receiver_iterator_eq(&r_it, &r_end)) {
+      struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
+      const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
+      htable_receiver_iterator_next(&r_it);
+
+      if(inst->receiver_mask & (int)SSOL_FRONT) {
+        apply_factor_mc_receiver_1side(&mc_rcv->front, irealisation, factor);
+      }
+      if(inst->receiver_mask & (int)SSOL_BACK) {
+        apply_factor_mc_receiver_1side(&mc_rcv->back, irealisation, factor);
+      }
+    }
+  }
+}
+static void
+cancel_mc
+  (struct thread_context* thread_ctx,
+   const size_t irealisation)
+{
+  apply_factor_mc(thread_ctx, irealisation, 0);
+}
+
 static res_T
 trace_radiative_path
   (const size_t irealisation, /* Unique id of the realisation */
@@ -765,12 +853,17 @@ trace_radiative_path
   struct point pt;
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
   size_t depth = 0;
+  size_t roulette_interval, typical_max_depth;
   int is_lit = 0;
   int hit_a_receiver = 0;
+  int killed_by_roulette = 0;
   res_T res = RES_OK;
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
   if(tracker) path_init(scn->dev->allocator, &path);
+
+  typical_max_depth = 16; /* This one could come through scn */
+  roulette_interval = 4 * typical_max_depth; /* First roulette */
 
   /* Find a new starting point of the radiative random walk */
   res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
@@ -813,6 +906,7 @@ trace_radiative_path
       const int hit_receiver = point_is_receiver(&pt);
       const int hit_virtual = pt.material->type == SSOL_MATERIAL_VIRTUAL;
       int last_segment = 0;
+      int weight_is_zero = 0;
       struct ray_data ray_data = RAY_DATA_NULL;
       double trans = 1;
 
@@ -854,52 +948,54 @@ trace_radiative_path
 
       /* Stop the radiative random walk if no more flux */
       if(!pt.outgoing_flux) {
-        break;
+        weight_is_zero = 1;
       }
 
       /* Setup new ray parameters */
-      if(hit_virtual) {
-        /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
-         * are not updated to ensure that it pursues its traversal without any
-         * accuracy issue */
-        range[0] = nextafterf(hit.distance, FLT_MAX);
-        range[1] = FLT_MAX;
-      } else {
-        f2(range, 0, FLT_MAX);
-        f3_set_d3(org, pt.pos);
-        f3_set_d3(dir, pt.dir);
-      }
-
-      /* Trace the next ray */
-      ray_data.scn = scn;
-      ray_data.prim_from = pt.prim;
-      ray_data.inst_from = pt.inst;
-      ray_data.sshape_from = pt.sshape;
-      ray_data.side_from = pt.side;
-      ray_data.discard_virtual_materials = 0;
-      ray_data.reversed_ray = 0;
-      ray_data.range_min = range[0];
-      ray_data.dst = FLT_MAX;
-      S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
-      if(S3D_HIT_NONE(&hit)) { /* The ray is lost! */
-        /* Add the  point of the last path segment going to the infinite */
-        if(tracker && tracker->infinite_ray_length > 0) {
-          double pos[3], wi[3];
-          d3_set_f3(wi, dir);
-          d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->infinite_ray_length));
-          res = path_add_vertex(&path, pos, pt.outgoing_flux);
-          if (res != RES_OK) goto error;
+      if(!weight_is_zero) {
+        if(hit_virtual) {
+          /* Note that for Virtual materials, the ray parameters 'org' & 'dir'
+           * are not updated to ensure that it pursues its traversal without any
+           * accuracy issue */
+          range[0] = nextafterf(hit.distance, FLT_MAX);
+          range[1] = FLT_MAX;
+        } else {
+          f2(range, 0, FLT_MAX);
+          f3_set_d3(org, pt.pos);
+          f3_set_d3(dir, pt.dir);
         }
-        last_segment = 1; /* Path reached its last segment */
 
-        /* Check medium consistency. Note that one has to check `out_medium' -
-         * and not `in_medium' - against the atmosphere since it is actually
-         * the medium in which the ray was traced; at this step, `in_medium' is
-         * still the medium of the previous path segment. */
-        if(!media_ceq(&out_medium, &scn->air)) {
-          log_error(scn->dev, "Inconsistent medium description.\n");
-          res = RES_BAD_OP;
-          goto error;
+        /* Trace the next ray */
+        ray_data.scn = scn;
+        ray_data.prim_from = pt.prim;
+        ray_data.inst_from = pt.inst;
+        ray_data.sshape_from = pt.sshape;
+        ray_data.side_from = pt.side;
+        ray_data.discard_virtual_materials = 0;
+        ray_data.reversed_ray = 0;
+        ray_data.range_min = range[0];
+        ray_data.dst = FLT_MAX;
+        S3D(scene_view_trace_ray(view_rt, org, dir, range, &ray_data, &hit));
+        if(S3D_HIT_NONE(&hit)) { /* The ray is lost! */
+          /* Add the  point of the last path segment going to the infinite */
+          if(tracker && tracker->infinite_ray_length > 0) {
+            double pos[3], wi[3];
+            d3_set_f3(wi, dir);
+            d3_add(pos, pt.pos, d3_muld(wi, wi, tracker->infinite_ray_length));
+            res = path_add_vertex(&path, pos, pt.outgoing_flux);
+            if (res != RES_OK) goto error;
+          }
+          last_segment = 1; /* Path reached its last segment */
+
+          /* Check medium consistency. Note that one has to check `out_medium' -
+           * and not `in_medium' - against the atmosphere since it is actually
+           * the medium in which the ray was traced; at this step, `in_medium' is
+           * still the medium of the previous path segment. */
+          if(!media_ceq(&out_medium, &scn->air)) {
+            log_error(scn->dev, "Inconsistent medium description.\n");
+            res = RES_BAD_OP;
+            goto error;
+          }
         }
       }
 
@@ -907,17 +1003,16 @@ trace_radiative_path
        * a non-virtual material is hit or this segment is the last one.
        * This is because propagation is restarted from the same origin until
        * a non-virtual material is hit or no further hit can be found. */
-      if(last_segment || !hit_virtual) {
+      if(weight_is_zero || last_segment || !hit_virtual) {
+        const double absorbed = pt.prev_outgoing_flux - pt.incoming_flux;
         if(in_atm) {
-          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere,
-            pt.prev_outgoing_flux - pt.incoming_flux);
+          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere, absorbed);
         } else {
-          ACCUM_WEIGHT(thread_ctx->other_absorbed,
-            pt.prev_outgoing_flux - pt.incoming_flux);
+          ACCUM_WEIGHT(thread_ctx->other_absorbed, absorbed);
         }
-        pt.energy_loss -= (pt.prev_outgoing_flux - pt.incoming_flux);
+        pt.energy_loss -= absorbed;
 
-        if(last_segment) {
+        if(weight_is_zero || last_segment) {
           break;
         }
         pt.prev_outgoing_flux = pt.outgoing_flux;
@@ -926,8 +1021,25 @@ trace_radiative_path
       }
 
       depth += !hit_virtual;
-      /* FIXME: create a true cancel path for this MC sample */
-      ASSERT(depth < 100);
+      if(depth > roulette_interval && depth % roulette_interval == 1) {
+        /* This could be in an infinite path. To avoid to crash the app while
+         * preserving MC weights we have to use a russian roulette: 1/2
+         * probability to end the path now compensated by a 2x factor on
+         * weights if the path eventually ends somewhere. We could have
+         * written a more traditional russian roulette that relies on not
+         * applying kabs VS setting weights=0, but this doesn't work with
+         * kabs=0. The present code works even if weigths remain unchanged
+         * along the path. */
+        double p = ssp_rng_canonical(thread_ctx->rng);
+        if(p > 0.5) {
+          pt.survivor_score += 1; /* This path survived once more */
+        } else {
+          cancel_mc(thread_ctx, irealisation);
+          killed_by_roulette = 1;
+          roulette_interval = typical_max_depth;
+          goto exit; /* break is not enough */
+        }
+      }
 
       /* Update the point */
       point_update_from_hit(&pt, scn, org, dir, &hit, &ray_data);
@@ -956,8 +1068,14 @@ trace_radiative_path
   /* Check conservation of energy at the realisation level */
   ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
 
+  /* this realisation count account for many that where canceled */
+  if(pt.survivor_score) {
+    const double factor = (double)(1 << pt.survivor_score);
+    apply_factor_mc(thread_ctx, irealisation, factor);
+  }
+
 exit:
-  if(tracker) {
+  if(tracker && !killed_by_roulette) {
     res_T tmp_res = path_register_and_clear(&thread_ctx->paths, &path);
     if(tmp_res != RES_OK && res == RES_OK) {
       res = tmp_res;
@@ -973,83 +1091,6 @@ error:
     path.type = SSOL_PATH_ERROR;
   }
   goto exit;
-}
-
-static void
-cancel_mc_receiver_1side
-  (struct mc_receiver_1side* rcv,
-   size_t irealisation)
-{
-  mc_data_cancel(&rcv->incoming_flux, irealisation);
-  mc_data_cancel(&rcv->incoming_if_no_atm_loss, irealisation);
-  mc_data_cancel(&rcv->incoming_if_no_field_loss, irealisation);
-  mc_data_cancel(&rcv->incoming_lost_in_field, irealisation);
-  mc_data_cancel(&rcv->incoming_lost_in_atmosphere, irealisation);
-  mc_data_cancel(&rcv->absorbed_flux, irealisation);
-  mc_data_cancel(&rcv->absorbed_if_no_atm_loss, irealisation);
-  mc_data_cancel(&rcv->absorbed_if_no_field_loss, irealisation);
-  mc_data_cancel(&rcv->absorbed_lost_in_field, irealisation);
-  mc_data_cancel(&rcv->absorbed_lost_in_atmosphere, irealisation);
-}
-
-static void
-cancel_mc
-  (struct thread_context* thread_ctx,
-   size_t irealisation)
-{
-  struct htable_receiver_iterator r_it, r_end;
-  struct htable_sampled_iterator s_it, s_end;
-
-  /* Cancel global MC estimations */
-  mc_data_cancel(&thread_ctx->cos_factor, irealisation);
-  mc_data_cancel(&thread_ctx->absorbed_by_atmosphere, irealisation);
-  mc_data_cancel(&thread_ctx->absorbed_by_receivers, irealisation);
-  mc_data_cancel(&thread_ctx->other_absorbed, irealisation);
-  mc_data_cancel(&thread_ctx->missing, irealisation);
-  mc_data_cancel(&thread_ctx->shadowed, irealisation);
-
-  /* Cancel receiver MC estimations */
-  htable_receiver_begin(&thread_ctx->mc_rcvs, &r_it);
-  htable_receiver_end(&thread_ctx->mc_rcvs, &r_end);
-  while (!htable_receiver_iterator_eq(&r_it, &r_end)) {
-    struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
-    const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
-
-    htable_receiver_iterator_next(&r_it);
-
-    if (inst->receiver_mask & (int)SSOL_FRONT) {
-      cancel_mc_receiver_1side(&mc_rcv->front, irealisation);
-    }
-    if (inst->receiver_mask & (int)SSOL_BACK) {
-      cancel_mc_receiver_1side(&mc_rcv->back, irealisation);
-    }
-  }
-  /* Cancel sampled instance MC estimations */
-  htable_sampled_begin(&thread_ctx->mc_samps, &s_it);
-  htable_sampled_end(&thread_ctx->mc_samps, &s_end);
-  while (!htable_sampled_iterator_eq(&s_it, &s_end)) {
-    struct mc_sampled* mc_samp = htable_sampled_iterator_data_get(&s_it);
-    htable_sampled_iterator_next(&s_it);
-
-    mc_data_cancel(&mc_samp->cos_factor, irealisation);
-    mc_data_cancel(&mc_samp->shadowed, irealisation);
-
-    /* dst->by_receiver += src->by_receiver; */
-    htable_receiver_begin(&mc_samp->mc_rcvs, &r_it);
-    htable_receiver_end(&mc_samp->mc_rcvs, &r_end);
-    while (!htable_receiver_iterator_eq(&r_it, &r_end)) {
-      struct mc_receiver* mc_rcv = htable_receiver_iterator_data_get(&r_it);
-      const struct ssol_instance* inst = *htable_receiver_iterator_key_get(&r_it);
-      htable_receiver_iterator_next(&r_it);
-
-      if (inst->receiver_mask & (int)SSOL_FRONT) {
-        cancel_mc_receiver_1side(&mc_rcv->front, irealisation);
-      }
-      if (inst->receiver_mask & (int)SSOL_BACK) {
-        cancel_mc_receiver_1side(&mc_rcv->back, irealisation);
-      }
-    }
-  }
 }
 
 /*******************************************************************************
