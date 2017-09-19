@@ -861,7 +861,7 @@ trace_radiative_path
   ASSERT(thread_ctx && scn && view_samp && view_rt && ran_sun_dir && ran_sun_wl);
 
   if(tracker) path_init(scn->dev->allocator, &path);
-  
+
   typical_max_depth = 16; /* This one could come through scn */
   roulette_interval = 4 * typical_max_depth; /* First roulette */
 
@@ -1022,15 +1022,13 @@ trace_radiative_path
 
       depth += !hit_virtual;
       if(depth > roulette_interval && depth % roulette_interval == 1) {
-        /* This could be in an infinite path.
-         * To avoid to crash the app while preserving MC weights
-         * we have to use a russian roulette:
-         * 1/2 probability to end the path now compensated by a 2x factor
-         * on weights if the path eventually ends somewhere.
-         * We could have written a more traditional russian roulette that
-         * relies on not applying kabs VS setting weights=0, but this
-         * doesn't work with kabs=0. 
-         * The present code works even if weigths remain unchanged
+        /* This could be in an infinite path. To avoid to crash the app while
+         * preserving MC weights we have to use a russian roulette: 1/2
+         * probability to end the path now compensated by a 2x factor on
+         * weights if the path eventually ends somewhere. We could have
+         * written a more traditional russian roulette that relies on not
+         * applying kabs VS setting weights=0, but this doesn't work with
+         * kabs=0. The present code works even if weigths remain unchanged
          * along the path. */
         double p = ssp_rng_canonical(thread_ctx->rng);
         if(p > 0.5) {
