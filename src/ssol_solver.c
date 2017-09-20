@@ -272,6 +272,9 @@ point_init
 
   /* Sample a sun direction */
   ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
+  
+  /* Sample a wavelength */
+  pt->wl = ranst_sun_wl_get(ran_sun_wl, rng);
 
   if(pt->sshape->shape->type != SHAPE_PUNCHED) {
     d3_set(N, pt->N);
@@ -356,9 +359,6 @@ point_init
   f3_set_d3(pos, pt->pos);
   S3D(scene_view_trace_ray(view_rt, pos, dir, range, &ray_data, &hit));
   *is_lit = S3D_HIT_NONE(&hit);
-  if(*is_lit) {
-    pt->wl = ranst_sun_wl_get(ran_sun_wl, rng); /* Sample a wavelength */
-  }
 
 exit:
   return res;
