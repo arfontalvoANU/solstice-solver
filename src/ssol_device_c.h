@@ -39,6 +39,7 @@ struct s3d_device;
 struct ssol_device {
   struct logger* logger;
   struct mem_allocator* allocator;
+  struct mem_allocator* bsdf_allocators; /* Per thread allocator */
   unsigned nthreads;
   int verbose;
 

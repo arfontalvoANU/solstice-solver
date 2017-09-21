@@ -38,7 +38,6 @@
  ******************************************************************************/
 struct thread_context {
   struct ssp_rng* rng;
-  struct ssf_bsdf* bsdf;
   struct ranst_sun_wl* ran_wl;
   float up[3];
 };
@@ -48,7 +47,6 @@ thread_context_release(struct thread_context* ctx)
 {
   ASSERT(ctx);
   if(ctx->rng) SSP(rng_ref_put(ctx->rng));
-  if(ctx->bsdf) SSF(bsdf_ref_put(ctx->bsdf));
   if(ctx->ran_wl) ranst_sun_wl_ref_put(ctx->ran_wl);
 }
 
@@ -57,16 +55,10 @@ thread_context_init
   (struct mem_allocator* allocator,
    struct thread_context* ctx)
 {
-  res_T res = RES_OK;
   ASSERT(ctx);
+  (void)allocator;
   memset(ctx, 0, sizeof(ctx[0]));
-  res = ssf_bsdf_create(allocator, &ctx->bsdf);
-  if(res != RES_OK) goto error;
-exit:
-  return res;
-error:
-  thread_context_release(ctx);
-  goto exit;
+  return RES_OK;
 }
 
 static void
@@ -143,6 +135,7 @@ Li(struct ssol_scene* scn,
   struct ray_data ray_data = RAY_DATA_NULL;
   struct ssol_instance* inst;
   struct ssol_material* mtl;
+  struct ssf_bsdf* bsdf = NULL;
   const struct shaded_shape* sshape;
   struct ssol_surface_fragment frag;
   size_t isshape;
@@ -229,9 +222,8 @@ Li(struct ssol_scene* scn,
     /* Shaded normal may look backward the outgoing direction */
     if(d3_dot(N, wo) > 0) break;
 
-    SSF(bsdf_clear(ctx->bsdf));
-    res = material_setup_bsdf
-      (mtl, &frag, wl, &medium, 1/*Rendering*/, ctx->bsdf);
+    if(bsdf) SSF(bsdf_ref_put(bsdf)), bsdf = NULL;
+    res = material_create_bsdf(mtl, &frag, wl, &medium, 1/*Rendering*/, &bsdf);
     if(res != RES_OK) goto error;
 
     /* Update the ray */
@@ -248,11 +240,11 @@ Li(struct ssol_scene* scn,
     d3_minus(wo, wo);
     if(scn->sun) {
       L += throughput * sun_lighting
-        (scn->sun, view, &ray_data, ctx->bsdf, wo, N, ray_org);
+        (scn->sun, view, &ray_data, bsdf, wo, N, ray_org);
     }
 
     /* Sampling a bounce direction */
-    R = ssf_bsdf_sample(ctx->bsdf, ctx->rng, wo, N, wi, &type, &pdf);
+    R = ssf_bsdf_sample(bsdf, ctx->rng, wo, N, wi, &type, &pdf);
     ASSERT(0 <= R && R <= 1);
 
     /* Due to the shading normal, the sampled direction may point in the wrong
@@ -282,6 +274,7 @@ Li(struct ssol_scene* scn,
   d3_splat(val, L);
 
 exit:
+  if(bsdf) SSF(bsdf_ref_put(bsdf));
   ssol_medium_clear(&medium);
   return res;
 error:
