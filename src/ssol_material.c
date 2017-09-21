@@ -32,6 +32,7 @@
 #include <star/ssf.h>
 
 #include <math.h>
+#include <omp.h>
 
 /*******************************************************************************
  * Helper functions
@@ -78,15 +79,15 @@ shade_normal_default
 }
 
 static res_T
-setup_dielectric_bsdf
+create_dielectric_bsdf
   (const struct ssol_material* mtl,
    const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium,
-   struct ssf_bsdf* bsdf)
+   struct ssf_bsdf** bsdf)
 {
-  struct ssf_bxdf* bxdf = NULL;
   double eta_i, eta_t;
+  const int ithread = omp_get_thread_num();
   res_T res = RES_OK;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_DIELECTRIC);
   ASSERT(medium && bsdf);
@@ -101,33 +102,28 @@ setup_dielectric_bsdf
   eta_i = ssol_data_get_value(&mtl->out_medium.refractive_index, wavelength);
   eta_t = ssol_data_get_value(&mtl->in_medium.refractive_index, wavelength);
 
-  res = ssf_bxdf_create
-    (mtl->dev->allocator, &ssf_specular_dielectric_dielectric_interface, &bxdf);
-  if(res != RES_OK) goto error;
-
-  res = ssf_specular_dielectric_dielectric_interface_setup
-    (bxdf, eta_i, eta_t);
-  if(res != RES_OK) goto error;
-
-  res = ssf_bsdf_add(bsdf, bxdf, 1.0);
-  if(res != RES_OK) goto error;
+  #define CALL(Func) { res = Func; if(res != RES_OK) goto error; } (void)0
+  CALL(ssf_bsdf_create(&mtl->dev->bsdf_allocators[ithread],
+    &ssf_specular_dielectric_dielectric_interface, bsdf));
+  CALL(ssf_specular_dielectric_dielectric_interface_setup(*bsdf, eta_i, eta_t));
+  #undef CALL
 
 exit:
-  if(bxdf) SSF(bxdf_ref_put(bxdf));
   return res;
 error:
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
 static res_T
-setup_matte_bsdf
+create_matte_bsdf
   (const struct ssol_material* mtl,
    const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct ssf_bsdf* bsdf)
+   struct ssf_bsdf** bsdf)
 {
-  struct ssf_bxdf* brdf = NULL;
   double reflectivity;
+  const int ithread = omp_get_thread_num();
   res_T res;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MATTE);
   ASSERT(bsdf);
@@ -137,35 +133,32 @@ setup_matte_bsdf
     (mtl->dev, mtl->buf, wavelength, fragment, &reflectivity);
 
   /* Setup the BRDF */
-  res = ssf_bxdf_create(mtl->dev->allocator, &ssf_lambertian_reflection, &brdf);
+  res = ssf_bsdf_create
+    (&mtl->dev->bsdf_allocators[ithread], &ssf_lambertian_reflection, bsdf);
   if(res != RES_OK) goto error;
-  res = ssf_lambertian_reflection_setup(brdf, reflectivity);
-  if(res != RES_OK) goto error;
-
-  /* Setup the BSDF */
-  res = ssf_bsdf_add(bsdf, brdf, 1.0);
+  res = ssf_lambertian_reflection_setup(*bsdf, reflectivity);
   if(res != RES_OK) goto error;
 
 exit:
-  if(brdf) SSF(bxdf_ref_put(brdf));
   return res;
 error:
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
 static res_T
-setup_mirror_bsdf
+create_mirror_bsdf
   (const struct ssol_material* mtl,
    const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const int rendering,
-   struct ssf_bsdf* bsdf)
+   struct ssf_bsdf** bsdf)
 {
-  struct ssf_bxdf* brdf = NULL;
   struct ssf_fresnel* fresnel = NULL;
   struct ssf_microfacet_distribution* distrib = NULL;
   double roughness;
   double reflectivity;
+  const int ithread = omp_get_thread_num();
   res_T res;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_MIRROR);
   ASSERT(bsdf);
@@ -184,9 +177,10 @@ setup_mirror_bsdf
 
   /* Setup the BRDF */
   if(roughness == 0) { /* Purely specular reflection */
-    res = ssf_bxdf_create(mtl->dev->allocator, &ssf_specular_reflection, &brdf);
+    res = ssf_bsdf_create
+      (&mtl->dev->bsdf_allocators[ithread], &ssf_specular_reflection, bsdf);
     if(res != RES_OK) goto error;
-    res = ssf_specular_reflection_setup(brdf, fresnel);
+    res = ssf_specular_reflection_setup(*bsdf, fresnel);
     if(res != RES_OK) goto error;
   } else { /* Glossy reflection */
     res = ssf_microfacet_distribution_create
@@ -199,42 +193,38 @@ setup_mirror_bsdf
      * evaluated and consequently it returns an invalid result for direct
      * lighting. */
     if(rendering) {
-      res = ssf_bxdf_create
-        (mtl->dev->allocator, &ssf_microfacet_reflection, &brdf);
+      res = ssf_bsdf_create
+        (&mtl->dev->bsdf_allocators[ithread], &ssf_microfacet_reflection, bsdf);
     } else {
-      res = ssf_bxdf_create
-        (mtl->dev->allocator, &ssf_microfacet2_reflection, &brdf);
+      res = ssf_bsdf_create
+        (&mtl->dev->bsdf_allocators[ithread], &ssf_microfacet2_reflection, bsdf);
     }
     if(res != RES_OK) goto error;
-    res = ssf_microfacet_reflection_setup(brdf, fresnel, distrib);
+    res = ssf_microfacet_reflection_setup(*bsdf, fresnel, distrib);
     if(res != RES_OK) goto error;
   }
 
-  /* Setup the BSDF */
-  res = ssf_bsdf_add(bsdf, brdf, 1.0);
-  if(res != RES_OK) goto error;
-
 exit:
-  if(brdf) SSF(bxdf_ref_put(brdf));
   if(fresnel) SSF(fresnel_ref_put(fresnel));
   if(distrib) SSF(microfacet_distribution_ref_put(distrib));
   return res;
 error:
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
 static res_T
-setup_thin_dielectric_bsdf
+create_thin_dielectric_bsdf
   (const struct ssol_material* mtl,
    const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
-   struct ssf_bsdf* bsdf)
+   struct ssf_bsdf** bsdf)
 {
-  struct ssf_bxdf* bxdf = NULL;
   double thickness;
   double absorption;
   double eta_i;
   double eta_t;
+  const int ithread = omp_get_thread_num();
   res_T res = RES_OK;
   ASSERT(mtl && fragment && mtl->type == SSOL_MATERIAL_THIN_DIELECTRIC);
   ASSERT(bsdf);
@@ -248,21 +238,17 @@ setup_thin_dielectric_bsdf
   thickness = mtl->data.thin_dielectric.thickness;
 
   /* Setup the BxDF */
-  res = ssf_bxdf_create
-    (mtl->dev->allocator, &ssf_thin_specular_dielectric, &bxdf);
+  res = ssf_bsdf_create
+    (&mtl->dev->bsdf_allocators[ithread], &ssf_thin_specular_dielectric, bsdf);
   if(res != RES_OK) goto error;
   res = ssf_thin_specular_dielectric_setup
-    (bxdf, absorption, eta_i, eta_t, thickness);
-  if(res != RES_OK) goto error;
-
-  /* Setup the BSDF */
-  res = ssf_bsdf_add(bsdf, bxdf, 1.0);
+    (*bsdf, absorption, eta_i, eta_t, thickness);
   if(res != RES_OK) goto error;
 
 exit:
-  if(bxdf) SSF(bxdf_ref_put(bxdf));
   return res;
 error:
+  if(*bsdf) SSF(bsdf_ref_put(*bsdf)), bsdf = NULL;
   goto exit;
 }
 
@@ -661,30 +647,30 @@ material_shade_normal
 }
 
 res_T
-material_setup_bsdf
+material_create_bsdf
   (const struct ssol_material* mtl,
    const struct ssol_surface_fragment* fragment,
    const double wavelength, /* In nanometer */
    const struct ssol_medium* medium,
    const int rendering, /* Is BSDF used for rendering */
-   struct ssf_bsdf* bsdf)
+   struct ssf_bsdf** bsdf)
 {
   res_T res = RES_OK;
   ASSERT(mtl);
 
   switch(mtl->type) {
     case SSOL_MATERIAL_DIELECTRIC:
-      res = setup_dielectric_bsdf
+      res = create_dielectric_bsdf
         (mtl, fragment, wavelength, medium, bsdf);
       break;
     case SSOL_MATERIAL_MATTE:
-      res = setup_matte_bsdf(mtl, fragment, wavelength, bsdf);
+      res = create_matte_bsdf(mtl, fragment, wavelength, bsdf);
       break;
     case SSOL_MATERIAL_MIRROR:
-      res = setup_mirror_bsdf(mtl, fragment, wavelength, rendering, bsdf);
+      res = create_mirror_bsdf(mtl, fragment, wavelength, rendering, bsdf);
       break;
     case SSOL_MATERIAL_THIN_DIELECTRIC:
-      res = setup_thin_dielectric_bsdf(mtl, fragment, wavelength, bsdf);
+      res = create_thin_dielectric_bsdf(mtl, fragment, wavelength, bsdf);
       break;
     case SSOL_MATERIAL_VIRTUAL: /* Nothing to shade */ break;
     default: FATAL("Unreachable code\n"); break;
