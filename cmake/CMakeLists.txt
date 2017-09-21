@@ -24,11 +24,11 @@ option(NO_TEST "Do not build tests" OFF)
 # Check dependencies
 ################################################################################
 find_package(RCMake 0.3 REQUIRED)
-find_package(RSys 0.4 REQUIRED)
+find_package(RSys 0.5 REQUIRED)
 find_package(Star3D 0.4.1 REQUIRED)
 find_package(Star3DUT 0.2 REQUIRED)
 find_package(StarCPR 0.1 REQUIRED)
-find_package(StarSF 0.1 REQUIRED)
+find_package(StarSF 0.3 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
