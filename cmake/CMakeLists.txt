@@ -50,8 +50,8 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 4)
-set(VERSION_PATCH 2)
+set(VERSION_MINOR 5)
+set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
@@ -157,7 +157,7 @@ if(NOT NO_TEST)
     build_test(${_name})
     register_test(${_name} ${_name})
   endfunction()
-  
+
   new_test(test_ssol_atmosphere)
   new_test(test_ssol_by_receiver_integration)
   new_test(test_ssol_camera)

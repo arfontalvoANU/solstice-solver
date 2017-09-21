@@ -26,6 +26,13 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.5
+
+- Improve the performances up to 50% by optimising the allocation of the BSDF
+  during the radiative random walk. Performance gains are mainly observed in
+  situations where the radiative paths are deep, i.e. when they bounce on many
+  surfaces.
+
 ### Version 0.4.2
 
 - Energy conservation property might not be ensured when the radiative paths
