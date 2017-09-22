@@ -1285,6 +1285,46 @@ ssol_solve
     }
   }
 
+#if defined(AREA_COMPUTATION_FIXED)
+  /* FIXME: sampled_area computation for quadrics is not accurate enough
+   * to assert the following */
+  if(nrealisations > 1000) {
+    /* check conservation of energy at the simulation level */
+    struct ssol_mc_global global;
+    double dni, dni_s, pot;
+    double cos, rcv, atm, other, shadow, missing;
+    double cos_err, rcv_err, atm_err, other_err, shadow_err, missing_err;
+    double err, max_loss;
+
+    res = ssol_estimator_get_mc_global(estimator, &global);
+
+    if(RES_OK == ssol_estimator_get_mc_global(estimator, &global)
+        && RES_OK == ssol_sun_get_dni(scn->sun, &dni))
+    {
+      cos = global.cos_factor.E;
+      rcv = global.absorbed_by_receivers.E;
+      atm = global.extinguished_by_atmosphere.E;
+      other = global.other_absorbed.E;
+      shadow = global.shadowed.E;
+      missing = global.missing.E;
+      cos_err = global.cos_factor.SE;
+      rcv_err = global.absorbed_by_receivers.SE;
+      atm_err = global.extinguished_by_atmosphere.SE;
+      other_err = global.other_absorbed.SE;
+      shadow_err = global.shadowed.SE;
+      missing_err = global.missing.SE;
+
+      dni_s = dni * sampled_area;
+      pot = cos * dni_s;
+      err = dni_s * cos_err
+        + rcv_err + atm_err + other_err + shadow_err + missing_err;
+      max_loss = 3 * err + nrealisations * pot * DBL_EPSILON;
+      ASSERT(fabs(pot - (rcv + atm + other + shadow + missing))
+        <= max_loss);
+    }
+  }
+#endif
+
   estimator->sampled_area = sampled_area;
   if(mt_res != RES_OK) res = (res_T)mt_res;
 
