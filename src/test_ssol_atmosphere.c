@@ -32,7 +32,7 @@ main(int argc, char** argv)
 {
   struct mem_allocator allocator;
   struct ssol_device* dev;
-  struct ssol_data absorption, absorption2;
+  struct ssol_data extinction, extinction2;
   struct ssol_atmosphere* atm;
   struct ssol_spectrum* spectrum;
   (void) argc, (void) argv;
@@ -42,11 +42,11 @@ main(int argc, char** argv)
   CHECK(ssol_device_create
     (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
-  absorption2.type = SSOL_DATA_SPECTRUM;
+  extinction2.type = SSOL_DATA_SPECTRUM;
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 2, NULL), RES_OK);
-  absorption2.type = SSOL_DATA_SPECTRUM;
-  absorption2.value.spectrum = spectrum;
+  extinction2.type = SSOL_DATA_SPECTRUM;
+  extinction2.value.spectrum = spectrum;
 
   CHECK(ssol_atmosphere_create(NULL, &atm), RES_BAD_ARG);
   CHECK(ssol_atmosphere_create(dev, NULL), RES_BAD_ARG);
@@ -58,21 +58,21 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_ref_put(NULL), RES_BAD_ARG);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
 
-  absorption.type = SSOL_DATA_REAL;
-  absorption.value.real = 0.1;
-  CHECK(ssol_atmosphere_set_absorption(NULL, &absorption), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_set_absorption(atm, NULL), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_set_absorption(atm, &absorption), RES_OK);
-  CHECK(ssol_atmosphere_set_absorption(atm, &absorption), RES_OK);
-  CHECK(ssol_atmosphere_set_absorption(atm, &absorption2), RES_OK);
+  extinction.type = SSOL_DATA_REAL;
+  extinction.value.real = 0.1;
+  CHECK(ssol_atmosphere_set_extinction(NULL, &extinction), RES_BAD_ARG);
+  CHECK(ssol_atmosphere_set_extinction(atm, NULL), RES_BAD_ARG);
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction2), RES_OK);
 
-  /* absorption values out of range */
-  absorption.value.real = 2;
-  CHECK(ssol_atmosphere_set_absorption(atm, &absorption), RES_BAD_ARG);
+  /* extinction values out of range */
+  extinction.value.real = 2;
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_BAD_ARG);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
-  CHECK(ssol_atmosphere_set_absorption(atm, &absorption2), RES_BAD_ARG);
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction2), RES_BAD_ARG);
   
-  CHECK(ssol_spectrum_ref_put(absorption2.value.spectrum), RES_OK);
+  CHECK(ssol_spectrum_ref_put(extinction2.value.spectrum), RES_OK);
   CHECK(ssol_device_ref_put(dev), RES_OK);
   CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
 

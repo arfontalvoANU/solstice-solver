@@ -67,7 +67,7 @@ main(int argc, char** argv)
   struct ssol_sun* sun_mono;
   struct ssol_spectrum* spectrum;
   struct ssol_spectrum* abs_spectrum;
-  struct ssol_data abs_data;
+  struct ssol_data extinction;
   struct ssol_atmosphere* atm;
   struct ssol_estimator* estimator;
   struct ssol_mc_sampled sampled;
@@ -104,7 +104,7 @@ main(int argc, char** argv)
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
   CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (NULL, &allocator, (SSOL_NTHREADS_DEFAULT,1), 0, &dev), RES_OK);
 
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
 
@@ -349,11 +349,11 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4), 1);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
-  /* Check atmosphere model; with no absorption result is unchanged */
+  /* Check atmosphere model; with no extinction result is unchanged */
   CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
-  abs_data.type = SSOL_DATA_REAL;
-  abs_data.value.real = 0;
-  CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
+  extinction.type = SSOL_DATA_REAL;
+  extinction.value.real = 0;
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
   CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
@@ -392,11 +392,11 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, heliostat2), RES_OK);
 
 #define KA 0.03
-  abs_data.value.real = KA;
+  extinction.value.real = KA;
   CHECK(ssol_spectrum_create(dev, &abs_spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(abs_spectrum, get_wlen, 3, &desc), RES_OK);
   CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
-  CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 1), RES_OK);
 
@@ -411,7 +411,7 @@ main(int argc, char** argv)
   CHECK(eq_eps(mc_global.shadowed.E, 0, 1e-4), 1);
   CHECK(eq_eps(
     mc_global.missing.E + mc_global.shadowed.E + mc_global.absorbed_by_receivers.E
-    + mc_global.absorbed_by_atmosphere.E + mc_global.other_absorbed.E,
+    + mc_global.extinguished_by_atmosphere.E + mc_global.other_absorbed.E,
     m,
     1e-4), 1);
   CHECK(eq_eps(mc_global.cos_factor.E, COS, 1e-4), 1);
@@ -483,9 +483,9 @@ main(int argc, char** argv)
   desc.count = 3;
   CHECK(ssol_spectrum_setup(abs_spectrum, get_wlen, 3, &desc), RES_OK);
   CHECK(ssol_spectrum_setup(abs_spectrum, get_wlen, 2, &desc), RES_OK);
-  abs_data.type = SSOL_DATA_SPECTRUM;
-  abs_data.value.spectrum = abs_spectrum;
-  CHECK(ssol_atmosphere_set_absorption(atm, &abs_data), RES_OK);
+  extinction.type = SSOL_DATA_SPECTRUM;
+  extinction.value.spectrum = abs_spectrum;
+  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
 
   CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);

@@ -33,25 +33,25 @@ atmosphere_release(ref_T* ref)
   ASSERT(ref);
   dev = atmosphere->dev;
   ASSERT(dev && dev->allocator);
-  ssol_data_clear(&atmosphere->absorption);
+  ssol_data_clear(&atmosphere->extinction);
   MEM_RM(dev->allocator, atmosphere);
   SSOL(device_ref_put(dev));
 }
 
 static INLINE int
-check_absorption(const struct ssol_data* absorption)
+check_extinction(const struct ssol_data* extinction)
 {
-  if(!absorption) return 0;
+  if(!extinction) return 0;
 
-  /* Check absorptivity in [0, INF) */
-  switch(absorption->type) {
+  /* Check extinction in [0, INF) */
+  switch(extinction->type) {
   case SSOL_DATA_REAL:
-    if(absorption->value.real < 0 || absorption->value.real > 1)
+    if(extinction->value.real < 0 || extinction->value.real > 1)
       return 0;
     break;
   case SSOL_DATA_SPECTRUM:
-    if(!absorption->value.spectrum
-      || !spectrum_check_data(absorption->value.spectrum, 0, 1))
+    if(!extinction->value.spectrum
+      || !spectrum_check_data(extinction->value.spectrum, 0, 1))
       return 0;
     break;
   default: FATAL("Unreachable code\n"); break;
@@ -115,13 +115,13 @@ ssol_atmosphere_ref_put
 }
 
 res_T
-ssol_atmosphere_set_absorption
+ssol_atmosphere_set_extinction
   (struct ssol_atmosphere* atmosphere,
-   struct ssol_data* absorption)
+   struct ssol_data* extinction)
 {
-  if(!atmosphere || !absorption || !check_absorption(absorption))
+  if(!atmosphere || !extinction || !check_extinction(extinction))
     return RES_BAD_ARG;
-  ssol_data_copy(&atmosphere->absorption, absorption);
+  ssol_data_copy(&atmosphere->extinction, extinction);
   return RES_OK;
 }
 

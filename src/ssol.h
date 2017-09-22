@@ -259,7 +259,7 @@ struct ssol_data {
 static const struct ssol_data SSOL_DATA_NULL = SSOL_DATA_NULL__;
 
 struct ssol_medium {
-  struct ssol_data absorption;
+  struct ssol_data extinction;
   struct ssol_data refractive_index;
 };
 #define SSOL_MEDIUM_VACUUM__ {{SSOL_DATA_REAL, {0}}, {SSOL_DATA_REAL, {1}}}
@@ -372,7 +372,7 @@ struct ssol_mc_global {
   struct ssol_mc_result absorbed_by_receivers; /* In W */
   struct ssol_mc_result shadowed; /* In W */
   struct ssol_mc_result missing; /* In W */
-  struct ssol_mc_result absorbed_by_atmosphere; /* In W */
+  struct ssol_mc_result extinguished_by_atmosphere; /* In W */
   struct ssol_mc_result other_absorbed; /* In W */
 };
 #define SSOL_MC_GLOBAL_NULL__ {                                                \
@@ -1052,7 +1052,7 @@ ssol_sun_set_buie_param
 /*******************************************************************************
  * Atmosphere API - Describe an atmosphere model.
  ******************************************************************************/
-/* The atmosphere describes absorption along the light paths */
+/* The atmosphere describes extinction along the light paths */
 SSOL_API res_T
 ssol_atmosphere_create
   (struct ssol_device* dev,
@@ -1067,9 +1067,9 @@ ssol_atmosphere_ref_put
   (struct ssol_atmosphere* atmosphere);
 
 SSOL_API res_T
-ssol_atmosphere_set_absorption
+ssol_atmosphere_set_extinction
   (struct ssol_atmosphere* atmosphere,
-   struct ssol_data* absorption);
+   struct ssol_data* extinction);
 
 /*******************************************************************************
  * Estimator API - Describe the state of a simulation.
@@ -1242,7 +1242,7 @@ static FINLINE struct ssol_medium*
 ssol_medium_clear(struct ssol_medium* medium)
 {
   ASSERT(medium);
-  ssol_data_clear(&medium->absorption);
+  ssol_data_clear(&medium->extinction);
   ssol_data_clear(&medium->refractive_index);
   return medium;
 }
@@ -1251,7 +1251,7 @@ static FINLINE struct ssol_medium*
 ssol_medium_copy(struct ssol_medium* dst, const struct ssol_medium* src)
 {
   ASSERT(dst && src);
-  ssol_data_copy(&dst->absorption, &src->absorption);
+  ssol_data_copy(&dst->extinction, &src->extinction);
   ssol_data_copy(&dst->refractive_index, &src->refractive_index);
   return dst;
 }

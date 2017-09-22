@@ -166,11 +166,11 @@ Li(struct ssol_scene* scn,
   wl = ranst_sun_wl_get(ctx->ran_wl, ctx->rng);
 
   if(scn->atmosphere) {
-    ssol_data_copy(&medium.absorption, &scn->atmosphere->absorption);
+    ssol_data_copy(&medium.extinction, &scn->atmosphere->extinction);
   }
 
   for(;;) {
-    double absorption;
+    double extinction;
     S3D(scene_view_trace_ray
       (view, ray_org, ray_dir, ray_range, &ray_data, &hit));
 
@@ -179,9 +179,9 @@ Li(struct ssol_scene* scn,
       break;
     }
 
-    absorption = ssol_data_get_value(&medium.absorption, wl);
-    if(absorption > 0) {
-      throughput *= exp(-absorption * hit.distance);
+    extinction = ssol_data_get_value(&medium.extinction, wl);
+    if(extinction > 0) {
+      throughput *= exp(-extinction * hit.distance);
       if(throughput <= 0) break;
     }
 
