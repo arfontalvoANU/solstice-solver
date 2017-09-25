@@ -220,12 +220,10 @@ point_init
    struct ssol_medium* current_medium,
    int* is_lit)
 {
-  struct ssol_surface_fragment frag;
   struct s3d_attrib attr;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
-  struct ssol_material* mtl;
-  double N[3], Np[3];
+  double N[3];
   double surface_sun_cos;
   double surface_sun0_cos;
   double sun0_sun_cos;
@@ -285,17 +283,12 @@ point_init
     d3_minus(N, N); /* Force the normal to look forward dir */
   }
 
-  /* Perturb the normal */
-  surface_fragment_setup(&frag, pt->pos, pt->dir, N, &pt->prim, pt->uv);
-  mtl = point_get_material(pt);
-  material_shade_normal(mtl, &frag, pt->wl, Np);
-
   /* Initialise the Monte Carlo weight */
-  surface_sun_cos = d3_dot(Np, pt->dir);
-  surface_sun0_cos = fabs(d3_dot(scn->sun->direction, Np));
+  surface_sun_cos = d3_dot(N, pt->dir);
+  surface_sun0_cos = fabs(d3_dot(scn->sun->direction, N));
   sun0_sun_cos = d3_dot(scn->sun->direction, pt->dir);
   surface_proxy_cos =
-    (pt->sshape->shape->type == SHAPE_MESH) ? 1 : fabs(d3_dot(pt->N, Np));
+    (pt->sshape->shape->type == SHAPE_MESH) ? 1 : fabs(d3_dot(pt->N, N));
   cos_ratio = fabs(surface_sun_cos / (surface_proxy_cos * sun0_sun_cos));
   w0 = scn->sun->dni * sampled_area_proxy * cos_ratio;
   pt->cos_factor = surface_sun0_cos;
