@@ -226,6 +226,11 @@ point_init
   struct ray_data ray_data = RAY_DATA_NULL;
   struct ssol_material* mtl;
   double N[3], Np[3];
+  double surface_sun_cos;
+  double surface_sun0_cos;
+  double sun0_sun_cos;
+  double surface_proxy_cos;
+  double cos_ratio;
   double w0;
   float dir[3], pos[3], range[2] = { 0, FLT_MAX };
   size_t id;
@@ -286,18 +291,14 @@ point_init
   material_shade_normal(mtl, &frag, pt->wl, Np);
 
   /* Initialise the Monte Carlo weight */
-  if(pt->sshape->shape->type != SHAPE_PUNCHED) {
-    double surface_sun_cos = fabs(d3_dot(Np, pt->dir));
-    w0 = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
-    pt->cos_factor = surface_sun_cos;
-  } else {
-    double cos_ratio, surface_proxy_cos, surface_sun_cos;
-    surface_proxy_cos = fabs(d3_dot(pt->N, Np));
-    surface_sun_cos = fabs(d3_dot(Np, pt->dir));
-    cos_ratio = surface_sun_cos / surface_proxy_cos;
-    w0 = scn->sun->dni * sampled_area_proxy * cos_ratio;
-    pt->cos_factor = surface_sun_cos;
-  }
+  surface_sun_cos = d3_dot(Np, pt->dir);
+  surface_sun0_cos = fabs(d3_dot(scn->sun->direction, Np));
+  sun0_sun_cos = d3_dot(scn->sun->direction, pt->dir);
+  surface_proxy_cos =
+    (pt->sshape->shape->type == SHAPE_MESH) ? 1 : fabs(d3_dot(pt->N, Np));
+  cos_ratio = fabs(surface_sun_cos / (surface_proxy_cos * sun0_sun_cos));
+  w0 = scn->sun->dni * sampled_area_proxy * cos_ratio;
+  pt->cos_factor = surface_sun0_cos;
   pt->energy_loss = w0;
   pt->initial_flux = w0;
   pt->prev_outgoing_flux = w0;
