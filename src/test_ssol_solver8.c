@@ -111,7 +111,7 @@ main(int argc, char** argv)
   carving.nb_vertices = POLY_NVERTS__;
   carving.context = &POLY_EDGES__;
   quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
-  quadric.data.parabol.focal = 1;
+  quadric.data.parabolic_cylinder.focal = 1;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
