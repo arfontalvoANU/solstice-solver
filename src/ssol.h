@@ -1040,9 +1040,9 @@ ssol_sun_set_spectrum
    struct ssol_spectrum* spectrum);
 
 SSOL_API res_T
-ssol_sun_set_pillbox_aperture
+ssol_sun_pillbox_set_theta_max
   (struct ssol_sun* sun,
-   const double angle); /* In radian */
+   const double theta_max); /* In radian */
 
 SSOL_API res_T
 ssol_sun_set_buie_param

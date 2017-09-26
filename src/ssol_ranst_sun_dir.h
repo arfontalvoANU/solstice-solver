@@ -51,7 +51,7 @@ ranst_sun_dir_buie_setup
 extern LOCAL_SYM res_T
 ranst_sun_dir_pillbox_setup
   (struct ranst_sun_dir* ran,
-   const double aperture, /* Apparent size in radians */
+   const double theta_max, /* In radians */
    const double dir[3]);
 
 extern LOCAL_SYM res_T
