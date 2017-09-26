@@ -209,7 +209,6 @@ point_get_material(const struct point* pt)
 static res_T
 point_init
   (struct point* pt,
-   const double sampled_area_proxy,
    struct ssol_scene* scn,
    struct htable_sampled* sampled,
    struct s3d_scene_view* view_samp,
@@ -290,8 +289,9 @@ point_init
   surface_proxy_cos =
     (pt->sshape->shape->type == SHAPE_MESH) ? 1 : fabs(d3_dot(pt->N, N));
   cos_ratio = fabs(surface_sun_cos / (surface_proxy_cos * sun0_sun_cos));
-  w0 = scn->sun->dni * sampled_area_proxy * cos_ratio;
-  pt->cos_factor = surface_sun0_cos;
+  w0 = scn->sun->dni * scn->sampled_area_proxy * cos_ratio;
+  pt->cos_factor = scn->sampled_area_proxy / scn->sampled_area
+    * surface_sun0_cos / surface_proxy_cos;
   pt->energy_loss = w0;
   pt->initial_flux = w0;
   pt->prev_outgoing_flux = w0;
@@ -822,7 +822,6 @@ cancel_mc
 static res_T
 trace_radiative_path
   (const size_t irealisation, /* Unique id of the realisation */
-   const double sampled_area_proxy, /* Overall area of the sampled geometries */
    struct thread_context* thread_ctx,
    struct ssol_scene* scn,
    struct s3d_scene_view* view_samp,
@@ -851,7 +850,7 @@ trace_radiative_path
   roulette_interval = 4 * typical_max_depth; /* First roulette */
 
   /* Find a new starting point of the radiative random walk */
-  res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
+  res = point_init(&pt, scn, &thread_ctx->mc_samps,
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng,
     &in_medium, &is_lit);
   if(res != RES_OK) goto error;
@@ -1098,8 +1097,6 @@ ssol_solve
   struct ssol_estimator* estimator = NULL;
   struct ssol_path_tracker tracker;
   struct ssp_rng_proxy* rng_proxy = NULL;
-  double sampled_area;
-  double sampled_area_proxy;
   int64_t nrealisations = 0;
   int64_t max_failures = 0;
   int nthreads = 0;
@@ -1135,8 +1132,7 @@ ssol_solve
     ssol_data_copy(&scn->air.extinction, &SSOL_MEDIUM_VACUUM.extinction);
 
   /* Create data structures shared by all threads */
-  res = scene_create_s3d_views(scn, &view_rt, &view_samp, &sampled_area,
-    &sampled_area_proxy);
+  res = scene_create_s3d_views(scn, &view_rt, &view_samp);
   if(res != RES_OK) goto error;
   res = sun_create_direction_distribution(scn->sun, &ran_sun_dir);
   if(res != RES_OK) goto error;
@@ -1185,7 +1181,7 @@ ssol_solve
     thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + ithread;
 
     /* Execute a MC experiment */
-    res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
+    res_local = trace_radiative_path((size_t)i, thread_ctx,
       scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker);
     if(res_local != RES_OK) {
       /* Cancel partial MC results */
@@ -1285,22 +1281,20 @@ ssol_solve
     }
   }
 
-#if defined(AREA_COMPUTATION_FIXED)
-  /* FIXME: sampled_area computation for quadrics is not accurate enough
-   * to assert the following */
-  if(nrealisations > 1000) {
-    /* check conservation of energy at the simulation level */
+#ifndef NDEBUG
+  {
     struct ssol_mc_global global;
-    double dni, dni_s, pot;
-    double cos, rcv, atm, other, shadow, missing;
-    double cos_err, rcv_err, atm_err, other_err, shadow_err, missing_err;
-    double err, max_loss;
-
+    double dni;
+    /* check conservation of energy at the simulation level */
     res = ssol_estimator_get_mc_global(estimator, &global);
 
     if(RES_OK == ssol_estimator_get_mc_global(estimator, &global)
-        && RES_OK == ssol_sun_get_dni(scn->sun, &dni))
+      && RES_OK == ssol_sun_get_dni(scn->sun, &dni))
     {
+      double dni_s, pot;
+      double cos, rcv, atm, other, shadow, missing;
+      double cos_err, rcv_err, atm_err, other_err, shadow_err, missing_err;
+      double err, max_loss;
       cos = global.cos_factor.E;
       rcv = global.absorbed_by_receivers.E;
       atm = global.extinguished_by_atmosphere.E;
@@ -1314,7 +1308,7 @@ ssol_solve
       shadow_err = global.shadowed.SE;
       missing_err = global.missing.SE;
 
-      dni_s = dni * sampled_area;
+      dni_s = dni * scn->sampled_area;
       pot = cos * dni_s;
       err = dni_s * cos_err
         + rcv_err + atm_err + other_err + shadow_err + missing_err;
@@ -1325,7 +1319,7 @@ ssol_solve
   }
 #endif
 
-  estimator->sampled_area = sampled_area;
+  estimator->sampled_area = scn->sampled_area;
   if(mt_res != RES_OK) res = (res_T)mt_res;
 
 exit:

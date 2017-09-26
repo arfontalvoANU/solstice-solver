@@ -43,6 +43,9 @@ struct ssol_scene {
   struct s3d_scene* scn_rt; /* S3D scene to ray trace */
   struct s3d_scene* scn_samp; /* S3D scene to sample */
 
+  double sampled_area; /* area of the geometry in scn_rt */
+  double sampled_area_proxy; /* area of the geometry in scn_samp */
+
   struct ssol_sun* sun; /* Sun of the scene */
   struct ssol_atmosphere* atmosphere; /* Atmosphere of the scene */
   struct ssol_medium air; /* Defined according to atmosphere's properties */
@@ -57,9 +60,7 @@ extern LOCAL_SYM res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,
    struct s3d_scene_view** view_rt,
-   struct s3d_scene_view** view_samp,
-   double* sampled_area, /* Area of the instance set as "samplable" */
-   double* sampled_area_proxy); /* Area of the sampled geometries */
+   struct s3d_scene_view** view_samp);
 
 extern LOCAL_SYM res_T
 scene_check

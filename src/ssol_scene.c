@@ -346,9 +346,7 @@ res_T
 scene_create_s3d_views
   (struct ssol_scene* scn,
    struct s3d_scene_view** out_view_rt,
-   struct s3d_scene_view** out_view_samp,
-   double* out_sampled_area,
-   double* out_sampled_area_proxy)
+   struct s3d_scene_view** out_view_samp)
 {
   struct htable_instance_iterator it, end;
   struct s3d_scene_view* view_rt = NULL;
@@ -359,7 +357,6 @@ scene_create_s3d_views
   int has_receiver = 0;
   res_T res = RES_OK;
   ASSERT(scn && out_view_rt && out_view_samp);
-  ASSERT(out_sampled_area && out_sampled_area_proxy);
 
   S3D(scene_clear(scn->scn_samp));
   htable_instance_clear(&scn->instances_samp);
@@ -417,8 +414,8 @@ scene_create_s3d_views
 exit:
   *out_view_rt = view_rt;
   *out_view_samp = view_samp;
-  *out_sampled_area = sampled_area;
-  *out_sampled_area_proxy = sampled_area_proxy;
+  scn->sampled_area = sampled_area;
+  scn->sampled_area_proxy = sampled_area_proxy;
   return res;
 error:
   S3D(scene_clear(scn->scn_samp));
