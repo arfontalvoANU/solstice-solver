@@ -126,7 +126,7 @@ main(int argc, char** argv)
 
 #define N1__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N1__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N1__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N1__);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
@@ -167,7 +167,7 @@ main(int argc, char** argv)
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
 #define N2__ 100000
-  CHECK(ssol_solve(scene, rng, N2__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N2__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N2__);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);

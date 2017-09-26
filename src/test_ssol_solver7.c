@@ -191,7 +191,7 @@ main(int argc, char** argv)
 #define TOTAL (HELIOSTAT_SZ * HELIOSTAT_SZ * DNI_cos)
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
 
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   CHECK(ssol_estimator_get_sampled_area(estimator, &area), RES_OK);

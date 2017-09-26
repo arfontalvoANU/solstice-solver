@@ -1182,6 +1182,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng,
    const size_t realisations_count,
+   const size_t max_failed_count,
    const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */
    struct ssol_estimator** estimator);
 

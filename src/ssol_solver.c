@@ -43,9 +43,6 @@
 #include <limits.h>
 #include <omp.h>
 
-/* How many percent of random walk realisations may fail before an error occurs */
-#define MAX_PERCENT_FAILURES 0.01
-
 /*******************************************************************************
  * Thread context
  ******************************************************************************/
@@ -1084,6 +1081,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng_state,
    const size_t realisations_count,
+   const size_t max_failed_count,
    const struct ssol_path_tracker* path_tracker,
    struct ssol_estimator** out_estimator)
 {
@@ -1114,12 +1112,12 @@ ssol_solve
   /* CL compiler supports OpenMP parallel loop whose indices are signed. The
    * following line ensures that the unsigned number of realisations does not
    * overflow the realisation index. */
-  if(realisations_count > INT64_MAX) {
+  if(realisations_count > INT64_MAX || max_failed_count > INT64_MAX) {
     res = RES_BAD_ARG;
     goto error;
   }
   nrealisations = (int64_t)realisations_count;
-  max_failures = (int64_t)((double)nrealisations * MAX_PERCENT_FAILURES);
+  max_failures = (int64_t)max_failed_count;
   nthreads = (int)scn->dev->nthreads;
 
   res = scene_check(scn, FUNC_NAME);

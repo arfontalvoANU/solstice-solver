@@ -120,14 +120,14 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_create(dev, &scene), RES_OK);
 
-  CHECK(ssol_solve(NULL, rng, 10, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, NULL, 10, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 0, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
-  CHECK(ssol_solve(scene, rng, 10, NULL, NULL), RES_BAD_ARG);
+  CHECK(ssol_solve(NULL, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, NULL, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 0, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, NULL), RES_BAD_ARG);
 
   /* No geometry */
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
 
   /* Create scene content */
   CHECK(ssol_shape_create_mesh(dev, &dummy), RES_OK);
@@ -163,14 +163,14 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_instance(scene, target), RES_OK);
 
   /* No sun */
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
 
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_ref_put(estimator), RES_OK);
 
   CHECK(ssol_solve
-    (scene, rng, 1, &SSOL_PATH_TRACKER_DEFAULT, &estimator), RES_OK);
+    (scene, rng, 1, 0, &SSOL_PATH_TRACKER_DEFAULT, &estimator), RES_OK);
 
   CHECK(ssol_estimator_get_tracked_paths_count(NULL, NULL), RES_BAD_ARG);
   CHECK(ssol_estimator_get_tracked_paths_count(estimator, NULL), RES_BAD_ARG);
@@ -247,7 +247,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
   CHECK(ssol_instance_sample(heliostat, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled), RES_BAD_ARG);
 
   CHECK(ssol_instance_sample(target, 1), RES_OK);
@@ -256,7 +256,7 @@ main(int argc, char** argv)
 
   /* No attached sun */
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
   /* Sun with no spectrum */
@@ -264,7 +264,7 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_scene_detach_sun(scene, sun), RES_OK);
   CHECK(ssol_sun_ref_put(sun), RES_OK);
 
@@ -273,14 +273,14 @@ main(int argc, char** argv)
   CHECK(ssol_sun_set_direction(sun, d3(dir, 1, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_BAD_ARG);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_BAD_ARG);
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
 
   /* No receiver in scene */
   CHECK(ssol_instance_set_receiver(heliostat, 0, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, 0, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(target, 0, 0), RES_OK);
-  CHECK(ssol_solve(scene, rng, 10, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, 10, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_instance_set_receiver(heliostat, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(secondary, SSOL_FRONT, 0), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 0), RES_OK);
@@ -290,7 +290,7 @@ main(int argc, char** argv)
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 #define GET_MC_GLOBAL ssol_estimator_get_mc_global
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(ssol_estimator_get_failed_count(estimator, &fcount), RES_OK);
@@ -332,7 +332,7 @@ main(int argc, char** argv)
   CHECK(ssol_instance_sample(target, 0), RES_OK);
   CHECK(ssol_instance_sample(secondary, 0), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   m = 4 * DNI_cos;
@@ -356,7 +356,7 @@ main(int argc, char** argv)
   CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   m = 4 * DNI_cos;
@@ -400,7 +400,7 @@ main(int argc, char** argv)
   CHECK(ssol_scene_attach_atmosphere(scene, atm), RES_OK);
   CHECK(ssol_instance_set_receiver(target, SSOL_FRONT, 1), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
 #define K (exp(-KA * 4 * sqrt(2)))
@@ -487,7 +487,7 @@ main(int argc, char** argv)
   extinction.value.spectrum = abs_spectrum;
   CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
 
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
 #define K2 (exp(-0.121 * 4 * sqrt(2)))
