@@ -174,7 +174,7 @@ ssol_sun_set_pillbox_aperture(struct ssol_sun* sun, const double angle)
 {
   if(!sun
   || angle <= 0
-  || angle > PI * 0.5
+  || angle > PI
   || sun->type != SUN_PILLBOX)
     return RES_BAD_ARG;
   sun->data.pillbox.aperture = angle;
