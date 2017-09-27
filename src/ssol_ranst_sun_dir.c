@@ -245,7 +245,7 @@ ran_pillbox_get
   double pt[3];
   double phi, sin2_theta, sin_theta, cos_theta;
 
-  ASSERT(ran && 0 <= ran->state.pillbox.sin2_theta_max >= 0
+  ASSERT(ran && 0 <= ran->state.pillbox.sin2_theta_max
     && ran->state.pillbox.sin2_theta_max <= 1);
   sin2_theta = ssp_rng_uniform_double(rng, 0, ran->state.pillbox.sin2_theta_max);
   sin_theta = sqrt(sin2_theta);
