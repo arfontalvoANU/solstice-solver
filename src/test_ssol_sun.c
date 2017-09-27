@@ -76,10 +76,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
   CHECK(dni, 1000);
 
-  CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 0.1), RES_BAD_ARG);
 
   CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
@@ -125,11 +125,11 @@ main(int argc, char** argv)
   CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
   CHECK(dni, 1000);
 
-  CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_OK);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_OK);
+  CHECK(ssol_sun_pillbox_set_theta_max(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 0.1), RES_OK);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 0.1), RES_OK);
 
   CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
@@ -174,10 +174,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
   CHECK(dni, 1000);
 
-  CHECK(ssol_sun_set_pillbox_aperture(NULL, 0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, -0.1), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 999), RES_BAD_ARG);
-  CHECK(ssol_sun_set_pillbox_aperture(sun, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_theta_max(sun, 0.1), RES_BAD_ARG);
 
   CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);

@@ -162,17 +162,17 @@ test_thin_dielectric(struct ssol_device* dev)
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
   shader.normal = get_shader_normal;
 
-  ssol_data_set_real(&mdm0.absorption, -1);
+  ssol_data_set_real(&mdm0.extinction, -1);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
-  ssol_data_copy(&mdm0.absorption, &SSOL_MEDIUM_VACUUM.absorption);
+  ssol_data_copy(&mdm0.extinction, &SSOL_MEDIUM_VACUUM.extinction);
 
   ssol_data_set_real(&mdm0.refractive_index, 0);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
   ssol_data_copy(&mdm0.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  ssol_data_set_real(&mdm1.absorption, -1);
+  ssol_data_set_real(&mdm1.extinction, -1);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
-  ssol_data_copy(&mdm1.absorption, &SSOL_MEDIUM_VACUUM.absorption);
+  ssol_data_copy(&mdm1.extinction, &SSOL_MEDIUM_VACUUM.extinction);
 
   ssol_data_set_real(&mdm1.refractive_index, 0);
   CHECK(ssol_thin_dielectric_setup(mtl, &shader, &mdm0, &mdm1, 1), RES_BAD_ARG);
@@ -229,11 +229,11 @@ test_dielectric(struct ssol_device* dev)
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
   ssol_data_copy(&mdm1.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  ssol_data_set_real(&mdm0.absorption, -1);
+  ssol_data_set_real(&mdm0.extinction, -1);
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
-  ssol_data_copy(&mdm0.absorption, &SSOL_MEDIUM_VACUUM.refractive_index);
+  ssol_data_copy(&mdm0.extinction, &SSOL_MEDIUM_VACUUM.refractive_index);
 
-  ssol_data_set_real(&mdm1.absorption, -1);
+  ssol_data_set_real(&mdm1.extinction, -1);
   CHECK(ssol_dielectric_setup(NULL, &dielectric, &mdm0, &mdm1), RES_BAD_ARG);
   ssol_data_copy(&mdm1.refractive_index, &SSOL_MEDIUM_VACUUM.refractive_index);
 

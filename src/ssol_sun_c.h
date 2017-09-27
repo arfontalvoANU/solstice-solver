@@ -31,7 +31,7 @@ enum sun_type {
 };
 
 struct pillbox { 
-  double aperture;
+  double theta_max;
 };
 
 struct buie {

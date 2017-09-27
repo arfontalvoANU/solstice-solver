@@ -50,7 +50,7 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 5)
+set(VERSION_MINOR 6)
 set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
@@ -181,6 +181,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_solver7)
   new_test(test_ssol_solver8)
   new_test(test_ssol_solver9)
+  new_test(test_ssol_solver10)
   new_test(test_ssol_sun)
 
   build_test(test_ssol_draw)

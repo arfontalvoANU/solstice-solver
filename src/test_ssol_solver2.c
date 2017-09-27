@@ -177,7 +177,7 @@ main(int argc, char** argv)
 
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
 #define COS cos(PI / 4)

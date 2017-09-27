@@ -176,7 +176,7 @@ main(int argc, char** argv)
 
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_mc_global(estimator, &mc_global), RES_OK);
   PRINT_GLOBAL(mc_global);
   CHECK(eq_eps(mc_global.shadowed.E, 100000, 2 * 100000/sqrt(N__)), 1);

@@ -43,9 +43,6 @@
 #include <limits.h>
 #include <omp.h>
 
-/* How many percent of random walk realisations may fail before an error occurs */
-#define MAX_PERCENT_FAILURES 0.01
-
 /*******************************************************************************
  * Thread context
  ******************************************************************************/
@@ -55,7 +52,7 @@ struct thread_context {
   struct mc_data absorbed_by_receivers;
   struct mc_data shadowed;
   struct mc_data missing;
-  struct mc_data absorbed_by_atmosphere;
+  struct mc_data extinguished_by_atmosphere;
   struct mc_data other_absorbed;
   struct htable_receiver mc_rcvs;
   struct htable_sampled mc_samps;
@@ -97,7 +94,7 @@ thread_context_copy
   dst->absorbed_by_receivers = src->absorbed_by_receivers;
   dst->shadowed = src->shadowed;
   dst->missing = src->missing;
-  dst->absorbed_by_atmosphere = src->absorbed_by_atmosphere;
+  dst->extinguished_by_atmosphere = src->extinguished_by_atmosphere;
   dst->other_absorbed = src->other_absorbed;
   res = htable_receiver_copy(&dst->mc_rcvs, &src->mc_rcvs);
   if(res != RES_OK) return res;
@@ -209,7 +206,6 @@ point_get_material(const struct point* pt)
 static res_T
 point_init
   (struct point* pt,
-   const double sampled_area_proxy,
    struct ssol_scene* scn,
    struct htable_sampled* sampled,
    struct s3d_scene_view* view_samp,
@@ -220,12 +216,15 @@ point_init
    struct ssol_medium* current_medium,
    int* is_lit)
 {
-  struct ssol_surface_fragment frag;
   struct s3d_attrib attr;
   struct s3d_hit hit;
   struct ray_data ray_data = RAY_DATA_NULL;
-  struct ssol_material* mtl;
-  double N[3], Np[3];
+  double N[3];
+  double surface_sun_cos;
+  double surface_sun0_cos;
+  double sun0_sun_cos;
+  double surface_proxy_cos;
+  double cos_ratio;
   double w0;
   float dir[3], pos[3], range[2] = { 0, FLT_MAX };
   size_t id;
@@ -259,7 +258,7 @@ point_init
 
   /* Sample a sun direction */
   ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
-  
+
   /* Sample a wavelength */
   pt->wl = ranst_sun_wl_get(ran_sun_wl, rng);
 
@@ -280,25 +279,16 @@ point_init
     d3_minus(N, N); /* Force the normal to look forward dir */
   }
 
-  /* Perturb the normal */
-  surface_fragment_setup(&frag, pt->pos, pt->dir, N, &pt->prim, pt->uv);
-  mtl = point_get_material(pt);
-  material_shade_normal(mtl, &frag, pt->wl, Np);
-
   /* Initialise the Monte Carlo weight */
-  if(pt->sshape->shape->type != SHAPE_PUNCHED) {
-    double surface_sun_cos = fabs(d3_dot(Np, pt->dir));
-    w0 = scn->sun->dni * sampled_area_proxy * surface_sun_cos;
-    pt->cos_factor = surface_sun_cos;
-  } else {
-    double cos_ratio, surface_proxy_cos, surface_sun_cos;
-    surface_proxy_cos = fabs(d3_dot(pt->N, Np));
-    surface_sun_cos = fabs(d3_dot(Np, pt->dir));
-    cos_ratio = surface_sun_cos / surface_proxy_cos;
-    w0 = scn->sun->dni * sampled_area_proxy * cos_ratio;
-    pt->cos_factor = surface_sun_cos;
-  }
-
+  surface_sun_cos = d3_dot(N, pt->dir);
+  surface_sun0_cos = fabs(d3_dot(scn->sun->direction, N));
+  sun0_sun_cos = d3_dot(scn->sun->direction, pt->dir);
+  surface_proxy_cos =
+    (pt->sshape->shape->type == SHAPE_MESH) ? 1 : fabs(d3_dot(pt->N, N));
+  cos_ratio = fabs(surface_sun_cos / (surface_proxy_cos * sun0_sun_cos));
+  w0 = scn->sun->dni * scn->sampled_area_proxy * cos_ratio;
+  pt->cos_factor = scn->sampled_area_proxy / scn->sampled_area
+    * surface_sun0_cos / surface_proxy_cos;
   pt->energy_loss = w0;
   pt->initial_flux = w0;
   pt->prev_outgoing_flux = w0;
@@ -513,6 +503,46 @@ point_get_id(const struct point* pt)
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static INLINE void
+check_energy_conservation
+  (struct ssol_scene* scn,
+   struct ssol_estimator* estimator,
+   const int64_t nrealisations)
+{
+  struct ssol_mc_global global;
+  double dni;
+  double dni_s, pot;
+  double cos, rcv, atm, other, shadow, miss;
+  double cos_err, rcv_err, atm_err, other_err, shadow_err, miss_err;
+  double err, max_loss;
+  ASSERT(scn && estimator);
+
+  if(RES_OK != ssol_estimator_get_mc_global(estimator, &global)) return;
+  if(RES_OK != ssol_sun_get_dni(scn->sun, &dni)) return;
+
+  /* Fetch data */
+  cos = global.cos_factor.E;
+  rcv = global.absorbed_by_receivers.E;
+  atm = global.extinguished_by_atmosphere.E;
+  other = global.other_absorbed.E;
+  shadow = global.shadowed.E;
+  miss = global.missing.E;
+  cos_err = global.cos_factor.SE;
+  rcv_err = global.absorbed_by_receivers.SE;
+  atm_err = global.extinguished_by_atmosphere.SE;
+  other_err = global.other_absorbed.SE;
+  shadow_err = global.shadowed.SE;
+  miss_err = global.missing.SE;
+
+  /* Check energy conservation */
+  dni_s = dni * scn->sampled_area;
+  pot = cos * dni_s;
+  err = dni_s * cos_err + rcv_err + atm_err + other_err + shadow_err + miss_err;
+  max_loss = 3 * err + (double)nrealisations * pot * DBL_EPSILON;
+  if(fabs(pot - (rcv + atm + other + shadow + miss)) > max_loss)
+    FATAL("error: the energy conservation property is not verified\n");
+}
+
 /* Compute an empirical length of the path segment coming from/going to the
  * infinite, wrt the scene bounding box */
 static INLINE double
@@ -769,7 +799,7 @@ apply_factor_mc
 
   /* Cancel global MC estimations */
   mc_data_apply_factor(&thread_ctx->cos_factor, irealisation, factor);
-  mc_data_apply_factor(&thread_ctx->absorbed_by_atmosphere, irealisation, factor);
+  mc_data_apply_factor(&thread_ctx->extinguished_by_atmosphere, irealisation, factor);
   mc_data_apply_factor(&thread_ctx->absorbed_by_receivers, irealisation, factor);
   mc_data_apply_factor(&thread_ctx->other_absorbed, irealisation, factor);
   mc_data_apply_factor(&thread_ctx->missing, irealisation, factor);
@@ -829,7 +859,6 @@ cancel_mc
 static res_T
 trace_radiative_path
   (const size_t irealisation, /* Unique id of the realisation */
-   const double sampled_area_proxy, /* Overall area of the sampled geometries */
    struct thread_context* thread_ctx,
    struct ssol_scene* scn,
    struct s3d_scene_view* view_samp,
@@ -858,7 +887,7 @@ trace_radiative_path
   roulette_interval = 4 * typical_max_depth; /* First roulette */
 
   /* Find a new starting point of the radiative random walk */
-  res = point_init(&pt, sampled_area_proxy, scn, &thread_ctx->mc_samps,
+  res = point_init(&pt, scn, &thread_ctx->mc_samps,
     view_samp, view_rt, ran_sun_dir, ran_sun_wl, thread_ctx->rng,
     &in_medium, &is_lit);
   if(res != RES_OK) goto error;
@@ -891,7 +920,7 @@ trace_radiative_path
      * to handle the points that start from a virtual material */
     f3_set_d3(org, pt.pos);
     f3_set_d3(dir, pt.dir);
-    hit.distance = 0; /* first loop has no atmospheric absorption */
+    hit.distance = 0; /* first loop has no atmospheric extinction */
 
     for(;;) { /* Here we go for the radiative random walk */
       const int in_atm = media_ceq(&in_medium, &scn->air);
@@ -902,12 +931,12 @@ trace_radiative_path
       struct ray_data ray_data = RAY_DATA_NULL;
       double trans = 1;
 
-      /* Compute medium absorption along the incoming segment. */
+      /* Compute medium extinction along the incoming segment. */
       if(hit.distance > 0) {
-        const double kabs = ssol_data_get_value(&in_medium.absorption, pt.wl);
-        ASSERT(0 <= kabs && kabs <= 1);
-        if(kabs > 0) {
-          trans = exp(-kabs * hit.distance);
+        const double k_ext = ssol_data_get_value(&in_medium.extinction, pt.wl);
+        ASSERT(0 <= k_ext && k_ext <= 1);
+        if(k_ext > 0) {
+          trans = exp(-k_ext * hit.distance);
         }
       }
       pt.incoming_flux = pt.prev_outgoing_flux * trans;
@@ -990,14 +1019,14 @@ trace_radiative_path
         }
       }
 
-      /* Don't change prev_outgoing weigths nor record segment absorption until
+      /* Don't change prev_outgoing weigths nor record segment extinction until
        * a non-virtual material is hit or this segment is the last one.
        * This is because propagation is restarted from the same origin until
        * a non-virtual material is hit or no further hit can be found. */
       if(weight_is_zero || last_segment || !hit_virtual) {
         const double absorbed = pt.prev_outgoing_flux - pt.incoming_flux;
         if(in_atm) {
-          ACCUM_WEIGHT(thread_ctx->absorbed_by_atmosphere, absorbed);
+          ACCUM_WEIGHT(thread_ctx->extinguished_by_atmosphere, absorbed);
         } else {
           ACCUM_WEIGHT(thread_ctx->other_absorbed, absorbed);
         }
@@ -1042,10 +1071,10 @@ trace_radiative_path
 
       ssol_medium_copy(&in_medium, &out_medium);
     }
-
     /* Register the remaining flux as missing */
     ACCUM_WEIGHT(thread_ctx->missing, pt.outgoing_flux);
     pt.energy_loss -= pt.outgoing_flux;
+
 
     if(tracker) {
       path.type = hit_a_receiver ? SSOL_PATH_SUCCESS : SSOL_PATH_MISSING;
@@ -1092,6 +1121,7 @@ ssol_solve
   (struct ssol_scene* scn,
    struct ssp_rng* rng_state,
    const size_t realisations_count,
+   const size_t max_failed_count,
    const struct ssol_path_tracker* path_tracker,
    struct ssol_estimator** out_estimator)
 {
@@ -1105,8 +1135,6 @@ ssol_solve
   struct ssol_estimator* estimator = NULL;
   struct ssol_path_tracker tracker;
   struct ssp_rng_proxy* rng_proxy = NULL;
-  double sampled_area;
-  double sampled_area_proxy;
   int64_t nrealisations = 0;
   int64_t max_failures = 0;
   int nthreads = 0;
@@ -1124,12 +1152,12 @@ ssol_solve
   /* CL compiler supports OpenMP parallel loop whose indices are signed. The
    * following line ensures that the unsigned number of realisations does not
    * overflow the realisation index. */
-  if(realisations_count > INT64_MAX) {
+  if(realisations_count > INT64_MAX || max_failed_count > INT64_MAX) {
     res = RES_BAD_ARG;
     goto error;
   }
   nrealisations = (int64_t)realisations_count;
-  max_failures = (int64_t)((double)nrealisations * MAX_PERCENT_FAILURES);
+  max_failures = (int64_t)max_failed_count;
   nthreads = (int)scn->dev->nthreads;
 
   res = scene_check(scn, FUNC_NAME);
@@ -1137,13 +1165,12 @@ ssol_solve
 
   /* init air properties */
   if(scn->atmosphere)
-    ssol_data_copy(&scn->air.absorption, &scn->atmosphere->absorption);
+    ssol_data_copy(&scn->air.extinction, &scn->atmosphere->extinction);
   else
-    ssol_data_copy(&scn->air.absorption, &SSOL_MEDIUM_VACUUM.absorption);
+    ssol_data_copy(&scn->air.extinction, &SSOL_MEDIUM_VACUUM.extinction);
 
   /* Create data structures shared by all threads */
-  res = scene_create_s3d_views(scn, &view_rt, &view_samp, &sampled_area,
-    &sampled_area_proxy);
+  res = scene_create_s3d_views(scn, &view_rt, &view_samp);
   if(res != RES_OK) goto error;
   res = sun_create_direction_distribution(scn->sun, &ran_sun_dir);
   if(res != RES_OK) goto error;
@@ -1192,7 +1219,7 @@ ssol_solve
     thread_ctx = darray_thread_ctx_data_get(&thread_ctxs) + ithread;
 
     /* Execute a MC experiment */
-    res_local = trace_radiative_path((size_t)i, sampled_area_proxy, thread_ctx,
+    res_local = trace_radiative_path((size_t)i, thread_ctx,
       scn, view_samp, view_rt, ran_sun_dir, ran_sun_wl, path_tracker);
     if(res_local != RES_OK) {
       /* Cancel partial MC results */
@@ -1221,7 +1248,7 @@ ssol_solve
     ACCUM_WEIGHT(absorbed_by_receivers);
     ACCUM_WEIGHT(shadowed);
     ACCUM_WEIGHT(missing);
-    ACCUM_WEIGHT(absorbed_by_atmosphere);
+    ACCUM_WEIGHT(extinguished_by_atmosphere);
     ACCUM_WEIGHT(other_absorbed);
     estimator->realisation_count += thread_ctx->realisation_count;
     #undef ACCUM_WEIGHT
@@ -1292,8 +1319,12 @@ ssol_solve
     }
   }
 
-  estimator->sampled_area = sampled_area;
+  estimator->sampled_area = scn->sampled_area;
   if(mt_res != RES_OK) res = (res_T)mt_res;
+
+  #ifndef NDEBUG
+  check_energy_conservation(scn, estimator, nrealisations);
+  #endif
 
 exit:
   darray_thread_ctx_release(&thread_ctxs);

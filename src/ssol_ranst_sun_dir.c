@@ -40,7 +40,7 @@ struct ran_buie_state {
 };
 
 struct ran_pillbox_state {
-  double radius;
+  double sin2_theta_max;
   double basis[9];
 };
 
@@ -243,10 +243,17 @@ ran_pillbox_get
    double dir[3])
 {
   double pt[3];
+  double phi, sin2_theta, sin_theta, cos_theta;
 
-  ASSERT(ran && ran->state.pillbox.radius > 0);
-  ssp_ran_uniform_disk(rng, ran->state.pillbox.radius, pt);
-  pt[2] = 1;
+  ASSERT(ran && 0 <= ran->state.pillbox.sin2_theta_max
+    && ran->state.pillbox.sin2_theta_max <= 1);
+  sin2_theta = ssp_rng_uniform_double(rng, 0, ran->state.pillbox.sin2_theta_max);
+  sin_theta = sqrt(sin2_theta);
+  cos_theta = sqrt(1 - sin2_theta);
+  phi = ssp_rng_uniform_double(rng, 0, 2 * PI);
+  pt[0] = cos(phi) * sin_theta;
+  pt[1] = sin(phi) * sin_theta;
+  pt[2] = cos_theta;
   d33_muld3(dir, ran->state.pillbox.basis, pt);
   d3_normalize(dir, dir);
   return dir;
@@ -337,15 +344,15 @@ ranst_sun_dir_buie_setup
 res_T
 ranst_sun_dir_pillbox_setup
   (struct ranst_sun_dir* ran,
-   const double aperture,
+   const double theta_max,
    const double dir[3])
 {
-  double radius;
-  if (!ran || !dir || aperture <= 0 || aperture >= PI )
+  double s;
+  if (!ran || !dir || theta_max <= 0 || theta_max > PI )
     return RES_BAD_ARG;
-  radius = tan(0.5 * aperture);
   ran->get = ran_pillbox_get;
-  ran->state.pillbox.radius = radius;
+  s = sin(theta_max);
+  ran->state.pillbox.sin2_theta_max = s * s;
   d33_basis(ran->state.pillbox.basis, dir);
   return RES_OK;
 }

@@ -134,7 +134,7 @@ main(int argc, char** argv)
 #define S_DNI_cos (4 * 1000 * cos(PI / 4))
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
 #define GET_MC_SAMP_X_RCV ssol_estimator_get_mc_sampled_x_receiver
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator1), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator1), RES_OK);
   CHECK(GET_MC_RCV(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
@@ -142,13 +142,13 @@ main(int argc, char** argv)
   CHECK(eq_eps
     (mc_rcv.incoming_flux.E, S_DNI_cos,
      mc_rcv.incoming_flux.SE*3), 1);
-  CHECK(ssol_solve(scene, rng, 8 * N__, NULL, &estimator2), RES_OK);
+  CHECK(ssol_solve(scene, rng, 8 * N__, 0, NULL, &estimator2), RES_OK);
   CHECK(GET_MC_RCV(estimator2, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
   CHECK(eq_eps(mc_rcv.incoming_flux.E, S_DNI_cos, mc_rcv.incoming_flux.SE*3), 1);
   CHECK(ssol_estimator_ref_put(estimator1), RES_OK);
-  CHECK(ssol_solve(scene, rng, 3 * N__, NULL, &estimator1), RES_OK);
+  CHECK(ssol_solve(scene, rng, 3 * N__, 0, NULL, &estimator1), RES_OK);
   CHECK(GET_MC_RCV(estimator1, target, SSOL_FRONT, &mc_rcv), RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);

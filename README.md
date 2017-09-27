@@ -26,20 +26,34 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.6
+
+- Fix the integration for non parallel sun: the angle between the principal sun
+  direction and the sampled direction was not correctly taken into account
+  leading to a wrong initial weight for the optical paths.
+- Fix the integration with shapes having perturbed normals: perturbed normals
+  must be taken into account in the bounces of the optical paths only, not in
+  the energy computations.
+- Fix the distribution of the pillbox sun: the pdf was wrong.
+- Fix the `ssol_sun_pillbox_aperture` function and rename it in
+  `ssol_sun_pillbox_set_theta_max`. The submitted parameter, i.e. `theta_max`,
+  is the angular radius but was treated as the angular diameter.
+- Update the `ssol_solve` API: add a parameter that controls the number of
+  realisations than can fail before an error occurs.
+
 ### Version 0.5
 
 - Improve the performances up to 50% by optimising the allocation of the BSDF
-  during the radiative random walk. Performance gains are mainly observed in
-  situations where the radiative paths are deep, i.e. when they bounce on many
-  surfaces.
+  during the optical paths. Performance gains are mainly observed in situations
+  where the optical paths are deep, i.e. when they bounce on many surfaces.
 
 ### Version 0.4.2
 
-- Energy conservation property might not be ensured when the radiative paths
-  were fully absorbed.
-- Handle infinite radiative paths, i.e. paths that bounces infinitely due to
-  the material properties and/or numerical inaccuracies. Use a Russian roulette
-  to stop the radiative random walk without bias.
+- Energy conservation property might not be ensured when the optical paths were
+  fully absorbed.
+- Handle infinite optical paths, i.e. paths that bounces infinitely due to the
+  material properties and/or numerical inaccuracies. Use a Russian roulette to
+  stop the optical random walk without bias.
 
 ### Version 0.4.1
 

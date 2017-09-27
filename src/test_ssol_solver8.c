@@ -111,7 +111,7 @@ main(int argc, char** argv)
   carving.nb_vertices = POLY_NVERTS__;
   carving.context = &POLY_EDGES__;
   quadric.type = SSOL_QUADRIC_PARABOLIC_CYLINDER;
-  quadric.data.parabol.focal = 1;
+  quadric.data.parabolic_cylinder.focal = 1;
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
@@ -139,7 +139,7 @@ main(int argc, char** argv)
 
 #define N__ 100000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N__, NULL, &estimator), RES_OK);
+  CHECK(ssol_solve(scene, rng, N__, 0, NULL, &estimator), RES_OK);
   CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
   CHECK(count, N__);
   CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);

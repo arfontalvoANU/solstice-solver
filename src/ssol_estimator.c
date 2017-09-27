@@ -125,7 +125,7 @@ ssol_estimator_get_mc_global
   SETUP_MC_RESULT(absorbed_by_receivers);
   SETUP_MC_RESULT(shadowed);
   SETUP_MC_RESULT(missing);
-  SETUP_MC_RESULT(absorbed_by_atmosphere);
+  SETUP_MC_RESULT(extinguished_by_atmosphere);
   SETUP_MC_RESULT(other_absorbed);
   #undef SETUP_MC_RESULT
   return RES_OK;
