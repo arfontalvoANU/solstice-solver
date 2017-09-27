@@ -258,7 +258,7 @@ point_init
 
   /* Sample a sun direction */
   ranst_sun_dir_get(ran_sun_dir, rng, pt->dir);
-  
+
   /* Sample a wavelength */
   pt->wl = ranst_sun_wl_get(ran_sun_wl, rng);
 
@@ -503,6 +503,46 @@ point_get_id(const struct point* pt)
 /*******************************************************************************
  * Helper functions
  ******************************************************************************/
+static INLINE void
+check_energy_conservation
+  (struct ssol_scene* scn,
+   struct ssol_estimator* estimator,
+   const int64_t nrealisations)
+{
+  struct ssol_mc_global global;
+  double dni;
+  double dni_s, pot;
+  double cos, rcv, atm, other, shadow, miss;
+  double cos_err, rcv_err, atm_err, other_err, shadow_err, miss_err;
+  double err, max_loss;
+  ASSERT(scn && estimator);
+
+  if(RES_OK != ssol_estimator_get_mc_global(estimator, &global)) return;
+  if(RES_OK != ssol_sun_get_dni(scn->sun, &dni)) return;
+
+  /* Fetch data */
+  cos = global.cos_factor.E;
+  rcv = global.absorbed_by_receivers.E;
+  atm = global.extinguished_by_atmosphere.E;
+  other = global.other_absorbed.E;
+  shadow = global.shadowed.E;
+  miss = global.missing.E;
+  cos_err = global.cos_factor.SE;
+  rcv_err = global.absorbed_by_receivers.SE;
+  atm_err = global.extinguished_by_atmosphere.SE;
+  other_err = global.other_absorbed.SE;
+  shadow_err = global.shadowed.SE;
+  miss_err = global.missing.SE;
+
+  /* Check energy conservation */
+  dni_s = dni * scn->sampled_area;
+  pot = cos * dni_s;
+  err = dni_s * cos_err + rcv_err + atm_err + other_err + shadow_err + miss_err;
+  max_loss = 3 * err + (double)nrealisations * pot * DBL_EPSILON;
+  if(fabs(pot - (rcv + atm + other + shadow + miss)) > max_loss)
+    FATAL("error: the energy conservation property is not verified\n");
+}
+
 /* Compute an empirical length of the path segment coming from/going to the
  * infinite, wrt the scene bounding box */
 static INLINE double
@@ -1279,46 +1319,12 @@ ssol_solve
     }
   }
 
-#ifndef NDEBUG
-  {
-    struct ssol_mc_global global;
-    double dni;
-    /* check conservation of energy at the simulation level */
-    res = ssol_estimator_get_mc_global(estimator, &global);
-
-    if(RES_OK == ssol_estimator_get_mc_global(estimator, &global)
-      && RES_OK == ssol_sun_get_dni(scn->sun, &dni))
-    {
-      double dni_s, pot;
-      double cos, rcv, atm, other, shadow, missing;
-      double cos_err, rcv_err, atm_err, other_err, shadow_err, missing_err;
-      double err, max_loss;
-      cos = global.cos_factor.E;
-      rcv = global.absorbed_by_receivers.E;
-      atm = global.extinguished_by_atmosphere.E;
-      other = global.other_absorbed.E;
-      shadow = global.shadowed.E;
-      missing = global.missing.E;
-      cos_err = global.cos_factor.SE;
-      rcv_err = global.absorbed_by_receivers.SE;
-      atm_err = global.extinguished_by_atmosphere.SE;
-      other_err = global.other_absorbed.SE;
-      shadow_err = global.shadowed.SE;
-      missing_err = global.missing.SE;
-
-      dni_s = dni * scn->sampled_area;
-      pot = cos * dni_s;
-      err = dni_s * cos_err
-        + rcv_err + atm_err + other_err + shadow_err + missing_err;
-      max_loss = 3 * err + nrealisations * pot * DBL_EPSILON;
-      ASSERT(fabs(pot - (rcv + atm + other + shadow + missing))
-        <= max_loss);
-    }
-  }
-#endif
-
   estimator->sampled_area = scn->sampled_area;
   if(mt_res != RES_OK) res = (res_T)mt_res;
+
+  #ifndef NDEBUG
+  check_energy_conservation(scn, estimator, nrealisations);
+  #endif
 
 exit:
   darray_thread_ctx_release(&thread_ctxs);
