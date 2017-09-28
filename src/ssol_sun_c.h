@@ -31,7 +31,7 @@ enum sun_type {
 };
 
 struct pillbox { 
-  double theta_max;
+  double half_angle;
 };
 
 struct buie {

@@ -170,14 +170,11 @@ ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 }
 
 res_T
-ssol_sun_pillbox_set_theta_max(struct ssol_sun* sun, const double theta_max)
+ssol_sun_pillbox_set_half_angle(struct ssol_sun* sun, const double half_angle)
 {
-  if(!sun
-  || theta_max <= 0
-  || theta_max > PI
-  || sun->type != SUN_PILLBOX)
+  if(!sun || half_angle <= 0 || half_angle > PI || sun->type != SUN_PILLBOX)
     return RES_BAD_ARG;
-  sun->data.pillbox.theta_max = theta_max;
+  sun->data.pillbox.half_angle = half_angle;
   return RES_OK;
 }
 
@@ -214,7 +211,7 @@ sun_create_direction_distribution
       break;
     case SUN_PILLBOX:
       res = ranst_sun_dir_pillbox_setup
-        (ran_dir, sun->data.pillbox.theta_max, sun->direction);
+        (ran_dir, sun->data.pillbox.half_angle, sun->direction);
       break;
     case SUN_BUIE:
       res = ranst_sun_dir_buie_setup
