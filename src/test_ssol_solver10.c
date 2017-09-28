@@ -95,7 +95,7 @@ main(int argc, char** argv)
   CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
   CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
   CHECK(ssol_sun_create_pillbox(dev, &sun), RES_OK);
-  CHECK(ssol_sun_pillbox_set_theta_max(sun, 1), RES_OK);
+  CHECK(ssol_sun_pillbox_set_half_angle(sun, 1), RES_OK);
   CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)), RES_OK);
   CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
   CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
