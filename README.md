@@ -26,6 +26,11 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.6.1
+
+- Rename the `ssol_sun_pillbox_set_theta_max` function in
+  `ssol_sun_pillbox_set_half_angle`.
+
 ### Version 0.6
 
 - Fix the integration for non parallel sun: the angle between the principal sun
