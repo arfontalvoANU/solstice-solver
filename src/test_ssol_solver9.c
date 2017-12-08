@@ -86,7 +86,7 @@ main(int argc, char** argv)
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
   CHECK(ssol_device_create
-  (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
 
 #define DNI 1000
   CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
