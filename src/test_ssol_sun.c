@@ -81,6 +81,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_pillbox_set_half_angle(sun, 999), RES_BAD_ARG);
   CHECK(ssol_sun_pillbox_set_half_angle(sun, 0.1), RES_BAD_ARG);
 
+  CHECK(ssol_sun_gaussian_set_std_dev(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, 0.1), RES_BAD_ARG);
+
   CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, 999), RES_BAD_ARG);
@@ -131,6 +135,65 @@ main(int argc, char** argv)
   CHECK(ssol_sun_pillbox_set_half_angle(sun, 0.1), RES_OK);
   CHECK(ssol_sun_pillbox_set_half_angle(sun, 0.1), RES_OK);
 
+  CHECK(ssol_sun_gaussian_set_std_dev(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, 0.1), RES_BAD_ARG);
+
+  CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_set_buie_param(sun, 0.1), RES_BAD_ARG);
+
+  CHECK(ssol_sun_ref_put(sun), RES_OK);
+
+  CHECK(ssol_sun_create_gaussian(NULL, &sun), RES_BAD_ARG);
+  CHECK(ssol_sun_create_gaussian(dev, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_create_gaussian(dev, &sun), RES_OK);
+
+  CHECK(ssol_sun_ref_get(NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_ref_get(sun), RES_OK);
+
+  CHECK(ssol_sun_ref_put(NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_ref_put(sun), RES_OK);
+
+  CHECK(ssol_sun_set_spectrum(NULL, spectrum), RES_BAD_ARG);
+  CHECK(ssol_sun_set_spectrum(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum2), RES_OK);
+  CHECK(ssol_sun_set_spectrum(sun, spectrum2), RES_OK);
+
+  CHECK(ssol_sun_set_direction(NULL, dir), RES_BAD_ARG);
+  CHECK(ssol_sun_set_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_set_direction(sun, dir0), RES_BAD_ARG);
+  CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
+  CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
+
+  CHECK(ssol_sun_get_direction(NULL, tmp), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_direction(sun, tmp), RES_OK);
+  CHECK(d3_eq(dir, tmp), 1);
+
+  CHECK(ssol_sun_set_dni(NULL, 1000), RES_BAD_ARG);
+  CHECK(ssol_sun_set_dni(sun, 0), RES_BAD_ARG);
+  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
+
+  CHECK(ssol_sun_get_dni(NULL, &dni), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, NULL), RES_BAD_ARG);
+  CHECK(ssol_sun_get_dni(sun, &dni), RES_OK);
+  CHECK(dni, 1000);
+
+  CHECK(ssol_sun_pillbox_set_half_angle(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_half_angle(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_half_angle(sun, 999), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_half_angle(sun, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_pillbox_set_half_angle(sun, 0.1), RES_BAD_ARG);
+
+  CHECK(ssol_sun_gaussian_set_std_dev(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, 0.1), RES_OK);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, 0.1), RES_OK);
+
   CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, 999), RES_BAD_ARG);
@@ -178,6 +241,10 @@ main(int argc, char** argv)
   CHECK(ssol_sun_pillbox_set_half_angle(sun, -0.1), RES_BAD_ARG);
   CHECK(ssol_sun_pillbox_set_half_angle(sun, 999), RES_BAD_ARG);
   CHECK(ssol_sun_pillbox_set_half_angle(sun, 0.1), RES_BAD_ARG);
+
+  CHECK(ssol_sun_gaussian_set_std_dev(NULL, 0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, -0.1), RES_BAD_ARG);
+  CHECK(ssol_sun_gaussian_set_std_dev(sun, 0.1), RES_BAD_ARG);
 
   CHECK(ssol_sun_set_buie_param(NULL, 0.1), RES_BAD_ARG);
   CHECK(ssol_sun_set_buie_param(sun, -0.1), RES_BAD_ARG);

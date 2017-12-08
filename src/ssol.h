@@ -996,6 +996,12 @@ ssol_sun_create_pillbox
   (struct ssol_device* dev,
    struct ssol_sun** sun);
 
+/* The sun disk intensity has a gaussian shape */
+SSOL_API res_T
+ssol_sun_create_gaussian
+  (struct ssol_device* dev,
+   struct ssol_sun** sun);
+
 /* The sun disk intensity is controlled by a circumsolar ratio. From the paper
  * "Sunshape distributions for terrestrial solar simulations". D. Buie, A.G.
  * Monger, C.J. Dey */
@@ -1043,6 +1049,11 @@ SSOL_API res_T
 ssol_sun_pillbox_set_half_angle
   (struct ssol_sun* sun,
    const double half_angle); /* In ]0, PI/2], in radian */
+
+SSOL_API res_T
+ssol_sun_gaussian_set_std_dev
+  (struct ssol_sun* sun,
+   const double std_dev); /* In ]0, +Inf[, in radian */
 
 SSOL_API res_T
 ssol_sun_set_buie_param
