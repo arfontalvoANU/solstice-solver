@@ -183,6 +183,7 @@ if(NOT NO_TEST)
   new_test(test_ssol_solver9)
   new_test(test_ssol_solver10)
   new_test(test_ssol_solver11)
+  new_test(test_ssol_solver12)
   new_test(test_ssol_sun)
 
   build_test(test_ssol_draw)
