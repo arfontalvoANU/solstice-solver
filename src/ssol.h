@@ -1042,7 +1042,7 @@ ssol_sun_set_spectrum
 SSOL_API res_T
 ssol_sun_pillbox_set_half_angle
   (struct ssol_sun* sun,
-   const double half_angle); /* In radian */
+   const double half_angle); /* In ]0, PI/2], in radian */
 
 SSOL_API res_T
 ssol_sun_set_buie_param

@@ -172,7 +172,7 @@ ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 res_T
 ssol_sun_pillbox_set_half_angle(struct ssol_sun* sun, const double half_angle)
 {
-  if(!sun || half_angle <= 0 || half_angle > PI || sun->type != SUN_PILLBOX)
+  if(!sun || half_angle <= 0 || half_angle > PI * 0.5 || sun->type != SUN_PILLBOX)
     return RES_BAD_ARG;
   sun->data.pillbox.half_angle = half_angle;
   return RES_OK;
