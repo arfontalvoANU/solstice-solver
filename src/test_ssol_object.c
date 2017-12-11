@@ -31,63 +31,63 @@ main(int argc, char** argv)
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
-  CHECK(ssol_material_create_virtual(dev, &mtl), RES_OK);
-  CHECK(ssol_material_create_virtual(dev, &mtl2), RES_OK);
-  CHECK(ssol_shape_create_punched_surface(dev, &shape), RES_OK);
-  CHECK(ssol_shape_create_punched_surface(dev, &shape2), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
+  CHK(ssol_material_create_virtual(dev, &mtl) == RES_OK);
+  CHK(ssol_material_create_virtual(dev, &mtl2) == RES_OK);
+  CHK(ssol_shape_create_punched_surface(dev, &shape) == RES_OK);
+  CHK(ssol_shape_create_punched_surface(dev, &shape2) == RES_OK);
 
-  CHECK(ssol_object_create(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_create(NULL, &object), RES_BAD_ARG);
-  CHECK(ssol_object_create(dev, &object), RES_OK);
+  CHK(ssol_object_create(NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_create(dev, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_create(NULL, &object) == RES_BAD_ARG);
+  CHK(ssol_object_create(dev, &object) == RES_OK);
 
-  CHECK(ssol_object_add_shaded_shape(NULL, NULL, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, NULL, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, shape, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, shape, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, NULL, mtl, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, NULL, mtl, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, shape, mtl, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, shape, mtl, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, NULL, NULL, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, NULL, NULL, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, shape, NULL, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, shape, NULL, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, NULL, mtl, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, NULL, mtl, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(NULL, shape, mtl, mtl), RES_BAD_ARG);
-  CHECK(ssol_object_add_shaded_shape(object, shape, mtl, mtl), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(object, shape2, mtl2, mtl2), RES_OK);
+  CHK(ssol_object_add_shaded_shape(NULL, NULL, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, NULL, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, shape, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, shape, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, NULL, mtl, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, NULL, mtl, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, shape, mtl, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, shape, mtl, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, NULL, NULL, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, NULL, NULL, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, shape, NULL, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, shape, NULL, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, NULL, mtl, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, NULL, mtl, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(NULL, shape, mtl, mtl) == RES_BAD_ARG);
+  CHK(ssol_object_add_shaded_shape(object, shape, mtl, mtl) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(object, shape2, mtl2, mtl2) == RES_OK);
 
-  CHECK(ssol_object_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_object_ref_get(object), RES_OK);
-  CHECK(ssol_object_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_object_ref_put(object), RES_OK);
-  CHECK(ssol_object_ref_put(object), RES_OK);
+  CHK(ssol_object_ref_get(NULL) == RES_BAD_ARG);
+  CHK(ssol_object_ref_get(object) == RES_OK);
+  CHK(ssol_object_ref_put(NULL) == RES_BAD_ARG);
+  CHK(ssol_object_ref_put(object) == RES_OK);
+  CHK(ssol_object_ref_put(object) == RES_OK);
 
-  CHECK(ssol_object_create(dev, &object), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(object, shape, mtl, mtl2), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(object, shape, mtl2, mtl), RES_OK);
+  CHK(ssol_object_create(dev, &object) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(object, shape, mtl, mtl2) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(object, shape, mtl2, mtl) == RES_OK);
 
-  CHECK(ssol_object_clear(NULL), RES_BAD_ARG);
-  CHECK(ssol_object_clear(object), RES_OK);
+  CHK(ssol_object_clear(NULL) == RES_BAD_ARG);
+  CHK(ssol_object_clear(object) == RES_OK);
 
-  CHECK(ssol_object_get_area(object, NULL), RES_BAD_ARG);
-  CHECK(ssol_object_get_area(NULL, &a), RES_BAD_ARG);
-  CHECK(ssol_object_get_area(object, &a), RES_OK);
+  CHK(ssol_object_get_area(object, NULL) == RES_BAD_ARG);
+  CHK(ssol_object_get_area(NULL, &a) == RES_BAD_ARG);
+  CHK(ssol_object_get_area(object, &a) == RES_OK);
 
-  CHECK(ssol_object_ref_put(object), RES_OK);
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-  CHECK(ssol_shape_ref_put(shape2), RES_OK);
-  CHECK(ssol_material_ref_put(mtl), RES_OK);
-  CHECK(ssol_material_ref_put(mtl2), RES_OK);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
+  CHK(ssol_object_ref_put(object) == RES_OK);
+  CHK(ssol_shape_ref_put(shape) == RES_OK);
+  CHK(ssol_shape_ref_put(shape2) == RES_OK);
+  CHK(ssol_material_ref_put(mtl) == RES_OK);
+  CHK(ssol_material_ref_put(mtl2) == RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
 
   return 0;
 }

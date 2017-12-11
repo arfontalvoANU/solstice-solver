@@ -39,46 +39,46 @@ main(int argc, char** argv)
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
   extinction2.type = SSOL_DATA_SPECTRUM;
-  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 2, NULL), RES_OK);
+  CHK(ssol_spectrum_create(dev, &spectrum) == RES_OK);
+  CHK(ssol_spectrum_setup(spectrum, get_wlen, 2, NULL) == RES_OK);
   extinction2.type = SSOL_DATA_SPECTRUM;
   extinction2.value.spectrum = spectrum;
 
-  CHECK(ssol_atmosphere_create(NULL, &atm), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_create(dev, NULL), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_create(dev, &atm), RES_OK);
+  CHK(ssol_atmosphere_create(NULL, &atm) == RES_BAD_ARG);
+  CHK(ssol_atmosphere_create(dev, NULL) == RES_BAD_ARG);
+  CHK(ssol_atmosphere_create(dev, &atm) == RES_OK);
 
-  CHECK(ssol_atmosphere_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_ref_get(atm), RES_OK);
+  CHK(ssol_atmosphere_ref_get(NULL) == RES_BAD_ARG);
+  CHK(ssol_atmosphere_ref_get(atm) == RES_OK);
 
-  CHECK(ssol_atmosphere_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
+  CHK(ssol_atmosphere_ref_put(NULL) == RES_BAD_ARG);
+  CHK(ssol_atmosphere_ref_put(atm) == RES_OK);
 
   extinction.type = SSOL_DATA_REAL;
   extinction.value.real = 0.1;
-  CHECK(ssol_atmosphere_set_extinction(NULL, &extinction), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_set_extinction(atm, NULL), RES_BAD_ARG);
-  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
-  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_OK);
-  CHECK(ssol_atmosphere_set_extinction(atm, &extinction2), RES_OK);
+  CHK(ssol_atmosphere_set_extinction(NULL, &extinction) == RES_BAD_ARG);
+  CHK(ssol_atmosphere_set_extinction(atm, NULL) == RES_BAD_ARG);
+  CHK(ssol_atmosphere_set_extinction(atm, &extinction) == RES_OK);
+  CHK(ssol_atmosphere_set_extinction(atm, &extinction) == RES_OK);
+  CHK(ssol_atmosphere_set_extinction(atm, &extinction2) == RES_OK);
 
   /* extinction values out of range */
   extinction.value.real = 2;
-  CHECK(ssol_atmosphere_set_extinction(atm, &extinction), RES_BAD_ARG);
-  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
-  CHECK(ssol_atmosphere_set_extinction(atm, &extinction2), RES_BAD_ARG);
+  CHK(ssol_atmosphere_set_extinction(atm, &extinction) == RES_BAD_ARG);
+  CHK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL) == RES_OK);
+  CHK(ssol_atmosphere_set_extinction(atm, &extinction2) == RES_BAD_ARG);
   
-  CHECK(ssol_spectrum_ref_put(extinction2.value.spectrum), RES_OK);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
-  CHECK(ssol_atmosphere_ref_put(atm), RES_OK);
+  CHK(ssol_spectrum_ref_put(extinction2.value.spectrum) == RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
+  CHK(ssol_atmosphere_ref_put(atm) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
 
   return 0;
 }

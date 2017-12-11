@@ -243,7 +243,7 @@ exit:
   return res;
 error:
   if(ran_dir) {
-    CHECK(ranst_sun_dir_ref_put(ran_dir), RES_OK);
+    CHK(ranst_sun_dir_ref_put(ran_dir) == RES_OK);
     ran_dir = NULL;
   }
   goto exit;
@@ -271,7 +271,7 @@ exit:
   return res;
 error:
   if(ran_wl) {
-    CHECK(ranst_sun_wl_ref_put(ran_wl), RES_OK);
+    CHK(ranst_sun_wl_ref_put(ran_wl) == RES_OK);
     ran_wl = NULL;
   }
   goto exit;

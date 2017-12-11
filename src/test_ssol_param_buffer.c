@@ -47,130 +47,130 @@ main(int argc, char** argv)
   void* mem;
   (void)argc, (void)argv;
 
-  CHECK(mem_init_proxy_allocator(&allocator, &mem_default_allocator), RES_OK);
+  CHK(mem_init_proxy_allocator(&allocator, &mem_default_allocator) == RES_OK);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
-  CHECK(ssol_param_buffer_create(NULL, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(dev, 0, NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(NULL, 0, &pbuf), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(dev, 0, &pbuf), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(NULL, 1024, NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(dev, 1024, NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(NULL, 1024, &pbuf), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_create(dev, 1024, &pbuf), RES_OK);
+  CHK(ssol_param_buffer_create(NULL, 0, NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(dev, 0, NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(NULL, 0, &pbuf) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(dev, 0, &pbuf) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(NULL, 1024, NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(dev, 1024, NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(NULL, 1024, &pbuf) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_create(dev, 1024, &pbuf) == RES_OK);
 
-  CHECK(ssol_param_buffer_get(pbuf), NULL);
+  CHK(ssol_param_buffer_get(pbuf) == NULL);
 
   sz = sizeof(intptr_t);
   al = ALIGNOF(intptr_t);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, 0, 0, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, 0, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, sz, 0, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, sz, 0, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, 0, al, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, 0, al, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(NULL, sz, al, NULL), NULL);
-  NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al, NULL), NULL);
+  CHK((mem = ssol_param_buffer_allocate(NULL, 0, 0, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, 0, 0, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(NULL, sz, 0, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, sz, 0, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(NULL, 0, al, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, 0, al, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(NULL, sz, al, NULL)) == NULL);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, sz, al, NULL)) != NULL);
 
   *(intptr_t*)mem = 0xDECAFBAD;
-  CHECK(*(intptr_t*)ssol_param_buffer_get(pbuf), 0xDECAFBAD);
+  CHK(*(intptr_t*)ssol_param_buffer_get(pbuf) == 0xDECAFBAD);
 
   *(intptr_t*)mem = 0XDEADBEEF;
-  CHECK(*(intptr_t*)ssol_param_buffer_get(pbuf), 0XDEADBEEF);
+  CHK(*(intptr_t*)ssol_param_buffer_get(pbuf) == 0XDEADBEEF);
 
-  CHECK(ssol_param_buffer_clear(NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
-  CHECK(ssol_param_buffer_get(pbuf), NULL);
+  CHK(ssol_param_buffer_clear(NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_clear(pbuf) == RES_OK);
+  CHK(ssol_param_buffer_get(pbuf) == NULL);
 
   sz = strlen("Foo") + 1;
   al = 4;
-  NCHECK(mem = ssol_param_buffer_allocate(pbuf, sz, al, NULL), NULL);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, sz, al, NULL)) != NULL);
   strcpy(mem, "Foo");
-  CHECK(strcmp(ssol_param_buffer_get(pbuf), "Foo"), 0);
+  CHK(strcmp(ssol_param_buffer_get(pbuf), "Foo") == 0);
   strcpy(mem, "Bar");
-  CHECK(strcmp(ssol_param_buffer_get(pbuf), "Bar"), 0);
-  CHECK(IS_ALIGNED(ssol_param_buffer_get(pbuf), al), 1);
+  CHK(strcmp(ssol_param_buffer_get(pbuf), "Bar") == 0);
+  CHK(IS_ALIGNED(ssol_param_buffer_get(pbuf), al) == 1);
 
-  CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
+  CHK(ssol_param_buffer_clear(pbuf) == RES_OK);
 
   sz = sizeof(struct param);
   al = ALIGNOF(struct param);
-  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, NULL), NULL);
-  NCHECK(param->name = ssol_param_buffer_allocate(pbuf, 7, 64, NULL), NULL);
+  CHK((param = ssol_param_buffer_allocate(pbuf, sz, al, NULL)) != NULL);
+  CHK((param->name = ssol_param_buffer_allocate(pbuf, 7, 64, NULL)) != NULL);
   strcpy(param->name, "0123456");
-  NCHECK(param->ptr = ssol_param_buffer_allocate(pbuf, 4, 16, NULL), NULL);
+  CHK((param->ptr = ssol_param_buffer_allocate(pbuf, 4, 16, NULL)) != NULL);
   param->d = PI;
   param->i = -123;
   param->img = NULL;
   strcpy(param->ptr, "abc");
 
-  NCHECK(param = ssol_param_buffer_get(pbuf), NULL);
-  CHECK(IS_ALIGNED(param, ALIGNOF(struct param)), 1);
-  CHECK(IS_ALIGNED(param->name, 64), 1);
-  CHECK(IS_ALIGNED(param->ptr, 16), 1);
-  CHECK(param->d, PI);
-  CHECK(param->i, -123);
-  CHECK(strcmp(param->name, "0123456"), 0);
-  CHECK(strcmp(param->ptr, "abc"), 0);
+  CHK((param = ssol_param_buffer_get(pbuf)) != NULL);
+  CHK(IS_ALIGNED(param, ALIGNOF(struct param)) == 1);
+  CHK(IS_ALIGNED(param->name, 64) == 1);
+  CHK(IS_ALIGNED(param->ptr, 16) == 1);
+  CHK(param->d == PI);
+  CHK(param->i == -123);
+  CHK(strcmp(param->name, "0123456") == 0);
+  CHK(strcmp(param->ptr, "abc") == 0);
 
-  CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
+  CHK(ssol_param_buffer_clear(pbuf) == RES_OK);
 
   sz = sizeof(struct param);
   al = ALIGNOF(struct param);
-  CHECK(ssol_image_create(dev, &img), RES_OK);
-  CHECK(ssol_image_setup(img, 1280, 720, SSOL_PIXEL_DOUBLE3), RES_OK);
-  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  CHK(ssol_image_create(dev, &img) == RES_OK);
+  CHK(ssol_image_setup(img, 1280, 720, SSOL_PIXEL_DOUBLE3) == RES_OK);
+  CHK((param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release)) != NULL);
   param->d = PI;
   param->i = -123;
   param->name = NULL;
   param->ptr = NULL;
   param->img = img;
-  CHECK(ssol_image_ref_get(img), RES_OK);
+  CHK(ssol_image_ref_get(img) == RES_OK);
 
-  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  CHK((param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release)) != NULL);
   param->d = 123.456;
   param->i = -1;
   param->name = NULL;
   param->ptr = NULL;
   param->img = img;
-  CHECK(ssol_image_ref_get(img), RES_OK);
+  CHK(ssol_image_ref_get(img) == RES_OK);
 
-  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  CHK((param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release)) != NULL);
   param->d = 0.1;
   param->i = 789;
   param->name = NULL;
   param->ptr = NULL;
   param->img = img;
-  CHECK(ssol_image_ref_get(img), RES_OK);
+  CHK(ssol_image_ref_get(img) == RES_OK);
 
-  CHECK(ssol_param_buffer_clear(pbuf), RES_OK);
+  CHK(ssol_param_buffer_clear(pbuf) == RES_OK);
 
-  NCHECK(param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release), NULL);
+  CHK((param = ssol_param_buffer_allocate(pbuf, sz, al, &param_release)) != NULL);
   param->d = 0.1;
   param->i = 789;
   param->name = NULL;
   param->ptr = NULL;
   param->img = img;
-  CHECK(ssol_image_ref_get(img), RES_OK);
+  CHK(ssol_image_ref_get(img) == RES_OK);
 
-  CHECK(ssol_param_buffer_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_ref_get(pbuf), RES_OK);
-  CHECK(ssol_param_buffer_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
-  CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
+  CHK(ssol_param_buffer_ref_get(NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_ref_get(pbuf) == RES_OK);
+  CHK(ssol_param_buffer_ref_put(NULL) == RES_BAD_ARG);
+  CHK(ssol_param_buffer_ref_put(pbuf) == RES_OK);
+  CHK(ssol_param_buffer_ref_put(pbuf) == RES_OK);
 
-  CHECK(ssol_param_buffer_create(dev, 8, &pbuf), RES_OK);
-  NCHECK(mem = ssol_param_buffer_allocate(pbuf, 2, 1, NULL), NULL);
-  CHECK(mem = ssol_param_buffer_allocate(pbuf, 1, 16, NULL), NULL);
+  CHK(ssol_param_buffer_create(dev, 8, &pbuf) == RES_OK);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, 2, 1, NULL)) != NULL);
+  CHK((mem = ssol_param_buffer_allocate(pbuf, 1, 16, NULL)) == NULL);
 
-  CHECK(ssol_image_ref_put(img), RES_OK);
-  CHECK(ssol_param_buffer_ref_put(pbuf), RES_OK);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
+  CHK(ssol_image_ref_put(img) == RES_OK);
+  CHK(ssol_param_buffer_ref_put(pbuf) == RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
   return 0;
 }

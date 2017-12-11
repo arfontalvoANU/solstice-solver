@@ -35,7 +35,7 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
 {
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
-  CHECK(i < 3, 1);
+  CHK(i < 3);
   (void)ctx;
   *wlen = wavelengths[i];
   *data = intensities[i];
@@ -54,8 +54,8 @@ write_RGB8
   size_t src_pitch = ssol_sizeof_pixel_format(fmt) * sz[0];
   size_t x, y;
 
-  CHECK(org[0] + sz[0] <= WIDTH, 1);
-  CHECK(org[1] + sz[1] <= HEIGHT, 1);
+  CHK(org[0] + sz[0] <= WIDTH);
+  CHK(org[1] + sz[1] <= HEIGHT);
 
   FOR_EACH(y, 0, sz[1]) {
     unsigned char* row_dst = img + (y + org[1]) * PITCH;
@@ -136,8 +136,8 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
 
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
-  CHECK(ssol_material_create_matte(dev, &mtl), RES_OK);
-  CHECK(ssol_matte_setup(mtl, &shader), RES_OK);
+  CHK(ssol_material_create_matte(dev, &mtl) == RES_OK);
+  CHK(ssol_matte_setup(mtl, &shader) == RES_OK);
 
   vdata.usage = SSOL_POSITION;
   vdata.get = get_position;
@@ -145,45 +145,45 @@ setup_cornell_box(struct ssol_device* dev, struct ssol_scene* scn)
   desc.vertices = walls;
   desc.indices = walls_ids;
 
-  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
-  CHECK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc), RES_OK);
-  CHECK(ssol_object_create(dev, &obj), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(obj, shape, mtl, mtl), RES_OK);
-  CHECK(ssol_object_instantiate(obj, &inst), RES_OK);
-  CHECK(ssol_scene_attach_instance(scn, inst), RES_OK);
-  CHECK(ssol_instance_ref_put(inst), RES_OK);
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-  CHECK(ssol_object_ref_put(obj), RES_OK);
+  CHK(ssol_shape_create_mesh(dev, &shape) == RES_OK);
+  CHK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc) == RES_OK);
+  CHK(ssol_object_create(dev, &obj) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(obj, shape, mtl, mtl) == RES_OK);
+  CHK(ssol_object_instantiate(obj, &inst) == RES_OK);
+  CHK(ssol_scene_attach_instance(scn, inst) == RES_OK);
+  CHK(ssol_instance_ref_put(inst) == RES_OK);
+  CHK(ssol_shape_ref_put(shape) == RES_OK);
+  CHK(ssol_object_ref_put(obj) == RES_OK);
 
   desc.vertices = short_block;
   desc.indices = block_ids;
-  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
-  CHECK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc), RES_OK);
-  CHECK(ssol_object_create(dev, &obj), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(obj, shape, mtl, mtl), RES_OK);
-  CHECK(ssol_object_instantiate(obj, &inst), RES_OK);
-  CHECK(ssol_scene_attach_instance(scn, inst), RES_OK);
-  CHECK(ssol_instance_ref_put(inst), RES_OK);
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-  CHECK(ssol_object_ref_put(obj), RES_OK);
+  CHK(ssol_shape_create_mesh(dev, &shape) == RES_OK);
+  CHK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc) == RES_OK);
+  CHK(ssol_object_create(dev, &obj) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(obj, shape, mtl, mtl) == RES_OK);
+  CHK(ssol_object_instantiate(obj, &inst) == RES_OK);
+  CHK(ssol_scene_attach_instance(scn, inst) == RES_OK);
+  CHK(ssol_instance_ref_put(inst) == RES_OK);
+  CHK(ssol_shape_ref_put(shape) == RES_OK);
+  CHK(ssol_object_ref_put(obj) == RES_OK);
 
   desc.vertices = tall_block;
   desc.indices = block_ids;
-  CHECK(ssol_shape_create_mesh(dev, &shape), RES_OK);
-  CHECK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc), RES_OK);
-  CHECK(ssol_object_create(dev, &obj), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(obj, shape, mtl, mtl), RES_OK);
-  CHECK(ssol_object_instantiate(obj, &inst), RES_OK);
-  CHECK(ssol_scene_attach_instance(scn, inst), RES_OK);
-  CHECK(ssol_instance_ref_put(inst), RES_OK);
-  CHECK(ssol_shape_ref_put(shape), RES_OK);
-  CHECK(ssol_object_ref_put(obj), RES_OK);
+  CHK(ssol_shape_create_mesh(dev, &shape) == RES_OK);
+  CHK(ssol_mesh_setup(shape, 10, get_ids, 8, &vdata, 1, &desc) == RES_OK);
+  CHK(ssol_object_create(dev, &obj) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(obj, shape, mtl, mtl) == RES_OK);
+  CHK(ssol_object_instantiate(obj, &inst) == RES_OK);
+  CHK(ssol_scene_attach_instance(scn, inst) == RES_OK);
+  CHK(ssol_instance_ref_put(inst) == RES_OK);
+  CHK(ssol_shape_ref_put(shape) == RES_OK);
+  CHK(ssol_object_ref_put(obj) == RES_OK);
 
-  CHECK(ssol_material_ref_put(mtl), RES_OK);
+  CHK(ssol_material_ref_put(mtl) == RES_OK);
 
-  CHECK(ssol_scene_compute_aabb(scn, lower, upper), RES_OK);
-  CHECK(f3_eq_eps(lower, f3(tmp, 0, 0, 0), 1.e-6f), 1);
-  CHECK(f3_eq_eps(upper, f3(tmp, 552.f, 559.f, 548.f), 1.e-6f), 1);
+  CHK(ssol_scene_compute_aabb(scn, lower, upper) == RES_OK);
+  CHK(f3_eq_eps(lower, f3(tmp, 0, 0, 0), 1.e-6f) == 1);
+  CHK(f3_eq_eps(upper, f3(tmp, 552.f, 559.f, 548.f), 1.e-6f) == 1);
 }
 
 
@@ -242,121 +242,121 @@ main(int argc, char** argv)
     return -1;
   }
 
-  CHECK(mem_init_proxy_allocator(&allocator, &mem_default_allocator), RES_OK);
+  CHK(mem_init_proxy_allocator(&allocator, &mem_default_allocator) == RES_OK);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
-  CHECK(ssol_scene_create(dev, &scn), RES_OK);
+  CHK(ssol_scene_create(dev, &scn) == RES_OK);
 
   setup_cornell_box(dev, scn);
 
-  CHECK(ssol_camera_create(dev, &cam), RES_OK);
-  CHECK(ssol_camera_set_proj_ratio(cam, PROJ_RATIO), RES_OK);
-  CHECK(ssol_camera_set_fov(cam, PI/4.0), RES_OK);
-  CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_OK);
+  CHK(ssol_camera_create(dev, &cam) == RES_OK);
+  CHK(ssol_camera_set_proj_ratio(cam, PROJ_RATIO) == RES_OK);
+  CHK(ssol_camera_set_fov(cam, PI/4.0) == RES_OK);
+  CHK(ssol_camera_look_at(cam, pos, tgt, up) == RES_OK);
 
   d3(dir, 1, 1, -1);
   d3_normalize(dir, dir);
-  CHECK(ssol_sun_create_directional(dev, &sun), RES_OK);
-  CHECK(ssol_sun_set_direction(sun, dir), RES_OK);
-  CHECK(ssol_sun_set_dni(sun, 1000), RES_OK);
-  CHECK(ssol_scene_attach_sun(scn, sun), RES_OK);
+  CHK(ssol_sun_create_directional(dev, &sun) == RES_OK);
+  CHK(ssol_sun_set_direction(sun, dir) == RES_OK);
+  CHK(ssol_sun_set_dni(sun, 1000) == RES_OK);
+  CHK(ssol_scene_attach_sun(scn, sun) == RES_OK);
 
   pitch = WIDTH * sizeof_image_format(IMAGE_RGB8);
   image_init(&allocator, &img);
   image_setup(&img, WIDTH, HEIGHT, pitch, IMAGE_RGB8, NULL);
   pixels = (uint8_t*)img.pixels;
 
-  CHECK(draw_func(NULL, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, 0, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 0, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, 0, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 0, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, 0, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, NULL, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, WIDTH, 0, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, cam, 0, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
-  CHECK(draw_func(NULL, cam, WIDTH, WIDTH, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, 0, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, WIDTH, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, HEIGHT, 0, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, 0, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, WIDTH, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, HEIGHT, 0, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, 0, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, WIDTH, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, HEIGHT, 4, NULL, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, 0, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, 0, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, 0, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, 0, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, cam, 0, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(scn, NULL, WIDTH, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
+  CHK(draw_func(NULL, cam, WIDTH, WIDTH, 4, write_RGB8, pixels) == RES_BAD_ARG);
 
   /* No sun spectrum */
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_BAD_ARG);
+  CHK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels) == RES_BAD_ARG);
 
-  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
-  CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
-  CHECK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels), RES_OK);
+  CHK(ssol_spectrum_create(dev, &spectrum) == RES_OK);
+  CHK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL) == RES_OK);
+  CHK(ssol_sun_set_spectrum(sun, spectrum) == RES_OK);
+  CHK(draw_func(scn, cam, WIDTH, HEIGHT, 4, write_RGB8, pixels) == RES_OK);
 
-  CHECK(image_write_ppm_stream(&img, 0, stdout), RES_OK);
+  CHK(image_write_ppm_stream(&img, 0, stdout) == RES_OK);
 
   if(draw_func == draw_pt) {
-    CHECK(ssol_draw_pt
-      (scn, cam, WIDTH, HEIGHT, 4, NULL, write_RGB8, pixels), RES_BAD_ARG);
+    CHK(ssol_draw_pt
+      (scn, cam, WIDTH, HEIGHT, 4, NULL, write_RGB8, pixels) == RES_BAD_ARG);
   }
 
-  CHECK(image_release(&img), RES_OK);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
-  CHECK(ssol_camera_ref_put(cam), RES_OK);
-  CHECK(ssol_scene_ref_put(scn), RES_OK);
-  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
-  CHECK(ssol_sun_ref_put(sun), RES_OK);
+  CHK(image_release(&img) == RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
+  CHK(ssol_camera_ref_put(cam) == RES_OK);
+  CHK(ssol_scene_ref_put(scn) == RES_OK);
+  CHK(ssol_spectrum_ref_put(spectrum) == RES_OK);
+  CHK(ssol_sun_ref_put(sun) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
   return 0;
 }
 

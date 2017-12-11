@@ -31,13 +31,13 @@ check_sampling(struct ssol_device* dev)
   double pix[3];
   double tmp[3];
 
-  CHECK(ssol_image_create(dev, &img), RES_OK);
-  CHECK(ssol_image_setup(img, 4, 2, SSOL_PIXEL_DOUBLE3), RES_OK);
-  CHECK(ssol_image_get_layout(img, &layout), RES_OK);
+  CHK(ssol_image_create(dev, &img) == RES_OK);
+  CHK(ssol_image_setup(img, 4, 2, SSOL_PIXEL_DOUBLE3) == RES_OK);
+  CHK(ssol_image_get_layout(img, &layout) == RES_OK);
 
   pixsz = ssol_sizeof_pixel_format(layout.pixel_format);
 
-  CHECK(ssol_image_map(img, &mem), RES_OK);
+  CHK(ssol_image_map(img, &mem) == RES_OK);
   d3((double*)(mem + layout.offset + 0*pixsz + 0*layout.row_pitch), 1, 0, 0);
   d3((double*)(mem + layout.offset + 1*pixsz + 0*layout.row_pitch), 1, 0, 0);
   d3((double*)(mem + layout.offset + 2*pixsz + 0*layout.row_pitch), 1, 1, 0);
@@ -46,7 +46,7 @@ check_sampling(struct ssol_device* dev)
   d3((double*)(mem + layout.offset + 1*pixsz + 1*layout.row_pitch), 1, 0, 1);
   d3((double*)(mem + layout.offset + 2*pixsz + 1*layout.row_pitch), 0, 1, 1);
   d3((double*)(mem + layout.offset + 3*pixsz + 1*layout.row_pitch), 0, 1, 1);
-  CHECK(ssol_image_unmap(img), RES_OK);
+  CHK(ssol_image_unmap(img) == RES_OK);
 
   #define CLAMPED SSOL_ADDRESS_CLAMP
   #define REPEAT SSOL_ADDRESS_REPEAT
@@ -54,54 +54,54 @@ check_sampling(struct ssol_device* dev)
   #define LINEAR SSOL_FILTER_LINEAR
 
   d2_splat(uv, 0);
-  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, uv, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, NULL, pix), RES_BAD_ARG);
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, NULL, pix), RES_BAD_ARG);
-  CHECK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_BAD_ARG);
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+  CHK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, uv, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, NULL, pix) == RES_BAD_ARG);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, NULL, pix) == RES_BAD_ARG);
+  CHK(ssol_image_sample(NULL, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_BAD_ARG);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,0,0)) == 1);
 
   uv[0] = 1.0/4.0;
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,0,0)) == 1);
   uv[0] = 2.0/4.0;
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,1,0)) == 1);
   uv[0] = 3.0/4.0;
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,1,0)) == 1);
 
   uv[0] = -1.0/4.0;
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
-  CHECK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,0,0)) == 1);
+  CHK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,1,0)) == 1);
   uv[0] = 4.0/4.0;
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
-  CHECK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,1,0)) == 1);
+  CHK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,0,0)) == 1);
 
   uv[1] = 1.0/2.0;
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,0,1,1)), 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,0,1,1)) == 1);
   uv[1] = 2.0/2.0;
-  CHECK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,0,1)), 1);
-  CHECK(ssol_image_sample(img, NEAREST, REPEAT, REPEAT, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,0,0)), 1);
-  CHECK(ssol_image_sample(img, NEAREST, CLAMPED, REPEAT, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,1,1,0)), 1);
+  CHK(ssol_image_sample(img, NEAREST, REPEAT, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,0,1)) == 1);
+  CHK(ssol_image_sample(img, NEAREST, REPEAT, REPEAT, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,0,0)) == 1);
+  CHK(ssol_image_sample(img, NEAREST, CLAMPED, REPEAT, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,1,1,0)) == 1);
 
   uv[0] = 1.0/4.0 + 1.0/8.0;
   uv[1] = 0.0/2.0 + 1.0/4.0;
-  CHECK(ssol_image_sample(img, LINEAR, CLAMPED, CLAMPED, uv, pix), RES_OK);
-  CHECK(d3_eq(pix, d3(tmp,0.75,0.5,0.5)), 1);
+  CHK(ssol_image_sample(img, LINEAR, CLAMPED, CLAMPED, uv, pix) == RES_OK);
+  CHK(d3_eq(pix, d3(tmp,0.75,0.5,0.5)) == 1);
 
-  CHECK(ssol_image_ref_put(img), RES_OK);
+  CHK(ssol_image_ref_put(img) == RES_OK);
 }
 
 int
@@ -120,74 +120,74 @@ main(int argc, char** argv)
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
-  CHECK(ssol_image_create(dev, &img), RES_OK);
+  CHK(ssol_image_create(dev, &img) == RES_OK);
 
-  CHECK(ssol_image_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_image_ref_get(img), RES_OK);
+  CHK(ssol_image_ref_get(NULL) == RES_BAD_ARG);
+  CHK(ssol_image_ref_get(img) == RES_OK);
 
-  CHECK(ssol_image_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_image_ref_put(img), RES_OK);
+  CHK(ssol_image_ref_put(NULL) == RES_BAD_ARG);
+  CHK(ssol_image_ref_put(img) == RES_OK);
 
-  CHECK(ssol_image_setup(NULL, 128, 128, SSOL_PIXEL_DOUBLE3), RES_BAD_ARG);
-  CHECK(ssol_image_setup(img, 0, 128, SSOL_PIXEL_DOUBLE3), RES_BAD_ARG);
-  CHECK(ssol_image_setup(img, 32, 32, (enum ssol_pixel_format)99), RES_BAD_ARG);
-  CHECK(ssol_image_setup(img, 128, 128, SSOL_PIXEL_DOUBLE3), RES_OK);
-  CHECK(ssol_image_setup(img, 128, 128, SSOL_PIXEL_DOUBLE3), RES_OK);
-  CHECK(ssol_image_setup(img, 16, 16, SSOL_PIXEL_DOUBLE3), RES_OK);
+  CHK(ssol_image_setup(NULL, 128, 128, SSOL_PIXEL_DOUBLE3) == RES_BAD_ARG);
+  CHK(ssol_image_setup(img, 0, 128, SSOL_PIXEL_DOUBLE3) == RES_BAD_ARG);
+  CHK(ssol_image_setup(img, 32, 32, (enum ssol_pixel_format)99) == RES_BAD_ARG);
+  CHK(ssol_image_setup(img, 128, 128, SSOL_PIXEL_DOUBLE3) == RES_OK);
+  CHK(ssol_image_setup(img, 128, 128, SSOL_PIXEL_DOUBLE3) == RES_OK);
+  CHK(ssol_image_setup(img, 16, 16, SSOL_PIXEL_DOUBLE3) == RES_OK);
 
   org[0] = 0, org[1] = 0;
   sz[0] = 8, sz[1] = 8;
   #define WRITE ssol_image_write
   FOR_EACH(i, 0, sizeof(block)/sizeof(double)) block[i] = 1.0;
-  CHECK(WRITE(NULL, NULL, NULL, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(img, NULL, NULL, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(NULL, org, NULL, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(img, org, NULL, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(NULL, NULL, sz, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(img, NULL, sz, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(NULL, org, sz, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, NULL), RES_BAD_ARG);
-  CHECK(WRITE(NULL, NULL, NULL, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(img, NULL, NULL, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(NULL, org, NULL, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(img, org, NULL, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(NULL, NULL, sz, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(img, NULL, sz, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(NULL, org, sz, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
-  CHECK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block), RES_OK);
+  CHK(WRITE(NULL, NULL, NULL, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(img, NULL, NULL, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(NULL, org, NULL, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(img, org, NULL, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(NULL, NULL, sz, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(img, NULL, sz, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(NULL, org, sz, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, NULL) == RES_BAD_ARG);
+  CHK(WRITE(NULL, NULL, NULL, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(img, NULL, NULL, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(NULL, org, NULL, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(img, org, NULL, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(NULL, NULL, sz, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(img, NULL, sz, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(NULL, org, sz, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
+  CHK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block) == RES_OK);
 
   org[0] = 14, org[1] = 0;
-  CHECK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block), RES_BAD_ARG);
+  CHK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block) == RES_BAD_ARG);
   org[0] = 8, org[1] = 0;
   FOR_EACH(i, 0, sizeof(block)/sizeof(double)) block[i] = 2.0;
-  CHECK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block), RES_OK);
+  CHK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block) == RES_OK);
   org[0] = 0, org[1] = 8;
   FOR_EACH(i, 0, sizeof(block)/sizeof(double)) block[i] = 3.0;
-  CHECK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block), RES_OK);
+  CHK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block) == RES_OK);
   org[0] = 8, org[1] = 8;
   FOR_EACH(i, 0, sizeof(block)/sizeof(double)) block[i] = 4.0;
-  CHECK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block), RES_OK);
+  CHK(WRITE(img, org, sz, SSOL_PIXEL_DOUBLE3, block) == RES_OK);
   #undef WRITE
 
-  CHECK(ssol_image_get_layout(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_get_layout(img, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_get_layout(NULL, &layout), RES_BAD_ARG);
-  CHECK(ssol_image_get_layout(img, &layout), RES_OK);
+  CHK(ssol_image_get_layout(NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_get_layout(img, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_get_layout(NULL, &layout) == RES_BAD_ARG);
+  CHK(ssol_image_get_layout(img, &layout) == RES_OK);
 
-  CHECK(layout.size > layout.offset, 1);
-  CHECK(layout.width, 16);
-  CHECK(layout.height, 16);
-  CHECK(layout.size - layout.offset >= 16*16, 1);
-  CHECK(layout.row_pitch >= 16, 1);
-  CHECK(layout.pixel_format, SSOL_PIXEL_DOUBLE3);
+  CHK(layout.size > layout.offset);
+  CHK(layout.width == 16);
+  CHK(layout.height == 16);
+  CHK(layout.size - layout.offset >= 16*16);
+  CHK(layout.row_pitch >= 16);
+  CHK(layout.pixel_format == SSOL_PIXEL_DOUBLE3);
 
-  CHECK(ssol_image_map(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_map(img, NULL), RES_BAD_ARG);
-  CHECK(ssol_image_map(NULL, &mem), RES_BAD_ARG);
-  CHECK(ssol_image_map(img, &mem), RES_OK);
+  CHK(ssol_image_map(NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_map(img, NULL) == RES_BAD_ARG);
+  CHK(ssol_image_map(NULL, &mem) == RES_BAD_ARG);
+  CHK(ssol_image_map(img, &mem) == RES_OK);
 
   FOR_EACH(y, 0, layout.height) {
     const double* row = (const double*)
@@ -196,38 +196,38 @@ main(int argc, char** argv)
       const double* pixel = row + x*3;
       if(y < 8) {
         if(x < 8) {
-          CHECK(pixel[0], 1);
-          CHECK(pixel[1], 1);
-          CHECK(pixel[2], 1);
+          CHK(pixel[0] == 1);
+          CHK(pixel[1] == 1);
+          CHK(pixel[2] == 1);
         } else {
-          CHECK(pixel[0], 2);
-          CHECK(pixel[1], 2);
-          CHECK(pixel[2], 2);
+          CHK(pixel[0] == 2);
+          CHK(pixel[1] == 2);
+          CHK(pixel[2] == 2);
         }
       } else {
         if(x < 8) {
-          CHECK(pixel[0], 3);
-          CHECK(pixel[1], 3);
-          CHECK(pixel[2], 3);
+          CHK(pixel[0] == 3);
+          CHK(pixel[1] == 3);
+          CHK(pixel[2] == 3);
         } else {
-          CHECK(pixel[0], 4);
-          CHECK(pixel[1], 4);
-          CHECK(pixel[2], 4);
+          CHK(pixel[0] == 4);
+          CHK(pixel[1] == 4);
+          CHK(pixel[2] == 4);
         }
       }
     }
   }
-  CHECK(ssol_image_unmap(NULL), RES_BAD_ARG);
-  CHECK(ssol_image_unmap(img), RES_OK);
+  CHK(ssol_image_unmap(NULL) == RES_BAD_ARG);
+  CHK(ssol_image_unmap(img) == RES_OK);
 
-  CHECK(ssol_image_ref_put(img), RES_OK);
+  CHK(ssol_image_ref_put(img) == RES_OK);
 
   check_sampling(dev);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
 
   return 0;
 }

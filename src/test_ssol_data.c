@@ -21,8 +21,8 @@
 static void
 get_wlen(const size_t i, double* wlen, double* data, void* ctx)
 {
-  NCHECK(wlen, NULL);
-  NCHECK(data, NULL);
+  CHK(wlen != NULL);
+  CHK(data != NULL);
   *wlen = (double)(i+1);
   *data = (double)(i+2);
   (void)ctx;
@@ -38,48 +38,48 @@ main(int argc, char** argv)
   size_t i;
   (void)argc, (void)argv;
 
-  CHECK(mem_init_proxy_allocator(&allocator, &mem_default_allocator), RES_OK);
+  CHK(mem_init_proxy_allocator(&allocator, &mem_default_allocator) == RES_OK);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
-  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 10, NULL), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
+  CHK(ssol_spectrum_create(dev, &spectrum) == RES_OK);
+  CHK(ssol_spectrum_setup(spectrum, get_wlen, 10, NULL) == RES_OK);
 
-  CHECK(ssol_data_get_value(&data, 1), ssol_data_get_value(&SSOL_DATA_NULL, 1));
-  CHECK(ssol_data_get_value(&data, 4), ssol_data_get_value(&SSOL_DATA_NULL, 4));
-  CHECK(ssol_data_get_value(&data, 2), ssol_data_get_value(&SSOL_DATA_NULL, 2));
-  CHECK(ssol_data_get_value(&data, 7), ssol_data_get_value(&SSOL_DATA_NULL, 7));
+  CHK(ssol_data_get_value(&data, 1) == ssol_data_get_value(&SSOL_DATA_NULL, 1));
+  CHK(ssol_data_get_value(&data, 4) == ssol_data_get_value(&SSOL_DATA_NULL, 4));
+  CHK(ssol_data_get_value(&data, 2) == ssol_data_get_value(&SSOL_DATA_NULL, 2));
+  CHK(ssol_data_get_value(&data, 7) == ssol_data_get_value(&SSOL_DATA_NULL, 7));
 
-  CHECK(ssol_data_set_real(&data, 1.25), &data);
-  CHECK(ssol_data_get_value(&data, 1), 1.25);
-  CHECK(ssol_data_get_value(&data, 1.234), 1.25);
-  CHECK(data.type, SSOL_DATA_REAL);
-  CHECK(data.value.real, 1.25);
+  CHK(ssol_data_set_real(&data, 1.25) == &data);
+  CHK(ssol_data_get_value(&data, 1) == 1.25);
+  CHK(ssol_data_get_value(&data, 1.234) == 1.25);
+  CHK(data.type == SSOL_DATA_REAL);
+  CHK(data.value.real == 1.25);
 
-  CHECK(ssol_data_set_spectrum(&data, spectrum), &data);
-  CHECK(ssol_data_set_spectrum(&data, spectrum), &data);
+  CHK(ssol_data_set_spectrum(&data, spectrum) == &data);
+  CHK(ssol_data_set_spectrum(&data, spectrum) == &data);
 
-  CHECK(data.type, SSOL_DATA_SPECTRUM);
-  CHECK(data.value.spectrum, spectrum);
-  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
+  CHK(data.type == SSOL_DATA_SPECTRUM);
+  CHK(data.value.spectrum == spectrum);
+  CHK(ssol_spectrum_ref_put(spectrum) == RES_OK);
 
   FOR_EACH(i, 0, 10) {
-    CHECK(ssol_data_get_value(&data, (double)(i+1)), (double)(i+2));
+    CHK(ssol_data_get_value(&data, (double)(i+1)) == (double)(i+2));
   }
 
-  CHECK(eq_eps(ssol_data_get_value(&data, 1.5), 2.5, 1.e-6), 1);
-  CHECK(eq_eps(ssol_data_get_value(&data, 1.25), 2.25, 1.e-6), 1);
-  CHECK(ssol_data_get_value(&data, 0.5), 2);
-  CHECK(ssol_data_get_value(&data, 0.1), 2);
-  CHECK(ssol_data_get_value(&data, 10), 11);
-  CHECK(ssol_data_get_value(&data, 10.1), 11);
+  CHK(eq_eps(ssol_data_get_value(&data, 1.5), 2.5, 1.e-6) == 1);
+  CHK(eq_eps(ssol_data_get_value(&data, 1.25), 2.25, 1.e-6) == 1);
+  CHK(ssol_data_get_value(&data, 0.5) == 2);
+  CHK(ssol_data_get_value(&data, 0.1) == 2);
+  CHK(ssol_data_get_value(&data, 10) == 11);
+  CHK(ssol_data_get_value(&data, 10.1) == 11);
 
-  CHECK(ssol_device_ref_put(dev), RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
   ssol_data_clear(&data);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
   return 0;
 }
 

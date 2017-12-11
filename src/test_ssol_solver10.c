@@ -46,7 +46,7 @@ get_wlen(const size_t i, double* wlen, double* data, void* ctx)
 {
   double wavelengths[3] = { 1, 2, 3 };
   double intensities[3] = { 1, 0.8, 1 };
-  CHECK(i < 3, 1);
+  CHK(i < 3);
   (void) ctx;
   *wlen = wavelengths[i];
   *data = intensities[i];
@@ -87,62 +87,62 @@ main(int argc, char** argv)
 
   d33_set_identity(transform);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
 #define DNI 1000
-  CHECK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng), RES_OK);
-  CHECK(ssol_spectrum_create(dev, &spectrum), RES_OK);
-  CHECK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL), RES_OK);
-  CHECK(ssol_sun_create_pillbox(dev, &sun), RES_OK);
-  CHECK(ssol_sun_pillbox_set_half_angle(sun, 1), RES_OK);
-  CHECK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)), RES_OK);
-  CHECK(ssol_sun_set_spectrum(sun, spectrum), RES_OK);
-  CHECK(ssol_sun_set_dni(sun, DNI), RES_OK);
-  CHECK(ssol_scene_create(dev, &scene), RES_OK);
-  CHECK(ssol_scene_attach_sun(scene, sun), RES_OK);
+  CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng) == RES_OK);
+  CHK(ssol_spectrum_create(dev, &spectrum) == RES_OK);
+  CHK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL) == RES_OK);
+  CHK(ssol_sun_create_pillbox(dev, &sun) == RES_OK);
+  CHK(ssol_sun_pillbox_set_half_angle(sun, 1) == RES_OK);
+  CHK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)) == RES_OK);
+  CHK(ssol_sun_set_spectrum(sun, spectrum) == RES_OK);
+  CHK(ssol_sun_set_dni(sun, DNI) == RES_OK);
+  CHK(ssol_scene_create(dev, &scene) == RES_OK);
+  CHK(ssol_scene_attach_sun(scene, sun) == RES_OK);
 
   /* Create scene content */
 
-  CHECK(ssol_shape_create_mesh(dev, &square), RES_OK);
+  CHK(ssol_shape_create_mesh(dev, &square) == RES_OK);
   attribs[0].usage = SSOL_POSITION;
   attribs[0].get = get_position;
-  CHECK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
-    SQUARE_NVERTS__, attribs, 1, (void*) &SQUARE_DESC__), RES_OK);
+  CHK(ssol_mesh_setup(square, SQUARE_NTRIS__, get_ids,
+    SQUARE_NVERTS__, attribs, 1, (void*) &SQUARE_DESC__) == RES_OK);
 
-  CHECK(ssol_material_create_matte(dev, &m_mtl), RES_OK);
+  CHK(ssol_material_create_matte(dev, &m_mtl) == RES_OK);
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity_2;
-  CHECK(ssol_matte_setup(m_mtl, &shader), RES_OK);
+  CHK(ssol_matte_setup(m_mtl, &shader) == RES_OK);
 
-  CHECK(ssol_object_create(dev, &m_object), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(m_object, square, m_mtl, m_mtl), RES_OK);
-  CHECK(ssol_object_instantiate(m_object, &geom1), RES_OK);
-  CHECK(ssol_instance_set_receiver(geom1, SSOL_FRONT, 0), RES_OK);
+  CHK(ssol_object_create(dev, &m_object) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(m_object, square, m_mtl, m_mtl) == RES_OK);
+  CHK(ssol_object_instantiate(m_object, &geom1) == RES_OK);
+  CHK(ssol_instance_set_receiver(geom1, SSOL_FRONT, 0) == RES_OK);
   d3_splat(transform + 9, 0);
   transform[9] = -10;
-  CHECK(ssol_instance_set_transform(geom1, transform), RES_OK);
-  CHECK(ssol_scene_attach_instance(scene, geom1), RES_OK);
+  CHK(ssol_instance_set_transform(geom1, transform) == RES_OK);
+  CHK(ssol_scene_attach_instance(scene, geom1) == RES_OK);
 
 #define N1__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
-  CHECK(ssol_solve(scene, rng, N1__, 0, NULL, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
-  CHECK(count, N1__);
-  CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
-  CHECK(count, 0);
+  CHK(ssol_solve(scene, rng, N1__, 0, NULL, &estimator) == RES_OK);
+  CHK(ssol_estimator_get_realisation_count(estimator, &count) == RES_OK);
+  CHK(count == N1__);
+  CHK(ssol_estimator_get_failed_count(estimator, &count) == RES_OK);
+  CHK(count == 0);
 #define DNI_S (DNI * X_SZ * Y_SZ)
-  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global1), RES_OK);
-  CHECK(GET_MC_RCV(estimator, geom1, SSOL_FRONT, &mc_rcv1), RES_OK);
+  CHK(ssol_estimator_get_mc_global(estimator, &mc_global1) == RES_OK);
+  CHK(GET_MC_RCV(estimator, geom1, SSOL_FRONT, &mc_rcv1) == RES_OK);
 
   PRINT_GLOBAL(mc_global1);
   PRINT_RCV(mc_rcv1);
-  CHECK(mc_global1.cos_factor.E, 1);
-  CHECK(mc_global1.cos_factor.SE, 0);
-  CHECK(mc_global1.absorbed_by_receivers.E, DNI_S);
-  CHECK(mc_global1.absorbed_by_receivers.SE, 0);
+  CHK(mc_global1.cos_factor.E == 1);
+  CHK(mc_global1.cos_factor.SE == 0);
+  CHK(mc_global1.absorbed_by_receivers.E == DNI_S);
+  CHK(mc_global1.absorbed_by_receivers.SE == 0);
 
-  CHECK(ssol_shape_create_punched_surface(dev, &parabol), RES_OK);
+  CHK(ssol_shape_create_punched_surface(dev, &parabol) == RES_OK);
   carving.get = get_polygon_vertices;
   carving.operation = SSOL_AND;
   carving.nb_vertices = POLY_NVERTS__;
@@ -152,51 +152,51 @@ main(int argc, char** argv)
   punched.nb_carvings = 1;
   punched.quadric = &quadric;
   punched.carvings = &carving;
-  CHECK(ssol_punched_surface_setup(parabol, &punched), RES_OK);
+  CHK(ssol_punched_surface_setup(parabol, &punched) == RES_OK);
 
-  CHECK(ssol_object_create(dev, &q_object), RES_OK);
-  CHECK(ssol_object_add_shaded_shape(q_object, parabol, m_mtl, m_mtl), RES_OK);
-  CHECK(ssol_object_instantiate(q_object, &geom2), RES_OK);
-  CHECK(ssol_instance_set_receiver(geom2, SSOL_FRONT, 0), RES_OK);
+  CHK(ssol_object_create(dev, &q_object) == RES_OK);
+  CHK(ssol_object_add_shaded_shape(q_object, parabol, m_mtl, m_mtl) == RES_OK);
+  CHK(ssol_object_instantiate(q_object, &geom2) == RES_OK);
+  CHK(ssol_instance_set_receiver(geom2, SSOL_FRONT, 0) == RES_OK);
   d3_splat(transform + 9, 0);
   transform[9] = +10;
-  CHECK(ssol_instance_set_transform(geom2, transform), RES_OK);
-  CHECK(ssol_scene_attach_instance(scene, geom2), RES_OK);
+  CHK(ssol_instance_set_transform(geom2, transform) == RES_OK);
+  CHK(ssol_scene_attach_instance(scene, geom2) == RES_OK);
 
-  CHECK(ssol_scene_detach_instance(scene, geom1), RES_OK);
-  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
+  CHK(ssol_scene_detach_instance(scene, geom1) == RES_OK);
+  CHK(ssol_estimator_ref_put(estimator) == RES_OK);
 
 #define N2__ 100000
-  CHECK(ssol_solve(scene, rng, N2__, 0, NULL, &estimator), RES_OK);
-  CHECK(ssol_estimator_get_realisation_count(estimator, &count), RES_OK);
-  CHECK(count, N2__);
-  CHECK(ssol_estimator_get_failed_count(estimator, &count), RES_OK);
-  CHECK(count, 0);
-  CHECK(ssol_estimator_get_mc_global(estimator, &mc_global2), RES_OK);
-  CHECK(GET_MC_RCV(estimator, geom2, SSOL_FRONT, &mc_rcv2), RES_OK);
+  CHK(ssol_solve(scene, rng, N2__, 0, NULL, &estimator) == RES_OK);
+  CHK(ssol_estimator_get_realisation_count(estimator, &count) == RES_OK);
+  CHK(count == N2__);
+  CHK(ssol_estimator_get_failed_count(estimator, &count) == RES_OK);
+  CHK(count == 0);
+  CHK(ssol_estimator_get_mc_global(estimator, &mc_global2) == RES_OK);
+  CHK(GET_MC_RCV(estimator, geom2, SSOL_FRONT, &mc_rcv2) == RES_OK);
 
   PRINT_GLOBAL(mc_global2);
   PRINT_RCV(mc_rcv2);
-  CHECK(eq_eps(mc_global2.absorbed_by_receivers.E, DNI_S, 3 * mc_global2.absorbed_by_receivers.SE), 1);
+  CHK(eq_eps(mc_global2.absorbed_by_receivers.E, DNI_S, 3 * mc_global2.absorbed_by_receivers.SE) == 1);
 
   /* Free data */
-  CHECK(ssol_instance_ref_put(geom1), RES_OK);
-  CHECK(ssol_instance_ref_put(geom2), RES_OK);
-  CHECK(ssol_object_ref_put(m_object), RES_OK);
-  CHECK(ssol_object_ref_put(q_object), RES_OK);
-  CHECK(ssol_shape_ref_put(square), RES_OK);
-  CHECK(ssol_shape_ref_put(parabol), RES_OK);
-  CHECK(ssol_material_ref_put(m_mtl), RES_OK);
-  CHECK(ssol_estimator_ref_put(estimator), RES_OK);
-  CHECK(ssol_device_ref_put(dev), RES_OK);
-  CHECK(ssol_scene_ref_put(scene), RES_OK);
-  CHECK(ssp_rng_ref_put(rng), RES_OK);
-  CHECK(ssol_spectrum_ref_put(spectrum), RES_OK);
-  CHECK(ssol_sun_ref_put(sun), RES_OK);
+  CHK(ssol_instance_ref_put(geom1) == RES_OK);
+  CHK(ssol_instance_ref_put(geom2) == RES_OK);
+  CHK(ssol_object_ref_put(m_object) == RES_OK);
+  CHK(ssol_object_ref_put(q_object) == RES_OK);
+  CHK(ssol_shape_ref_put(square) == RES_OK);
+  CHK(ssol_shape_ref_put(parabol) == RES_OK);
+  CHK(ssol_material_ref_put(m_mtl) == RES_OK);
+  CHK(ssol_estimator_ref_put(estimator) == RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
+  CHK(ssol_scene_ref_put(scene) == RES_OK);
+  CHK(ssp_rng_ref_put(rng) == RES_OK);
+  CHK(ssol_spectrum_ref_put(spectrum) == RES_OK);
+  CHK(ssol_sun_ref_put(sun) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
 
   return 0;
 }
