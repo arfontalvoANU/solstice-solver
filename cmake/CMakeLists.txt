@@ -28,7 +28,7 @@ find_package(RSys 0.6 REQUIRED)
 find_package(Star3D 0.4.1 REQUIRED)
 find_package(Star3DUT 0.2 REQUIRED)
 find_package(StarCPR 0.1 REQUIRED)
-find_package(StarSF 0.3 REQUIRED)
+find_package(StarSF 0.4 REQUIRED)
 find_package(StarSP 0.4 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
@@ -50,8 +50,8 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 6)
-set(VERSION_PATCH 1)
+set(VERSION_MINOR 7)
+set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC

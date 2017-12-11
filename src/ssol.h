@@ -82,6 +82,12 @@ enum ssol_material_type {
   SSOL_MATERIAL_TYPES_COUNT__
 };
 
+enum ssol_microfacet_distribution {
+  SSOL_MICROFACET_BECKMANN,
+  SSOL_MICROFACET_PILLBOX,
+  SSOL_MICROFACET_DISTRIBUTIONS_COUNT__
+};
+
 enum ssol_clipping_op {
   SSOL_AND,
   SSOL_SUB,
@@ -799,7 +805,8 @@ ssol_dielectric_setup
 SSOL_API res_T
 ssol_mirror_setup
   (struct ssol_material* mtl,
-   const struct ssol_mirror_shader* shader);
+   const struct ssol_mirror_shader* shader,
+   const enum ssol_microfacet_distribution distrib);
 
 SSOL_API res_T
 ssol_matte_setup

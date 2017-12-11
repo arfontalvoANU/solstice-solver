@@ -147,7 +147,7 @@ main(int argc, char** argv)
   shader.normal = get_shader_normal;
   shader.reflectivity = get_shader_reflectivity;
   shader.roughness = get_shader_roughness;
-  CHK(ssol_mirror_setup(m_mtl, &shader) == RES_OK);
+  CHK(ssol_mirror_setup(m_mtl, &shader, SSOL_MICROFACET_BECKMANN) == RES_OK);
   CHK(ssol_material_create_virtual(dev, &v_mtl) == RES_OK);
 
   CHK(ssol_object_create(dev, &m_object) == RES_OK);

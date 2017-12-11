@@ -183,11 +183,24 @@ create_mirror_bsdf
     res = ssf_specular_reflection_setup(*bsdf, fresnel);
     if(res != RES_OK) goto error;
   } else { /* Glossy reflection */
-    res = ssf_microfacet_distribution_create
-      (mtl->dev->allocator, &ssf_beckmann_distribution, &distrib);
-    if(res != RES_OK) goto error;
-    res = ssf_beckmann_distribution_setup(distrib, roughness);
-    if(res != RES_OK) goto error;
+    switch(mtl->data.mirror.distrib) {
+      /* Setup the microfacet distribution */
+      case SSOL_MICROFACET_BECKMANN:
+        res = ssf_microfacet_distribution_create
+          (mtl->dev->allocator, &ssf_beckmann_distribution, &distrib);
+        if(res != RES_OK) goto error;
+        res = ssf_beckmann_distribution_setup(distrib, roughness);
+        if(res != RES_OK) goto error;
+        break;
+      case SSOL_MICROFACET_PILLBOX:
+        res = ssf_microfacet_distribution_create
+          (mtl->dev->allocator, &ssf_pillbox_distribution, &distrib);
+        if(res != RES_OK) goto error;
+        res = ssf_beckmann_distribution_setup(distrib, roughness);
+        if(res != RES_OK) goto error;
+        break;
+      default: FATAL("Unreachable code.\n"); break;
+    }
 
     /* Microfacet2 is not well suited for rendering since it cannot be
      * evaluated and consequently it returns an invalid result for direct
@@ -472,15 +485,19 @@ ssol_dielectric_setup
 
 res_T
 ssol_mirror_setup
-  (struct ssol_material* material, const struct ssol_mirror_shader* shader)
+  (struct ssol_material* material,
+   const struct ssol_mirror_shader* shader,
+   const enum ssol_microfacet_distribution distrib)
 {
   if(!material
   || material->type != SSOL_MATERIAL_MIRROR
-  || !check_shader_mirror(shader))
+  || !check_shader_mirror(shader)
+  || (unsigned)distrib >= SSOL_MICROFACET_DISTRIBUTIONS_COUNT__)
     return RES_BAD_ARG;
   material->normal = shader->normal;
   material->data.mirror.reflectivity = shader->reflectivity;
   material->data.mirror.roughness = shader->roughness;
+  material->data.mirror.distrib = distrib;
   return RES_OK;
 }
 

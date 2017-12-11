@@ -48,10 +48,18 @@ test_mirror(struct ssol_device* dev)
   mirror.reflectivity = get_shader_reflectivity;
   mirror.roughness = get_shader_roughness;
 
-  CHK(ssol_mirror_setup(NULL, &mirror) == RES_BAD_ARG);
-  CHK(ssol_mirror_setup(material, NULL) == RES_BAD_ARG);
-  CHK(ssol_mirror_setup(material, &mirror) == RES_OK);
-  CHK(ssol_mirror_setup(material, &mirror) == RES_OK);
+  CHK(ssol_mirror_setup(NULL, NULL, SSOL_MICROFACET_DISTRIBUTIONS_COUNT__)
+    == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, NULL, SSOL_MICROFACET_DISTRIBUTIONS_COUNT__)
+    == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(NULL, &mirror, SSOL_MICROFACET_DISTRIBUTIONS_COUNT__)
+    == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, &mirror, SSOL_MICROFACET_DISTRIBUTIONS_COUNT__) 
+    == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(NULL, NULL, SSOL_MICROFACET_BECKMANN) == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, NULL, SSOL_MICROFACET_BECKMANN) == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(NULL, &mirror, SSOL_MICROFACET_BECKMANN) == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, &mirror, SSOL_MICROFACET_BECKMANN) == RES_OK);
 
   CHK(ssol_material_set_param_buffer(NULL, NULL) == RES_BAD_ARG);
   CHK(ssol_material_set_param_buffer(material, NULL) == RES_BAD_ARG);
@@ -59,15 +67,18 @@ test_mirror(struct ssol_device* dev)
   CHK(ssol_material_set_param_buffer(material, pbuf) == RES_OK);
 
   mirror.normal = NULL;
-  CHK(ssol_mirror_setup(material, &mirror) == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, &mirror, SSOL_MICROFACET_BECKMANN) 
+    == RES_BAD_ARG);
   mirror.normal = get_shader_normal;
 
   mirror.reflectivity = NULL;
-  CHK(ssol_mirror_setup(material, &mirror) == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, &mirror, SSOL_MICROFACET_BECKMANN)
+    == RES_BAD_ARG);
   mirror.reflectivity = get_shader_reflectivity;
 
   mirror.roughness = NULL;
-  CHK(ssol_mirror_setup(material, &mirror) == RES_BAD_ARG);
+  CHK(ssol_mirror_setup(material, &mirror, SSOL_MICROFACET_BECKMANN)
+    == RES_BAD_ARG);
   mirror.roughness = get_shader_roughness;
 
   CHK(ssol_material_ref_put(material) == RES_OK);

@@ -119,7 +119,7 @@ main(int argc, char** argv)
   m_shader.normal = get_shader_normal;
   m_shader.reflectivity = get_shader_reflectivity;
   m_shader.roughness = get_shader_roughness;
-  CHK(ssol_mirror_setup(m_mtl, &m_shader) == RES_OK);
+  CHK(ssol_mirror_setup(m_mtl, &m_shader, SSOL_MICROFACET_BECKMANN) == RES_OK);
   CHK(ssol_material_create_matte(dev, &bck_mtl) == RES_OK);
   bck_shader.normal = get_shader_normal;
   bck_shader.reflectivity = get_shader_reflectivity_2;
