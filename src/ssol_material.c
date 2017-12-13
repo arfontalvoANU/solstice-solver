@@ -196,7 +196,7 @@ create_mirror_bsdf
         res = ssf_microfacet_distribution_create
           (mtl->dev->allocator, &ssf_pillbox_distribution, &distrib);
         if(res != RES_OK) goto error;
-        res = ssf_beckmann_distribution_setup(distrib, roughness);
+        res = ssf_pillbox_distribution_setup(distrib, roughness);
         if(res != RES_OK) goto error;
         break;
       default: FATAL("Unreachable code.\n"); break;
