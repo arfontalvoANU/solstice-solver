@@ -44,6 +44,11 @@ struct ran_pillbox_state {
   double basis[9];
 };
 
+struct ran_gaussian_state {
+  double std_dev;
+  double basis[9];
+};
+
 struct ran_dirac_state {
   double dir[3];
 };
@@ -56,6 +61,7 @@ struct ranst_sun_dir {
   union {
     struct ran_buie_state buie;
     struct ran_pillbox_state pillbox;
+    struct ran_gaussian_state gaussian;
     struct ran_dirac_state dirac;
   } state;
 
@@ -260,6 +266,30 @@ ran_pillbox_get
 }
 
 /*******************************************************************************
+* Gaussian random variate
+******************************************************************************/
+static double*
+ran_gaussian_get
+  (const struct ranst_sun_dir* ran,
+   struct ssp_rng* rng,
+   double dir[3])
+{
+  double pt[3];
+  double phi, theta, sin_theta;
+
+  ASSERT(ran && 0 <= ran->state.gaussian.std_dev);
+  theta = ssp_ran_gaussian(rng, 0, ran->state.gaussian.std_dev);
+  sin_theta = sin(theta);
+  phi = ssp_rng_uniform_double(rng, 0, 2 * PI);
+  pt[0] = cos(phi) * sin_theta;
+  pt[1] = sin(phi) * sin_theta;
+  pt[2] = cos(theta);
+  d33_muld3(dir, ran->state.pillbox.basis, pt);
+  d3_normalize(dir, dir);
+  return dir;
+}
+
+/*******************************************************************************
  * Dirac distribution
  ******************************************************************************/
 static double*
@@ -353,6 +383,19 @@ ranst_sun_dir_pillbox_setup
   ran->get = ran_pillbox_get;
   s = sin(theta_max);
   ran->state.pillbox.sin2_theta_max = s * s;
+  d33_basis(ran->state.pillbox.basis, dir);
+  return RES_OK;
+}
+
+res_T
+ranst_sun_dir_gaussian_setup
+  (struct ranst_sun_dir* ran,
+   const double std_dev,
+   const double dir[3])
+{
+  if(!ran || !dir || std_dev <= 0) return RES_BAD_ARG;
+  ran->get = ran_gaussian_get;
+  ran->state.gaussian.std_dev = std_dev;
   d33_basis(ran->state.pillbox.basis, dir);
   return RES_OK;
 }

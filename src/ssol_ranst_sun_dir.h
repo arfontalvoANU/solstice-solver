@@ -55,6 +55,12 @@ ranst_sun_dir_pillbox_setup
    const double dir[3]);
 
 extern LOCAL_SYM res_T
+ranst_sun_dir_gaussian_setup
+  (struct ranst_sun_dir* ran,
+   const double std_dev,
+   const double dir[3]);
+
+extern LOCAL_SYM res_T
 ranst_sun_dir_dirac_setup
   (struct ranst_sun_dir* ran,
    const double dir[3]);

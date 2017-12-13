@@ -34,6 +34,7 @@ struct matte {
 struct mirror {
   ssol_shader_getter_T reflectivity;
   ssol_shader_getter_T roughness;
+  enum ssol_microfacet_distribution distrib;
 };
 
 struct thin_dielectric {

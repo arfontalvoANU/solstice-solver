@@ -26,12 +26,17 @@ struct ranst_sun_wl;
 enum sun_type {
   SUN_DIRECTIONAL,
   SUN_PILLBOX,
+  SUN_GAUSSIAN,
   SUN_BUIE,
   SUN_TYPES_COUNT__
 };
 
 struct pillbox { 
   double half_angle;
+};
+
+struct gaussian {
+  double std_dev;
 };
 
 struct buie {
@@ -46,6 +51,7 @@ struct ssol_sun {
   enum sun_type type;
   union {
     struct pillbox pillbox;
+    struct gaussian gaussian;
     struct buie csr;
   } data;
 

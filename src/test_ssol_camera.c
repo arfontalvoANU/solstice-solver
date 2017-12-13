@@ -29,66 +29,66 @@ main(int argc, char** argv)
   double up[3] = {0};
   (void)argc, (void)argv;
 
-  CHECK(mem_init_proxy_allocator(&allocator, &mem_default_allocator), RES_OK);
+  CHK(mem_init_proxy_allocator(&allocator, &mem_default_allocator) == RES_OK);
 
-  CHECK(ssol_device_create
-    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev), RES_OK);
+  CHK(ssol_device_create
+    (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
-  CHECK(ssol_camera_create(NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_create(dev, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_create(NULL, &cam), RES_BAD_ARG);
-  CHECK(ssol_camera_create(dev, &cam), RES_OK);
+  CHK(ssol_camera_create(NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_create(dev, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_create(NULL, &cam) == RES_BAD_ARG);
+  CHK(ssol_camera_create(dev, &cam) == RES_OK);
 
-  CHECK(ssol_camera_ref_get(NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_ref_get(cam), RES_OK);
-  CHECK(ssol_camera_ref_put(NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_ref_put(cam), RES_OK);
-  CHECK(ssol_camera_ref_put(cam), RES_OK);
+  CHK(ssol_camera_ref_get(NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_ref_get(cam) == RES_OK);
+  CHK(ssol_camera_ref_put(NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_ref_put(cam) == RES_OK);
+  CHK(ssol_camera_ref_put(cam) == RES_OK);
 
-  CHECK(ssol_camera_create(dev, &cam), RES_OK);
-  CHECK(ssol_camera_set_proj_ratio(NULL, 0), RES_BAD_ARG);
-  CHECK(ssol_camera_set_proj_ratio(cam, 0), RES_BAD_ARG);
-  CHECK(ssol_camera_set_proj_ratio(NULL, 4.0/3.0), RES_BAD_ARG);
-  CHECK(ssol_camera_set_proj_ratio(cam, 4.0/3.0), RES_OK);
-  CHECK(ssol_camera_set_proj_ratio(cam, -4.0/3.0), RES_BAD_ARG);
+  CHK(ssol_camera_create(dev, &cam) == RES_OK);
+  CHK(ssol_camera_set_proj_ratio(NULL, 0) == RES_BAD_ARG);
+  CHK(ssol_camera_set_proj_ratio(cam, 0) == RES_BAD_ARG);
+  CHK(ssol_camera_set_proj_ratio(NULL, 4.0/3.0) == RES_BAD_ARG);
+  CHK(ssol_camera_set_proj_ratio(cam, 4.0/3.0) == RES_OK);
+  CHK(ssol_camera_set_proj_ratio(cam, -4.0/3.0) == RES_BAD_ARG);
 
-  CHECK(ssol_camera_set_fov(NULL, 0), RES_BAD_ARG);
-  CHECK(ssol_camera_set_fov(cam, 0), RES_BAD_ARG);
-  CHECK(ssol_camera_set_fov(NULL, PI/4.0), RES_BAD_ARG);
-  CHECK(ssol_camera_set_fov(cam, PI/4.0), RES_OK);
-  CHECK(ssol_camera_set_fov(cam, -PI/4.0), RES_BAD_ARG);
+  CHK(ssol_camera_set_fov(NULL, 0) == RES_BAD_ARG);
+  CHK(ssol_camera_set_fov(cam, 0) == RES_BAD_ARG);
+  CHK(ssol_camera_set_fov(NULL, PI/4.0) == RES_BAD_ARG);
+  CHK(ssol_camera_set_fov(cam, PI/4.0) == RES_OK);
+  CHK(ssol_camera_set_fov(cam, -PI/4.0) == RES_BAD_ARG);
 
   pos[0] = 0, pos[1] = 0, pos[2] = 0;
   tgt[0] = 0, tgt[1] = 0, tgt[2] = -1;
   up[0] = 0, up[1] = 1, up[2] = 0;
-  CHECK(ssol_camera_look_at(NULL, NULL, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, NULL, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, pos, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, pos, NULL, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, NULL, tgt, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, NULL, tgt, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, pos, tgt, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, pos, tgt, NULL), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, NULL, NULL, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, NULL, NULL, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, pos, NULL, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, pos, NULL, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, NULL, tgt, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, NULL, tgt, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(NULL, pos, tgt, up), RES_BAD_ARG);
-  CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_OK);
+  CHK(ssol_camera_look_at(NULL, NULL, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, NULL, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, pos, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, pos, NULL, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, NULL, tgt, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, NULL, tgt, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, pos, tgt, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, pos, tgt, NULL) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, NULL, NULL, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, NULL, NULL, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, pos, NULL, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, pos, NULL, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, NULL, tgt, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, NULL, tgt, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(NULL, pos, tgt, up) == RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, pos, tgt, up) == RES_OK);
   tgt[0] = 0, tgt[1] = 0, tgt[2] = 0;
-  CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, pos, tgt, up) == RES_BAD_ARG);
   tgt[0] = 0, tgt[1] = 0, tgt[2] = -1;
   up[0] = 0, up[1] = 0, up[2] = 0;
-  CHECK(ssol_camera_look_at(cam, pos, tgt, up), RES_BAD_ARG);
+  CHK(ssol_camera_look_at(cam, pos, tgt, up) == RES_BAD_ARG);
 
-  CHECK(ssol_device_ref_put(dev), RES_OK);
-  CHECK(ssol_camera_ref_put(cam), RES_OK);
+  CHK(ssol_device_ref_put(dev) == RES_OK);
+  CHK(ssol_camera_ref_put(cam) == RES_OK);
 
   check_memory_allocator(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-  CHECK(mem_allocated_size(), 0);
+  CHK(mem_allocated_size() == 0);
   return 0;
 }
 

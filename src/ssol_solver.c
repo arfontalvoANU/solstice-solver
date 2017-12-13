@@ -871,7 +871,7 @@ trace_radiative_path
   struct ssol_medium in_medium = SSOL_MEDIUM_VACUUM;
   struct ssol_medium out_medium = SSOL_MEDIUM_VACUUM;
   struct s3d_hit hit = S3D_HIT_NULL;
-  struct point pt;
+  struct point pt = POINT_NULL;
   float org[3], dir[3], range[2] = { 0, FLT_MAX };
   size_t depth = 0;
   size_t roulette_interval, typical_max_depth;

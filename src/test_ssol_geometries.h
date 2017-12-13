@@ -29,8 +29,8 @@ get_ids(const unsigned itri, unsigned ids[3], void* data)
 {
   const unsigned id = itri * 3;
   struct desc* desc = data;
-  NCHECK(desc, NULL);
-  NCHECK(ids, NULL);
+  CHK(desc != NULL);
+  CHK(ids != NULL);
   ids[0] = desc->indices[id + 0];
   ids[1] = desc->indices[id + 1];
   ids[2] = desc->indices[id + 2];
@@ -40,8 +40,8 @@ static INLINE void
 get_position(const unsigned ivert, float position[3], void* data)
 {
   struct desc* desc = data;
-  NCHECK(desc, NULL);
-  NCHECK(position, NULL);
+  CHK(desc != NULL);
+  CHK(position != NULL);
   position[0] = desc->vertices[ivert * 3 + 0];
   position[1] = desc->vertices[ivert * 3 + 1];
   position[2] = desc->vertices[ivert * 3 + 2];
@@ -51,7 +51,7 @@ static INLINE void
 get_normal(const unsigned ivert, float normal[3], void* data)
 {
   (void)ivert, (void)data;
-  NCHECK(normal, NULL);
+  CHK(normal != NULL);
   normal[0] = 1.f;
   normal[1] = 0.f;
   normal[2] = 0.f;
@@ -61,7 +61,7 @@ static INLINE void
 get_uv(const unsigned ivert, float uv[2], void* data)
 {
   (void)ivert, (void)data;
-  NCHECK(uv, NULL);
+  CHK(uv != NULL);
   uv[0] = -1.f;
   uv[1] = 1.f;
 }
@@ -70,8 +70,8 @@ static INLINE void
 get_polygon_vertices(const size_t ivert, double position[2], void* ctx)
 {
   const double* verts = ctx;
-  NCHECK(position, NULL);
-  NCHECK(ctx, NULL);
+  CHK(position != NULL);
+  CHK(ctx != NULL);
   position[0] = verts[ivert*2+0];
   position[1] = verts[ivert*2+1];
 }

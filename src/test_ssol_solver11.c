@@ -94,8 +94,8 @@ main(int argc, char** argv)
   CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng) == RES_OK);
   CHK(ssol_spectrum_create(dev, &spectrum) == RES_OK);
   CHK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL) == RES_OK);
-  CHK(ssol_sun_create_pillbox(dev, &sun) == RES_OK);
-  CHK(ssol_sun_pillbox_set_half_angle(sun, 1) == RES_OK);
+  CHK(ssol_sun_create_buie(dev, &sun) == RES_OK);
+  CHK(ssol_sun_set_buie_param(sun, 0.1) == RES_OK);
   CHK(ssol_sun_set_direction(sun, d3(dir, 0, 0, -1)) == RES_OK);
   CHK(ssol_sun_set_spectrum(sun, spectrum) == RES_OK);
   CHK(ssol_sun_set_dni(sun, DNI) == RES_OK);

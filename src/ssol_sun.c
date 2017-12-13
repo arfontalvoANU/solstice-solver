@@ -93,6 +93,12 @@ ssol_sun_create_pillbox(struct ssol_device* dev, struct ssol_sun** out_sun)
 }
 
 res_T
+ssol_sun_create_gaussian(struct ssol_device* dev, struct ssol_sun** out_sun)
+{
+  return sun_create(dev, out_sun, SUN_GAUSSIAN);
+}
+
+res_T
 ssol_sun_create_buie
   (struct ssol_device* dev, struct ssol_sun** out_sun)
 {
@@ -172,9 +178,18 @@ ssol_sun_set_spectrum(struct ssol_sun* sun, struct ssol_spectrum* spectrum)
 res_T
 ssol_sun_pillbox_set_half_angle(struct ssol_sun* sun, const double half_angle)
 {
-  if(!sun || half_angle <= 0 || half_angle > PI || sun->type != SUN_PILLBOX)
+  if(!sun || half_angle <= 0 || half_angle > PI * 0.5 || sun->type != SUN_PILLBOX)
     return RES_BAD_ARG;
   sun->data.pillbox.half_angle = half_angle;
+  return RES_OK;
+}
+
+res_T
+ssol_sun_gaussian_set_std_dev(struct ssol_sun* sun, const double std_dev)
+{
+  if(!sun || std_dev <= 0 || sun->type != SUN_GAUSSIAN)
+    return RES_BAD_ARG;
+  sun->data.gaussian.std_dev = std_dev;
   return RES_OK;
 }
 
@@ -213,6 +228,10 @@ sun_create_direction_distribution
       res = ranst_sun_dir_pillbox_setup
         (ran_dir, sun->data.pillbox.half_angle, sun->direction);
       break;
+    case SUN_GAUSSIAN:
+      res = ranst_sun_dir_gaussian_setup
+        (ran_dir, sun->data.gaussian.std_dev, sun->direction);
+      break;
     case SUN_BUIE:
       res = ranst_sun_dir_buie_setup
         (ran_dir, sun->data.csr.ratio, sun->direction);
@@ -224,7 +243,7 @@ exit:
   return res;
 error:
   if(ran_dir) {
-    CHECK(ranst_sun_dir_ref_put(ran_dir), RES_OK);
+    CHK(ranst_sun_dir_ref_put(ran_dir) == RES_OK);
     ran_dir = NULL;
   }
   goto exit;
@@ -252,7 +271,7 @@ exit:
   return res;
 error:
   if(ran_wl) {
-    CHECK(ranst_sun_wl_ref_put(ran_wl), RES_OK);
+    CHK(ranst_sun_wl_ref_put(ran_wl) == RES_OK);
     ran_wl = NULL;
   }
   goto exit;
