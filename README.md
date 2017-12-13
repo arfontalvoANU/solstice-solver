@@ -26,6 +26,12 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.7
+
+- Add the Gaussian sun shape.
+- Add the microfacet distribution parameter to the mirror material: one can
+  choose either the Beckmann or the pillbox distribution.
+
 ### Version 0.6.1
 
 - Rename the `ssol_sun_pillbox_set_theta_max` function in
