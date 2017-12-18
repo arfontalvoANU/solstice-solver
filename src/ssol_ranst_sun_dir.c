@@ -284,7 +284,7 @@ ran_gaussian_get
   pt[0] = cos(phi) * sin_theta;
   pt[1] = sin(phi) * sin_theta;
   pt[2] = cos(theta);
-  d33_muld3(dir, ran->state.pillbox.basis, pt);
+  d33_muld3(dir, ran->state.gaussian.basis, pt);
   d3_normalize(dir, dir);
   return dir;
 }
