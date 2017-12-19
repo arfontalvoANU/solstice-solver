@@ -275,15 +275,19 @@ ran_gaussian_get
    double dir[3])
 {
   double pt[3];
-  double phi, theta, sin_theta;
+  double phi, cos_theta, sin_theta;
 
+  /* The following is not truly a gaussian sunshape,
+   * but an accurate enough approximation for small angles */
   ASSERT(ran && 0 <= ran->state.gaussian.std_dev);
-  theta = ssp_ran_gaussian(rng, 0, ran->state.gaussian.std_dev);
-  sin_theta = sin(theta);
+  sin_theta
+    = ran->state.gaussian.std_dev * sqrt(-2 * log(ssp_rng_canonical(rng)));
+  sin_theta = MMIN(1, sin_theta); /* macro: don't merge with previous line! */
+  cos_theta = sin2cos(sin_theta);
   phi = ssp_rng_uniform_double(rng, 0, 2 * PI);
   pt[0] = cos(phi) * sin_theta;
   pt[1] = sin(phi) * sin_theta;
-  pt[2] = cos(theta);
+  pt[2] = cos_theta;
   d33_muld3(dir, ran->state.gaussian.basis, pt);
   d3_normalize(dir, dir);
   return dir;
