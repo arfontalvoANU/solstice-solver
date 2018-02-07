@@ -26,6 +26,10 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.7.2
+
+- Fix the gaussian sunshape.
+
 ### Version 0.7.1
 
 - Fix the creation of a glossy BSDF that uses a pillbox microfacet
