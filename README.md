@@ -13,7 +13,10 @@ The Solstice-Solver library relies on the [CMake](http://www.cmake.org) and the
 [RCMake](https://gitlab.com/vaplv/rcmake/) package to build.
 It also depends on the
 [RSys](https://gitlab.com/vaplv/rsys/),
-[Star-3D](https://gitlab.com/meso-star/star-3d/) and
+[Star-3D](https://gitlab.com/meso-star/star-3d/),
+[Star-3DUT](https://gitlab.com/meso-star/star-3dut),
+[Star-CPR](https://gitlab.com/meso-star/star-cpr),
+[Star-SF](https://gitlab.com/meso-star/star-sf) and
 [Star-SP](https://gitlab.com/meso-star/star-sp/) libraries as well as on the
 [OpenMP](http://www.openmp.org) 1.2 specification to parallelize its
 computations.
