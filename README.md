@@ -13,7 +13,10 @@ The Solstice-Solver library relies on the [CMake](http://www.cmake.org) and the
 [RCMake](https://gitlab.com/vaplv/rcmake/) package to build.
 It also depends on the
 [RSys](https://gitlab.com/vaplv/rsys/),
-[Star-3D](https://gitlab.com/meso-star/star-3d/) and
+[Star-3D](https://gitlab.com/meso-star/star-3d/),
+[Star-3DUT](https://gitlab.com/meso-star/star-3dut),
+[Star-CPR](https://gitlab.com/meso-star/star-cpr),
+[Star-SF](https://gitlab.com/meso-star/star-sf) and
 [Star-SP](https://gitlab.com/meso-star/star-sp/) libraries as well as on the
 [OpenMP](http://www.openmp.org) 1.2 specification to parallelize its
 computations.
@@ -25,6 +28,11 @@ the `cmake/CMakeLists.txt` file by appending to the `CMAKE_PREFIX_PATH`
 variable the install directories of its dependencies.
 
 ## Release notes
+
+### Version 0.7.3
+
+- Update the version of the RSys and StarSP dependencies. 
+- Fix a compilation warning with GCC7 and above.
 
 ### Version 0.7.2
 

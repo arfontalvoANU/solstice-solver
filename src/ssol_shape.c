@@ -1388,11 +1388,11 @@ shape_fetched_raw_vertex_attrib
   if(res != RES_OK) return res;
 
   d3_splat(value, 1);
+
   switch(s3d_attr.type) {
-    case S3D_FLOAT3: value[2] = (double)s3d_attr.value[2];
-    case S3D_FLOAT2: value[1] = (double)s3d_attr.value[1];
-    case S3D_FLOAT:  value[0] = (double)s3d_attr.value[0];
-      break;
+    case S3D_FLOAT3: value[2] = (double)s3d_attr.value[2]; FALLTHROUGH;
+    case S3D_FLOAT2: value[1] = (double)s3d_attr.value[1]; FALLTHROUGH;
+    case S3D_FLOAT:  value[0] = (double)s3d_attr.value[0]; break;
     default: FATAL("Unexpected vertex attrib type\n"); break;
   }
   return RES_OK;
