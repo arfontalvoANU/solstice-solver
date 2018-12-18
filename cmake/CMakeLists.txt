@@ -33,7 +33,7 @@ find_package(Star3D 0.4.1 REQUIRED)
 find_package(Star3DUT 0.2 REQUIRED)
 find_package(StarCPR 0.1 REQUIRED)
 find_package(StarSF 0.4 REQUIRED)
-find_package(StarSP 0.4 REQUIRED)
+find_package(StarSP 0.8 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${RCMAKE_SOURCE_DIR})
