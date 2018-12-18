@@ -29,6 +29,11 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.7.3
+
+- Update the version of the RSys and StarSP dependencies. 
+- Fix a compilation warning with GCC7 and above.
+
 ### Version 0.7.2
 
 - Fix the gaussian sunshape.
