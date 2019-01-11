@@ -1086,7 +1086,7 @@ trace_radiative_path
   #undef ACCUM_WEIGHT
 
   /* Check conservation of energy at the realisation level */
-  ASSERT((double)depth*DBL_EPSILON*pt.initial_flux >= fabs(pt.energy_loss));
+  ASSERT(((double)depth*DBL_EPSILON*10)*pt.initial_flux >= fabs(pt.energy_loss));
 
   /* this realisation accounts for many that where canceled */
   if(pt.survivor_score) {
