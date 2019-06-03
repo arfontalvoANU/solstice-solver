@@ -1204,7 +1204,7 @@ ssol_mc_shape_get_mc_primitive
 SSOL_API res_T
 ssol_solve
   (struct ssol_scene* scn,
-   struct ssp_rng* rng,
+   const struct ssp_rng* rng,
    const size_t realisations_count,
    const size_t max_failed_count,
    const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */

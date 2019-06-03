@@ -1119,7 +1119,7 @@ error:
 res_T
 ssol_solve
   (struct ssol_scene* scn,
-   struct ssp_rng* rng_state,
+   const struct ssp_rng* rng_state,
    const size_t realisations_count,
    const size_t max_failed_count,
    const struct ssol_path_tracker* path_tracker,

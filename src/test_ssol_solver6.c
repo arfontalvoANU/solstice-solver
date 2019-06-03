@@ -51,6 +51,7 @@ main(int argc, char** argv)
   struct mem_allocator allocator;
   struct ssol_device* dev;
   struct ssp_rng* rng;
+  const struct ssp_rng* rng_state;
   struct ssol_object *m_object1;
   struct ssol_object *m_object2;
   struct ssol_object* t_object1;
@@ -74,11 +75,14 @@ main(int argc, char** argv)
   struct ssol_sun* sun;
   struct ssol_spectrum* spectrum;
   struct ssol_estimator* estimator;
+  struct ssol_estimator* estimator2;
   struct ssol_mc_global mc_global;
+  struct ssol_mc_global mc_global2;
   struct ssol_mc_receiver mc_rcv;
   double dir[3];
   double transform[12]; /* 3x4 column major matrix */
-
+  double sum_w, sum_w2, E, V, SE;
+  size_t count;
   (void) argc, (void) argv;
 
   mem_init_proxy_allocator(&allocator, &mem_default_allocator);
@@ -177,6 +181,8 @@ main(int argc, char** argv)
 #define N__ 10000
 #define GET_MC_RCV ssol_estimator_get_mc_receiver
   CHK(ssol_solve(scene, rng, N__, 0, NULL, &estimator) == RES_OK);
+  CHK(ssol_estimator_get_realisation_count(estimator, &count) == RES_OK);
+  CHK(count == N__);
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
   PRINT_GLOBAL(mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 100000, 2 * 100000/sqrt(N__)) == 1);
@@ -194,6 +200,39 @@ main(int argc, char** argv)
   CHK(eq_eps(mc_rcv.incoming_flux.E, 0, 1) == 1);
   CHK(mc_rcv.incoming_flux.E == mc_rcv.absorbed_flux.E);
 
+  /* Launch another run that is statistically independent of the first one and
+   * that uses 3 more times samples */
+  CHK(ssol_estimator_get_rng_state(estimator, &rng_state) == RES_OK);
+  CHK(ssol_solve(scene, rng_state, N__*3, 0, NULL, &estimator2) == RES_OK);
+
+  /* Check the estimator result */
+  CHK(ssol_estimator_get_realisation_count(estimator2, &count) == RES_OK);
+  CHK(count == N__*3);
+  CHK(ssol_estimator_get_mc_global(estimator2, &mc_global2) == RES_OK);
+  CHK(eq_eps(mc_global2.shadowed.E, 100000, 2 * 100000/sqrt(N__)) == 1);
+  CHK(eq_eps(mc_global.shadowed.SE/sqrt(3), mc_global2.shadowed.SE, 1.e-1));
+
+  CHK(mc_global.shadowed.E != mc_global2.shadowed.E);
+  CHK(mc_global.shadowed.SE != mc_global2.shadowed.SE);
+
+  /* Merge the 2 estimations */
+  sum_w  = mc_global.shadowed.E * N__;
+  sum_w += mc_global2.shadowed.E * N__*3;
+  V = mc_global.shadowed.SE * mc_global.shadowed.SE * N__;
+  sum_w2  = (V + mc_global.shadowed.E * mc_global.shadowed.E) * N__;
+  V = mc_global2.shadowed.SE * mc_global2.shadowed.SE * N__*3;
+  sum_w2 += (V + mc_global2.shadowed.E * mc_global2.shadowed.E) * N__*3;
+  E = sum_w / (4*N__);
+  V = sum_w2 / (4*N__) - E*E;
+  SE = sqrt(V/(4*N__));
+
+  /* Check that the 2 runs are effectively independent, i.e. check the
+   * convergence ratio. By combining the 2 runs we have 4 more times samples,
+   * the standard deviation must be thus devided by 2 while the estimate must
+   * be compatible with the right value regarding the new error */
+  CHK(eq_eps(E, 100000, 3*SE));
+  CHK(eq_eps(SE, mc_global.shadowed.SE / 2, SE*1.e-2));
+
   /* Free data */
   CHK(ssol_instance_ref_put(heliostat1) == RES_OK);
   CHK(ssol_instance_ref_put(target1) == RES_OK);
@@ -210,6 +249,7 @@ main(int argc, char** argv)
   CHK(ssol_material_ref_put(v_mtl) == RES_OK);
   CHK(ssol_device_ref_put(dev) == RES_OK);
   CHK(ssol_estimator_ref_put(estimator) == RES_OK);
+  CHK(ssol_estimator_ref_put(estimator2) == RES_OK);
   CHK(ssol_scene_ref_put(scene) == RES_OK);
   CHK(ssp_rng_ref_put(rng) == RES_OK);
   CHK(ssol_spectrum_ref_put(spectrum) == RES_OK);

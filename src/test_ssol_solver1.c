@@ -49,8 +49,13 @@ main(int argc, char** argv)
 {
   struct spectrum_desc desc = {0};
   struct mem_allocator allocator;
+  FILE* stream;
   struct ssol_device* dev;
   struct ssp_rng* rng;
+  struct ssp_rng* rng2;
+  const struct ssp_rng* rng_state;
+  struct ssp_rng_type rng_type0;
+  struct ssp_rng_type rng_type1;
   struct ssol_scene* scene;
   struct ssol_shape* dummy;
   struct ssol_shape* square;
@@ -237,6 +242,23 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_mc_global(estimator, NULL) == RES_BAD_ARG);
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
 
+  CHK(ssol_estimator_get_rng_state(NULL, &rng_state) == RES_BAD_ARG);
+  CHK(ssol_estimator_get_rng_state(estimator, NULL) == RES_BAD_ARG);
+  CHK(ssol_estimator_get_rng_state(estimator, &rng_state) == RES_OK);
+  CHK(ssp_rng_get_type(rng_state, &rng_type0) == RES_OK);
+  CHK(ssp_rng_get_type(rng, &rng_type1) == RES_OK);
+  CHK(ssp_rng_type_eq(&rng_type0, &rng_type1));
+
+  /* Clone the rng_state */
+  CHK(stream = tmpfile());
+  CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng2) == RES_OK);
+  CHK(ssp_rng_write(rng_state, stream) == RES_OK);
+  rewind(stream);
+  CHK(ssp_rng_read(rng2, stream) == RES_OK);
+  CHK(fclose(stream) == 0);
+  CHK(ssp_rng_get(rng2) != ssp_rng_get(rng));
+  CHK(ssp_rng_ref_put(rng2) == RES_OK);
+
   CHK(ssol_estimator_ref_get(NULL) == RES_BAD_ARG);
   CHK(ssol_estimator_ref_get(estimator) == RES_OK);
   CHK(ssol_estimator_ref_put(NULL) == RES_BAD_ARG);
@@ -324,8 +346,8 @@ main(int argc, char** argv)
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
-  CHK(eq_eps(mc_rcv.incoming_flux.E, m, 2 * std) == 1);
-  CHK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-1) == 1);
+  CHK(eq_eps(mc_rcv.incoming_flux.E, m, 3 * std) == 1);
+  CHK(eq_eps(mc_rcv.incoming_flux.SE, std, std*1e-2) == 1);
   CHK(ssol_estimator_ref_put(estimator) == RES_OK);
 
   /* Sample primary mirror only; variance is low */
