@@ -26,6 +26,7 @@
 /* Forward declaration */
 struct mem_allocator;
 struct ssol_instance;
+struct ssp_rng_proxy;
 
 /* Monte carlo data */
 struct mc_data {
@@ -569,6 +570,9 @@ struct ssol_estimator {
    * geometry */
   double sampled_area;
 
+  /* State of the RNG after the simulation */
+  struct ssp_rng* rng;
+
   struct ssol_device* dev;
   ref_T ref;
 };
@@ -578,6 +582,11 @@ estimator_create
   (struct ssol_device* dev,
    struct ssol_scene* scene,
    struct ssol_estimator** estimator);
+
+extern LOCAL_SYM res_T
+estimator_save_rng_state
+  (struct ssol_estimator* estimator,
+   const struct ssp_rng_proxy* proxy);
 
 static FINLINE res_T
 get_mc_receiver_1side

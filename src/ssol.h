@@ -1140,6 +1140,12 @@ ssol_estimator_get_mc_sampled
    const struct ssol_instance* samp_instance,
    struct ssol_mc_sampled* sampled);
 
+/* Retrieve the RNG state at the end of the simulation */
+SSOL_API res_T
+ssol_estimator_get_rng_state
+  (const struct ssol_estimator* estimator,
+   const struct ssp_rng** rng_state);
+
 /*******************************************************************************
  * Tracked paths
  ******************************************************************************/

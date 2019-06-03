@@ -1320,6 +1320,10 @@ ssol_solve
   }
 
   estimator->sampled_area = scn->sampled_area;
+
+  res = estimator_save_rng_state(estimator, rng_proxy);
+  if(res != RES_OK) goto error;
+
   if(mt_res != RES_OK) res = (res_T)mt_res;
 
   #ifndef NDEBUG

@@ -25,6 +25,8 @@
 #include <rsys/ref_count.h>
 #include <rsys/rsys.h>
 
+#include <star/ssp.h>
+
 #include <math.h>
 
 /*******************************************************************************
@@ -81,6 +83,7 @@ estimator_release(ref_T* ref)
   htable_receiver_release(&estimator->mc_receivers);
   htable_sampled_release(&estimator->mc_sampled);
   darray_path_release(&estimator->paths);
+  if(estimator->rng) SSP(rng_ref_put(estimator->rng));
   ASSERT(dev && dev->allocator);
   MEM_RM(dev->allocator, estimator);
   SSOL(device_ref_put(dev));
@@ -255,6 +258,15 @@ ssol_estimator_get_mc_sampled
 }
 
 res_T
+ssol_estimator_get_rng_state
+  (const struct ssol_estimator* estimator, const struct ssp_rng** rng_state)
+{
+  if(!estimator || !rng_state) return RES_BAD_ARG;
+  *rng_state = estimator->rng;
+  return RES_OK;
+}
+
+res_T
 ssol_estimator_get_tracked_paths_count
   (const struct ssol_estimator* estimator, size_t* npaths)
 {
@@ -344,12 +356,63 @@ estimator_create
 exit:
   if(out_estimator) *out_estimator = estimator;
   return res;
-
 error:
   if(estimator) {
     SSOL(estimator_ref_put(estimator));
     estimator = NULL;
   }
+  goto exit;
+}
+
+res_T
+estimator_save_rng_state
+  (struct ssol_estimator* estimator, const struct ssp_rng_proxy* proxy)
+{
+  struct ssp_rng_type rng_type;
+  FILE* stream = NULL;
+  res_T res = RES_OK;
+  ASSERT(estimator && proxy);
+
+  /* Release the previous rng state */
+  if(estimator->rng) {
+    SSP(rng_ref_put(estimator->rng));
+    estimator->rng = NULL;
+  }
+
+  stream = tmpfile();
+  if(!stream) {
+    log_error(estimator->dev,
+      "Could not open a stream to store the proxy RNG state.\n");
+    res = RES_IO_ERR;
+    goto error;
+  }
+
+  SSP(rng_proxy_get_type(proxy, &rng_type));
+  res = ssp_rng_create(estimator->dev->allocator, &rng_type, &estimator->rng);
+  if(res != RES_OK) {
+    log_error(estimator->dev,
+      "Could not create the RNG to save the proxy RNG state.\n");
+    goto error;
+  }
+
+  res = ssp_rng_proxy_write(proxy, stream);
+  if(res != RES_OK) {
+    log_error(estimator->dev, "Could not serialize the proxy RNG state.\n");
+    goto error;
+  }
+
+  rewind(stream);
+  res = ssp_rng_read(estimator->rng, stream);
+  if(res != RES_OK) {
+    log_error(estimator->dev, "Could not save the proxy RNG state.\n");
+    goto error;
+  }
+
+exit:
+  if(stream) fclose(stream);
+  return res;
+error:
+  if(estimator->rng) SSP(rng_ref_put(estimator->rng));
   goto exit;
 }
 
