@@ -1,4 +1,4 @@
-/* Copyright (C) CNRS 2016-2017
+/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1140,6 +1140,12 @@ ssol_estimator_get_mc_sampled
    const struct ssol_instance* samp_instance,
    struct ssol_mc_sampled* sampled);
 
+/* Retrieve the RNG state at the end of the simulation */
+SSOL_API res_T
+ssol_estimator_get_rng_state
+  (const struct ssol_estimator* estimator,
+   const struct ssp_rng** rng_state);
+
 /*******************************************************************************
  * Tracked paths
  ******************************************************************************/
@@ -1198,7 +1204,7 @@ ssol_mc_shape_get_mc_primitive
 SSOL_API res_T
 ssol_solve
   (struct ssol_scene* scn,
-   struct ssp_rng* rng,
+   const struct ssp_rng* rng,
    const size_t realisations_count,
    const size_t max_failed_count,
    const struct ssol_path_tracker* tracker, /* NULL<=>Do not record the paths */

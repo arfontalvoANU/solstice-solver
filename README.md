@@ -29,6 +29,12 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.8
+
+- Register into the estimator the final state of the RNG used during the
+  simulation. Add the `ssol_estimator_get_rng_state` function that returns this
+  state.
+
 ### Version 0.7.3
 
 - Update the version of the RSys and StarSP dependencies. 
@@ -125,8 +131,8 @@ variable the install directories of its dependencies.
 
 Solstice-Solver is developed by [|Meso|Star>](http://www.meso-star.com) for the
 [National Center for Scientific Research](http://www.cnrs.fr/index.php) (CNRS).
-It is a free software copyright (C) CNRS 2016-2017 and it is released under the
-[OSI](http://opensource.org)-approved GPL v3+ license. You are welcome to
-redistribute it under certain conditions; refer to the COPYING file for
-details.
+Copyright (C) 2016-2018 CNRS, 2018-2019
+[|Meso|Star>](http://www.meso-star.com). It is free software released under the
+GPL v3+ license: GNU GPL version 3 or later. You are welcome to redistribute it
+under certain conditions; refer to the COPYING file for details.
 

@@ -1,4 +1,4 @@
-/* Copyright (C) CNRS 2016-2017
+/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ main(int argc, char** argv)
 #define DNI_TGT_S (DNI * TGT_X * TGT_Y)
 #define DNI_S (DNI * SZ * SZ)
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.cos_factor.E, 1./3., 3 * mc_global.cos_factor.SE));
   CHK(eq_eps(mc_global.shadowed.E, DNI_S, 3 * mc_global.shadowed.SE));
   CHK(eq_eps(mc_global.missing.E, MMAX(DNI_S, DNI_TGT_S), 
