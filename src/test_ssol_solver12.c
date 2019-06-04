@@ -135,8 +135,8 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global1) == RES_OK);
   CHK(GET_MC_RCV(estimator, geom1, SSOL_FRONT, &mc_rcv1) == RES_OK);
 
-  PRINT_GLOBAL(mc_global1);
-  PRINT_RCV(mc_rcv1);
+  print_global(&mc_global1);
+  print_rcv(&mc_rcv1);
   CHK(mc_global1.cos_factor.E == 1);
   CHK(mc_global1.cos_factor.SE == 0);
   CHK(mc_global1.absorbed_by_receivers.E == DNI_S);
@@ -175,8 +175,8 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global2) == RES_OK);
   CHK(GET_MC_RCV(estimator, geom2, SSOL_FRONT, &mc_rcv2) == RES_OK);
 
-  PRINT_GLOBAL(mc_global2);
-  PRINT_RCV(mc_rcv2);
+  print_global(&mc_global2);
+  print_rcv(&mc_rcv2);
   CHK(eq_eps(mc_global2.absorbed_by_receivers.E, DNI_S, 3 * mc_global2.absorbed_by_receivers.SE) == 1);
 
   /* Free data */

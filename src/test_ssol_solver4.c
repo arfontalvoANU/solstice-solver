@@ -154,7 +154,7 @@ main(int argc, char** argv)
   m2 = m1;
   std2 = std1;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, 400 * DNI_cos, 1e-2) == 1); /* virtual => 100 % missing */
   CHK(GET_MC_RCV(estimator, target1, SSOL_FRONT, &mc_rcv) == RES_OK);

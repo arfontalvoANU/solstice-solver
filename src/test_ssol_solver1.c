@@ -325,7 +325,7 @@ main(int argc, char** argv)
   std = dbl;
   /* Target was sampled but shadowed by secondary */
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, m, 2 * dbl) == 1);
   CHK(eq_eps(mc_global.missing.E, 2*m, 2*mc_global.missing.SE) == 1);
   CHK(GET_MC_RCV(NULL, NULL, SSOL_BACK, NULL) == RES_BAD_ARG);
@@ -360,7 +360,7 @@ main(int argc, char** argv)
   m = 4 * DNI_cos;
   std = 0;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
@@ -386,7 +386,7 @@ main(int argc, char** argv)
   CHK(ssol_scene_detach_atmosphere(scene, atm) == RES_OK);
   CHK(ssol_atmosphere_ref_put(atm) == RES_OK);
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
@@ -429,7 +429,7 @@ main(int argc, char** argv)
   a_m = REFLECTIVITY * 4 * K * DNI_cos;
   a_std = 0;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(
     mc_global.missing.E + mc_global.shadowed.E + mc_global.absorbed_by_receivers.E
@@ -437,7 +437,7 @@ main(int argc, char** argv)
     m, 1e-4));
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
-  PRINT_RCV(mc_rcv);
+  print_rcv(&mc_rcv);
   CHK(ssol_estimator_get_sampled_count(estimator, &scount) == RES_OK);
   CHK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled) == RES_BAD_ARG);
   CHK(ssol_estimator_get_mc_sampled(estimator, heliostat2, &sampled) == RES_OK);
@@ -515,14 +515,14 @@ main(int argc, char** argv)
   m = 4 * K2 * DNI_cos;
   std = 0;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
-  PRINT_RCV(mc_rcv);
+  print_rcv(&mc_rcv);
   CHK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4) == 1);
 

@@ -184,7 +184,7 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_realisation_count(estimator, &count) == RES_OK);
   CHK(count == N__);
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 100000, 2 * 100000/sqrt(N__)) == 1);
   CHK(eq_eps(mc_global.missing.E, 0, 0) == 1);
 
