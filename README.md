@@ -29,6 +29,12 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.8
+
+- Register into the estimator the final state of the RNG used during the
+  simulation. Add the `ssol_estimator_get_rng_state` function that returns this
+  state.
+
 ### Version 0.7.3
 
 - Update the version of the RSys and StarSP dependencies. 
