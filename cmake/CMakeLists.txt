@@ -54,8 +54,8 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 7)
-set(VERSION_PATCH 3)
+set(VERSION_MINOR 8)
+set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 set(SSOL_FILES_SRC
