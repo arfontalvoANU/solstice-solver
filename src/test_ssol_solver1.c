@@ -1,4 +1,4 @@
-/* Copyright (C) CNRS 2016-2017
+/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,8 +49,13 @@ main(int argc, char** argv)
 {
   struct spectrum_desc desc = {0};
   struct mem_allocator allocator;
+  FILE* stream;
   struct ssol_device* dev;
   struct ssp_rng* rng;
+  struct ssp_rng* rng2;
+  const struct ssp_rng* rng_state;
+  struct ssp_rng_type rng_type0;
+  struct ssp_rng_type rng_type1;
   struct ssol_scene* scene;
   struct ssol_shape* dummy;
   struct ssol_shape* square;
@@ -237,6 +242,23 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_mc_global(estimator, NULL) == RES_BAD_ARG);
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
 
+  CHK(ssol_estimator_get_rng_state(NULL, &rng_state) == RES_BAD_ARG);
+  CHK(ssol_estimator_get_rng_state(estimator, NULL) == RES_BAD_ARG);
+  CHK(ssol_estimator_get_rng_state(estimator, &rng_state) == RES_OK);
+  CHK(ssp_rng_get_type(rng_state, &rng_type0) == RES_OK);
+  CHK(ssp_rng_get_type(rng, &rng_type1) == RES_OK);
+  CHK(ssp_rng_type_eq(&rng_type0, &rng_type1));
+
+  /* Clone the rng_state */
+  CHK(stream = tmpfile());
+  CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng2) == RES_OK);
+  CHK(ssp_rng_write(rng_state, stream) == RES_OK);
+  rewind(stream);
+  CHK(ssp_rng_read(rng2, stream) == RES_OK);
+  CHK(fclose(stream) == 0);
+  CHK(ssp_rng_get(rng2) != ssp_rng_get(rng));
+  CHK(ssp_rng_ref_put(rng2) == RES_OK);
+
   CHK(ssol_estimator_ref_get(NULL) == RES_BAD_ARG);
   CHK(ssol_estimator_ref_get(estimator) == RES_OK);
   CHK(ssol_estimator_ref_put(NULL) == RES_BAD_ARG);
@@ -303,7 +325,7 @@ main(int argc, char** argv)
   std = dbl;
   /* Target was sampled but shadowed by secondary */
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, m, 2 * dbl) == 1);
   CHK(eq_eps(mc_global.missing.E, 2*m, 2*mc_global.missing.SE) == 1);
   CHK(GET_MC_RCV(NULL, NULL, SSOL_BACK, NULL) == RES_BAD_ARG);
@@ -324,8 +346,8 @@ main(int argc, char** argv)
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
-  CHK(eq_eps(mc_rcv.incoming_flux.E, m, 2 * std) == 1);
-  CHK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-1) == 1);
+  CHK(eq_eps(mc_rcv.incoming_flux.E, m, 3 * std) == 1);
+  CHK(eq_eps(mc_rcv.incoming_flux.SE, std, std*1e-2) == 1);
   CHK(ssol_estimator_ref_put(estimator) == RES_OK);
 
   /* Sample primary mirror only; variance is low */
@@ -338,7 +360,7 @@ main(int argc, char** argv)
   m = 4 * DNI_cos;
   std = 0;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
@@ -364,7 +386,7 @@ main(int argc, char** argv)
   CHK(ssol_scene_detach_atmosphere(scene, atm) == RES_OK);
   CHK(ssol_atmosphere_ref_put(atm) == RES_OK);
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
@@ -407,7 +429,7 @@ main(int argc, char** argv)
   a_m = REFLECTIVITY * 4 * K * DNI_cos;
   a_std = 0;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(
     mc_global.missing.E + mc_global.shadowed.E + mc_global.absorbed_by_receivers.E
@@ -415,7 +437,7 @@ main(int argc, char** argv)
     m, 1e-4));
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
-  PRINT_RCV(mc_rcv);
+  print_rcv(&mc_rcv);
   CHK(ssol_estimator_get_sampled_count(estimator, &scount) == RES_OK);
   CHK(ssol_estimator_get_mc_sampled(estimator, heliostat, &sampled) == RES_BAD_ARG);
   CHK(ssol_estimator_get_mc_sampled(estimator, heliostat2, &sampled) == RES_OK);
@@ -493,14 +515,14 @@ main(int argc, char** argv)
   m = 4 * K2 * DNI_cos;
   std = 0;
   CHK(ssol_estimator_get_mc_global(estimator, &mc_global) == RES_OK);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
   CHK(eq_eps(mc_global.shadowed.E, 0, 1e-4) == 1);
   CHK(eq_eps(mc_global.missing.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_global.cos_factor.E, COS, 1e-4) == 1);
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
   printf("Ir(target) = %g +/- %g\n",
     mc_rcv.incoming_flux.E, mc_rcv.incoming_flux.SE);
-  PRINT_RCV(mc_rcv);
+  print_rcv(&mc_rcv);
   CHK(eq_eps(mc_rcv.incoming_flux.E, m, 1e-4) == 1);
   CHK(eq_eps(mc_rcv.incoming_flux.SE, std, 1e-4) == 1);
 

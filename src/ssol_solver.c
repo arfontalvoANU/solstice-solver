@@ -1,4 +1,4 @@
-/* Copyright (C) CNRS 2016-2017
+/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1119,7 +1119,7 @@ error:
 res_T
 ssol_solve
   (struct ssol_scene* scn,
-   struct ssp_rng* rng_state,
+   const struct ssp_rng* rng_state,
    const size_t realisations_count,
    const size_t max_failed_count,
    const struct ssol_path_tracker* path_tracker,
@@ -1320,6 +1320,10 @@ ssol_solve
   }
 
   estimator->sampled_area = scn->sampled_area;
+
+  res = estimator_save_rng_state(estimator, rng_proxy);
+  if(res != RES_OK) goto error;
+
   if(mt_res != RES_OK) res = (res_T)mt_res;
 
   #ifndef NDEBUG

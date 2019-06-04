@@ -1,4 +1,4 @@
-/* Copyright (C) CNRS 2016-2017
+/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -196,7 +196,7 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_sampled_area(estimator, &area) == RES_OK);
   printf("Total = %g\n", area * DNI_cos);
   CHK(eq_eps(area * DNI_cos, TOTAL, TOTAL * 1e-4) == 1);
-  PRINT_GLOBAL(mc_global);
+  print_global(&mc_global);
 
   CHK(GET_MC_RCV(estimator, target, SSOL_FRONT, &mc_rcv) == RES_OK);
   printf("Abs(target1) = %g +/- %g\n",
