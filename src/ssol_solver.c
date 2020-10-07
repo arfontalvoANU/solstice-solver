@@ -331,9 +331,22 @@ point_init
   ray_data.reversed_ray = 1; /* The ray direction is reversed */
   ray_data.dst = FLT_MAX;
 
+  /* pt->prim must live in RT space */
+  f3_set_d3(pos, pt->pos);
+  ray_data.point_init_closest_point = 1;
+  S3D(shape_get_id(pt->sshape->shape->shape_rt, &ray_data.prim_from.geom_id));
+  S3D(shape_get_id(pt->inst->shape_rt, &ray_data.prim_from.inst_id));
+  S3D(scene_view_closest_point(view_rt, pos, FLT_MAX, &ray_data, &hit));
+  CHK(!S3D_HIT_NONE(&hit));
+  /* Sample and RT meshes are supposed to be identical only for SHAPE_MESH */
+  ASSERT(pt->sshape->shape->type != SHAPE_MESH
+    || hit.distance <= (1 + f3_len(pos)) * 1e-6);
+  pt->prim = hit.prim;
+  ray_data.prim_from = pt->prim;
+
   /* Trace a ray toward the sun to check if the sampled point is occluded */
   f3_minus(dir, f3_set_d3(dir, pt->dir));
-  f3_set_d3(pos, pt->pos);
+  ray_data.point_init_closest_point = 0;
   S3D(scene_view_trace_ray(view_rt, pos, dir, range, &ray_data, &hit));
   *is_lit = S3D_HIT_NONE(&hit);
 

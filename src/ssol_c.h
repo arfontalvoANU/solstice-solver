@@ -39,6 +39,7 @@ struct ray_data {
   short discard_virtual_materials; /* Define if virtual materials are not RT */
   short reversed_ray; /* Define if the ray direction is reversed */
   float range_min;
+  int point_init_closest_point;
 
   /* Output data */
   double N[3]; /* Normal of the nearest punched surface point */
@@ -46,7 +47,8 @@ struct ray_data {
 };
 
 static const struct ray_data RAY_DATA_NULL = {
-  NULL, S3D_PRIMITIVE_NULL__, NULL, NULL, SSOL_INVALID_SIDE, 0, 0, 0, {0,0,0}, FLT_MAX
+  NULL, S3D_PRIMITIVE_NULL__, NULL, NULL, SSOL_INVALID_SIDE, 0, 0, 0, 0,
+  {0,0,0}, FLT_MAX
 };
 
 

@@ -455,7 +455,14 @@ hit_filter_function
   /* No ray data => nothing to filter */
   if(!ray_data) return 0;
   /* Handle numerical imprecision */
-  if(hit->distance <= rdata->range_min) return 1;
+  if(hit->distance < rdata->range_min) return 1;
+
+  /* When searching for closest_point accept any point on the expected object */
+  if(rdata->point_init_closest_point) {
+    int reject = (rdata->prim_from.geom_id != hit->prim.geom_id)
+      || (rdata->prim_from.inst_id != hit->prim.inst_id);
+    return reject;
+  }
 
   /* Retrieve the intersected instance and shaded shape */
   inst = *htable_instance_find(&rdata->scn->instances_rt, &hit->prim.inst_id);
