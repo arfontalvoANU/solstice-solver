@@ -439,6 +439,7 @@ hit_filter_function
   (const struct s3d_hit* hit,
    const float orgf[3],
    const float dirf[3],
+   const float rangef[2],
    void* ray_data,
    void* filter_data)
 {
@@ -449,13 +450,13 @@ hit_filter_function
   enum ssol_side_flag hit_side = SSOL_INVALID_SIDE;
   double org[3], dir[3], N[3], dst = FLT_MAX;
   size_t id;
-  (void)filter_data;
+  (void)filter_data, (void)rangef;
   ASSERT(hit && orgf && dirf);
 
   /* No ray data => nothing to filter */
   if(!ray_data) return 0;
   /* Handle numerical imprecision */
-  if(hit->distance < rdata->range_min) return 1;
+  if(hit->distance < rangef[0]) return 1;
 
   /* When searching for closest_point accept any point on the expected object */
   if(rdata->point_init_closest_point) {
@@ -473,7 +474,7 @@ hit_filter_function
   switch(sshape->shape->type) {
     case SHAPE_MESH:
       if(hit->distance <= 1.e-6 /* FIXME hack */
-      || hit->distance <= rdata->range_min
+      || hit->distance <= rangef[0] 
       || S3D_PRIMITIVE_EQ(&hit->prim, &rdata->prim_from)) {
         /* Discard self intersection for mesh, i.e. when the intersected
          * primitive is the primitive from which the ray starts */
@@ -493,7 +494,7 @@ hit_filter_function
         /* No projection found => the ray does not intersect the quadric */
         return 1;
       }
-      if((float)dst <= rdata->range_min) {
+      if((float)dst <= rangef[0]) {
         /* Handle RT numerical imprecision, the hit is below the lower bound
          * of the ray range. */
         return 1;

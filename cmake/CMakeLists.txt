@@ -25,7 +25,7 @@ option(NO_TEST "Do not build tests" OFF)
 ################################################################################
 find_package(RCMake 0.4 REQUIRED)
 find_package(RSys 0.10 REQUIRED)
-find_package(Star3D 0.7.2 REQUIRED)
+find_package(Star3D 0.8 REQUIRED)
 find_package(Star3DUT 0.3.1 REQUIRED)
 find_package(StarCPR 0.1.2 REQUIRED)
 find_package(StarSF 0.6 REQUIRED)
