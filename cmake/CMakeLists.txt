@@ -1,4 +1,5 @@
-# Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
+# Copyright (C) 2018, 2019, 2021 |Meso|Star> (contact@meso-star.com)
+# Copyright (C) 2016, 2018 CNRS
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,13 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 project(solstice-solver C)
 enable_testing()
-
-if(POLICY CMP0054) # For cmake version < 3.1: disable FindOpenMP warning
-  cmake_policy(SET CMP0054 NEW)
-endif()
 
 set(SSOL_SOURCE_DIR ${PROJECT_SOURCE_DIR}/../src)
 option(NO_TEST "Do not build tests" OFF)
@@ -27,13 +24,13 @@ option(NO_TEST "Do not build tests" OFF)
 ################################################################################
 # Check dependencies
 ################################################################################
-find_package(RCMake 0.3 REQUIRED)
-find_package(RSys 0.7.1 REQUIRED)
-find_package(Star3D 0.4.1 REQUIRED)
-find_package(Star3DUT 0.2 REQUIRED)
-find_package(StarCPR 0.1 REQUIRED)
-find_package(StarSF 0.4 REQUIRED)
-find_package(StarSP 0.8 REQUIRED)
+find_package(RCMake 0.4 REQUIRED)
+find_package(RSys 0.10 REQUIRED)
+find_package(Star3D 0.8 REQUIRED)
+find_package(Star3DUT 0.3.1 REQUIRED)
+find_package(StarCPR 0.1.2 REQUIRED)
+find_package(StarSF 0.6 REQUIRED)
+find_package(StarSP 0.12 REQUIRED)
 find_package(OpenMP 1.2 REQUIRED)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${RCMAKE_SOURCE_DIR})
@@ -54,7 +51,7 @@ rcmake_append_runtime_dirs(_runtime_dirs RSys Star3D Star3DUT StarCPR StarSF Sta
 # Configure and define targets
 ################################################################################
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 8)
+set(VERSION_MINOR 9)
 set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 

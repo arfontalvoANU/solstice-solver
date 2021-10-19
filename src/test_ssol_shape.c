@@ -1,4 +1,5 @@
-/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
+/* Copyright (C) 2018, 2019, 2021 |Meso|Star> (contact@meso-star.com)
+ * Copyright (C) 2016, 2018 CNRS
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +36,7 @@ main(int argc, char** argv)
   double polygon[] = {
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
   };
-  const size_t npolygon_verts = sizeof(polygon)/sizeof(double[2]);
+  const size_t npolygon_verts = sizeof(polygon)/(2*sizeof(double));
   double val[3];
   unsigned ids[3];
   unsigned i, n;

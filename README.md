@@ -29,11 +29,19 @@ variable the install directories of its dependencies.
 
 ## Release notes
 
+### Version 0.9
+
+- Fix self-intersection on meshed mirrors.
+- Sets the required version of Star-SampPling to 0.12. This version fixes
+  compilation errors with gcc 11 but introduces API breaks.
+- Sets the required version of Star-3D to 0.8.
+- Fix compilation warnings detected by gcc 11.
+
 ### Version 0.8
 
-- Register into the estimator the final state of the RNG used during the
-  simulation. Add the `ssol_estimator_get_rng_state` function that returns this
-  state.
+Register into the estimator the final state of the RNG used during the
+simulation. Add the `ssol_estimator_get_rng_state` function that returns this
+state.
 
 ### Version 0.7.3
 
@@ -42,12 +50,11 @@ variable the install directories of its dependencies.
 
 ### Version 0.7.2
 
-- Fix the gaussian sunshape.
+Fix the gaussian sunshape.
 
 ### Version 0.7.1
 
-- Fix the creation of a glossy BSDF that uses a pillbox microfacet
-  distribution.
+Fix the creation of a glossy BSDF that uses a pillbox microfacet distribution.
 
 ### Version 0.7
 
@@ -127,12 +134,12 @@ variable the install directories of its dependencies.
 - Fix the per primitive irradiance estimate by dividing the result by the area
   of the primitive in order to have watts per square meter.
 
-## Licenses
+## License
 
-Solstice-Solver is developed by [|Meso|Star>](http://www.meso-star.com) for the
-[National Center for Scientific Research](http://www.cnrs.fr/index.php) (CNRS).
-Copyright (C) 2016-2018 CNRS, 2018-2019
-[|Meso|Star>](http://www.meso-star.com). It is free software released under the
-GPL v3+ license: GNU GPL version 3 or later. You are welcome to redistribute it
-under certain conditions; refer to the COPYING file for details.
+Copyright (C) 2018, 2019, 2021 |Meso|Star> (<contact@meso-star.com>).  
+Copyright (C) 2016, 2018 CNRS.
+
+Solstice-Solver is free software released under the GPL v3+ license: GNU GPL
+version 3 or later. You are welcome to redistribute it under certain
+conditions; refer to the COPYING file for details.
 

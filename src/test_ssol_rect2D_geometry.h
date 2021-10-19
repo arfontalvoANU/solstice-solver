@@ -1,4 +1,5 @@
-/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
+/* Copyright (C) 2018, 2019, 2021 |Meso|Star> (contact@meso-star.com)
+ * Copyright (C) 2016, 2018 CNRS
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,7 +56,7 @@ static double EDGES__ [] = {
   X_MAX, Y_MIN
 };
 
-const unsigned POLY_NVERTS__ = sizeof(EDGES__) / sizeof(double[2]);
+const unsigned POLY_NVERTS__ = sizeof(EDGES__) / (2*sizeof(double));
 
 #undef EDGES__
 #undef POLY_NVERTS__

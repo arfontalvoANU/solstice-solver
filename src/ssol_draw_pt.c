@@ -1,4 +1,5 @@
-/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
+/* Copyright (C) 2018, 2019, 2021 |Meso|Star> (contact@meso-star.com)
+ * Copyright (C) 2016, 2018 CNRS
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -366,7 +367,7 @@ ssol_draw_pt
 
   /* Create a RNG proxy */
   res = ssp_rng_proxy_create
-    (scn->dev->allocator, &ssp_rng_threefry, scn->dev->nthreads, &rng_proxy);
+    (scn->dev->allocator, SSP_RNG_THREEFRY, scn->dev->nthreads, &rng_proxy);
   if(res != RES_OK) goto error;
 
   res = sun_create_wavelength_distribution(scn->sun, &ran_sun_wl);

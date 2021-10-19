@@ -1,4 +1,5 @@
-/* Copyright (C) 2016-2018 CNRS, 2018-2019 |Meso|Star>
+/* Copyright (C) 2018, 2019, 2021 |Meso|Star> (contact@meso-star.com)
+ * Copyright (C) 2016, 2018 CNRS
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -105,7 +106,7 @@ shape_fetched_raw_vertex_attrib
   (const struct ssol_shape* shape,
    const unsigned ivert,
    const enum ssol_attrib_usage usage,
-   double value[]);
+   double value[3]);
 
 /* Compute ray/punched shape intersection */
 extern LOCAL_SYM int punched_shape_intersect_local
