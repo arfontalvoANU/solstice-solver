@@ -105,7 +105,7 @@ shape_fetched_raw_vertex_attrib
   (const struct ssol_shape* shape,
    const unsigned ivert,
    const enum ssol_attrib_usage usage,
-   double value[]);
+   double value[3]);
 
 /* Compute ray/punched shape intersection */
 extern LOCAL_SYM int punched_shape_intersect_local

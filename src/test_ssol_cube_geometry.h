@@ -69,7 +69,7 @@ static const float EDGES__ [] = {
   X_MAX, Y_MAX, Z_MAX
 };
 
-const unsigned CUBE_NVERTS__ = sizeof(EDGES__) / sizeof(float[3]);
+const unsigned CUBE_NVERTS__ = sizeof(EDGES__) / (3*sizeof(float));
 
 const unsigned TRG_IDS__ [] = {
   0, 6, 4,
@@ -85,7 +85,7 @@ const unsigned TRG_IDS__ [] = {
   1, 5, 7,
   1, 7, 3
 };
-const unsigned CUBE_NTRIS__ = sizeof(TRG_IDS__) / sizeof(unsigned[3]);
+const unsigned CUBE_NTRIS__ = sizeof(TRG_IDS__) / (3*sizeof(unsigned));
 
 static const struct desc CUBE_DESC__ = { EDGES__, TRG_IDS__ };
 

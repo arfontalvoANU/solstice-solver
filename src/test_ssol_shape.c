@@ -35,7 +35,7 @@ main(int argc, char** argv)
   double polygon[] = {
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 0.f, -2.f
   };
-  const size_t npolygon_verts = sizeof(polygon)/sizeof(double[2]);
+  const size_t npolygon_verts = sizeof(polygon)/(2*sizeof(double));
   double val[3];
   unsigned ids[3];
   unsigned i, n;

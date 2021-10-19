@@ -57,10 +57,10 @@ static const float EDGES__ [] = {
   X_MIN, Y_MAX, 0.f
 };
 
-const unsigned RECT_NVERTS__ = sizeof(EDGES__) / sizeof(float[3]);
+const unsigned RECT_NVERTS__ = sizeof(EDGES__) / (3*sizeof(float));
 
 const unsigned TRG_IDS__ [] = { 0, 2, 1, 2, 0, 3 };
-const unsigned RECT_NTRIS__ = sizeof(TRG_IDS__) / sizeof(unsigned[3]);
+const unsigned RECT_NTRIS__ = sizeof(TRG_IDS__) / (3*sizeof(unsigned));
 
 static const struct desc RECT_DESC__ = { EDGES__, TRG_IDS__ };
 

@@ -55,7 +55,7 @@ static double EDGES__ [] = {
   X_MAX, Y_MIN
 };
 
-const unsigned POLY_NVERTS__ = sizeof(EDGES__) / sizeof(double[2]);
+const unsigned POLY_NVERTS__ = sizeof(EDGES__) / (2*sizeof(double));
 
 #undef EDGES__
 #undef POLY_NVERTS__
