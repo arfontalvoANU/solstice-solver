@@ -54,8 +54,8 @@ main(int argc, char** argv)
   struct ssp_rng* rng;
   struct ssp_rng* rng2;
   const struct ssp_rng* rng_state;
-  struct ssp_rng_type rng_type0;
-  struct ssp_rng_type rng_type1;
+  enum ssp_rng_type rng_type0;
+  enum ssp_rng_type rng_type1;
   struct ssol_scene* scene;
   struct ssol_shape* dummy;
   struct ssol_shape* square;
@@ -111,7 +111,7 @@ main(int argc, char** argv)
   CHK(ssol_device_create
     (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
-  CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng) == RES_OK);
+  CHK(ssp_rng_create(&allocator, SSP_RNG_THREEFRY, &rng) == RES_OK);
 
   desc.wavelengths = wavelengths;
   desc.intensities = intensities;
@@ -247,11 +247,11 @@ main(int argc, char** argv)
   CHK(ssol_estimator_get_rng_state(estimator, &rng_state) == RES_OK);
   CHK(ssp_rng_get_type(rng_state, &rng_type0) == RES_OK);
   CHK(ssp_rng_get_type(rng, &rng_type1) == RES_OK);
-  CHK(ssp_rng_type_eq(&rng_type0, &rng_type1));
+  CHK(rng_type0 == rng_type1);
 
   /* Clone the rng_state */
   CHK(stream = tmpfile());
-  CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng2) == RES_OK);
+  CHK(ssp_rng_create(&allocator, SSP_RNG_THREEFRY, &rng2) == RES_OK);
   CHK(ssp_rng_write(rng_state, stream) == RES_OK);
   rewind(stream);
   CHK(ssp_rng_read(rng2, stream) == RES_OK);

@@ -368,7 +368,7 @@ res_T
 estimator_save_rng_state
   (struct ssol_estimator* estimator, const struct ssp_rng_proxy* proxy)
 {
-  struct ssp_rng_type rng_type;
+  enum ssp_rng_type rng_type;
   FILE* stream = NULL;
   res_T res = RES_OK;
   ASSERT(estimator && proxy);
@@ -388,7 +388,7 @@ estimator_save_rng_state
   }
 
   SSP(rng_proxy_get_type(proxy, &rng_type));
-  res = ssp_rng_create(estimator->dev->allocator, &rng_type, &estimator->rng);
+  res = ssp_rng_create(estimator->dev->allocator, rng_type, &estimator->rng);
   if(res != RES_OK) {
     log_error(estimator->dev,
       "Could not create the RNG to save the proxy RNG state.\n");

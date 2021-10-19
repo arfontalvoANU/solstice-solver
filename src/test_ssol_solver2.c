@@ -104,7 +104,7 @@ main(int argc, char** argv)
   CHK(ssol_device_create
     (NULL, &allocator, SSOL_NTHREADS_DEFAULT, 0, &dev) == RES_OK);
 
-  CHK(ssp_rng_create(&allocator, &ssp_rng_threefry, &rng) == RES_OK);
+  CHK(ssp_rng_create(&allocator, SSP_RNG_THREEFRY, &rng) == RES_OK);
   CHK(ssol_spectrum_create(dev, &spectrum) == RES_OK);
   CHK(ssol_spectrum_setup(spectrum, get_wlen, 3, NULL) == RES_OK);
   CHK(ssol_sun_create_directional(dev, &sun) == RES_OK);

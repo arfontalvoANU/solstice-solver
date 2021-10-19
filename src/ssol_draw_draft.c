@@ -163,7 +163,7 @@ ssol_draw_draft
   res = darray_float_reserve(&samples, spp * 2/*#dimensions*/);
   if(res != RES_OK) goto error;
 
-  res = ssp_rng_create(scn->dev->allocator, &ssp_rng_threefry, &rng);
+  res = ssp_rng_create(scn->dev->allocator, SSP_RNG_THREEFRY, &rng);
   if(res != RES_OK) goto error;
 
   /* Generate the pixel samples */
