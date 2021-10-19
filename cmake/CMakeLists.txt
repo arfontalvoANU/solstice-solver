@@ -13,13 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 project(solstice-solver C)
 enable_testing()
-
-if(POLICY CMP0054) # For cmake version < 3.1: disable FindOpenMP warning
-  cmake_policy(SET CMP0054 NEW)
-endif()
 
 set(SSOL_SOURCE_DIR ${PROJECT_SOURCE_DIR}/../src)
 option(NO_TEST "Do not build tests" OFF)
