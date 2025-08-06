@@ -113,6 +113,7 @@ enum ssol_address_mode {
 enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
+  SSOL_QUADRIC_PARABOL2F,
   SSOL_QUADRIC_HYPERBOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
   SSOL_QUADRIC_HEMISPHERE,
@@ -184,6 +185,15 @@ struct ssol_quadric_parabol {
 static const struct ssol_quadric_parabol SSOL_QUADRIC_PARABOL_NULL =
   SSOL_QUADRIC_PARABOL_NULL__;
 
+struct ssol_quadric_parabol2f {
+   /* Define x^2/(4 focal_x) + y^2/(4 focal_y) - z = 0 */
+  double focal_x;
+  double focal_y;
+};
+#define SSOL_QUADRIC_PARABOL2F_NULL__ { -1.0, -1.0 }
+static const struct ssol_quadric_parabol2f SSOL_QUADRIC_PARABOL2F_NULL =
+  SSOL_QUADRIC_PARABOL2F_NULL__;
+
 struct ssol_quadric_hyperbol {
   /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0; z > 0
    * with a^2 = f - f^2; b = f -1/2; f = real_focal/(img_focal + real_focal) */
@@ -213,6 +223,7 @@ struct ssol_quadric {
   union {
     struct ssol_quadric_plane plane;
     struct ssol_quadric_parabol parabol;
+    struct ssol_quadric_parabol2f parabol2f;
     struct ssol_quadric_hyperbol hyperbol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
     struct ssol_quadric_hemisphere hemisphere;

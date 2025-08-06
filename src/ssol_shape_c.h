@@ -32,6 +32,13 @@ struct priv_parabol_data {
   double one_over_4focal;
 };
 
+struct priv_parabol2f_data {
+  double focal_x; /* Focal length along x-axis */
+  double focal_y; /* Focal length along y-axis */
+  double one_over_4fx;
+  double one_over_4fy;
+};
+
 struct priv_hyperbol_data {
   double g_square;
   double a_square_over_b_square;
@@ -52,6 +59,7 @@ struct priv_hemisphere_data {
 union private_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
+  struct priv_parabol2f_data parabol2f;
   struct priv_pcylinder_data pcylinder;
   struct priv_hemisphere_data hemisphere;
 };
