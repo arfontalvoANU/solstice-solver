@@ -39,6 +39,10 @@ struct priv_parabol2f_data {
   double one_over_4fy;
 };
 
+struct priv_poly9_data {
+  double a[9];
+};
+
 struct priv_hyperbol_data {
   double g_square;
   double a_square_over_b_square;
@@ -60,6 +64,7 @@ union private_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
   struct priv_parabol2f_data parabol2f;
+  struct priv_poly9_data poly9;
   struct priv_pcylinder_data pcylinder;
   struct priv_hemisphere_data hemisphere;
 };

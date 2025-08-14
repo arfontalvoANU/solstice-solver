@@ -114,6 +114,7 @@ enum ssol_quadric_type {
   SSOL_QUADRIC_PLANE,
   SSOL_QUADRIC_PARABOL,
   SSOL_QUADRIC_PARABOL2F,
+  SSOL_QUADRIC_POLY9,
   SSOL_QUADRIC_HYPERBOL,
   SSOL_QUADRIC_PARABOLIC_CYLINDER,
   SSOL_QUADRIC_HEMISPHERE,
@@ -194,6 +195,17 @@ struct ssol_quadric_parabol2f {
 static const struct ssol_quadric_parabol2f SSOL_QUADRIC_PARABOL2F_NULL =
   SSOL_QUADRIC_PARABOL2F_NULL__;
 
+struct ssol_quadric_poly9 {
+  double a1, a2, a3, a4, a5, a6, a7, a8, a9;
+};
+#define SSOL_QUADRIC_POLY9_NULL__ { \
+  -1.0, -1.0, -1.0, \
+  -1.0, -1.0, -1.0, \
+  -1.0, -1.0, -1.0 \
+}
+static const struct ssol_quadric_poly9 SSOL_QUADRIC_POLY9_NULL =
+  SSOL_QUADRIC_POLY9_NULL__;
+
 struct ssol_quadric_hyperbol {
   /* Define (x^2 + y^2) / a^2 - (z - 1/2)^2 / b^2 + 1 = 0; z > 0
    * with a^2 = f - f^2; b = f -1/2; f = real_focal/(img_focal + real_focal) */
@@ -224,6 +236,7 @@ struct ssol_quadric {
     struct ssol_quadric_plane plane;
     struct ssol_quadric_parabol parabol;
     struct ssol_quadric_parabol2f parabol2f;
+    struct ssol_quadric_poly9 poly9;
     struct ssol_quadric_hyperbol hyperbol;
     struct ssol_quadric_parabolic_cylinder parabolic_cylinder;
     struct ssol_quadric_hemisphere hemisphere;
