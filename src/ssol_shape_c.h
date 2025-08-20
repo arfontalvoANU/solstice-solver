@@ -32,15 +32,13 @@ struct priv_parabol_data {
   double one_over_4focal;
 };
 
-struct priv_parabol2f_data {
-  double focal_x; /* Focal length along x-axis */
-  double focal_y; /* Focal length along y-axis */
-  double one_over_4fx;
-  double one_over_4fy;
-};
-
-struct priv_poly9_data {
-  double a[9];
+struct priv_quadricxy_data {
+  double ax2; /* Coefficient for x^2 term */
+  double ay2; /* Coefficient for y^2 term */
+  double axy; /* Coefficient for xy term */
+  double ax;  /* Coefficient for x term */
+  double ay;  /* Coefficient for y term */
+  double ac;  /* Constant term */
 };
 
 struct priv_hyperbol_data {
@@ -63,8 +61,7 @@ struct priv_hemisphere_data {
 union private_data {
   struct priv_hyperbol_data hyperbol;
   struct priv_parabol_data parabol;
-  struct priv_parabol2f_data parabol2f;
-  struct priv_poly9_data poly9;
+  struct priv_quadricxy_data quadricxy;
   struct priv_pcylinder_data pcylinder;
   struct priv_hemisphere_data hemisphere;
 };

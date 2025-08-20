@@ -75,21 +75,12 @@ check_parabol(const struct ssol_quadric_parabol* parabol)
 }
 
 static FINLINE int
-check_parabol2f(const struct ssol_quadric_parabol2f* parabol2f)
+check_quadricxy(const struct ssol_quadric_quadricxy* quad)
 {
-  return parabol2f && parabol2f->focal_x > 0 && parabol2f->focal_y > 0;
-}
-
-static FINLINE int
-check_poly9(const struct ssol_quadric_poly9* poly)
-{
-  return poly &&
-         (poly->a1 != 0 ||  /*x^2 y^2*/
-          poly->a2 != 0 ||  /*x^2 y*/
-          poly->a3 != 0 ||  /*x y^2*/
-          poly->a4 != 0 ||  /*x^2*/
-          poly->a5 != 0 ||  /*x y*/
-          poly->a6 != 0);   /*y^2*/
+  return quad && (
+    quad->ax2 != 0.0 || quad->ay2 != 0.0 || quad->axy != 0.0 ||
+    quad->ax  != 0.0 || quad->ay  != 0.0 || quad->ac  != 0.0
+  );
 }
 
 static FINLINE int
@@ -121,10 +112,8 @@ check_quadric(const struct ssol_quadric* quadric)
       return check_plane(&quadric->data.plane);
     case SSOL_QUADRIC_PARABOL:
       return check_parabol(&quadric->data.parabol);
-    case SSOL_QUADRIC_PARABOL2F:
-      return check_parabol2f(&quadric->data.parabol2f);
-    case SSOL_QUADRIC_POLY9:
-      return check_poly9(&quadric->data.poly9);
+    case SSOL_QUADRIC_QUADRICXY:
+      return check_quadricxy(&quadric->data.quadricxy);
     case SSOL_QUADRIC_HYPERBOL:
       return check_hyperbol(&quadric->data.hyperbol);
     case SSOL_QUADRIC_PARABOLIC_CYLINDER:
@@ -268,31 +257,21 @@ parabol_z
 }
 
 static FINLINE double
-parabol_z_two_foci
+quadricxy_z
   (const double p[2],
-   const struct priv_parabol2f_data* parabol)
+   const struct priv_quadricxy_data* quadricxy)
 {
+  const double x = p[0];
+  const double y = p[1];
   const double x2 = p[0] * p[0];
   const double y2 = p[1] * p[1];
 
-  return x2 * parabol->one_over_4fx + y2 * parabol->one_over_4fy;
-}
-
-static FINLINE double
-poly9_z
-  (const double p[2],
-   const struct priv_poly9_data* poly)
-{
-  const double x = p[0], y = p[1];
-  return poly->a[0]*x*x*y*y +
-         poly->a[1]*x*x*y +
-         poly->a[2]*x*y*y +
-         poly->a[3]*x*x +
-         poly->a[4]*x*y +
-         poly->a[5]*y*y +
-         poly->a[6]*x +
-         poly->a[7]*y +
-         poly->a[8];
+  return quadricxy->ax2*x2 +
+         quadricxy->ay2*y2 +
+         quadricxy->axy*x*y +
+         quadricxy->ax*x +
+         quadricxy->ay*y +
+         quadricxy->ac;
 }
 
 static FINLINE double
@@ -334,7 +313,7 @@ quadric_mesh_parabol_get_pos(const unsigned ivert, float pos[3], void* ctx)
 }
 
 static void
-quadric_mesh_parabol2f_get_pos(const unsigned ivert, float pos[3], void* ctx)
+quadric_mesh_quadricxy_get_pos(const unsigned ivert, float pos[3], void* ctx)
 {
   const size_t i = ivert*2;
   const struct quadric_mesh_context* msh = ctx;
@@ -344,24 +323,10 @@ quadric_mesh_parabol2f_get_pos(const unsigned ivert, float pos[3], void* ctx)
 
   p[0] = msh->coords[i + 0];
   p[1] = msh->coords[i + 1];
-  p[2] = parabol_z_two_foci(p, &msh->data->parabol2f);
+  p[2] = quadricxy_z(p, &msh->data->quadricxy);
 
   d33_muld3(p, msh->transform, p);
   d3_add(p, p, msh->transform + 9);
-  f3_set_d3(pos, p);
-}
-
-static void
-quadric_mesh_poly9_get_pos(const unsigned ivert, float pos[3], void* ctx)
-{
-  const size_t i = ivert * 2;
-  const struct quadric_mesh_context* msh = ctx;
-  double p[3];
-  p[0] = msh->coords[i+0];
-  p[1] = msh->coords[i+1];
-  p[2] = poly9_z(p, &msh->data->poly9);
-  d33_muld3(p, msh->transform, p);
-  d3_add(p, p, msh->transform+9);
   f3_set_d3(pos, p);
 }
 
@@ -780,11 +745,8 @@ quadric_setup_s3d_shape_rt
     case SSOL_QUADRIC_PARABOL:
       vdata[0].get = quadric_mesh_parabol_get_pos;
       break;
-    case SSOL_QUADRIC_PARABOL2F:
-      vdata[0].get = quadric_mesh_parabol2f_get_pos;
-      break;
-    case SSOL_QUADRIC_POLY9:
-      vdata[0].get = quadric_mesh_poly9_get_pos;
+    case SSOL_QUADRIC_QUADRICXY:
+      vdata[0].get = quadric_mesh_quadricxy_get_pos;
       break;
     case SSOL_QUADRIC_HYPERBOL:
       vdata[0].get = quadric_mesh_hyperbol_get_pos;
@@ -965,41 +927,16 @@ quadric_parabol_gradient_local
 }
 
 static FINLINE void
-quadric_parabol2f_gradient_local
-  (const struct priv_parabol2f_data* quad,
+quadric_quadricxy_gradient_local
+  (const struct priv_quadricxy_data* quad,
    const double pt[3],
    double grad[3])
 {
+  /* Based on ax2*x^2 + ay2*y^2 + axy*xy + ax*x + ay*y + ac - z = 0 */
   ASSERT(quad && pt && grad);
-  grad[0] = -pt[0] * (4.0 * quad->one_over_4fx);
-  grad[1] = -pt[1] * (4.0 * quad->one_over_4fy);
-  grad[2] = 2.0;
-}
-
-static FINLINE void
-quadric_poly9_gradient_local
-  (const struct priv_poly9_data* quad,
-   const double pt[3],
-   double grad[3])
-{
-  const double x = pt[0], y = pt[1];
-  grad[0] = -(
-    2*quad->a[0]*x*y*y +
-    2*quad->a[1]*x*y +
-    quad->a[2]*y*y +
-    2*quad->a[3]*x +
-    quad->a[4]*y +
-    quad->a[6]
-  );
-  grad[1] = -(
-    2*quad->a[0]*x*x*y +
-    quad->a[1]*x*x +
-    2*quad->a[2]*x*y +
-    quad->a[4]*x +
-    2*quad->a[5]*y +
-    quad->a[7]
-  );
-  grad[2] = 1.0;
+  grad[0] = 2.0 * quad->ax2 * pt[0] + quad->axy * pt[1] + quad->ax;
+  grad[1] = 2.0 * quad->ay2 * pt[1] + quad->axy * pt[0] + quad->ay;
+  grad[2] = -1.0;
 }
 
 static FINLINE void
@@ -1090,8 +1027,8 @@ quadric_parabol_intersect_local
 }
 
 static FINLINE int
-quadric_parabol2f_intersect_local
-  (const struct priv_parabol2f_data* quad,
+quadric_quadricxy_intersect_local
+  (const struct priv_quadricxy_data* quad,
    const double org[3],
    const double dir[3],
    const double hint,
@@ -1099,64 +1036,51 @@ quadric_parabol2f_intersect_local
    double grad[3],
    double* dist) /* in/out: */
 {
-  /* Define: (x^2)/(4fx) + (y^2)/(4fy) - z = 0 */
   double dst[2];
 
   const double ox = org[0], oy = org[1], oz = org[2];
   const double dx = dir[0], dy = dir[1], dz = dir[2];
 
-  const double a = dx * dx * quad->one_over_4fx
-                 + dy * dy * quad->one_over_4fy;
+  const double ax2 = quad->ax2;
+  const double ay2 = quad->ay2;
+  const double axy = quad->axy;
+  const double ax  = quad->ax;
+  const double ay  = quad->ay;
+  const double ac  = quad->ac;
 
-  const double b = 2.0 * ox * dx * quad->one_over_4fx
-                 + 2.0 * oy * dy * quad->one_over_4fy
-                 - dz;
+  /* Quadratic coefficients a*t^2 + b*t + c = 0 */
+  const double a =
+      ax2 * dx * dx
+    + ay2 * dy * dy
+    + axy * dx * dy;
 
-  const double c = ox * ox * quad->one_over_4fx
-                 + oy * oy * quad->one_over_4fy
-                 - oz;
+  const double b =
+      2.0 * ax2 * ox * dx
+    + 2.0 * ay2 * oy * dy
+    + axy * (ox * dy + oy * dx)
+    + ax * dx
+    + ay * dy
+    - dz;
+
+  const double c =
+      ax2 * ox * ox
+    + ay2 * oy * oy
+    + axy * ox * oy
+    + ax * ox
+    + ay * oy
+    + ac
+    - oz;
 
   const int n = solve_second(a, b, c, hint, dst);
   if(!n) return 0;
 
-  /* Compute intersection point*/
+  /* Compute intersection point */
   d3_add(hit_pt, org, d3_muld(hit_pt, dir, *dst));
 
-  /* Surface gradient (normal)*/
-  quadric_parabol2f_gradient_local(quad, hit_pt, grad);
+  /* Surface gradient (normal) */
+  quadric_quadricxy_gradient_local(quad, hit_pt, grad);
 
   *dist = *dst;
-  return 1;
-}
-
-static FINLINE int
-quadric_poly9_intersect_local
-  (const struct priv_poly9_data* quad,
-   const double org[3],
-   const double dir[3],
-   const double hint,
-   double hit_pt[3],
-   double grad[3],
-   double* dist) /* in/out: */
-{
-  /* TODO: Implement the intersection logic */
-  /* This function is currently a placeholder until a full Newton-Raphson or symbolic solver is implemented */
-  /* The current function essentially intersects the ray with a plane at z = 0 */
-  /* It lets test shapes with clipping, transformation and materials*/
-  double t;
-  if(fabs(dir[2]) < 1e-8) return 0;
-
-  t = -org[2] / dir[2];
-  if(t < 0.0) return 0;
-
-  *dist = t;
-  d3_add(hit_pt, org, d3_muld(hit_pt, dir, t));
-
-  /* Compute proper gradient (optional) */
-  grad[0] = 0.0;
-  grad[1] = 0.0;
-  grad[2] = 1.0;
-
   return 1;
 }
 
@@ -1254,11 +1178,8 @@ punched_shape_set_z_local(const struct ssol_shape* shape, double pt[3])
     case SSOL_QUADRIC_PARABOL:
       pt[2] = parabol_z(pt, &shape->private_data.parabol);
       break;
-    case SSOL_QUADRIC_PARABOL2F:
-      pt[2] = parabol_z_two_foci(pt, &shape->private_data.parabol2f);
-      break;
-    case SSOL_QUADRIC_POLY9:
-      pt[2] = poly9_z(pt, &shape->private_data.poly9);
+    case SSOL_QUADRIC_QUADRICXY:
+      pt[2] = quadricxy_z(pt, &shape->private_data.quadricxy);
       break;
     case SSOL_QUADRIC_HYPERBOL:
       pt[2] = hyperbol_z(pt, &shape->private_data.hyperbol);
@@ -1290,13 +1211,9 @@ punched_shape_set_normal_local
       quadric_parabol_gradient_local
         (&shape->private_data.parabol, pt, normal);
       break;
-    case SSOL_QUADRIC_PARABOL2F:
-      quadric_parabol2f_gradient_local
-        (&shape->private_data.parabol2f, pt, normal);
-      break;
-    case SSOL_QUADRIC_POLY9:
-      quadric_poly9_gradient_local
-        (&shape->private_data.poly9, pt, normal);
+    case SSOL_QUADRIC_QUADRICXY:
+      quadric_quadricxy_gradient_local
+        (&shape->private_data.quadricxy, pt, normal);
       break;
     case SSOL_QUADRIC_HYPERBOL:
       quadric_hyperbol_gradient_local
@@ -1338,13 +1255,9 @@ punched_shape_intersect_local
       hit = quadric_parabol_intersect_local
         (&shape->private_data.parabol, org, dir, hint, pt, N, dist);
       break;
-    case SSOL_QUADRIC_PARABOL2F:
-      hit = quadric_parabol2f_intersect_local
-        (&shape->private_data.parabol2f, org, dir, hint, pt, N, dist);
-      break;
-    case SSOL_QUADRIC_POLY9:
-      hit = quadric_poly9_intersect_local
-        (&shape->private_data.poly9, org, dir, hint, pt, N, dist);
+    case SSOL_QUADRIC_QUADRICXY:
+      hit = quadric_quadricxy_intersect_local
+        (&shape->private_data.quadricxy, org, dir, hint, pt, N, dist);
       break;
     case SSOL_QUADRIC_HYPERBOL:
       hit = quadric_hyperbol_intersect_local
@@ -1385,30 +1298,17 @@ priv_parabol_data_setup
 }
 
 static FINLINE void
-priv_parabol2f_data_setup
-  (struct priv_parabol2f_data* data,
-   const struct ssol_quadric_parabol2f* parabol2f)
+priv_quadricxy_data_setup
+  (struct priv_quadricxy_data* data,
+   const struct ssol_quadric_quadricxy* quadricxy)
 {
-  ASSERT(data && parabol2f);
-  data->one_over_4fx = 1 / (4.0 * parabol2f->focal_x);
-  data->one_over_4fy = 1 / (4.0 * parabol2f->focal_y);
-}
-
-static FINLINE void
-priv_poly9_data_setup
-  (struct priv_poly9_data* data,
-   const struct ssol_quadric_poly9* poly9)
-{
-  ASSERT(data && poly9);
-  data->a[0] = poly9->a1;
-  data->a[1] = poly9->a2;
-  data->a[2] = poly9->a3;
-  data->a[3] = poly9->a4;
-  data->a[4] = poly9->a5;
-  data->a[5] = poly9->a6;
-  data->a[6] = poly9->a7;
-  data->a[7] = poly9->a8;
-  data->a[8] = poly9->a9;
+  ASSERT(data && quadricxy);
+  data->ax2 = quadricxy->ax2;
+  data->ay2 = quadricxy->ay2;
+  data->axy = quadricxy->axy;
+  data->ax = quadricxy->ax;
+  data->ay = quadricxy->ay;
+  data->ac = quadricxy->ac;
 }
 
 static FINLINE void
@@ -1462,13 +1362,9 @@ priv_quadric_data_setup
       priv_parabol_data_setup
         (&priv_data->parabol, &quadric->data.parabol);
       break;
-    case SSOL_QUADRIC_PARABOL2F:
-      priv_parabol2f_data_setup
-        (&priv_data->parabol2f, &quadric->data.parabol2f);
-      break;
-    case SSOL_QUADRIC_POLY9:
-      priv_poly9_data_setup
-        (&priv_data->poly9, &quadric->data.poly9);
+    case SSOL_QUADRIC_QUADRICXY:
+      priv_quadricxy_data_setup
+        (&priv_data->quadricxy, &quadric->data.quadricxy);
       break;
     case SSOL_QUADRIC_HYPERBOL:
       priv_hyperbol_data_setup
@@ -1505,16 +1401,10 @@ priv_quadric_data_compute_slices_count
          parabol_z(upper, &priv_data->parabol));
       nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
       break;
-    case SSOL_QUADRIC_PARABOL2F:
+    case SSOL_QUADRIC_QUADRICXY:
       max_z = MMAX
-        (parabol_z_two_foci(lower, &priv_data->parabol2f),
-         parabol_z_two_foci(upper, &priv_data->parabol2f));
-      nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
-      break;
-    case SSOL_QUADRIC_POLY9:
-      max_z = MMAX
-        (poly9_z(lower, &priv_data->poly9),
-         poly9_z(upper, &priv_data->poly9));
+        (quadricxy_z(lower, &priv_data->quadricxy),
+         quadricxy_z(upper, &priv_data->quadricxy));
       nslices = MMIN(50, (size_t)(3 + sqrt(max_z) * 6));
       break;
     case SSOL_QUADRIC_HYPERBOL:
