@@ -932,11 +932,11 @@ quadric_quadricxy_gradient_local
    const double pt[3],
    double grad[3])
 {
-  /* Based on ax2*x^2 + ay2*y^2 + axy*xy + ax*x + ay*y + ac - z = 0 */
+  /* Based on z - (ax2*x^2 + ay2*y^2 + axy*xy + ax*x + ay*y + ac) = 0 */
   ASSERT(quad && pt && grad);
-  grad[0] = 2.0 * quad->ax2 * pt[0] + quad->axy * pt[1] + quad->ax;
-  grad[1] = 2.0 * quad->ay2 * pt[1] + quad->axy * pt[0] + quad->ay;
-  grad[2] = -1.0;
+  grad[0] = - 2.0 * quad->ax2 * pt[0] - quad->axy * pt[1] - quad->ax;
+  grad[1] = - 2.0 * quad->ay2 * pt[1] - quad->axy * pt[0] - quad->ay;
+  grad[2] = 1.0;
 }
 
 static FINLINE void
